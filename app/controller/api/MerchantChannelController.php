@@ -96,7 +96,7 @@ class MerchantChannelController
     /**
      * 商户获取自己绑定的所有收款账号列表
      */
-    public function list(object $request): Response
+    public function list(object $request)
     {
         $fileList = $this->getStorageData();
 
@@ -126,7 +126,7 @@ class MerchantChannelController
     /**
      * 商户自助添加 / 编辑保存收款账号/通道 (含二维码 URL 落库)
      */
-    public function save(object $request): Response
+    public function save(object $request)
     {
         $params      = $request->post();
         $pid         = $params['pid'] ?? '1000';
@@ -219,7 +219,7 @@ class MerchantChannelController
     /**
      * 切换通道状态开关 (开启/禁用)
      */
-    public function toggle(object $request): Response
+    public function toggle(object $request)
     {
         $params = $request->post();
         $id     = $params['id'] ?? 0;
@@ -244,7 +244,7 @@ class MerchantChannelController
     /**
      * 删除指定的收款通道
      */
-    public function delete(object $request): Response
+    public function delete(object $request)
     {
         $params = $request->post();
         $id     = $params['id'] ?? 0;
@@ -265,7 +265,7 @@ class MerchantChannelController
     /**
      * 获取当前系统可用的支付套餐插件驱动清单
      */
-    public function drivers(object $request): Response
+    public function drivers(object $request)
     {
         return json([
             'code' => 1,
