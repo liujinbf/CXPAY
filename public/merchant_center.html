@@ -713,7 +713,7 @@
         }
 
         // 提交 AJAX 新增/修改保存通道落库
-        async function submitSaveChannel() {
+        async function submitSaveChannel(isSilent = false) {
             const id = document.getElementById('channel-id-input').value;
             const payCategory = document.getElementById('channel-c-type').value;
             const cType = document.getElementById('channel-driver-list').value;
@@ -754,14 +754,14 @@
                 const json = await res.json();
 
                 if (json.code === 1) {
-                    alert(json.msg || '保存成功！');
+                    if (!isSilent) alert(json.msg || '保存成功！');
                     closeAddChannelModal();
                     loadMerchantChannels();
                 } else {
-                    alert(json.msg || '保存失败');
+                    if (!isSilent) alert(json.msg || '保存失败');
                 }
             } catch (err) {
-                alert('保存成功！');
+                if (!isSilent) alert('保存成功！');
                 closeAddChannelModal();
                 loadMerchantChannels();
             }
@@ -890,12 +890,16 @@
 
             if (isWxProtocol) {
                 if (wxAuthBox) wxAuthBox.classList.remove('hidden');
+                if (staticQrBox) staticQrBox.classList.remove('hidden');
                 startWxProtocolAuth();
             } else if (isAliOAuth) {
                 if (aliAuthBox) aliAuthBox.classList.remove('hidden');
+                if (aliPidBox) aliPidBox.classList.remove('hidden');
+                if (staticQrBox) staticQrBox.classList.remove('hidden');
                 startAliProtocolAuth();
             } else if (isQqProtocol) {
                 if (qqAuthBox) qqAuthBox.classList.remove('hidden');
+                if (staticQrBox) staticQrBox.classList.remove('hidden');
                 startQqProtocolAuth();
             } else if (isAliOfficial) {
                 if (aliOfficialBox) aliOfficialBox.classList.remove('hidden');
@@ -940,7 +944,7 @@
                                 document.getElementById('channel-remark-input').value = 'QQ钱包ptlogin授权 #' + uin;
 
                                 setTimeout(() => {
-                                    submitSaveChannel();
+                                    submitSaveChannel(true);
                                 }, 800);
                             }
                         } catch (e) {}
@@ -990,7 +994,7 @@
                         document.getElementById('channel-remark-input').value = '支付宝应用代开发授权 #' + pid;
 
                         setTimeout(() => {
-                            submitSaveChannel();
+                            submitSaveChannel(true);
                         }, 800);
                     }
                 } catch (e) {}
