@@ -111,10 +111,22 @@ class MerchantChannelController
         $qrUrl       = trim((string)($params['qr_url'] ?? ''));
         $remark      = trim((string)($params['remark'] ?? ''));
         $status      = (int)($params['status'] ?? 1);
+        $appId       = trim((string)($params['app_id'] ?? ''));
+        $privateKey  = trim((string)($params['merchant_private_key'] ?? ''));
+        $publicKey   = trim((string)($params['alipay_public_key'] ?? ''));
+        $alipayPid   = trim((string)($params['alipay_pid'] ?? ''));
 
         if (empty($title)) {
             $title = $cType;
         }
+
+        $configData = [
+            'qr_url'               => $qrUrl,
+            'app_id'               => $appId,
+            'merchant_private_key' => $privateKey,
+            'alipay_public_key'    => $publicKey,
+            'alipay_pid'           => $alipayPid,
+        ];
 
         // 优先保存数据库
         try {
@@ -127,7 +139,7 @@ class MerchantChannelController
                 'title'         => $title,
                 'c_type'        => $cType,
                 'remark'        => $remark,
-                'config'        => json_encode(['qr_url' => $qrUrl], JSON_UNESCAPED_UNICODE),
+                'config'        => json_encode($configData, JSON_UNESCAPED_UNICODE),
                 'status'        => $status,
                 'online_status' => 1,
             ];
@@ -159,6 +171,7 @@ class MerchantChannelController
                         $item['qr_url']       = $qrUrl;
                         $item['remark']       = $remark;
                         $item['status']       = $status;
+                        $item['config']       = $configData;
                         break;
                     }
                 }
@@ -174,6 +187,7 @@ class MerchantChannelController
                     'c_type'        => $cType,
                     'qr_url'        => $qrUrl,
                     'remark'        => $remark,
+                    'config'        => $configData,
                     'today_money'   => 0.00,
                     'today_count'   => 0,
                     'total_money'   => 0.00,

@@ -428,6 +428,35 @@
                     </div>
                 </div>
 
+                <!-- 🔷 支付宝官方原生 / 当面付 API 配置面板 -->
+                <div id="alipay-official-config-box" class="p-3.5 bg-blue-50 border border-blue-200 rounded-xl space-y-3 hidden">
+                    <div class="font-bold text-blue-900 text-xs flex items-center gap-1.5 border-b border-blue-100 pb-2">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-blue-600"></i>
+                        支付宝官方当面付 API 参数配置
+                    </div>
+                    <div class="space-y-2">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1"><span class="text-rose-500">*</span> 开放平台 AppID</label>
+                            <input id="alipay-appid-input" type="text" placeholder="例如: 2021000123456789" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1"><span class="text-rose-500">*</span> 应用 RSA2 私钥 (Merchant Private Key)</label>
+                            <textarea id="alipay-private-key-input" rows="2" placeholder="填入以 MIIE 开头的 RSA2 商户私钥" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-[11px] bg-white resize-none"></textarea>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1"><span class="text-rose-500">*</span> 支付宝公钥 (Alipay Public Key)</label>
+                            <textarea id="alipay-public-key-input" rows="2" placeholder="填入以 MIIBI 开头的支付宝公钥" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-[11px] bg-white resize-none"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🔷 支付宝 PID 免挂账号配置面板 -->
+                <div id="alipay-pid-config-box" class="p-3.5 bg-sky-50 border border-sky-200 rounded-xl space-y-2 hidden">
+                    <label class="block font-bold text-sky-900 mb-1">支付宝 16 位 PID 账号 (全自动到账匹配)</label>
+                    <input id="alipay-pid-input" type="text" placeholder="例如: 2088123456789012" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white">
+                    <div class="text-[11px] text-sky-700/80">提示: 可在支付宝“商家中心-账号管理”获取 2088 开头的 16 位账号 PID。</div>
+                </div>
+
                 <!-- 📷 上传个人收款码与解码 URL -->
                 <div id="static-qr-upload-box" class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <div class="flex items-center justify-between">
@@ -597,6 +626,10 @@
             document.getElementById('channel-title-input').value = '';
             document.getElementById('channel-qr-url-input').value = '';
             document.getElementById('channel-remark-input').value = '';
+            document.getElementById('alipay-appid-input').value = '';
+            document.getElementById('alipay-private-key-input').value = '';
+            document.getElementById('alipay-public-key-input').value = '';
+            document.getElementById('alipay-pid-input').value = '';
             document.getElementById('qr-upload-status').innerText = '支持上传微信/支付宝/QQ收款码图片自动识别 URL 填入';
             document.getElementById('qr-upload-status').className = 'text-[11px] text-slate-400';
             document.getElementById('add-channel-modal').classList.remove('hidden');
@@ -608,9 +641,17 @@
             document.getElementById('channel-c-type').value = item.pay_category || 'wxpay';
             onCategoryChange();
             document.getElementById('channel-driver-list').value = item.c_type;
+            onDriverChange();
             document.getElementById('channel-title-input').value = item.title;
             document.getElementById('channel-qr-url-input').value = item.qr_url || (item.config && typeof item.config === 'object' ? item.config.qr_url : '');
             document.getElementById('channel-remark-input').value = item.remark || '';
+
+            const cfg = (item.config && typeof item.config === 'object') ? item.config : {};
+            document.getElementById('alipay-appid-input').value = cfg.app_id || item.app_id || '';
+            document.getElementById('alipay-private-key-input').value = cfg.merchant_private_key || '';
+            document.getElementById('alipay-public-key-input').value = cfg.alipay_public_key || '';
+            document.getElementById('alipay-pid-input').value = cfg.alipay_pid || '';
+
             document.getElementById('channel-status-input').checked = item.status == 1;
             document.getElementById('add-channel-modal').classList.remove('hidden');
         }
@@ -629,6 +670,11 @@
             const remark = document.getElementById('channel-remark-input').value;
             const status = document.getElementById('channel-status-input').checked ? 1 : 0;
 
+            const appId = document.getElementById('alipay-appid-input').value;
+            const privateKey = document.getElementById('alipay-private-key-input').value;
+            const publicKey = document.getElementById('alipay-public-key-input').value;
+            const aliPid = document.getElementById('alipay-pid-input').value;
+
             const driverSelect = document.getElementById('channel-driver-list');
             const driverText = driverSelect.options[driverSelect.selectedIndex] ? driverSelect.options[driverSelect.selectedIndex].text : cType;
             const title = titleInput ? titleInput : driverText;
@@ -642,6 +688,10 @@
             body.append('qr_url', qrUrl);
             body.append('remark', remark);
             body.append('status', status);
+            body.append('app_id', appId);
+            body.append('merchant_private_key', privateKey);
+            body.append('alipay_public_key', publicKey);
+            body.append('alipay_pid', aliPid);
 
             try {
                 const res = await fetch('/api/merchant/channel/save', {
@@ -750,16 +800,28 @@
         function onDriverChange() {
             const cType = document.getElementById('channel-driver-list').value || '';
             const isProtocol = cType.includes('protocol') || cType.includes('cloud') || cType.includes('ipad');
+            const isAliOfficial = cType === 'alipay_official';
+            const isAliScan = cType === 'alipay_scan';
 
             const wxAuthBox = document.getElementById('wx-protocol-auth-box');
+            const aliOfficialBox = document.getElementById('alipay-official-config-box');
+            const aliPidBox = document.getElementById('alipay-pid-config-box');
             const staticQrBox = document.getElementById('static-qr-upload-box');
+
+            if (wxAuthBox) wxAuthBox.classList.add('hidden');
+            if (aliOfficialBox) aliOfficialBox.classList.add('hidden');
+            if (aliPidBox) aliPidBox.classList.add('hidden');
+            if (staticQrBox) staticQrBox.classList.add('hidden');
 
             if (isProtocol && cType.includes('wx')) {
                 if (wxAuthBox) wxAuthBox.classList.remove('hidden');
-                if (staticQrBox) staticQrBox.classList.add('hidden');
                 startWxProtocolAuth();
+            } else if (isAliOfficial) {
+                if (aliOfficialBox) aliOfficialBox.classList.remove('hidden');
+            } else if (isAliScan) {
+                if (aliPidBox) aliPidBox.classList.remove('hidden');
+                if (staticQrBox) staticQrBox.classList.remove('hidden');
             } else {
-                if (wxAuthBox) wxAuthBox.classList.add('hidden');
                 if (staticQrBox) staticQrBox.classList.remove('hidden');
             }
         }
