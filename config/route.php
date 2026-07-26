@@ -56,6 +56,12 @@ Route::any('/api/wxprotocol/poll_qr', [app\controller\api\WeChatProtocolAdminCon
 Route::get('/api/wxprotocol/auth_page', [app\controller\api\WeChatProtocolAdminController::class, 'authPage']);
 Route::any('/api/wxprotocol/confirm_auth', [app\controller\api\WeChatProtocolAdminController::class, 'confirmAuth']);
 
+// 支付宝 AppAuth 扫码授权免挂 API
+Route::get('/api/alipay/login_qr', [app\controller\api\AlipayProtocolAdminController::class, 'getLoginQr']);
+Route::any('/api/alipay/poll_qr', [app\controller\api\AlipayProtocolAdminController::class, 'pollQr']);
+Route::get('/api/alipay/auth_page', [app\controller\api\AlipayProtocolAdminController::class, 'authPage']);
+Route::any('/api/alipay/confirm_auth', [app\controller\api\AlipayProtocolAdminController::class, 'confirmAuth']);
+
 // 个人收款码上传自动解码 API
 Route::post('/api/qr/upload', [app\controller\api\QrUploadController::class, 'upload']);
 
