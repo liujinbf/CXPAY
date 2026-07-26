@@ -343,15 +343,14 @@ class MerchantChannelController
                      && !str_contains($rawQr, 'wxp://f2f0') 
                      && !str_contains($rawQr, 'i.qianbao.qq.com');
 
-        $displayQr = $rawQr;
-        if ($hasRealQr) {
-            if (str_starts_with($displayQr, '/')) {
-                $displayQr = "{$baseUrl}" . $displayQr;
-            }
-        } else {
-            // 使用标准的 HTTPS 安全收银台 URL，规避支付宝扫码风控“当前码值存在风险”拦截
-            $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
+        $realQrScheme = $rawQr;
+        if (!$hasRealQr && $payCategory === 'alipay' && !empty($alipayPid)) {
+            $realQrScheme = "alipays://platformapi/startapp?appId=09999988&actionType=toAccount&recUserId={$alipayPid}&amount={$floatMoney}&memo=" . urlencode("CX{$tradeNo}");
+            $hasRealQr = true;
         }
+
+        // 二维码画面统一使用标准的 HTTPS 短链访问路由，规避支付宝扫码对裸 alipays:// 的“当前码值存在风险”拦截
+        $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
 
         try {
             if (class_exists('Illuminate\Database\Capsule\Manager') && class_exists('app\model\Order')) {
@@ -384,6 +383,7 @@ class MerchantChannelController
                 'pay_type'     => $payCategory,
                 'has_real_qr'  => $hasRealQr,
                 'qr_url'       => $displayQr,
+                'real_qr_scheme'=> $realQrScheme,
                 'pay_url'      => "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}",
                 'channel_title'=> $targetChannel['title'] ?? '测试通道',
             ]

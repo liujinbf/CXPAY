@@ -56,6 +56,12 @@ class OrderController
                            
                     if (!empty($qr) && !$isFake) {
                         $payUrl = $qr;
+                    } elseif ($order->pay_type === 'alipay') {
+                        $alipayPid = $channel->alipay_pid ?? ($cfg['alipay_pid'] ?? ($channel->pid ?? ($cfg['pid'] ?? '')));
+                        if (!empty($alipayPid)) {
+                            $price = number_format((float)($order->price ?: $order->amount), 2, '.', '');
+                            $qr = "alipays://platformapi/startapp?appId=09999988&actionType=toAccount&recUserId={$alipayPid}&amount={$price}&memo=" . urlencode("CX" . $order->trade_no);
+                        }
                     }
                 }
             }

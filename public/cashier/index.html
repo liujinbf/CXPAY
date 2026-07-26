@@ -167,6 +167,13 @@
                         window.lastPayUrl = finalQrUrl;
                         window.realQrUrl  = data.qr_url || '';
 
+                        // 若用户在手机支付宝 APP 内访问，且返回了原生付钱 Scheme，秒级自动跳转转账界面
+                        const isAli = navigator.userAgent.toLowerCase().includes('alipayclient');
+                        if (isAli && window.realQrUrl && window.realQrUrl.startsWith('alipays://')) {
+                            window.location.replace(window.realQrUrl);
+                            return;
+                        }
+
                         // 若后台返回了真实的商户个人/通用收款码，优先渲染真实收款码
                         if (window.realQrUrl && (window.realQrUrl.startsWith('http') || window.realQrUrl.startsWith('alipays://') || window.realQrUrl.startsWith('wxp://'))) {
                             renderQr(window.realQrUrl);
