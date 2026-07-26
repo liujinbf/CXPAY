@@ -335,20 +335,27 @@ class MerchantChannelController
         $baseUrl = "{$proto}://{$host}";
 
         $rawQr = $targetChannel['qr_url'] ?? '';
+        $cfg   = is_array($targetChannel['config'] ?? null) ? $targetChannel['config'] : json_decode($targetChannel['config'] ?? '{}', true);
+        $alipayPid = $targetChannel['alipay_pid'] ?? ($cfg['alipay_pid'] ?? ($targetChannel['pid'] ?? ($cfg['pid'] ?? '')));
+
         $hasRealQr = !empty($rawQr) 
                      && !str_contains($rawQr, 'bax09876543210987') 
                      && !str_contains($rawQr, 'wxp://f2f0') 
                      && !str_contains($rawQr, 'i.qianbao.qq.com');
 
         $displayQr = $rawQr;
-        if (!$hasRealQr) {
-            if ($payCategory === 'alipay' && !empty($targetChannel['app_id'])) {
-                $displayQr = "alipays://platformapi/startapp?appId=20000067&url=" . urlencode("{$baseUrl}/cashier/index.html?trade_no={$tradeNo}");
+        if ($hasRealQr) {
+            if (str_starts_with($displayQr, '/')) {
+                $displayQr = "{$baseUrl}" . $displayQr;
+            }
+        } else {
+            // 如果是支付宝通道且已绑定 PID (2088...)，直出支付宝原生转账付钱 Scheme 码，扫码直接拉起付钱！
+            if ($payCategory === 'alipay' && !empty($alipayPid)) {
+                $displayQr = "alipays://platformapi/startapp?appId=09999988&actionType=toAccount&recUserId={$alipayPid}&amount={$floatMoney}&memo=" . urlencode("CX{$tradeNo}");
+                $hasRealQr = true;
             } else {
                 $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
             }
-        } elseif (str_starts_with($displayQr, '/')) {
-            $displayQr = "{$baseUrl}" . $displayQr;
         }
 
         try {
