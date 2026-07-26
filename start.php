@@ -6,7 +6,16 @@
 use Workerman\Worker;
 use Webman\Config;
 
-require_once __DIR__ . '/vendor/autoload.php';
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+
+spl_autoload_register(function ($class) {
+    $file = __DIR__ . '/' . str_replace('\\', '/', $class) . '.php';
+    if (file_exists($file)) {
+        require_once $file;
+    }
+});
 
 if (!class_exists('Webman\App')) {
     define('BASE_PATH', __DIR__);
