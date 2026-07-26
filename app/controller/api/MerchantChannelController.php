@@ -334,7 +334,15 @@ class MerchantChannelController
         $proto = (($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https' : 'http';
         $baseUrl = "{$proto}://{$host}";
 
-        $rawQr = $targetChannel['qr_url'] ?? '';
+        $rawQr = trim($targetChannel['qr_url'] ?? '');
+        if (!empty($rawQr)) {
+            if (str_starts_with($rawQr, 'bax') || str_starts_with($rawQr, 'fkx')) {
+                $rawQr = "https://qr.alipay.com/" . $rawQr;
+            } elseif (!str_starts_with($rawQr, 'http://') && !str_starts_with($rawQr, 'https://') && !str_starts_with($rawQr, 'wxp://') && !str_starts_with($rawQr, 'alipays://')) {
+                $rawQr = "https://" . ltrim($rawQr, '/');
+            }
+        }
+
         $cfg   = is_array($targetChannel['config'] ?? null) ? $targetChannel['config'] : json_decode($targetChannel['config'] ?? '{}', true);
         $alipayPid = $targetChannel['alipay_pid'] ?? ($cfg['alipay_pid'] ?? ($targetChannel['pid'] ?? ($cfg['pid'] ?? '')));
 
@@ -344,11 +352,7 @@ class MerchantChannelController
                      && !str_contains($rawQr, 'i.qianbao.qq.com');
 
         $displayQr = $rawQr;
-        if ($hasRealQr) {
-            if (str_starts_with($displayQr, '/')) {
-                $displayQr = "{$baseUrl}" . $displayQr;
-            }
-        } else {
+        if (!$hasRealQr) {
             $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
         }
 
