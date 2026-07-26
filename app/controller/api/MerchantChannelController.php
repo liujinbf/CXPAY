@@ -292,4 +292,110 @@ class MerchantChannelController
             ]
         ]);
     }
+
+    /**
+     * 发起通道真实测试支付下单
+     */
+    public function createTest(object $request)
+    {
+        $params    = $request->get() + $request->post();
+        $channelId = (int)($params['channel_id'] ?? 1);
+        $money     = (float)($params['money'] ?? 1.00);
+
+        $channels = $this->getStorageData();
+        $targetChannel = null;
+        foreach ($channels as $c) {
+            if ($c['id'] == $channelId) {
+                $targetChannel = $c;
+                break;
+            }
+        }
+
+        if (!$targetChannel) {
+            $targetChannel = $channels[0] ?? [
+                'id' => 1,
+                'title' => '默认测试通道',
+                'pay_category' => 'alipay',
+                'qr_url' => ''
+            ];
+        }
+
+        $tradeNo    = 'CX' . date('YmdHis') . sprintf('%04d', mt_rand(1, 9999));
+        $outTradeNo = 'TEST' . time() . mt_rand(100, 999);
+        $payCategory = $targetChannel['pay_category'] ?? 'alipay';
+
+        // 计算微浮动防重复金额 (如 1.01)
+        $floatMoney = $money;
+        if (!empty($params['enable_float'])) {
+            $floatMoney = round($money + (mt_rand(1, 9) / 100), 2);
+        }
+
+        $host  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
+        $proto = (($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https' : 'http';
+        $baseUrl = "{$proto}://{$host}";
+
+        $qrUrl = $targetChannel['qr_url'] ?? '';
+        if (empty($qrUrl) || str_contains($qrUrl, 'bax') || str_contains($qrUrl, 'wxp://f2f0')) {
+            $qrUrl = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
+        } elseif (str_starts_with($qrUrl, '/')) {
+            $qrUrl = "{$baseUrl}" . $qrUrl;
+        }
+
+        try {
+            if (class_exists('Illuminate\Database\Capsule\Manager') && class_exists('app\model\Order')) {
+                \app\model\Order::create([
+                    'merchant_id'  => 1000,
+                    'out_trade_no' => $outTradeNo,
+                    'trade_no'     => $tradeNo,
+                    'channel_id'   => $channelId,
+                    'pay_type'     => $payCategory,
+                    'amount'       => $money,
+                    'price'        => $floatMoney,
+                    'subject'      => "测试 - " . ($targetChannel['title'] ?? '支付通道'),
+                    'notify_url'   => "{$baseUrl}/api/test_notify",
+                    'return_url'   => "{$baseUrl}/merchant_center.html",
+                    'status'       => 0,
+                    'create_time'  => time(),
+                    'expire_time'  => time() + 300,
+                ]);
+            }
+        } catch (\Throwable $e) {}
+
+        return json([
+            'code' => 1,
+            'msg'  => '测试订单创建成功',
+            'data' => [
+                'trade_no'     => $tradeNo,
+                'out_trade_no' => $outTradeNo,
+                'money'        => number_format($money, 2, '.', ''),
+                'price'        => number_format($floatMoney, 2, '.', ''),
+                'pay_type'     => $payCategory,
+                'qr_url'       => $qrUrl,
+                'pay_url'      => "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}",
+                'channel_title'=> $targetChannel['title'] ?? '测试通道',
+            ]
+        ]);
+    }
+
+    /**
+     * 模拟触发订单支付到账与回调核销
+     */
+    public function mockPay(object $request)
+    {
+        $params  = $request->get() + $request->post();
+        $tradeNo = trim((string)($params['trade_no'] ?? ''));
+
+        if (!empty($tradeNo) && class_exists('app\model\Order')) {
+            try {
+                $order = \app\model\Order::where('trade_no', $tradeNo)->first();
+                if ($order) {
+                    $order->status = 1;
+                    $order->pay_time = time();
+                    $order->save();
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        return json(['code' => 1, 'msg' => '已模拟触发该订单支付成功状态，后台自动核销已完成！']);
+    }
 }

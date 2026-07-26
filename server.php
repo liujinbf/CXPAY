@@ -92,6 +92,10 @@ if (str_starts_with($uriPath, '/api/merchant/channel/')) {
         $res = $ctrl->delete($req);
     } elseif (str_contains($uriPath, 'drivers')) {
         $res = $ctrl->drivers($req);
+    } elseif (str_contains($uriPath, 'create_test')) {
+        $res = $ctrl->createTest($req);
+    } elseif (str_contains($uriPath, 'mock_pay')) {
+        $res = $ctrl->mockPay($req);
     } else {
         $res = json_encode(['code' => -1, 'msg' => '未知 API']);
     }
