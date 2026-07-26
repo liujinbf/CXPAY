@@ -349,13 +349,8 @@ class MerchantChannelController
                 $displayQr = "{$baseUrl}" . $displayQr;
             }
         } else {
-            // 如果是支付宝通道且已绑定 PID (2088...)，直出支付宝原生转账付钱 Scheme 码，扫码直接拉起付钱！
-            if ($payCategory === 'alipay' && !empty($alipayPid)) {
-                $displayQr = "alipays://platformapi/startapp?appId=09999988&actionType=toAccount&recUserId={$alipayPid}&amount={$floatMoney}&memo=" . urlencode("CX{$tradeNo}");
-                $hasRealQr = true;
-            } else {
-                $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
-            }
+            // 使用标准的 HTTPS 安全收银台 URL，规避支付宝扫码风控“当前码值存在风险”拦截
+            $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
         }
 
         try {
