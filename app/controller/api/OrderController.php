@@ -18,6 +18,9 @@ class OrderController
      */
     public function query(object $request)
     {
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
         $params     = $request->get() + $request->post();
         $tradeNo    = trim((string)($params['trade_no'] ?? ''));
         $outTradeNo = trim((string)($params['out_trade_no'] ?? ''));

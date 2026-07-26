@@ -217,10 +217,10 @@
         // 真实轮询订单状态
         function startOrderPolling(tNo) {
             pollTimer = setInterval(() => {
-                fetch(`/api/order/query?trade_no=${tNo}`)
+                fetch(`/api/order/query?trade_no=${tNo}&_t=${Date.now()}`, { cache: 'no-store' })
                     .then(res => res.json())
                     .then(res => {
-                        if (res.code === 1 && res.data && res.data.status === 1) {
+                        if (res.code === 1 && res.data && (res.data.status == 1 || res.data.status === '1')) {
                             clearInterval(pollTimer);
                             showPaidMask();
                             setTimeout(() => {
@@ -230,7 +230,7 @@
                             }, 1500);
                         }
                     });
-            }, 2000);
+            }, 1000);
         }
 
         function showPaidMask() {

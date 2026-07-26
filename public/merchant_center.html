@@ -744,7 +744,7 @@
         function startTestOrderPolling(tNo) {
             if (testPollTimer) clearInterval(testPollTimer);
             testPollTimer = setInterval(() => {
-                fetch(`/api/order/query?trade_no=${tNo}`)
+                fetch(`/api/order/query?trade_no=${tNo}&_t=${Date.now()}`, { cache: 'no-store' })
                     .then(r => r.json())
                     .then(res => {
                         if (res.code === 1 && res.data && (res.data.status == 1 || res.data.status === '1')) {
@@ -752,8 +752,10 @@
                             document.getElementById('test-step-qr').classList.add('hidden');
                             document.getElementById('test-step-success').classList.remove('hidden');
                             loadMerchantChannels();
+                            loadOrderList();
                         }
-                    });
+                    })
+                    .catch(() => {});
             }, 1000);
         }
 
