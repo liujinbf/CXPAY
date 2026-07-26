@@ -589,7 +589,7 @@
                 const res = await fetch('/api/merchant/channel/list?pid=1000');
                 const json = await res.json();
 
-                if (json.code === 1 && Array.isArray(json.data)) {
+                if (json.code === 1 && Array.isArray(json.data) && json.data.length > 0) {
                     container.innerHTML = '';
                     window.merchantChannelsMap = {};
 
@@ -642,6 +642,17 @@
                         container.insertAdjacentHTML('beforeend', cardHtml);
                     });
 
+                    lucide.createIcons();
+                } else {
+                    container.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200 p-8 space-y-3">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+                            <i data-lucide="qr-code" class="w-6 h-6"></i>
+                        </div>
+                        <div class="font-extrabold text-slate-700 text-sm">暂无已绑定的收款通道</div>
+                        <p class="text-xs text-slate-400">点击右上角“+ 添加通道”按钮或扫码授权绑定个人收款账号</p>
+                        <button onclick="openAddChannelModal()" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700">立即添加第一条通道</button>
+                    </div>`;
                     lucide.createIcons();
                 }
             } catch (err) {
