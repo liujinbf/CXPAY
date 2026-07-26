@@ -235,6 +235,8 @@ if (str_contains($uriPath, '/api/channel/keepalive')) {
     $res = $kaCtrl->keepalive();
     echo is_array($res) ? json_encode($res, JSON_UNESCAPED_UNICODE) : (string)$res;
     exit;
+}
+
 // 1.9 动态主页与手机端 H5 快捷支付路由 ( / )
 if ($uriPath === '/' || $uriPath === '/index.html') {
     header('Content-Type: text/html; charset=utf-8');
