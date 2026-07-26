@@ -167,6 +167,10 @@
                         window.lastPayUrl = finalQrUrl;
                         window.realQrUrl  = data.qr_url || '';
 
+                        // 依据订单真实的支付类型 (wxpay / alipay / qqpay) 自动高亮切换对应 Tab
+                        const pType = data.pay_type || data.pay_category || 'alipay';
+                        switchTab(pType);
+
                         // 若用户在手机支付宝 APP 内访问，且配置了 PID，秒级自动唤起原生支付宝付钱界面
                         const isAli = navigator.userAgent.toLowerCase().includes('alipayclient');
                         const aliPid = data.alipay_pid || (data.config && data.config.alipay_pid ? data.config.alipay_pid : '');
