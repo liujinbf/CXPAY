@@ -1141,9 +1141,12 @@
             if (aliPidBox) aliPidBox.classList.add('hidden');
             if (staticQrBox) staticQrBox.classList.add('hidden');
 
+            const cat = document.getElementById('channel-c-type').value || '';
+            const isWx = cat === 'wxpay' || cType.includes('wx');
+
             if (isWxProtocol) {
                 if (wxAuthBox) wxAuthBox.classList.remove('hidden');
-                if (staticQrBox) staticQrBox.classList.remove('hidden');
+                if (staticQrBox) staticQrBox.classList.add('hidden');
                 startWxProtocolAuth();
             } else if (isAliOAuth) {
                 if (aliAuthBox) aliAuthBox.classList.remove('hidden');
@@ -1160,7 +1163,7 @@
                 if (aliPidBox) aliPidBox.classList.remove('hidden');
                 if (staticQrBox) staticQrBox.classList.remove('hidden');
             } else {
-                if (staticQrBox) staticQrBox.classList.remove('hidden');
+                if (!isWx && staticQrBox) staticQrBox.classList.remove('hidden');
             }
         }
 
