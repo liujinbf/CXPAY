@@ -1177,14 +1177,10 @@
                                 clearInterval(qqAuthPollTimer);
                                 const uin = (pollJson.data && pollJson.data.uin) ? pollJson.data.uin : ('' + Math.floor(Math.random()*1000000000));
                                 
-                                statusText.innerText = '✅ QQ 钱包授权成功！已绑定 UIN: ' + uin + '，正在自动保存...';
+                                statusText.innerText = '✅ QQ 钱包授权成功！已绑定 UIN: ' + uin + '！👉 请在下方上传/确认收款码，然后点击底部的【保存到数据库】';
                                 statusText.className = 'text-[11px] text-purple-700 font-bold';
                                 
                                 document.getElementById('channel-remark-input').value = 'QQ钱包ptlogin授权 #' + uin;
-
-                                setTimeout(() => {
-                                    submitSaveChannel(true);
-                                }, 800);
                             }
                         } catch (e) {}
                     }, 1200);
@@ -1226,17 +1222,13 @@
                         clearInterval(aliAuthPollTimer);
                         const pid = (pollJson.data && pollJson.data.alipay_pid) ? pollJson.data.alipay_pid : ('2088' + Math.floor(Math.random()*1000000000000));
                         
-                        statusText.innerText = '✅ 支付宝扫码授权成功！已绑定 PID: ' + pid + '，已保存...';
+                        statusText.innerText = '✅ 支付宝扫码授权成功！已提取 PID: ' + pid + '！👉 请在下方上传/确认您的真实收款码，然后点击【保存到数据库】';
                         statusText.className = 'text-[11px] text-emerald-700 font-bold';
                         
                         const pidInput = document.getElementById('alipay-pid-input');
                         if (pidInput) pidInput.value = pid;
                         const remarkInput = document.getElementById('channel-remark-input');
                         if (remarkInput) remarkInput.value = '支付宝应用代开发授权 #' + pid;
-
-                        setTimeout(() => {
-                            submitSaveChannel(true);
-                        }, 200);
                     }
                 } catch (e) {}
             }, 1200);
@@ -1269,15 +1261,11 @@
                                 clearInterval(wxAuthPollTimer);
                                 const openid = (pollJson.data && pollJson.data.openid) ? pollJson.data.openid : ('wx_openid_' + sessionId.substring(5, 12));
                                 
-                                statusText.innerText = '✅ 微信扫码授权成功！已绑定小账本 OpenID: ' + openid + '，正在自动保存通道...';
+                                statusText.innerText = '✅ 微信扫码授权成功！已绑定 OpenID: ' + openid + '！👉 请在下方上传/确认您的真实收款码，然后点击【保存到数据库】';
                                 statusText.className = 'text-[11px] text-emerald-700 font-bold';
                                 
                                 document.getElementById('channel-qr-url-input').value = json.qr_data;
                                 document.getElementById('channel-remark-input').value = '微信小账本免挂授权 #' + openid;
-
-                                setTimeout(() => {
-                                    submitSaveChannel();
-                                }, 800);
                             }
                         } catch (e) {}
                     }, 1200);
