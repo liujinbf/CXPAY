@@ -56,6 +56,43 @@ if ($uriPath === '/doc' || $uriPath === '/doc.html') {
     }
 }
 
+// 1.46 测试支付通道异步回调 API (/api/test_notify)
+if (str_contains($uriPath, '/api/test_notify')) {
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'success';
+    exit;
+}
+
+// 1.47 上游支付通道异步回调 API (/notify/{cType})
+if (str_starts_with($uriPath, '/notify/')) {
+    header('Content-Type: text/plain; charset=utf-8');
+    try {
+        $dbConfig = require __DIR__ . '/config/database.php';
+        if ($dbConfig && class_exists('Illuminate\Database\Capsule\Manager')) {
+            $capsule = new \Illuminate\Database\Capsule\Manager();
+            foreach ($dbConfig['connections'] as $name => $conn) {
+                $capsule->addConnection($conn, $name);
+            }
+            $capsule->setAsGlobal();
+            $capsule->bootEloquent();
+        }
+    } catch (\Throwable $e) {}
+
+    $parts = explode('/', trim($uriPath, '/'));
+    $cType = $parts[1] ?? 'alipay_official';
+    $ctrl = new \app\controller\notify\NotifyController();
+    $req = new class($uriPath) {
+        private $path;
+        public function __construct($p) { $this->path = $p; }
+        public function get($k = null) { return $k ? ($_GET[$k] ?? null) : $_GET; }
+        public function post($k = null) { return $k ? ($_POST[$k] ?? null) : $_POST; }
+        public function path() { return $this->path; }
+    };
+    $res = $ctrl->index($req, $cType);
+    echo is_object($res) && method_exists($res, 'rawBody') ? $res->rawBody() : (string)$res;
+    exit;
+}
+
 // 1.5 商户通道管理 REST API 接口
 if (str_starts_with($uriPath, '/api/merchant/channel/')) {
     header('Content-Type: application/json; charset=utf-8');
