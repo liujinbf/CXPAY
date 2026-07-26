@@ -160,6 +160,7 @@
                         document.getElementById('order-amount').innerText = data.money || data.amount || '1.00';
                         document.getElementById('order-subject').innerText = data.subject || data.name || '网络商品';
                         document.getElementById('order-trade-no').innerText = tNo;
+                        window.lastPayUrl = data.pay_url || '';
                         renderQr(data.pay_url || window.location.href);
 
                         if (data.status === 1) {
@@ -246,7 +247,9 @@
         }
 
         function openApp() {
-            alert('正在安全唤起支付 App...');
+            const targetQr = window.lastPayUrl || "https://qr.alipay.com/bax09876543210987";
+            const aliScheme = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(targetQr);
+            window.location.href = aliScheme;
         }
     </script>
 </body>
