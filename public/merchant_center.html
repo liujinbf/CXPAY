@@ -1278,6 +1278,9 @@
                                 clearInterval(wxAuthPollTimer);
                                 const openid = (pollJson.data && pollJson.data.openid) ? pollJson.data.openid : ('wx_openid_' + sessionId.substring(5, 12));
                                 
+                                statusText.innerText = '🎉 微信扫码授权成功！已绑定小账本 OpenID: ' + openid + '！请点击右下角【保存到数据库】按钮完成配置！';
+                                statusText.className = 'text-[11px] text-emerald-700 font-extrabold bg-emerald-50 p-2 rounded-lg border border-emerald-200 mt-2';
+                                
                                 document.getElementById('channel-qr-url-input').value = '';
                                 document.getElementById('channel-remark-input').value = '微信小账本免挂授权 #' + openid;
                             }
