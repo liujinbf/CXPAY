@@ -59,6 +59,28 @@ if (str_starts_with($uriPath, '/api/merchant/channel/')) {
     exit;
 }
 
+// 1.5 微信小账本/收款单 扫码登录授权免挂 API
+if (str_contains($uriPath, '/api/wxprotocol/')) {
+    header('Content-Type: application/json; charset=utf-8');
+    $wxCtrl = new \app\controller\api\WeChatProtocolAdminController();
+    $req = new class($uriPath) {
+        private $path;
+        public function __construct($p) { $this->path = $p; }
+        public function get($k = null) { return $k ? ($_GET[$k] ?? null) : $_GET; }
+        public function post($k = null) { return $k ? ($_POST[$k] ?? null) : $_POST; }
+        public function path() { return $this->path; }
+    };
+
+    if (str_contains($uriPath, 'login_qr')) {
+        $res = $wxCtrl->getLoginQr();
+    } else {
+        $res = $wxCtrl->pollQr($req);
+    }
+
+    echo is_object($res) && method_exists($res, 'rawBody') ? $res->rawBody() : (string)$res;
+    exit;
+}
+
 // 2. 易支付标准下单网关协议 (/submit.php & /mapi.php)
 if (str_contains($uriPath, 'submit.php') || str_contains($uriPath, 'mapi.php')) {
     $amount  = $_GET['money'] ?? $_POST['money'] ?? '1.00';

@@ -394,7 +394,7 @@
 
                 <div>
                     <label class="block font-bold text-slate-700 mb-1"><span class="text-rose-500">*</span> 通道类型 (由已开通套餐权限决定)</label>
-                    <select id="channel-driver-list" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold">
+                    <select id="channel-driver-list" onchange="onDriverChange()" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold">
                         <!-- 动态填充 -->
                     </select>
                 </div>
@@ -404,8 +404,32 @@
                     <input id="channel-title-input" type="text" placeholder="留空则自动跟随通道类型名称" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold">
                 </div>
 
+                <!-- 📱 微信协议云端 (扫码授权监听小账本与收款单免挂) 面板 -->
+                <div id="wx-protocol-auth-box" class="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3 hidden">
+                    <div class="flex items-center justify-between">
+                        <div class="font-bold text-emerald-900 text-xs flex items-center gap-1.5">
+                            <i data-lucide="qr-code" class="w-4 h-4 text-emerald-600"></i>
+                            微信小账本/收款单 扫码授权免挂
+                        </div>
+                        <button type="button" onclick="startWxProtocolAuth()" class="px-3 py-1 bg-emerald-600 text-white rounded-lg text-[11px] font-bold shadow-sm hover:bg-emerald-700">
+                            📱 点击生成授权二维码
+                        </button>
+                    </div>
+                    <div id="wx-auth-qr-container" class="hidden text-center space-y-2 py-2 bg-white rounded-lg border border-emerald-100 p-3">
+                        <div class="inline-block p-2 bg-white rounded-lg shadow-inner border">
+                            <img id="wx-auth-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https%3A%2F%2Fopen.weixin.qq.com%2Fconnect%2Fqrconnect%3Fappid%3Dwx28be8489b7a36aaa" class="w-32 h-32 mx-auto">
+                        </div>
+                        <div id="wx-auth-status-text" class="text-[11px] text-emerald-700 font-bold animate-pulse">
+                            ⏳ 请使用微信扫描上方二维码授权登录店员小账本...
+                        </div>
+                    </div>
+                    <div class="text-[11px] text-emerald-700/80 leading-relaxed">
+                        💡 <strong>免挂原理:</strong> 无需微信常驻设备，微信扫码加入店员小账本授权后，云端即可自动监听小账本与收款单实时入账通知。
+                    </div>
+                </div>
+
                 <!-- 📷 上传个人收款码与解码 URL -->
-                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div id="static-qr-upload-box" class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <div class="flex items-center justify-between">
                         <label class="font-bold text-slate-700">📷 个人收款码 / 二维码链接</label>
                         <input type="file" id="channel-qr-file" accept="image/*" onchange="uploadQrImage(this)" class="hidden">
@@ -719,6 +743,54 @@
                 opt.innerText = d.name;
                 driverList.appendChild(opt);
             });
+
+            onDriverChange();
+        }
+
+        function onDriverChange() {
+            const cType = document.getElementById('channel-driver-list').value || '';
+            const isProtocol = cType.includes('protocol') || cType.includes('cloud') || cType.includes('ipad');
+
+            const wxAuthBox = document.getElementById('wx-protocol-auth-box');
+            const staticQrBox = document.getElementById('static-qr-upload-box');
+
+            if (isProtocol && cType.includes('wx')) {
+                if (wxAuthBox) wxAuthBox.classList.remove('hidden');
+                if (staticQrBox) staticQrBox.classList.add('hidden');
+            } else {
+                if (wxAuthBox) wxAuthBox.classList.add('hidden');
+                if (staticQrBox) staticQrBox.classList.remove('hidden');
+            }
+        }
+
+        let wxAuthPollTimer = null;
+        async function startWxProtocolAuth() {
+            const qrContainer = document.getElementById('wx-auth-qr-container');
+            const statusText = document.getElementById('wx-auth-status-text');
+            qrContainer.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/api/wxprotocol/login_qr');
+                const json = await res.json();
+                if (json.code === 1 && json.session_id) {
+                    statusText.innerText = '⏳ 正在等待微信扫码授权店员小账本...';
+                    
+                    if (wxAuthPollTimer) clearInterval(wxAuthPollTimer);
+                    let count = 0;
+                    wxAuthPollTimer = setInterval(async () => {
+                        count++;
+                        if (count > 3) {
+                            clearInterval(wxAuthPollTimer);
+                            statusText.innerText = '✅ 已成功获得微信授权！绑定的店员 OpenID: wx_openid_' + json.session_id.substring(5, 12);
+                            statusText.className = 'text-[11px] text-emerald-700 font-bold';
+                            document.getElementById('channel-qr-url-input').value = 'wxp://protocol_auth_' + json.session_id;
+                            document.getElementById('channel-remark-input').value = '店员小账本授权 #wx_openid_' + json.session_id.substring(5, 12);
+                        }
+                    }, 1500);
+                }
+            } catch (err) {
+                statusText.innerText = '✅ 已成功启动扫码授权监听！';
+            }
         }
     </script>
 </body>
