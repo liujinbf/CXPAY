@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CXPAY - 商业级极简科技风主页</title>
+    <!-- TailwindCSS & Lucide -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { brand: { 500: '#6366f1', 600: '#4f46e5' } },
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        html.dark body { background-color: #030712; color: #f9fafb; }
+        html.light body { background-color: #f8fafc; color: #0f172a; }
+        .glass-minimal {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="min-h-screen relative font-sans flex flex-col justify-between">
+
+    <!-- Header -->
+    <header class="max-w-7xl mx-auto w-full px-6 py-6 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center">
+                <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+            </div>
+            <span class="text-2xl font-black text-white tracking-wider">CXPAY</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">Minimal Theme</span>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <a href="/merchant_login.html" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-500/30 transition-all flex items-center gap-2">
+                <i data-lucide="store" class="w-4 h-4"></i> 商户入口
+            </a>
+            <a href="/admin_login.html" class="px-5 py-2.5 glass-minimal hover:border-indigo-500/40 text-slate-300 font-bold text-xs rounded-xl transition-all">
+                管理员登录
+            </a>
+        </div>
+    </header>
+
+    <!-- Minimal Hero -->
+    <main class="max-w-4xl mx-auto px-6 py-24 text-center">
+        <h1 class="text-6xl font-black tracking-tight mb-6 leading-tight">
+            极简 · 高效 · 稳定 <br>
+            <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">企业级聚合支付基础设施</span>
+        </h1>
+        <p class="text-lg text-slate-400 max-w-xl mx-auto mb-12">
+            去掉冗余繁复，回归交易本质。为大流量业务提供毫秒级高吞吐处理能力。
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+            <div class="glass-minimal p-6 rounded-2xl">
+                <i data-lucide="zap" class="w-8 h-8 text-indigo-400 mb-4"></i>
+                <h4 class="font-bold text-lg mb-2">极速响应</h4>
+                <p class="text-xs text-slate-400">常驻内存调度，平均处理耗时小于 20ms。</p>
+            </div>
+            <div class="glass-minimal p-6 rounded-2xl">
+                <i data-lucide="lock" class="w-8 h-8 text-purple-400 mb-4"></i>
+                <h4 class="font-bold text-lg mb-2">安全防护</h4>
+                <p class="text-xs text-slate-400">全链路签名防护与 Redis 分布式防重锁。</p>
+            </div>
+            <div class="glass-minimal p-6 rounded-2xl">
+                <i data-lucide="layers" class="w-8 h-8 text-pink-400 mb-4"></i>
+                <h4 class="font-bold text-lg mb-2">插件驱动</h4>
+                <p class="text-xs text-slate-400">支持无限扩展第三方与官方支付通道。</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-6 text-center text-xs text-slate-600">
+        © 2026 CXPAY Core Minimal Theme. All Rights Reserved.
+    </footer>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => lucide.createIcons());
+    </script>
+</body>
+</html>

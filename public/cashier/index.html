@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CXPAY 统一安全收银台</title>
+    <!-- TailwindCSS & Google Fonts & Lucide Icons & QRCode -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        alipay: '#1677ff',
+                        wxpay: '#07c160',
+                        qqpay: '#00a4ff',
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Dark Theme Style */
+        html.dark body { background-color: #060911; color: #f8fafc; }
+        html.dark .glass-cashier { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6); }
+        html.dark .pay-tabs-container { background-color: rgba(15, 23, 42, 0.8); border-color: rgba(30, 41, 59, 0.8); }
+
+        /* Light Theme Style */
+        html.light body { background-color: #f1f5f9; color: #0f172a; }
+        html.light .glass-cashier { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(24px); border: 1px solid rgba(226, 232, 240, 0.8); box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.35); }
+        html.light .pay-tabs-container { background-color: rgba(241, 245, 249, 0.8); border-color: rgba(226, 232, 240, 0.8); }
+
+        body { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; overflow-x: hidden; transition: background-color 0.3s ease; }
+        .glow-bg { position: absolute; border-radius: 50%; filter: blur(120px); pointer-events: none; opacity: 0.25; }
+        .active-alipay { background-color: #1677ff !important; color: #ffffff !important; box-shadow: 0 10px 20px -5px rgba(22, 119, 255, 0.4); }
+        .active-wxpay { background-color: #07c160 !important; color: #ffffff !important; box-shadow: 0 10px 20px -5px rgba(7, 193, 96, 0.4); }
+        .active-qqpay { background-color: #00a4ff !important; color: #ffffff !important; box-shadow: 0 10px 20px -5px rgba(0, 164, 255, 0.4); }
+    </style>
+</head>
+
+<body class="min-h-screen relative flex items-center justify-center p-4">
+    <div class="glow-bg w-[500px] h-[500px] bg-blue-600 top-[-100px] left-[-100px]"></div>
+    <div class="glow-bg w-[500px] h-[500px] bg-indigo-600 bottom-[-100px] right-[-100px]"></div>
+
+    <div class="w-full max-w-md z-10">
+        <div class="glass-cashier rounded-3xl p-6 relative overflow-hidden transition-all duration-300">
+            <!-- Header Bar -->
+            <div class="flex items-center justify-between border-b border-slate-500/20 pb-4 mb-6">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center text-white font-black text-sm shadow-md">CX</div>
+                    <span class="font-extrabold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-indigo-400">CXPAY 收银台</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleTheme()" class="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800/40 text-slate-300 hover:text-white transition-all border border-slate-700/50 cursor-pointer">
+                        <i id="theme-icon" data-lucide="sun" class="w-4 h-4"></i>
+                    </button>
+                    <div class="text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-1 font-mono">
+                        <i data-lucide="clock" class="w-3 h-3"></i> <span id="timer">03:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Amount Header -->
+            <div class="text-center mb-6">
+                <span class="text-xs font-medium text-slate-400">应付金额 (元)</span>
+                <div class="text-4xl font-black tracking-tight text-white mt-1 font-mono">
+                    <span class="text-2xl font-bold">¥</span> <span id="order-amount">0.00</span>
+                </div>
+                <div class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/50 text-[11px] text-slate-300 border border-slate-700/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                    <span id="order-subject">载入订单中...</span>
+                </div>
+            </div>
+
+            <!-- Pay Method Selection Tabs -->
+            <div class="pay-tabs-container p-1 rounded-2xl border mb-6 grid grid-cols-3 gap-1">
+                <button onclick="switchTab('alipay')" class="pay-tab alipay-tab active-alipay py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all">
+                    <i data-lucide="qr-code" class="w-4 h-4"></i> 支付宝
+                </button>
+                <button onclick="switchTab('wxpay')" class="pay-tab wxpay-tab text-slate-400 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer hover:text-slate-200 transition-all">
+                    <i data-lucide="message-circle" class="w-4 h-4"></i> 微信支付
+                </button>
+                <button onclick="switchTab('qqpay')" class="pay-tab qqpay-tab text-slate-400 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer hover:text-slate-200 transition-all">
+                    <i data-lucide="wallet" class="w-4 h-4"></i> QQ钱包
+                </button>
+            </div>
+
+            <!-- QR Container -->
+            <div class="flex flex-col items-center justify-center bg-white p-5 rounded-2xl shadow-inner border border-slate-100 relative">
+                <div id="qrcode" class="w-44 h-44 flex items-center justify-center"></div>
+                <div id="paid-mask" class="hidden absolute inset-0 bg-slate-900/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center text-emerald-400 font-bold space-y-2">
+                    <i data-lucide="check-circle" class="w-12 h-12"></i>
+                    <span>支付成功！即刻跳转...</span>
+                </div>
+            </div>
+
+            <!-- QR Code Scan Tip -->
+            <div class="text-center mt-4 space-y-1">
+                <div id="qr-tip" class="text-xs font-semibold text-slate-300 flex items-center justify-center gap-1">
+                    <i data-lucide="scan" class="w-4 h-4 text-blue-500"></i> 请使用支付宝扫码完成支付
+                </div>
+                <p class="text-[10px] text-slate-400">单据号: <span id="order-trade-no" class="font-mono">--</span> · 订单即时防篡改已开启</p>
+            </div>
+
+            <!-- Mobile Pay Button -->
+            <div id="mobile-btn" class="mt-5 hidden">
+                <button onclick="openApp()" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all">
+                    <i data-lucide="external-link" class="w-4 h-4"></i> 打开 App 极速支付
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let countdown = 180;
+        let isDark = true;
+        let tradeNo = '';
+        let pollTimer = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // 解析 URL 路径中的 trade_no 参数
+            const urlParams = new URLSearchParams(window.location.search);
+            tradeNo = urlParams.get('trade_no') || '';
+
+            if (tradeNo) {
+                fetchOrderDetails(tradeNo);
+                startOrderPolling(tradeNo);
+            } else {
+                document.getElementById('order-subject').innerText = '测试演示订单';
+                document.getElementById('order-amount').innerText = '1.00';
+                renderQr('https://pay.yourdomain.com/');
+            }
+
+            lucide.createIcons();
+            startTimer();
+
+            if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+                document.getElementById('mobile-btn').classList.remove('hidden');
+            }
+        });
+
+        // 真实拉取订单详情
+        function fetchOrderDetails(tNo) {
+            fetch(`/api/order/query?trade_no=${tNo}`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.code === 1 && res.data) {
+                        const data = res.data;
+                        document.getElementById('order-amount').innerText = data.money || data.amount || '1.00';
+                        document.getElementById('order-subject').innerText = data.subject || data.name || '网络商品';
+                        document.getElementById('order-trade-no').innerText = tNo;
+                        renderQr(data.pay_url || window.location.href);
+
+                        if (data.status === 1) {
+                            showPaidMask();
+                        }
+                    }
+                })
+                .catch(() => {
+                    renderQr(window.location.href);
+                });
+        }
+
+        // 真实轮询订单状态
+        function startOrderPolling(tNo) {
+            pollTimer = setInterval(() => {
+                fetch(`/api/order/query?trade_no=${tNo}`)
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res.code === 1 && res.data && res.data.status === 1) {
+                            clearInterval(pollTimer);
+                            showPaidMask();
+                            setTimeout(() => {
+                                if (res.data.return_url) {
+                                    window.location.href = res.data.return_url;
+                                }
+                            }, 1500);
+                        }
+                    });
+            }, 2000);
+        }
+
+        function showPaidMask() {
+            document.getElementById('paid-mask').classList.remove('hidden');
+        }
+
+        function renderQr(url) {
+            document.getElementById("qrcode").innerHTML = "";
+            new QRCode(document.getElementById("qrcode"), {
+                text: url,
+                width: 176,
+                height: 176,
+                colorDark: "#090d16",
+                colorLight: "#ffffff"
+            });
+        }
+
+        function toggleTheme() {
+            isDark = !isDark;
+            const root = document.getElementById('html-root');
+            const icon = document.getElementById('theme-icon');
+
+            if (isDark) {
+                root.className = 'dark';
+                icon.setAttribute('data-lucide', 'sun');
+            } else {
+                root.className = 'light';
+                icon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons();
+        }
+
+        function switchTab(type) {
+            document.querySelectorAll('.pay-tab').forEach(b => b.className = 'pay-tab text-slate-400 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer hover:text-slate-200');
+
+            const btn = document.querySelector(`.${type}-tab`);
+            btn.classList.add(`active-${type}`);
+
+            const tip = document.getElementById('qr-tip');
+            if (type === 'alipay') tip.innerHTML = `<i data-lucide="scan" class="w-4 h-4 text-blue-500"></i> 请使用支付宝扫码完成支付`;
+            if (type === 'wxpay') tip.innerHTML = `<i data-lucide="scan" class="w-4 h-4 text-emerald-500"></i> 请使用微信扫码完成支付`;
+            if (type === 'qqpay') tip.innerHTML = `<i data-lucide="scan" class="w-4 h-4 text-sky-500"></i> 请使用QQ钱包扫码完成支付`;
+            lucide.createIcons();
+        }
+
+        function startTimer() {
+            setInterval(() => {
+                if (countdown > 0) {
+                    countdown--;
+                    const m = String(Math.floor(countdown / 60)).padStart(2, '0');
+                    const s = String(countdown % 60).padStart(2, '0');
+                    document.getElementById('timer').innerText = `${m}:${s}`;
+                }
+            }, 1000);
+        }
+
+        function openApp() {
+            alert('正在安全唤起支付 App...');
+        }
+    </script>
+</body>
+</html>

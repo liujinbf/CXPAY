@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XLPAY / CXPAY - 商户服务中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .glass-card { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px -2px rgba(0,0,0,0.03); }
+        .tab-filter-active { background: #2563eb; color: #ffffff; font-weight: 700; }
+    </style>
+</head>
+
+<body class="h-full text-slate-700">
+    <div id="app" class="min-h-full flex">
+        <!-- 侧边栏 Sidebar -->
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-5 select-none">
+            <div>
+                <div class="flex items-center gap-3 px-2 py-3 mb-6">
+                    <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md">XL</div>
+                    <div>
+                        <span class="text-xl font-extrabold text-slate-800 tracking-tight">XLPAY</span>
+                    </div>
+                </div>
+
+                <nav class="space-y-1 text-xs">
+                    <a @click="activeMenu = 'dashboard'" :class="activeMenu === 'dashboard' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> 仪表盘
+                    </a>
+                    <a @click="activeMenu = 'my-channels'" :class="activeMenu === 'my-channels' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer font-bold text-emerald-600 transition-colors">
+                        <i data-lucide="qr-code" class="w-4 h-4 text-emerald-500"></i> 📷 微信/支付宝/QQ个人码绑定
+                    </a>
+                    <a @click="activeMenu = 'profile'" :class="activeMenu === 'profile' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="user" class="w-4 h-4"></i> 账户设置与资料
+                    </a>
+                    <a @click="activeMenu = 'finance-log'" :class="activeMenu === 'finance-log' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="history" class="w-4 h-4"></i> 财务管理与流水
+                    </a>
+                    <a @click="showRechargeModal = true" class="flex items-center gap-3 px-4 py-3 rounded-xl text-emerald-600 hover:bg-emerald-50 cursor-pointer font-bold transition-colors">
+                        <i data-lucide="wallet" class="w-4 h-4 text-emerald-500"></i> 💳 在线充值账户余额
+                    </a>
+                    <a @click="activeMenu = 'api-keys'" :class="activeMenu === 'api-keys' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="key" class="w-4 h-4"></i> API 配置 · 对接信息
+                    </a>
+                </nav>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 text-xs text-slate-400">
+                <span>商户 PID: <strong class="text-slate-700 font-mono">M5606680520</strong></span>
+            </div>
+        </aside>
+
+        <!-- 主内容区域 Main Panel (对齐截图 5) -->
+        <main class="flex-1 flex flex-col min-w-0">
+            <!-- 顶部 Bar -->
+            <header class="bg-white border-b border-slate-200 px-8 py-3.5 flex items-center justify-between shadow-sm">
+                <div class="text-xs text-slate-400">商户服务中心 / <span class="text-slate-700 font-bold">仪表盘</span></div>
+                <div class="flex items-center gap-4 text-xs">
+                    <span class="text-slate-600 font-bold">你好，leegg 👋</span>
+                    <button class="px-3 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-md">退出</button>
+                </div>
+            </header>
+
+            <div class="p-8 space-y-6 flex-1 overflow-y-auto">
+                <template v-if="activeMenu === 'dashboard'">
+                    <!-- 欢迎标题与时间筛选 Tab (完全对齐截图 5) -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-800">你好，leegg 👋</h2>
+                            <p class="text-xs text-slate-400 mt-1">以下是您今天的收款数据概览</p>
+                        </div>
+                        <div class="flex bg-slate-200/60 p-1 rounded-xl text-xs space-x-1">
+                            <button @click="timeFilter = 'today'" :class="timeFilter === 'today' ? 'tab-filter-active' : 'text-slate-600'" class="px-3 py-1.5 rounded-lg transition-all">今日</button>
+                            <button @click="timeFilter = 'week'" :class="timeFilter === 'week' ? 'tab-filter-active' : 'text-slate-600'" class="px-3 py-1.5 rounded-lg transition-all">本周</button>
+                            <button @click="timeFilter = 'month'" :class="timeFilter === 'month' ? 'tab-filter-active' : 'text-slate-600'" class="px-3 py-1.5 rounded-lg transition-all">本月</button>
+                            <button @click="timeFilter = 'year'" :class="timeFilter === 'year' ? 'tab-filter-active' : 'text-slate-600'" class="px-3 py-1.5 rounded-lg transition-all">本年</button>
+                            <button @click="timeFilter = 'all'" :class="timeFilter === 'all' ? 'tab-filter-active' : 'text-slate-600'" class="px-3 py-1.5 rounded-lg transition-all">全部</button>
+                        </div>
+                    </div>
+
+                    <!-- 4 大基础卡片 (销售额 / 订单数 / 通道数 / 在线通道数) -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-medium">销售额</div>
+                                <div class="text-2xl font-extrabold text-slate-800 mt-1">¥ 0.00</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold">💳</div>
+                        </div>
+
+                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-medium">订单数</div>
+                                <div class="text-2xl font-extrabold text-slate-800 mt-1">0</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">🧾</div>
+                        </div>
+
+                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-medium">通道数</div>
+                                <div class="text-2xl font-extrabold text-slate-800 mt-1">2</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg font-bold">⚡</div>
+                        </div>
+
+                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-medium">在线通道数</div>
+                                <div class="text-2xl font-extrabold text-sky-600 mt-1">1</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-lg font-bold">🔗</div>
+                        </div>
+                    </div>
+
+                    <!-- 4 大通道明细卡片 (今天成功率 / 微信收入 / 支付宝收入 / QQ收入) -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-medium">今天成功率</div>
+                                <div class="text-xl font-extrabold text-slate-800 mt-1">0%</div>
+                                <div class="text-[11px] text-slate-400 mt-1">成功笔数 0 / 0</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">📈</div>
+                        </div>
+
+                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-medium">微信收入</div>
+                                <div class="text-xl font-extrabold text-slate-800 mt-1">¥ 0.00</div>
+                                <div class="text-[11px] text-slate-400 mt-1">总收入 ¥ 0.19</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">💬</div>
+                        </div>
+
+                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-medium">支付宝收入</div>
+                                <div class="text-xl font-extrabold text-slate-800 mt-1">¥ 0.00</div>
+                                <div class="text-[11px] text-slate-400 mt-1">总收入 ¥ 0.21</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">支</div>
+                        </div>
+
+                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-medium">QQ收入</div>
+                                <div class="text-xl font-extrabold text-slate-800 mt-1">¥ 0.00</div>
+                                <div class="text-[11px] text-slate-400 mt-1">总收入 ¥ 0.00</div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold">🐧</div>
+                        </div>
+                    </div>
+
+                    <!-- 图表区域：24小时收款趋势折线图 + 支付方式分布饼图 (完全对齐截图 5) -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="glass-card p-6 rounded-2xl md:col-span-2 space-y-4">
+                            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                                📈 收款趋势
+                            </h3>
+                            <div id="trendChart" class="w-full h-64"></div>
+                        </div>
+
+                        <div class="glass-card p-6 rounded-2xl space-y-4">
+                            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                                🕒 支付方式分布
+                            </h3>
+                            <div id="pieChart" class="w-full h-64"></div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 个人码绑码 View -->
+                <template v-else-if="activeMenu === 'my-channels'">
+                    <div class="glass-card p-6 rounded-2xl space-y-6">
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-800">📷 微信/支付宝/QQ 个人收款码绑定与上传</h3>
+                            <p class="text-xs text-slate-400 mt-1">自动识别二维码中的 `wxp://` 或 `https://qr.alipay.com/` 内容，免手动抓包</p>
+                        </div>
+
+                        <div class="p-6 border-2 border-dashed border-blue-200 rounded-2xl bg-blue-50/50 text-center space-y-3">
+                            <input type="file" ref="qrFileInput" @change="handleQrUpload" class="hidden" accept="image/*">
+                            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto text-xl shadow-lg">📷</div>
+                            <div class="text-xs font-bold text-slate-700">点击上传微信/支付宝/QQ个人收款码图片</div>
+                            <button @click="$refs.qrFileInput.click()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer">选择二维码文件</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, nextTick } = Vue;
+        createApp({
+            setup() {
+                const activeMenu = ref('dashboard');
+                const timeFilter = ref('today');
+                const showRechargeModal = ref(false);
+
+                onMounted(() => {
+                    nextTick(() => {
+                        lucide.createIcons();
+                        initCharts();
+                    });
+                });
+
+                function initCharts() {
+                    const trendDom = document.getElementById('trendChart');
+                    if (trendDom) {
+                        const trendChart = echarts.init(trendDom);
+                        trendChart.setOption({
+                            tooltip: { trigger: 'axis' },
+                            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                            xAxis: { type: 'category', data: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'] },
+                            yAxis: { type: 'value' },
+                            series: [{ data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], type: 'line', smooth: true, itemStyle: { color: '#10b981' } }]
+                        });
+                    }
+
+                    const pieDom = document.getElementById('pieChart');
+                    if (pieDom) {
+                        const pieChart = echarts.init(pieDom);
+                        pieChart.setOption({
+                            tooltip: { trigger: 'item' },
+                            series: [{
+                                type: 'pie',
+                                radius: ['50%', '70%'],
+                                data: [
+                                    { value: 0.19, name: '微信支付', itemStyle: { color: '#10b981' } },
+                                    { value: 0.21, name: '支付宝', itemStyle: { color: '#2563eb' } },
+                                    { value: 0.00, name: 'QQ钱包', itemStyle: { color: '#38bdf8' } }
+                                ]
+                            }]
+                        });
+                    }
+                }
+
+                function handleQrUpload(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    alert('正在调取服务端 QrDecodeService 解析二维码，请稍候...');
+                }
+
+                return { activeMenu, timeFilter, showRechargeModal, handleQrUpload };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

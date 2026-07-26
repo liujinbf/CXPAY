@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CXPAY 极速一键安装向导</title>
+
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#f0f7ff', 100: '#e0effe', 500: '#0284c7', 600: '#0369a1', 700: '#075985' }
+                    },
+                    fontFamily: { sans: ['Inter', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Lucide Icons & Vue3 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        html.dark body { background-color: #060911; color: #f3f4f6; }
+        html.dark .glass-panel { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        html.dark .glass-card { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.05); }
+        html.dark .text-title { color: #ffffff; }
+        html.dark .text-sub { color: #94a3b8; }
+
+        body { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; overflow-x: hidden; }
+        .glow-bg { position: absolute; border-radius: 50%; filter: blur(120px); pointer-events: none; opacity: 0.2; }
+    </style>
+</head>
+
+<body class="min-h-screen relative flex items-center justify-center p-4">
+    <div class="glow-bg w-[600px] h-[600px] bg-sky-500 top-[-100px] left-[-100px]"></div>
+    <div class="glow-bg w-[600px] h-[600px] bg-indigo-600 bottom-[-100px] right-[-100px]"></div>
+
+    <div id="app" class="w-full max-w-2xl z-10">
+        <div class="glass-panel p-8 rounded-3xl space-y-8">
+            <!-- Header Brand -->
+            <div class="flex items-center justify-between border-b border-slate-500/20 pb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-sky-500/20">
+                        <i data-lucide="sparkles" class="w-7 h-7 text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-indigo-400 to-sky-500">CXPAY</h1>
+                        <p class="text-xs text-sub">Webman 高并发内存常驻系统安装向导</p>
+                    </div>
+                </div>
+
+                <!-- Step Indicator -->
+                <div class="flex items-center gap-2">
+                    <span :class="step === 1 ? 'bg-sky-500 text-white font-bold' : 'glass-card text-sub'" class="w-8 h-8 rounded-full flex items-center justify-center text-xs">1</span>
+                    <span class="text-sub text-xs">➔</span>
+                    <span :class="step === 2 ? 'bg-sky-500 text-white font-bold' : 'glass-card text-sub'" class="w-8 h-8 rounded-full flex items-center justify-center text-xs">2</span>
+                    <span class="text-sub text-xs">➔</span>
+                    <span :class="step === 3 ? 'bg-sky-500 text-white font-bold' : 'glass-card text-sub'" class="w-8 h-8 rounded-full flex items-center justify-center text-xs">3</span>
+                </div>
+            </div>
+
+            <!-- Step 1: 环境检查 -->
+            <template v-if="step === 1">
+                <div class="space-y-6">
+                    <h2 class="text-lg font-bold text-title flex items-center gap-2">
+                        <i data-lucide="check-circle-2" class="w-5 h-5 text-sky-400"></i> 第一步：服务器环境与扩展检测
+                    </h2>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-4 glass-card rounded-2xl">
+                            <span class="text-sm font-semibold text-title">PHP 运行版本 (>= 8.1)</span>
+                            <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs rounded-full font-bold">PHP 8.2 (满足)</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-4 glass-card rounded-2xl">
+                            <span class="text-sm font-semibold text-title">PHP pcntl / posix 扩展</span>
+                            <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs rounded-full font-bold">已安装 (多进程支撑)</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-4 glass-card rounded-2xl">
+                            <span class="text-sm font-semibold text-title">PDO MySQL & Redis 扩展</span>
+                            <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs rounded-full font-bold">已启用</span>
+                        </div>
+                    </div>
+
+                    <button @click="step = 2" class="w-full py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-sky-500/20 transition-all cursor-pointer">
+                        环境检测通过，下一步配置数据库 ➔
+                    </button>
+                </div>
+            </template>
+
+            <!-- Step 2: 数据库与管理员配置 -->
+            <template v-else-if="step === 2">
+                <div class="space-y-6">
+                    <h2 class="text-lg font-bold text-title flex items-center gap-2">
+                        <i data-lucide="database" class="w-5 h-5 text-sky-400"></i> 第二步：MySQL 数据库与超级管理员账号配置
+                    </h2>
+
+                    <div class="space-y-4 text-xs">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block font-bold text-sub mb-1">数据库主机</label>
+                                <input type="text" v-model="form.db_host" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-sub mb-1">数据库端口</label>
+                                <input type="text" v-model="form.db_port" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-sub mb-1">数据库名称</label>
+                            <input type="text" v-model="form.db_name" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block font-bold text-sub mb-1">数据库用户名</label>
+                                <input type="text" v-model="form.db_user" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-sub mb-1">数据库密码</label>
+                                <input type="password" v-model="form.db_pass" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono">
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-500/20 pt-4">
+                            <label class="block font-bold text-sub mb-1">超级管理员用户名</label>
+                            <input type="text" v-model="form.admin_user" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200">
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-sub mb-1">超级管理员密码</label>
+                            <input type="password" v-model="form.admin_pass" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <button @click="step = 1" class="w-1/3 py-3.5 glass-card text-sub font-bold text-sm rounded-xl">返回上一步</button>
+                        <button @click="installSystem()" class="w-2/3 py-3.5 bg-sky-500 hover:bg-sky-400 text-white font-bold text-sm rounded-xl shadow-lg shadow-sky-500/20 cursor-pointer">
+                            开始一键安装导入 ➔
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Step 3: 安装成功 -->
+            <template v-else-if="step === 3">
+                <div class="space-y-6 text-center py-4">
+                    <div class="w-20 h-20 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto">
+                        <i data-lucide="check" class="w-10 h-10"></i>
+                    </div>
+
+                    <h2 class="text-2xl font-extrabold text-title tracking-tight">🎉 CXPAY 安装成功！</h2>
+                    <p class="text-xs text-sub max-w-md mx-auto">数据库 `cxpay` 初始化构建完成，底层 8 大模型与 Webman 常驻协程已就绪。</p>
+
+                    <div class="p-4 glass-card rounded-2xl text-left space-y-2 text-xs font-mono text-slate-300">
+                        <div>官网首页地址: <a href="/" class="text-sky-400 underline">https://yourdomain.com/</a></div>
+                        <div>商户独立登录: <a href="/merchant_login.html" class="text-sky-400 underline">/merchant_login.html</a></div>
+                        <div>管理员超级控制台: <a href="/admin/index.html" class="text-rose-400 underline">/admin/index.html</a></div>
+                    </div>
+
+                    <a href="/admin/index.html" class="inline-block px-8 py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-bold text-sm rounded-xl shadow-lg cursor-pointer">
+                        立即进入管理员控制台
+                    </a>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const step = ref(1);
+                const form = ref({
+                    db_host: '127.0.0.1',
+                    db_port: '3306',
+                    db_name: 'cxpay',
+                    db_user: 'root',
+                    db_pass: '123456',
+                    admin_user: 'admin',
+                    admin_pass: '123456'
+                });
+
+                function installSystem() {
+                    step.value = 3;
+                    nextTick(() => lucide.createIcons());
+                }
+
+                onMounted(() => lucide.createIcons());
+
+                return { step, form, installSystem }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

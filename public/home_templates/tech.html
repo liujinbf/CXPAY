@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CXPAY - 全球高吞吐云计算与分布式数据分发平台</title>
+    <!-- TailwindCSS & Lucide -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { brand: { 500: '#10b981', 600: '#059669' } },
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        html.dark body { background-color: #040810; color: #f8fafc; }
+        html.light body { background-color: #f8fafc; color: #0f172a; }
+
+        .ambient-glow {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            filter: blur(140px);
+            opacity: 0.18;
+            pointer-events: none;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+        html.light .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            border-color: rgba(226, 232, 240, 0.8);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        .glass-panel:hover {
+            transform: translateY(-4px);
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+    </style>
+</head>
+<body class="min-h-screen relative font-sans overflow-x-hidden transition-colors duration-300">
+
+    <!-- Ambient Glows -->
+    <div class="ambient-glow bg-emerald-500 top-[-100px] left-[-100px]"></div>
+    <div class="ambient-glow bg-teal-600 top-[30%] right-[-100px]"></div>
+
+    <!-- Header Navigation -->
+    <header class="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between relative z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <i data-lucide="cloud-lightning" class="w-6 h-6 text-white"></i>
+            </div>
+            <span class="text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500">CXPAY</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Cloud Tech</span>
+        </div>
+
+        <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+            <a href="#services" class="hover:text-emerald-400 transition-colors">云计算服务</a>
+            <a href="#matrix" class="hover:text-emerald-400 transition-colors">边缘分发矩阵</a>
+            <a href="#security" class="hover:text-emerald-400 transition-colors">数据合规安全</a>
+        </nav>
+
+        <div class="flex items-center gap-3">
+            <button onclick="toggleTheme()" class="w-10 h-10 rounded-2xl glass-panel flex items-center justify-center text-slate-400 hover:text-emerald-400 transition-all cursor-pointer">
+                <i id="theme-icon" data-lucide="sun" class="w-5 h-5"></i>
+            </button>
+            <a href="/merchant_login.html" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center gap-2">
+                <i data-lucide="server" class="w-4 h-4"></i> 控制台登录
+            </a>
+        </div>
+    </header>
+
+    <!-- Tech Hero Section (No Payment Keywords) -->
+    <section class="max-w-5xl mx-auto text-center px-6 pt-20 pb-16 relative z-10">
+        <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 mb-6">
+            <i data-lucide="network" class="w-4 h-4"></i> 分布式常驻协程调度网络 · 毫秒级边缘加速
+        </div>
+        <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight mb-6">
+            赋能企业级架构 <br>
+            <span class="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-200 to-emerald-500">高性能分布式数据分发云平台</span>
+        </h1>
+        <p class="text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+            基于高并发常驻内存架构构建。为现代海量并发应用提供高可用数据流转调度、毫秒级负载均衡与多云边缘节点融合网络。
+        </p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a href="/merchant_login.html" class="w-full sm:w-auto px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/30 transition-all flex items-center justify-center gap-2">
+                <i data-lucide="terminal" class="w-5 h-5"></i> 接入云控制台
+            </a>
+            <a href="/admin_login.html" class="w-full sm:w-auto px-8 py-4 glass-card hover:border-emerald-500/40 text-slate-200 font-bold rounded-2xl transition-all flex items-center justify-center gap-2">
+                <i data-lucide="shield" class="w-5 h-5 text-emerald-400"></i> 管理员运维入口
+            </a>
+        </div>
+    </section>
+
+    <!-- Tech Features Grid -->
+    <section id="services" class="max-w-7xl mx-auto px-6 py-16 relative z-10">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="glass-panel p-8 rounded-3xl">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-6">
+                    <i data-lucide="cpu" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-100 mb-3">高并发调度协程</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">基于协程非阻塞异步 I/O 模型，单机节点承载 3,000+ QPS 吞吐，内存开销降低 80%。</p>
+            </div>
+
+            <div class="glass-panel p-8 rounded-3xl">
+                <div class="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 mb-6">
+                    <i data-lucide="route" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-100 mb-3">智能链路负载分流</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">动态感知各数据链路响应耗时与丢包率，自动实行加权智能分流与故障秒级熔断。</p>
+            </div>
+
+            <div class="glass-panel p-8 rounded-3xl">
+                <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-6">
+                    <i data-lucide="lock" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-100 mb-3">零信任全传输加密</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">全通道支持 HMAC-SHA256 参数加签与国密级算法加密，保障数据在节点间安全传输。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 py-8 text-center text-xs text-slate-500 relative z-10">
+        <p>© 2026 CXPAY Cloud Technology. All Rights Reserved. 企业级分布式计算平台</p>
+    </footer>
+
+    <script>
+        let isDark = true;
+        window.addEventListener('DOMContentLoaded', () => lucide.createIcons());
+
+        function toggleTheme() {
+            isDark = !isDark;
+            const root = document.getElementById('html-root');
+            const icon = document.getElementById('theme-icon');
+            if (isDark) {
+                root.className = 'dark';
+                icon.setAttribute('data-lucide', 'sun');
+            } else {
+                root.className = 'light';
+                icon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

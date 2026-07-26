@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统管理员登录入口 - CXPAY Security Console</title>
+
+    <!-- TailwindCSS & Lucide & Vue3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { brand: { 500: '#0284c7', 600: '#0369a1' } },
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        html.dark body { background-color: #060911; color: #f8fafc; }
+        html.light body { background-color: #f1f5f9; color: #0f172a; }
+
+        .ambient-glow {
+            position: absolute;
+            width: 450px;
+            height: 450px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.25;
+            pointer-events: none;
+        }
+
+        .glass-login {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7);
+        }
+        html.light .glass-login {
+            background: rgba(255, 255, 255, 0.85);
+            border-color: rgba(226, 232, 240, 0.8);
+            box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.35);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden font-sans">
+
+    <div class="ambient-glow bg-rose-500/30 top-[-100px] left-[-100px]"></div>
+    <div class="ambient-glow bg-indigo-600 bottom-[-100px] right-[-100px]"></div>
+
+    <div id="app" class="w-full max-w-md glass-login rounded-3xl p-8 relative z-10">
+        <!-- Day/Night Switch -->
+        <button @click="toggleTheme()" class="absolute top-6 right-6 w-9 h-9 rounded-full flex items-center justify-center bg-slate-800/20 text-slate-400 hover:text-slate-200 transition-all cursor-pointer">
+            <i :data-lucide="isDark ? 'sun' : 'moon'" class="w-4 h-4"></i>
+        </button>
+
+        <!-- Brand Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 to-indigo-600 mb-3 shadow-lg shadow-rose-500/20">
+                <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+            </div>
+            <h2 class="text-2xl font-extrabold tracking-tight text-white">系统管理员总控入口</h2>
+            <p class="text-xs text-slate-400 mt-1">受保护的高安全权限管理控制台</p>
+        </div>
+
+        <!-- Login Form -->
+        <form @submit.prevent="handleLogin" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5">超级管理员账号</label>
+                <div class="relative">
+                    <i data-lucide="user-check" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+                    <input v-model="account" type="text" required placeholder="请输入 Root 管理员账号" class="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-all">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5">管理员密码</label>
+                <div class="relative">
+                    <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+                    <input v-model="password" type="password" required placeholder="请输入管理员密码" class="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-all">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5">双因子 2FA 动态口令 (MFA)</label>
+                <div class="relative">
+                    <i data-lucide="shield-alert" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+                    <input v-model="mfaCode" type="text" maxlength="6" placeholder="6 位谷歌验证码 (可选)" class="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-all">
+                </div>
+            </div>
+
+            <button type="submit" class="w-full py-3.5 mt-2 bg-gradient-to-r from-rose-500 to-indigo-600 hover:from-rose-400 hover:to-indigo-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-rose-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                <span>验证授权并登录总控台</span>
+                <i data-lucide="shield-arrow-right" class="w-4 h-4"></i>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+        createApp({
+            setup() {
+                const account = ref('admin');
+                const password = ref('••••••••');
+                const mfaCode = ref('');
+                const isDark = ref(true);
+
+                onMounted(() => lucide.createIcons());
+
+                function toggleTheme() {
+                    isDark.value = !isDark.value;
+                    document.getElementById('html-root').className = isDark.value ? 'dark' : 'light';
+                    setTimeout(() => lucide.createIcons(), 50);
+                }
+
+                function handleLogin() {
+                    window.location.href = '/admin/index.html?role=admin';
+                }
+
+                return { account, password, mfaCode, isDark, toggleTheme, handleLogin }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
