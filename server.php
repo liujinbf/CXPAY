@@ -21,6 +21,17 @@ if (!function_exists('json')) {
     }
 }
 
+if (!function_exists('response')) {
+    function response($body = '', $status = 200, $headers = []) {
+        return new class($body) {
+            private $body;
+            public function __construct($b) { $this->body = $b; }
+            public function rawBody() { return $this->body; }
+            public function __toString() { return $this->body; }
+        };
+    }
+}
+
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
 }
