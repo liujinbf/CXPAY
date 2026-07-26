@@ -139,7 +139,7 @@
             } else {
                 document.getElementById('order-subject').innerText = '测试演示订单';
                 document.getElementById('order-amount').innerText = '1.00';
-                renderQr('https://pay.yourdomain.com/');
+                renderQr(window.location.origin);
             }
 
             lucide.createIcons();

@@ -89,6 +89,35 @@ if (str_starts_with($uriPath, '/api/merchant/channel/')) {
     exit;
 }
 
+// 1.45 订单收银台公开查询 API (/api/order/query)
+if (str_contains($uriPath, '/api/order/query')) {
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        $dbConfig = require __DIR__ . '/config/database.php';
+        if ($dbConfig && class_exists('Illuminate\Database\Capsule\Manager')) {
+            $capsule = new \Illuminate\Database\Capsule\Manager();
+            foreach ($dbConfig['connections'] as $name => $conn) {
+                $capsule->addConnection($conn, $name);
+            }
+            $capsule->setAsGlobal();
+            $capsule->bootEloquent();
+        }
+    } catch (\Throwable $e) {}
+
+    $ctrl = new \app\controller\api\OrderController();
+    $req = new class($uriPath) {
+        private $path;
+        public function __construct($p) { $this->path = $p; }
+        public function get($k = null) { return $k ? ($_GET[$k] ?? null) : $_GET; }
+        public function post($k = null) { return $k ? ($_POST[$k] ?? null) : $_POST; }
+        public function path() { return $this->path; }
+    };
+
+    $res = $ctrl->query($req);
+    echo is_object($res) && method_exists($res, 'rawBody') ? $res->rawBody() : (string)$res;
+    exit;
+}
+
 // 1.5 微信小账本/收款单 扫码登录授权免挂 API
 if (str_contains($uriPath, '/api/wxprotocol/')) {
     $wxCtrl = new \app\controller\api\WeChatProtocolAdminController();

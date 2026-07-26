@@ -74,6 +74,9 @@ Route::post('/api/qr/upload', [app\controller\api\QrUploadController::class, 'up
 // 支付宝/通道防掉线心跳检测 API
 Route::any('/api/channel/keepalive', [app\controller\api\ChannelKeepAliveController::class, 'keepalive']);
 
+// 订单公开查询 API
+Route::any('/api/order/query', [app\controller\api\OrderController::class, 'query']);
+
 // 挂机助手 OpenAPI 账单上报推送
 Route::any('/api/appasst/push', [app\controller\api\AppasstController::class, 'push']);
 
