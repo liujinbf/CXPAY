@@ -1278,10 +1278,7 @@
                                 clearInterval(wxAuthPollTimer);
                                 const openid = (pollJson.data && pollJson.data.openid) ? pollJson.data.openid : ('wx_openid_' + sessionId.substring(5, 12));
                                 
-                                statusText.innerText = '✅ 微信扫码授权成功！已绑定 OpenID: ' + openid + '！👉 请在下方上传/确认您的真实收款码，然后点击【保存到数据库】';
-                                statusText.className = 'text-[11px] text-emerald-700 font-bold';
-                                
-                                document.getElementById('channel-qr-url-input').value = json.qr_data;
+                                document.getElementById('channel-qr-url-input').value = '';
                                 document.getElementById('channel-remark-input').value = '微信小账本免挂授权 #' + openid;
                             }
                         } catch (e) {}

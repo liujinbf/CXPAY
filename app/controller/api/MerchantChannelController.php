@@ -346,8 +346,13 @@ class MerchantChannelController
         $cfg   = is_array($targetChannel['config'] ?? null) ? $targetChannel['config'] : json_decode($targetChannel['config'] ?? '{}', true);
         $alipayPid = $targetChannel['alipay_pid'] ?? ($cfg['alipay_pid'] ?? ($targetChannel['pid'] ?? ($cfg['pid'] ?? '')));
 
-        $hasRealQr = !empty($rawQr);
-        $displayQr = $hasRealQr ? $rawQr : "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
+        if ($payCategory === 'wxpay' || str_contains($rawQr, 'wxprotocol') || str_contains($rawQr, 'auth_page')) {
+            $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
+            $hasRealQr = false;
+        } else {
+            $hasRealQr = !empty($rawQr);
+            $displayQr = $hasRealQr ? $rawQr : "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
+        }
 
         try {
             if (class_exists('Illuminate\Database\Capsule\Manager') && class_exists('app\model\Order')) {
