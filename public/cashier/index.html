@@ -157,7 +157,7 @@
                 .then(res => {
                     if (res.code === 1 && res.data) {
                         const data = res.data;
-                        document.getElementById('order-amount').innerText = data.money || data.amount || '1.00';
+                        document.getElementById('order-amount').innerText = data.price || data.money || data.amount || '1.00';
                         document.getElementById('order-subject').innerText = data.subject || data.name || '网络商品';
                         document.getElementById('order-trade-no').innerText = tNo;
                         let finalQrUrl = data.pay_url || window.location.href;

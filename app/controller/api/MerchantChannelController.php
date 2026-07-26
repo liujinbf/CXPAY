@@ -388,7 +388,7 @@ class MerchantChannelController
                 'trade_no'     => $tradeNo,
                 'out_trade_no' => $outTradeNo,
                 'merchant_id'  => 1000,
-                'money'        => number_format($money, 2, '.', ''),
+                'money'        => number_format($floatMoney, 2, '.', ''),
                 'price'        => number_format($floatMoney, 2, '.', ''),
                 'pay_type'     => $payCategory,
                 'qr_url'       => $displayQr,
