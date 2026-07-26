@@ -52,6 +52,8 @@ class IndexController
      */
     protected function renderMobilePayPage(string $tradeNo, bool $isAlipay, bool $isWx): string
     {
+        $displayNo = !empty($tradeNo) ? $tradeNo : ('CX' . date('YmdHis') . sprintf('%03d', mt_rand(1, 999)));
+        
         return <<<HTML
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -81,7 +83,7 @@ class IndexController
         <div class="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/50 text-left space-y-2 text-xs font-mono">
             <div class="flex justify-between text-slate-400">
                 <span>单据编号:</span>
-                <span id="display-trade-no" class="text-slate-200 font-bold">CX1785077865</span>
+                <span id="display-trade-no" class="text-slate-200 font-bold">{$displayNo}</span>
             </div>
             <div class="flex justify-between text-slate-400">
                 <span>支付通道:</span>
@@ -89,7 +91,7 @@ class IndexController
             </div>
             <div class="flex justify-between text-slate-400">
                 <span>倒计时:</span>
-                <span class="text-amber-400 font-bold" id="pay-timer">178 秒</span>
+                <span class="text-amber-400 font-bold" id="pay-timer">180 秒</span>
             </div>
         </div>
 
@@ -111,16 +113,18 @@ class IndexController
         lucide.createIcons();
 
         function doAppPay() {
-            // 唤起支付宝 App 支付通道
-            const aliPayUrl = "alipays://platformapi/startapp?appId=20000067&url=" + encodeURIComponent("https://qr.alipay.com/bax09876543210987");
-            window.location.href = aliPayUrl;
+            // 原生调起支付宝原生收银台 (避免第三方外部跳转警示)
+            const targetQr = "https://qr.alipay.com/bax09876543210987";
+            const aliNativeScheme = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(targetQr);
+            
+            window.location.href = aliNativeScheme;
 
             setTimeout(() => {
-                window.location.href = "https://qr.alipay.com/bax09876543210987";
+                window.location.href = targetQr;
             }, 1200);
         }
 
-        // 自动识别环境立即调起
+        // 在支付宝 App 内直接自动唤醒原生收银台
         if (navigator.userAgent.includes('AlipayClient')) {
             setTimeout(doAppPay, 300);
         }

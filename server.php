@@ -224,6 +224,13 @@ if (str_contains($uriPath, '/api/channel/keepalive')) {
     $res = $kaCtrl->keepalive();
     echo is_array($res) ? json_encode($res, JSON_UNESCAPED_UNICODE) : (string)$res;
     exit;
+// 1.9 动态主页与手机端 H5 快捷支付路由 ( / )
+if ($uriPath === '/' || $uriPath === '/index.html') {
+    header('Content-Type: text/html; charset=utf-8');
+    $indexCtrl = new \app\controller\IndexController();
+    $res = $indexCtrl->index();
+    echo is_object($res) && method_exists($res, 'rawBody') ? $res->rawBody() : (string)$res;
+    exit;
 }
 
 // 2. 易支付标准下单网关协议 (/submit.php & /mapi.php)
