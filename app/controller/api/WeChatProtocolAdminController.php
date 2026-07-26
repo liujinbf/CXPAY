@@ -96,6 +96,6 @@ class WeChatProtocolAdminController
 </html>
 HTML;
 
-        return response($html, 200, ['Content-Type' => 'text/html; charset=utf-8']);
+        return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $html);
     }
 }

@@ -2,6 +2,17 @@
 // 本地与 Docker 镜像 Web 路由支持服务
 // 监听端口：$PORT / 8787
 
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+
+spl_autoload_register(function ($class) {
+    $file = __DIR__ . '/' . str_replace('\\', '/', $class) . '.php';
+    if (file_exists($file)) {
+        require_once $file;
+    }
+});
+
 $rawUri  = $_SERVER['REQUEST_URI'] ?? '/';
 $uriPath = parse_url($rawUri, PHP_URL_PATH) ?: '/';
 
