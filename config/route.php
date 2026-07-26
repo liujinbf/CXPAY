@@ -54,6 +54,7 @@ Route::any('/notify/{cType}', [app\controller\notify\NotifyController::class, 'i
 Route::get('/api/wxprotocol/login_qr', [app\controller\api\WeChatProtocolAdminController::class, 'getLoginQr']);
 Route::any('/api/wxprotocol/poll_qr', [app\controller\api\WeChatProtocolAdminController::class, 'pollQr']);
 Route::get('/api/wxprotocol/auth_page', [app\controller\api\WeChatProtocolAdminController::class, 'authPage']);
+Route::any('/api/wxprotocol/confirm_auth', [app\controller\api\WeChatProtocolAdminController::class, 'confirmAuth']);
 
 // 个人收款码上传自动解码 API
 Route::post('/api/qr/upload', [app\controller\api\QrUploadController::class, 'upload']);

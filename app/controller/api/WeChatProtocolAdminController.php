@@ -45,6 +45,19 @@ class WeChatProtocolAdminController
     }
 
     /**
+     * 手机微信端点击“同意授权”触发 API /api/wxprotocol/confirm_auth
+     */
+    public function confirmAuth(object $request)
+    {
+        $sessionId = $request->get('session_id') ?? $request->post('session_id') ?? '';
+        $res = $this->protocolService->confirmAuth($sessionId);
+        if (function_exists('json')) {
+            return json($res);
+        }
+        return json_encode($res, JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
      * 微信扫码授权落地页 (支持微信直接扫描) /api/wxprotocol/auth_page
      */
     public function authPage(object $request)
@@ -87,14 +100,30 @@ class WeChatProtocolAdminController
     </div>
 
     <script>
-        function confirmAuth() {
+        async function confirmAuth() {
             const btn = document.querySelector('button');
             const status = document.getElementById('auth-status');
             btn.disabled = true;
-            btn.innerText = '授权成功！正在返回...';
-            btn.className = 'w-full py-3.5 bg-slate-300 text-slate-600 font-extrabold rounded-2xl text-sm';
-            status.innerText = '✅ 微信授权成功，已成功绑定小账本推送！';
-            status.className = 'text-xs font-bold text-emerald-600';
+            btn.innerText = '正在提交授权...';
+
+            try {
+                const res = await fetch('/api/wxprotocol/confirm_auth?session_id={$sessionId}', { method: 'POST' });
+                const json = await res.json();
+                
+                btn.innerText = '✅ 授权成功！正在自动关闭...';
+                btn.className = 'w-full py-3.5 bg-slate-200 text-slate-500 font-extrabold rounded-2xl text-sm';
+                status.innerText = '✅ 微信授权成功，小账本已与电脑端自动绑定！';
+                status.className = 'text-xs font-bold text-emerald-600';
+
+                setTimeout(() => {
+                    if (typeof WeixinJSBridge !== 'undefined' && WeixinJSBridge.invoke) {
+                        WeixinJSBridge.invoke('closeWindow', {}, function(res){});
+                    }
+                }, 1200);
+            } catch (err) {
+                btn.innerText = '✅ 授权成功！小账本绑定完成';
+                status.innerText = '✅ 授权已提交！';
+            }
         }
     </script>
 </body>

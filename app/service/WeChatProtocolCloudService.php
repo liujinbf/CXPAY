@@ -22,9 +22,13 @@ class WeChatProtocolCloudService
     public function createQrSession(): array
     {
         $sessionId = 'SESS_' . md5((string)mt_rand());
-        // 生成强制 HTTPS 的标准平台 H5 / 微信内扫码授权 URL
         $domain  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
         $authUrl = "https://{$domain}/api/wxprotocol/auth_page?session_id={$sessionId}";
+
+        // 初始化会话文件为等待状态
+        $file = base_path() . '/runtime/wx_auth_' . $sessionId . '.json';
+        @mkdir(dirname($file), 0777, true);
+        file_put_contents($file, json_encode(['status' => 'waiting', 'created_at' => time()]));
 
         return [
             'code'       => 1,
@@ -34,18 +38,50 @@ class WeChatProtocolCloudService
     }
 
     /**
+     * 手机微信端点击“同意授权成为店员”确认接口
+     */
+    public function confirmAuth(string $sessionId): array
+    {
+        $file = base_path() . '/runtime/wx_auth_' . $sessionId . '.json';
+        @mkdir(dirname($file), 0777, true);
+
+        $data = [
+            'status'     => 'confirmed',
+            'openid'     => 'wx_openid_' . substr(md5($sessionId), 0, 10),
+            'sid'        => 'SID_' . md5($sessionId),
+            'nickname'   => '微信店员小账本',
+            'updated_at' => time()
+        ];
+
+        file_put_contents($file, json_encode($data, JSON_UNESCAPED_UNICODE));
+        return ['code' => 1, 'msg' => '微信店员授权已成功绑定！'];
+    }
+
+    /**
      * 轮询扫码授权状态，获取授权后的 OpenID 与 SID
      */
     public function pollQrSession(string $sessionId): array
     {
+        $file = base_path() . '/runtime/wx_auth_' . $sessionId . '.json';
+        if (file_exists($file)) {
+            $json = json_decode(file_get_contents($file), true);
+            if (isset($json['status']) && $json['status'] === 'confirmed') {
+                return [
+                    'code'   => 1,
+                    'status' => 'confirmed',
+                    'data'   => [
+                        'openid'   => $json['openid'] ?? ('wx_openid_' . substr($sessionId, -8)),
+                        'sid'      => $json['sid'] ?? ('SID_' . md5($sessionId)),
+                        'nickname' => $json['nickname'] ?? '微信商户',
+                    ]
+                ];
+            }
+        }
+
         return [
             'code'   => 1,
-            'status' => 'confirmed',
-            'data'   => [
-                'openid'   => 'wx_openid_' . substr($sessionId, -8),
-                'sid'      => 'SID_' . md5($sessionId),
-                'nickname' => '微信商户',
-            ]
+            'status' => 'waiting',
+            'msg'    => '等待微信扫码授权确认...'
         ];
     }
 

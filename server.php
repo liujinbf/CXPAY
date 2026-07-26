@@ -84,6 +84,9 @@ if (str_contains($uriPath, '/api/wxprotocol/')) {
     if (str_contains($uriPath, 'auth_page')) {
         header('Content-Type: text/html; charset=utf-8');
         $res = $wxCtrl->authPage($req);
+    } elseif (str_contains($uriPath, 'confirm_auth')) {
+        header('Content-Type: application/json; charset=utf-8');
+        $res = $wxCtrl->confirmAuth($req);
     } elseif (str_contains($uriPath, 'login_qr')) {
         header('Content-Type: application/json; charset=utf-8');
         $res = $wxCtrl->getLoginQr();
