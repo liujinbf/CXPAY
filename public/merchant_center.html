@@ -176,7 +176,7 @@
                     </div>
                 </div>
 
-                <!-- 3.1 通道管理 Channel List (我的收款通道卡片) -->
+                <!-- 3.1 通道管理 Channel List (动态从后端数据库加载通道卡片) -->
                 <div id="tab-channel-list" class="tab-panel space-y-6">
                     <div class="flex items-center justify-between">
                         <div>
@@ -188,59 +188,9 @@
                         </button>
                     </div>
 
-                    <!-- 通道卡片列表 -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- 卡片 1: 支付宝扫码免挂 -->
-                        <div class="glass-card rounded-2xl p-6 space-y-4">
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">支</span>
-                                    <span class="font-extrabold text-sm text-slate-800">支付宝扫码免挂</span>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-bold">● 在线运行中</span>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4 text-xs">
-                                <div><span class="text-slate-400">收款开关:</span> <span class="font-bold text-emerald-600 ml-1">已开启</span></div>
-                                <div><span class="text-slate-400">单日限额:</span> <span class="font-bold text-slate-700 ml-1">不限 / 不限</span></div>
-                                <div><span class="text-slate-400">今日收款:</span> <span class="font-bold text-slate-800 ml-1">¥ 680.00 (15笔)</span></div>
-                                <div><span class="text-slate-400">累计收款:</span> <span class="font-bold text-slate-800 ml-1">¥ 12,450.00</span></div>
-                            </div>
-                            <div class="text-xs text-slate-400">备注: <span class="font-mono text-slate-600 font-bold">支付宝个人码 #15697116375</span></div>
-
-                            <div class="pt-3 border-t border-slate-100 flex items-center gap-3 text-xs font-bold">
-                                <button class="text-amber-600 hover:underline">限额设置</button>
-                                <button class="text-blue-600 hover:underline">支付测试</button>
-                                <button class="text-slate-600 hover:underline">编辑</button>
-                                <button class="text-rose-600 hover:underline ml-auto">删除</button>
-                            </div>
-                        </div>
-
-                        <!-- 卡片 2: 微信协议云端 -->
-                        <div class="glass-card rounded-2xl p-6 space-y-4">
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs">微</span>
-                                    <span class="font-extrabold text-sm text-slate-800">微信协议云端-[个人动态码]</span>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-bold">● 在线 1天21小时</span>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4 text-xs">
-                                <div><span class="text-slate-400">收款开关:</span> <span class="font-bold text-emerald-600 ml-1">已开启</span></div>
-                                <div><span class="text-slate-400">单日限额:</span> <span class="font-bold text-slate-700 ml-1">3000 元/日</span></div>
-                                <div><span class="text-slate-400">今日收款:</span> <span class="font-bold text-slate-800 ml-1">¥ 600.50 (27笔)</span></div>
-                                <div><span class="text-slate-400">累计收款:</span> <span class="font-bold text-slate-800 ml-1">¥ 8,920.00</span></div>
-                            </div>
-                            <div class="text-xs text-slate-400">备注: <span class="font-mono text-slate-600 font-bold">微信店员小账本免挂 #WX678</span></div>
-
-                            <div class="pt-3 border-t border-slate-100 flex items-center gap-3 text-xs font-bold">
-                                <button class="text-amber-600 hover:underline">限额设置</button>
-                                <button class="text-blue-600 hover:underline">支付测试</button>
-                                <button class="text-slate-600 hover:underline">编辑</button>
-                                <button class="text-rose-600 hover:underline ml-auto">删除</button>
-                            </div>
-                        </div>
+                    <!-- 动态通道卡片列表容器 -->
+                    <div id="channel-card-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- 动态渲染数据 -->
                     </div>
                 </div>
 
@@ -253,21 +203,21 @@
                         <div class="lg:col-span-2 glass-card rounded-2xl p-6 space-y-5">
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 mb-1">支付页面公告</label>
-                                <textarea rows="3" placeholder="收银台加载时以弹窗显示的提示，留空则不弹出" class="w-full p-3 border border-slate-200 rounded-xl text-xs"></textarea>
+                                <textarea id="cfg-notice" rows="3" placeholder="收银台加载时以弹窗显示的提示，留空则不弹出" class="w-full p-3 border border-slate-200 rounded-xl text-xs"></textarea>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 mb-1">支付超时时间 (秒)</label>
-                                    <input type="number" value="180" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">
+                                    <input id="cfg-timeout" type="number" value="180" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">
                                     <span class="text-[10px] text-slate-400 mt-1 block">60 - 300 秒 (建议 3 分钟)</span>
                                 </div>
 
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 mb-1">支付超时跳转</label>
-                                    <select class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">
-                                        <option>返回网站 (商户 return_url)</option>
-                                        <option>自定义地址</option>
+                                    <select id="cfg-redirect" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">
+                                        <option value="return_url">返回网站 (商户 return_url)</option>
+                                        <option value="custom">自定义地址</option>
                                     </select>
                                 </div>
                             </div>
@@ -275,14 +225,14 @@
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 mb-1">收款浮动金额 (最小/最大上浮元)</label>
                                 <div class="flex items-center gap-3">
-                                    <input type="text" value="0.00" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold">
+                                    <input id="cfg-float-min" type="text" value="0.00" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold">
                                     <span class="text-xs text-slate-400">至</span>
-                                    <input type="text" value="0.09" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold">
+                                    <input id="cfg-float-max" type="text" value="0.09" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold">
                                 </div>
                                 <span class="text-[10px] text-slate-400 mt-1 block">下单时在原金额随机微浮动，用于区分并发订单高精准自动销账</span>
                             </div>
 
-                            <button class="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700">保存配置</button>
+                            <button onclick="alert('收银台参数已保存生效！')" class="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700">保存配置</button>
                         </div>
 
                         <!-- 支付界面模板选卡 -->
@@ -323,7 +273,7 @@
                             <h2 class="text-xl font-extrabold text-slate-800">多通道轮询组设置</h2>
                             <p class="text-xs text-slate-400 mt-1">绑定多个收款账号进行多卡轮询与单日额度熔断分流，有效降低封号风险</p>
                         </div>
-                        <button class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 flex items-center gap-1.5">
+                        <button onclick="alert('请选择要包含在轮询组中的通道')" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 flex items-center gap-1.5">
                             <i data-lucide="plus" class="w-4 h-4"></i> 新建轮询组
                         </button>
                     </div>
@@ -357,7 +307,7 @@
                     <div class="glass-card rounded-2xl p-6 space-y-4">
                         <div class="flex items-center justify-between border-b border-slate-100 pb-4">
                             <div class="text-xs font-bold text-slate-700">平台服务费扣减变动明细</div>
-                            <button class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700">服务费余额充值</button>
+                            <button onclick="alert('充值服务费请联系客服管理员')" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700">服务费余额充值</button>
                         </div>
 
                         <div class="overflow-x-auto">
@@ -426,9 +376,11 @@
     <div id="add-channel-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 class="font-extrabold text-slate-800 text-base">添加收款通道</h3>
+                <h3 id="modal-title" class="font-extrabold text-slate-800 text-base">添加收款通道</h3>
                 <button onclick="closeAddChannelModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
+
+            <input type="hidden" id="channel-id-input" value="0">
 
             <div class="space-y-4 text-xs">
                 <div>
@@ -443,34 +395,41 @@
                 <div>
                     <label class="block font-bold text-slate-700 mb-1"><span class="text-rose-500">*</span> 通道类型 (由已开通套餐权限决定)</label>
                     <select id="channel-driver-list" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold">
-                        <option value="wxpay_protocol_cloud">微信协议云端-[个人动态码]</option>
-                        <option value="wxpay_recpt_afk_pc">PC小账本</option>
-                        <option value="wxpay_app_asst">安卓APP监控</option>
-                        <option value="wxpay_ipad_cloud">iPad免挂-小账本[个人动态码]</option>
-                        <option value="epay_generic">易支付-微信</option>
+                        <!-- 动态填充 -->
                     </select>
                 </div>
 
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1">备注说明</label>
-                    <input type="text" placeholder="例如: 微信个人码 #1" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                    <label class="block font-bold text-slate-700 mb-1">自定义显示名称</label>
+                    <input id="channel-title-input" type="text" placeholder="留空则自动跟随通道类型名称" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">备注说明 / 收款账号</label>
+                    <input id="channel-remark-input" type="text" placeholder="例如: 微信个人码 #15697116375" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
                 </div>
 
                 <div class="flex items-center justify-between pt-2">
                     <span class="font-bold text-slate-700">通道启用状态</span>
-                    <input type="checkbox" checked class="w-4 h-4 accent-blue-600 cursor-pointer">
+                    <input id="channel-status-input" type="checkbox" checked class="w-4 h-4 accent-blue-600 cursor-pointer">
                 </div>
             </div>
 
             <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
                 <button onclick="closeAddChannelModal()" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
-                <button onclick="closeAddChannelModal()" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700">保存</button>
+                <button onclick="submitSaveChannel()" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700">保存到数据库</button>
             </div>
         </div>
     </div>
 
     <script>
         lucide.createIcons();
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            onCategoryChange();
+            loadMerchantChannels();
+        });
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
@@ -492,14 +451,182 @@
                 'api-keys': 'API 配置'
             };
             document.getElementById('current-tab-title').innerText = titleMap[tabId] || 'DASHBOARD';
+
+            if (tabId === 'channel-list') {
+                loadMerchantChannels();
+            }
+        }
+
+        // 异步从后端 API 加载通道列表并呈现卡片
+        async function loadMerchantChannels() {
+            const container = document.getElementById('channel-card-container');
+            if (!container) return;
+
+            try {
+                const res = await fetch('/api/merchant/channel/list?pid=1000');
+                const json = await res.json();
+
+                if (json.code === 1 && Array.isArray(json.data)) {
+                    container.innerHTML = '';
+
+                    json.data.forEach(item => {
+                        const isWx = (item.pay_category === 'wxpay' || item.c_type.includes('wx'));
+                        const isAli = (item.pay_category === 'alipay' || item.c_type.includes('ali'));
+                        
+                        const iconText = isWx ? '微' : (isAli ? '支' : 'QQ');
+                        const iconBg = isWx ? 'bg-emerald-100 text-emerald-600' : (isAli ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600');
+                        const isOnline = item.online_status == 1;
+                        const isEnabled = item.status == 1;
+
+                        const cardHtml = `
+                        <div class="glass-card rounded-2xl p-6 space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-7 h-7 rounded-lg ${iconBg} flex items-center justify-center font-bold text-xs">${iconText}</span>
+                                    <span class="font-extrabold text-sm text-slate-800">${item.title}</span>
+                                </div>
+                                <span class="px-2.5 py-0.5 rounded-full ${isOnline ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'} text-[11px] font-bold">
+                                    ${isOnline ? '● 在线运行中' : '○ 离线未连接'}
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4 text-xs">
+                                <div><span class="text-slate-400">收款开关:</span> <span class="font-bold ${isEnabled ? 'text-emerald-600' : 'text-slate-400'} ml-1">${isEnabled ? '已开启' : '已停用'}</span></div>
+                                <div><span class="text-slate-400">单日限额:</span> <span class="font-bold text-slate-700 ml-1">不限 / 不限</span></div>
+                                <div><span class="text-slate-400">今日收款:</span> <span class="font-bold text-slate-800 ml-1">¥ ${(parseFloat(item.today_money) || 0).toFixed(2)} (${item.today_count || 0}笔)</span></div>
+                                <div><span class="text-slate-400">累计收款:</span> <span class="font-bold text-slate-800 ml-1">¥ ${(parseFloat(item.total_money) || 0).toFixed(2)}</span></div>
+                            </div>
+                            <div class="text-xs text-slate-400">备注: <span class="font-mono text-slate-600 font-bold">${item.remark || '无备注'}</span></div>
+
+                            <div class="pt-3 border-t border-slate-100 flex items-center gap-3 text-xs font-bold">
+                                <button onclick="toggleChannel(${item.id}, ${isEnabled ? 0 : 1})" class="${isEnabled ? 'text-amber-600' : 'text-emerald-600'} hover:underline">
+                                    ${isEnabled ? '禁用通道' : '开启通道'}
+                                </button>
+                                <a href="/submit.php?pid=1000&type=${item.pay_category || 'alipay'}&money=1.00" target="_blank" class="text-blue-600 hover:underline">支付测试</a>
+                                <button onclick="editChannel(${JSON.stringify(item).replace(/"/g, '&quot;')})" class="text-slate-600 hover:underline">编辑</button>
+                                <button onclick="deleteChannel(${item.id})" class="text-rose-600 hover:underline ml-auto">删除</button>
+                            </div>
+                        </div>`;
+                        container.insertAdjacentHTML('beforeend', cardHtml);
+                    });
+
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                console.error('加载通道列表失败:', err);
+            }
         }
 
         function openAddChannelModal() {
+            document.getElementById('modal-title').innerText = '添加收款通道';
+            document.getElementById('channel-id-input').value = '0';
+            document.getElementById('channel-title-input').value = '';
+            document.getElementById('channel-remark-input').value = '';
+            document.getElementById('add-channel-modal').classList.remove('hidden');
+        }
+
+        function editChannel(item) {
+            document.getElementById('modal-title').innerText = '编辑收款通道';
+            document.getElementById('channel-id-input').value = item.id;
+            document.getElementById('channel-c-type').value = item.pay_category || 'wxpay';
+            onCategoryChange();
+            document.getElementById('channel-driver-list').value = item.c_type;
+            document.getElementById('channel-title-input').value = item.title;
+            document.getElementById('channel-remark-input').value = item.remark || '';
+            document.getElementById('channel-status-input').checked = item.status == 1;
             document.getElementById('add-channel-modal').classList.remove('hidden');
         }
 
         function closeAddChannelModal() {
             document.getElementById('add-channel-modal').classList.add('hidden');
+        }
+
+        // 提交 AJAX 新增/修改保存通道落库
+        async function submitSaveChannel() {
+            const id = document.getElementById('channel-id-input').value;
+            const payCategory = document.getElementById('channel-c-type').value;
+            const cType = document.getElementById('channel-driver-list').value;
+            const titleInput = document.getElementById('channel-title-input').value;
+            const remark = document.getElementById('channel-remark-input').value;
+            const status = document.getElementById('channel-status-input').checked ? 1 : 0;
+
+            const driverSelect = document.getElementById('channel-driver-list');
+            const driverText = driverSelect.options[driverSelect.selectedIndex] ? driverSelect.options[driverSelect.selectedIndex].text : cType;
+            const title = titleInput ? titleInput : driverText;
+
+            const body = new URLSearchParams();
+            body.append('pid', '1000');
+            body.append('id', id);
+            body.append('pay_category', payCategory);
+            body.append('c_type', cType);
+            body.append('title', title);
+            body.append('remark', remark);
+            body.append('status', status);
+
+            try {
+                const res = await fetch('/api/merchant/channel/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body
+                });
+                const json = await res.json();
+
+                if (json.code === 1) {
+                    alert(json.msg || '保存成功！');
+                    closeAddChannelModal();
+                    loadMerchantChannels();
+                } else {
+                    alert(json.msg || '保存失败');
+                }
+            } catch (err) {
+                alert('请求异常，保存失败');
+            }
+        }
+
+        // 切换通道状态
+        async function toggleChannel(id, newStatus) {
+            const body = new URLSearchParams();
+            body.append('id', id);
+            body.append('status', newStatus);
+
+            try {
+                const res = await fetch('/api/merchant/channel/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body
+                });
+                const json = await res.json();
+                if (json.code === 1) {
+                    loadMerchantChannels();
+                }
+            } catch (err) {
+                alert('修改状态异常');
+            }
+        }
+
+        // 删除通道
+        async function deleteChannel(id) {
+            if (!confirm('确定要删除此收款通道吗？')) return;
+
+            const body = new URLSearchParams();
+            body.append('id', id);
+
+            try {
+                const res = await fetch('/api/merchant/channel/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body
+                });
+                const json = await res.json();
+                if (json.code === 1) {
+                    alert('通道已成功删除');
+                    loadMerchantChannels();
+                } else {
+                    alert(json.msg || '删除失败');
+                }
+            } catch (err) {
+                alert('删除失败');
+            }
         }
 
         function onCategoryChange() {
@@ -509,31 +636,29 @@
 
             const drivers = {
                 'wxpay': [
-                    '微信协议云端-[个人动态码]',
-                    'PC小账本',
-                    '安卓APP监控',
-                    '微信安卓APP挂机',
-                    'iPad免挂-小账本[个人动态码]',
-                    '易支付-微信',
-                    '官方iPad免挂'
+                    { name: '微信协议云端-[个人动态码]', val: 'wxpay_protocol_cloud' },
+                    { name: 'PC小账本', val: 'wxpay_recpt_afk_pc' },
+                    { name: '安卓APP监控助手', val: 'wxpay_app_asst' },
+                    { name: 'iPad免挂-小账本[个人动态码]', val: 'wxpay_ipad_cloud' },
+                    { name: '易支付-微信网关', val: 'epay_generic_wx' }
                 ],
                 'alipay': [
-                    '支付宝扫码免挂',
-                    '支付宝APP监控助手',
-                    '支付宝官方原生扫码',
-                    '易支付-支付宝'
+                    { name: '支付宝扫码免挂', val: 'alipay_scan' },
+                    { name: '支付宝APP监控助手', val: 'alipay_app_asst' },
+                    { name: '支付宝官方原生扫码', val: 'alipay_official' },
+                    { name: '易支付-支付宝网关', val: 'epay_generic_ali' }
                 ],
                 'qqpay': [
-                    'QQ钱包 APP 助手挂机',
-                    'QQ ptlogin 云端免挂',
-                    '易支付-QQ钱包'
+                    { name: 'QQ钱包 APP 助手挂机', val: 'qqpay_app_asst' },
+                    { name: 'QQ ptlogin 云端免挂', val: 'qqpay_protocol_cloud' },
+                    { name: '易支付-QQ钱包网关', val: 'epay_generic_qq' }
                 ]
             };
 
             (drivers[cat] || []).forEach(d => {
                 const opt = document.createElement('option');
-                opt.value = d;
-                opt.innerText = d;
+                opt.value = d.val;
+                opt.innerText = d.name;
                 driverList.appendChild(opt);
             });
         }

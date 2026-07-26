@@ -75,6 +75,9 @@ Route::group('/api/merchant', function () {
     Route::post('/buy_vip', [app\controller\api\MerchantApiController::class, 'buyVip']);
     Route::get('/channel/list', [app\controller\api\MerchantChannelController::class, 'list']);
     Route::post('/channel/save', [app\controller\api\MerchantChannelController::class, 'save']);
+    Route::post('/channel/toggle', [app\controller\api\MerchantChannelController::class, 'toggle']);
+    Route::post('/channel/delete', [app\controller\api\MerchantChannelController::class, 'delete']);
+    Route::get('/channel/drivers', [app\controller\api\MerchantChannelController::class, 'drivers']);
     Route::post('/recharge/create', [app\controller\api\MerchantRechargeController::class, 'create']);
 })->middleware([app\middleware\MerchantAuthMiddleware::class]);
 

@@ -15,6 +15,50 @@ if ($uriPath === '/doc' || $uriPath === '/doc.html') {
     }
 }
 
+// 1.5 商户通道管理 REST API 接口
+if (str_starts_with($uriPath, '/api/merchant/channel/')) {
+    header('Content-Type: application/json; charset=utf-8');
+    
+    // 初始化数据库关联
+    try {
+        $dbConfig = require __DIR__ . '/config/database.php';
+        if ($dbConfig && class_exists('Illuminate\Database\Capsule\Manager')) {
+            $capsule = new \Illuminate\Database\Capsule\Manager();
+            foreach ($dbConfig['connections'] as $name => $conn) {
+                $capsule->addConnection($conn, $name);
+            }
+            $capsule->setAsGlobal();
+            $capsule->bootEloquent();
+        }
+    } catch (\Throwable $e) {}
+
+    $ctrl = new \app\controller\api\MerchantChannelController();
+    $req = new class($uriPath) {
+        private $path;
+        public function __construct($p) { $this->path = $p; }
+        public function get($k = null) { return $k ? ($_GET[$k] ?? null) : $_GET; }
+        public function post($k = null) { return $k ? ($_POST[$k] ?? null) : $_POST; }
+        public function path() { return $this->path; }
+    };
+
+    if (str_contains($uriPath, 'list')) {
+        $res = $ctrl->list($req);
+    } elseif (str_contains($uriPath, 'save')) {
+        $res = $ctrl->save($req);
+    } elseif (str_contains($uriPath, 'toggle')) {
+        $res = $ctrl->toggle($req);
+    } elseif (str_contains($uriPath, 'delete')) {
+        $res = $ctrl->delete($req);
+    } elseif (str_contains($uriPath, 'drivers')) {
+        $res = $ctrl->drivers($req);
+    } else {
+        $res = json_encode(['code' => -1, 'msg' => '未知 API']);
+    }
+
+    echo is_object($res) && method_exists($res, 'rawBody') ? $res->rawBody() : (string)$res;
+    exit;
+}
+
 // 2. 易支付标准下单网关协议 (/submit.php & /mapi.php)
 if (str_contains($uriPath, 'submit.php') || str_contains($uriPath, 'mapi.php')) {
     $amount  = $_GET['money'] ?? $_POST['money'] ?? '1.00';

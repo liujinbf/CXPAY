@@ -50,16 +50,24 @@ CREATE TABLE IF NOT EXISTS `cx_order` (
 -- 3. 支付通道表 cx_pay_channel
 CREATE TABLE IF NOT EXISTS `cx_pay_channel` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
+  `merchant_id` int(11) DEFAULT '0' COMMENT '所属商户ID(0为全平台通用)',
+  `pay_category` varchar(32) NOT NULL DEFAULT 'wxpay' COMMENT '支付分类(wxpay/alipay/qqpay)',
   `title` varchar(100) NOT NULL COMMENT '通道显示名称',
   `c_type` varchar(50) NOT NULL COMMENT '驱动标识类型',
+  `remark` varchar(255) DEFAULT '' COMMENT '商户备注说明',
   `config` text COMMENT 'Authcode加密存储的配置JSON',
+  `today_money` decimal(10,2) DEFAULT '0.00' COMMENT '今日收款金额(元)',
+  `today_count` int(11) DEFAULT '0' COMMENT '今日收款笔数',
+  `total_money` decimal(10,2) DEFAULT '0.00' COMMENT '累计收款金额(元)',
   `weight` int(11) DEFAULT '50' COMMENT '轮询调度权重',
   `single_min` decimal(10,2) DEFAULT '0.00' COMMENT '单笔最小限制',
   `single_max` decimal(10,2) DEFAULT '0.00' COMMENT '单笔最大限制',
   `day_max` decimal(10,2) DEFAULT '0.00' COMMENT '单日额度限制',
+  `online_status` tinyint(1) DEFAULT '1' COMMENT '1在线 0离线',
   `status` tinyint(1) DEFAULT '1' COMMENT '1启用 0关闭',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付通道配置表';
+  PRIMARY KEY (`id`),
+  KEY `idx_merchant_cat` (`merchant_id`, `pay_category`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付通道与商户个人收款码配置表';
 
 -- 4. 挂机账单上报表 cx_callbill
 CREATE TABLE IF NOT EXISTS `cx_callbill` (
