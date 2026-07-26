@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  cxpay-app:
+    build: .
+    container_name: cxpay_app
+    ports:
+      - "8787:8787"
+    depends_on:
+      - cxpay-mysql
+      - cxpay-redis
+    environment:
+      - DB_HOST=cxpay-mysql
+      - DB_PORT=3306
+      - DB_NAME=cxpay
+      - DB_USER=cxpay
+      - DB_PASSWORD=cxpay_secret
+      - REDIS_HOST=cxpay-redis
+      - REDIS_PORT=6379
+
+  cxpay-mysql:
+    image: mysql:8.0
+    container_name: cxpay_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_DATABASE: cxpay
+      MYSQL_USER: cxpay
+      MYSQL_PASSWORD: cxpay_secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  cxpay-redis:
+    image: redis:7-alpine
+    container_name: cxpay_redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  mysql_data:
