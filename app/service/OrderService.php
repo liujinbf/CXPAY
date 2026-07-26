@@ -199,4 +199,28 @@ class OrderService
 
         return true;
     }
+
+    /**
+     * 手动重发/补发商户异步 HTTP 回调通知 (Re-notify)
+     */
+    public function resendNotify(string $tradeNo): array
+    {
+        $order = Order::where('trade_no', $tradeNo)->first();
+        if (!$order) {
+            return ['code' => -1, 'msg' => '订单不存在'];
+        }
+        if ((int)$order->status !== 1) {
+            return ['code' => -1, 'msg' => '未支付订单无法重新发送通知'];
+        }
+
+        // 重新触发 HTTP Notify
+        $result = $this->notifyService->notifyMerchant($order);
+
+        return [
+            'code'   => 1,
+            'msg'    => "成功重新向商户异步通知 URL 发起回调推送！",
+            'detail' => $result
+        ];
+    }
 }
+

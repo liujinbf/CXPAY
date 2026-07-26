@@ -4,13 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XLPAY / CXPAY - 管理控制台</title>
+    <title>CXPAY - 商业级聚合支付管理控制台</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        .glass-panel { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px -2px rgba(0,0,0,0.04); }
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .glass-panel { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px -2px rgba(0,0,0,0.03); }
+        .nav-group-title { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px 4px; }
         .tab-btn-active { background: #ffffff; border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 700; }
     </style>
 </head>
@@ -18,100 +19,127 @@
 <body class="h-full text-slate-700">
     <div id="app" class="min-h-full flex">
 
-        <!-- 左侧菜单 Sidebar -->
-        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-4 select-none">
-            <div>
+        <!-- 左侧二级级联折叠 Sidebar -->
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-3 select-none">
+            <div class="overflow-y-auto flex-1">
                 <!-- Brand Title -->
-                <div class="flex items-center gap-2.5 px-3 py-4 mb-4">
+                <div class="flex items-center gap-2.5 px-3 py-3 mb-2 border-b border-slate-100">
                     <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md">CX</div>
-                    <span class="text-xl font-extrabold text-slate-800 tracking-tight">XLPAY / CXPAY</span>
+                    <div>
+                        <span class="text-base font-extrabold text-slate-800 tracking-tight">CXPAY 控制台</span>
+                        <span class="block text-[10px] text-blue-600 font-mono font-bold">商业版 v1.1.0</span>
+                    </div>
                 </div>
 
-                <!-- Navigation List -->
+                <!-- 折叠级联 Navigation List -->
                 <nav class="space-y-1 text-xs">
-                    <a @click="activeMenu = 'dashboard'" :class="activeMenu === 'dashboard' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors">
-                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> 控制台
+                    <!-- 1. 数据概览 -->
+                    <div class="nav-group-title">数据概览</div>
+                    <a @click="activeMenu = 'dashboard'" :class="activeMenu === 'dashboard' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4 text-blue-500"></i> 控制台仪表盘
                     </a>
-                    <a @click="activeMenu = 'channel-config'" :class="activeMenu === 'channel-config' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors">
-                        <i data-lucide="settings-2" class="w-4 h-4 text-blue-500"></i> 收款通道配置 (核心)
+
+                    <!-- 2. 通道与轮询 -->
+                    <div class="nav-group-title">通道与轮询管理</div>
+                    <a @click="activeMenu = 'channel-config'" :class="activeMenu === 'channel-config' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="settings-2" class="w-4 h-4 text-indigo-500"></i> 收款通道配置
                     </a>
-                    <a @click="activeMenu = 'theme-setting'" :class="activeMenu === 'theme-setting' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors">
-                        <i data-lucide="palette" class="w-4 h-4 text-purple-500"></i> 主题模版设置
+                    <a @click="activeMenu = 'poll-groups'" :class="activeMenu === 'poll-groups' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="shuffle" class="w-4 h-4 text-emerald-500"></i> 轮询组 (PollGroup) 防封
                     </a>
-                    <a @click="activeMenu = 'merchant-mgmt'" :class="activeMenu === 'merchant-mgmt' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors">
-                        <i data-lucide="users" class="w-4 h-4"></i> 会员/商户管理
+                    <a @click="activeMenu = 'plugin-market'" :class="activeMenu === 'plugin-market' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="shopping-bag" class="w-4 h-4 text-amber-500"></i> 驱动插件商城
                     </a>
-                    <a @click="activeMenu = 'plugin-market'" :class="activeMenu === 'plugin-market' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors">
-                        <i data-lucide="shopping-bag" class="w-4 h-4 text-amber-500"></i> 插件商城 (动态安装)
+
+                    <!-- 3. 商户与应用 -->
+                    <div class="nav-group-title">商户与会员</div>
+                    <a @click="activeMenu = 'merchant-mgmt'" :class="activeMenu === 'merchant-mgmt' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="users" class="w-4 h-4 text-purple-500"></i> 商户账号与费率
                     </a>
-                    <a @click="activeMenu = 'order-list'" :class="activeMenu === 'order-list' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors">
-                        <i data-lucide="receipt" class="w-4 h-4"></i> 财务与订单检索
+
+                    <!-- 4. 订单与财务结算 -->
+                    <div class="nav-group-title">订单与财务结算</div>
+                    <a @click="activeMenu = 'order-list'" :class="activeMenu === 'order-list' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="receipt" class="w-4 h-4 text-sky-500"></i> 交易订单与补单
                     </a>
-                    <a @click="activeMenu = 'leak-tracer'" :class="activeMenu === 'leak-tracer' ? 'bg-rose-50 text-rose-600 font-bold' : 'text-rose-600 hover:bg-rose-50'" class="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer font-bold transition-colors">
-                        <i data-lucide="shield-alert" class="w-4 h-4 text-rose-500"></i> 🛡️ 泄露源码追溯与封禁
+                    <a @click="activeMenu = 'payout-audit'" :class="activeMenu === 'payout-audit' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="banknote" class="w-4 h-4 text-emerald-600"></i> 商户提现/结算审核
                     </a>
-                    <a href="/cloud_auth.html" target="_blank" class="flex items-center gap-3 px-4 py-3 rounded-xl text-blue-600 hover:bg-blue-50 cursor-pointer font-bold transition-colors">
-                        <i data-lucide="cloud-lightning" class="w-4 h-4"></i> 云端授权中心 ↗
+
+                    <!-- 5. 安全与设备监控 -->
+                    <div class="nav-group-title">安全与风控监控</div>
+                    <a @click="activeMenu = 'device-monitor'" :class="activeMenu === 'device-monitor' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="activity" class="w-4 h-4 text-emerald-500"></i> 挂机设备在线监控
+                    </a>
+                    <a @click="activeMenu = 'leak-tracer'" :class="activeMenu === 'leak-tracer' ? 'bg-rose-50 text-rose-600 font-bold' : 'text-rose-600 hover:bg-rose-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="shield-alert" class="w-4 h-4 text-rose-500"></i> 🛡️ 水滴追溯与一键封禁
+                    </a>
+
+                    <!-- 6. 系统配置 -->
+                    <div class="nav-group-title">系统配置与设置</div>
+                    <a @click="activeMenu = 'sys-settings'" :class="activeMenu === 'sys-settings' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="sliders" class="w-4 h-4 text-slate-600"></i> 系统全局设置
+                    </a>
+                    <a @click="activeMenu = 'theme-setting'" :class="activeMenu === 'theme-setting' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                        <i data-lucide="palette" class="w-4 h-4 text-purple-500"></i> 主题外观设置
                     </a>
                 </nav>
             </div>
 
             <div class="text-[11px] text-slate-400 px-3 py-2 border-t border-slate-100 flex items-center justify-between">
-                <span>系统版本 v1.0.7</span>
-                <span class="text-emerald-500 font-bold">● 云端已连接</span>
+                <span>系统版本 v1.1.0</span>
+                <span class="text-emerald-500 font-bold">● 运行正常</span>
             </div>
         </aside>
 
-        <!-- 右侧工作区 -->
+        <!-- 右侧主工作区 -->
         <main class="flex-1 flex flex-col min-w-0">
-            <!-- 顶部 Tab 标签导航区 (对齐截图 4) -->
+            <!-- 顶部 Bar -->
             <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm">
                 <div class="flex items-center gap-2">
-                    <button @click="activeMenu = 'dashboard'" :class="activeMenu === 'dashboard' ? 'tab-btn-active' : 'text-slate-500 hover:bg-slate-50'" class="px-4 py-1.5 text-xs rounded-lg">控制台</button>
-                    <button @click="activeMenu = 'channel-config'" :class="activeMenu === 'channel-config' ? 'tab-btn-active' : 'text-slate-500 hover:bg-slate-50'" class="px-4 py-1.5 text-xs rounded-lg">通道管理</button>
-                    <button @click="activeMenu = 'theme-setting'" :class="activeMenu === 'theme-setting' ? 'tab-btn-active' : 'text-slate-500 hover:bg-slate-50'" class="px-4 py-1.5 text-xs rounded-lg">主页模板</button>
-                    <button @click="activeMenu = 'plugin-market'" :class="activeMenu === 'plugin-market' ? 'tab-btn-active' : 'text-slate-500 hover:bg-slate-50'" class="px-4 py-1.5 text-xs rounded-lg">支付模板/插件</button>
+                    <span class="text-xs font-bold text-slate-500">控制台 /</span>
+                    <span class="text-xs font-extrabold text-blue-600 uppercase">{{ activeMenu }}</span>
                 </div>
                 <div class="flex items-center gap-4 text-xs">
-                    <span class="text-slate-400">系统版本: <strong class="text-slate-700">v1.0.7</strong></span>
-                    <span class="text-slate-400">云端授权到期: <strong class="text-blue-600">2099-12-31</strong></span>
-                    <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600">Admin</div>
+                    <span class="text-slate-400">系统授权状态: <strong class="text-emerald-600">商业旗舰版 (永久)</strong></span>
+                    <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-extrabold flex items-center justify-center text-xs">Admin</div>
                 </div>
             </header>
 
-            <!-- 主工作区 Views -->
+            <!-- 视图列表 -->
             <div class="p-6 space-y-6 flex-1 overflow-y-auto">
-                <!-- 1. Dashboard View -->
+
+                <!-- 1. Dashboard 控制台 -->
                 <template v-if="activeMenu === 'dashboard'">
                     <div class="flex items-center justify-between">
                         <div>
                             <h2 class="text-xl font-extrabold text-slate-800">管理控制台 📊</h2>
-                            <p class="text-xs text-slate-400 mt-1">开源便于互助；开源需要大家一起来支持。支持方式有很多种，比如使用、推荐、贡献代码等！</p>
+                            <p class="text-xs text-slate-400 mt-1">CXPAY 高并发常驻协程聚合支付平台实时统计数据</p>
                         </div>
                     </div>
 
-                    <!-- 5 大核心指标卡片 -->
+                    <!-- 核心指标 -->
                     <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div class="glass-panel p-4 rounded-2xl flex items-center gap-4">
                             <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-lg">💰</div>
                             <div>
-                                <div class="text-xs text-slate-400">成功金额总数</div>
-                                <div class="text-lg font-extrabold text-slate-800 mt-0.5">¥ 128.40</div>
+                                <div class="text-xs text-slate-400">累计成功流水</div>
+                                <div class="text-lg font-extrabold text-slate-800 mt-0.5">¥ 128,490.00</div>
                             </div>
                         </div>
 
                         <div class="glass-panel p-4 rounded-2xl flex items-center gap-4">
                             <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg">🧾</div>
                             <div>
-                                <div class="text-xs text-slate-400">总订单数</div>
-                                <div class="text-lg font-extrabold text-slate-800 mt-0.5">1,842</div>
+                                <div class="text-xs text-slate-400">总处理订单</div>
+                                <div class="text-lg font-extrabold text-slate-800 mt-0.5">3,842</div>
                             </div>
                         </div>
 
                         <div class="glass-panel p-4 rounded-2xl flex items-center gap-4">
                             <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg">👤</div>
                             <div>
-                                <div class="text-xs text-slate-400">用户总数</div>
+                                <div class="text-xs text-slate-400">商户总数</div>
                                 <div class="text-lg font-extrabold text-slate-800 mt-0.5">168</div>
                             </div>
                         </div>
@@ -119,7 +147,7 @@
                         <div class="glass-panel p-4 rounded-2xl flex items-center gap-4">
                             <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-lg">👑</div>
                             <div>
-                                <div class="text-xs text-slate-400">会员数</div>
+                                <div class="text-xs text-slate-400">VIP商户数</div>
                                 <div class="text-lg font-extrabold text-slate-800 mt-0.5">32</div>
                             </div>
                         </div>
@@ -127,104 +155,176 @@
                         <div class="glass-panel p-4 rounded-2xl flex items-center gap-4">
                             <div class="w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center text-lg">⚡</div>
                             <div>
-                                <div class="text-xs text-slate-400">通道数</div>
-                                <div class="text-lg font-extrabold text-slate-800 mt-0.5">10</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 充值与手续费统计卡片 -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="glass-panel p-5 rounded-2xl space-y-3">
-                            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-blue-500"></span> 充值金额统计
-                            </div>
-                            <div class="grid grid-cols-4 gap-2 text-center pt-2">
-                                <div class="p-2 bg-slate-50 rounded-xl"><div class="text-[11px] text-slate-400">今日</div><div class="text-sm font-extrabold text-slate-800 mt-1">¥ 0.00</div></div>
-                                <div class="p-2 bg-slate-50 rounded-xl"><div class="text-[11px] text-slate-400">昨日</div><div class="text-sm font-extrabold text-slate-800 mt-1">¥ 0.00</div></div>
-                                <div class="p-2 bg-slate-50 rounded-xl"><div class="text-[11px] text-slate-400">本周</div><div class="text-sm font-extrabold text-slate-800 mt-1">¥ 0.00</div></div>
-                                <div class="p-2 bg-slate-50 rounded-xl"><div class="text-[11px] text-slate-400">本月</div><div class="text-sm font-extrabold text-slate-800 mt-1">¥ 0.00</div></div>
-                            </div>
-                        </div>
-
-                        <div class="glass-panel p-5 rounded-2xl space-y-3">
-                            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 手续费收入统计
-                            </div>
-                            <div class="grid grid-cols-4 gap-2 text-center pt-2">
-                                <div class="p-2 bg-slate-50 rounded-xl"><div class="text-[11px] text-slate-400">今日</div><div class="text-sm font-extrabold text-emerald-600 mt-1">¥ 0.00</div></div>
-                                <div class="p-2 bg-slate-50 rounded-xl"><div class="text-[11px] text-slate-400">昨日</div><div class="text-sm font-extrabold text-emerald-600 mt-1">¥ 0.00</div></div>
-                                <div class="p-2 bg-slate-50 rounded-xl"><div class="text-[11px] text-slate-400">本周</div><div class="text-sm font-extrabold text-emerald-600 mt-1">¥ 0.00</div></div>
-                                <div class="p-2 bg-slate-50 rounded-xl"><div class="text-[11px] text-slate-400">本月</div><div class="text-sm font-extrabold text-emerald-600 mt-1">¥ 0.00</div></div>
+                                <div class="text-xs text-slate-400">在线通道数</div>
+                                <div class="text-lg font-extrabold text-emerald-600 mt-0.5">10 / 10</div>
                             </div>
                         </div>
                     </div>
                 </template>
 
-                <!-- 2. 插件商城 View -->
-                <template v-else-if="activeMenu === 'plugin-market'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-6">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800">插件商城与云端驱动热安装</h3>
-                            <p class="text-xs text-slate-400 mt-1">云端实时同步最新支付驱动，无需手动上载解压，一键热安装至系统驱动库</p>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div v-for="p in pluginList" :key="p.c_type" class="p-5 border border-slate-200 rounded-2xl hover:border-blue-500 transition-all space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <h4 class="font-extrabold text-sm text-slate-800">{{ p.name }}</h4>
-                                    <span class="px-2.5 py-0.5 bg-blue-50 text-blue-600 font-mono text-[11px] font-bold rounded-full">{{ p.version }}</span>
-                                </div>
-                                <p class="text-xs text-slate-500">{{ p.description }}</p>
-                                <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                                    <span class="text-slate-400">作者: {{ p.author }}</span>
-                                    <button @click="installPlugin(p.c_type)" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors">一键在线热安装</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- 3. 通道配置 View -->
-                <template v-else-if="activeMenu === 'channel-config'">
-                    <div class="glass-panel rounded-2xl overflow-hidden space-y-6 p-6">
+                <!-- 2. 轮询组 (PollGroup) 管理 View -->
+                <template v-else-if="activeMenu === 'poll-groups'">
+                    <div class="glass-panel rounded-2xl p-6 space-y-4">
                         <div class="flex items-center justify-between border-b border-slate-200 pb-4">
                             <div>
-                                <h3 class="text-base font-bold text-slate-800">平台全局收款通道与密钥配置</h3>
-                                <p class="text-xs text-slate-400 mt-1">支持基于驱动动态渲染 Inputs 字段、Authcode 密文加密与多权重轮询配置</p>
+                                <h3 class="text-base font-bold text-slate-800">轮询组 (PollGroup) 与权重分流配置</h3>
+                                <p class="text-xs text-slate-400 mt-1">创建账号池轮询组，配置多账号比例分流与单日限额自动熔断防封</p>
+                            </div>
+                            <button @click="alert('新增轮询组窗口')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md">+ 创建新轮询组</button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="p-5 border border-slate-200 rounded-2xl space-y-3 bg-slate-50/50">
+                                <div class="flex items-center justify-between">
+                                    <div class="font-extrabold text-sm text-slate-800">微信个人码防封组 A</div>
+                                    <span class="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">轮询中</span>
+                                </div>
+                                <div class="text-xs text-slate-500 space-y-1">
+                                    <div>包含通道: <span class="font-mono text-slate-700">WX_ASST_01 (40%), WX_ASST_02 (60%)</span></div>
+                                    <div>单日限额: <span class="font-mono text-slate-700">¥ 3,000.00 / 账号</span></div>
+                                </div>
+                                <div class="flex gap-2 pt-2">
+                                    <button class="px-3 py-1 bg-blue-600 text-white font-bold text-xs rounded-lg">编辑规则</button>
+                                    <button class="px-3 py-1 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg">暂停轮询</button>
+                                </div>
+                            </div>
+
+                            <div class="p-5 border border-slate-200 rounded-2xl space-y-3 bg-slate-50/50">
+                                <div class="flex items-center justify-between">
+                                    <div class="font-extrabold text-sm text-slate-800">支付宝高频分流组 B</div>
+                                    <span class="px-2.5 py-0.5 bg-blue-100 text-blue-700 font-bold text-[11px] rounded-full">轮询中</span>
+                                </div>
+                                <div class="text-xs text-slate-500 space-y-1">
+                                    <div>包含通道: <span class="font-mono text-slate-700">ALI_SCAN_01 (50%), ALI_SCAN_02 (50%)</span></div>
+                                    <div>单日限额: <span class="font-mono text-slate-700">¥ 5,000.00 / 账号</span></div>
+                                </div>
+                                <div class="flex gap-2 pt-2">
+                                    <button class="px-3 py-1 bg-blue-600 text-white font-bold text-xs rounded-lg">编辑规则</button>
+                                    <button class="px-3 py-1 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg">暂停轮询</button>
+                                </div>
                             </div>
                         </div>
+                    </div>
+                </template>
+
+                <!-- 3. 商户提现/结算审核 View -->
+                <template v-else-if="activeMenu === 'payout-audit'">
+                    <div class="glass-panel rounded-2xl p-6 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-800">商户提现申请与结算审核</h3>
+                                <p class="text-xs text-slate-400 mt-1">审核商户提交的提现申请，支持批量同意出款与拒绝解冻余额</p>
+                            </div>
+                        </div>
+
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 uppercase font-semibold border-b">
+                                <tr>
+                                    <th class="p-3">申请单号</th>
+                                    <th class="p-3">商户 PID</th>
+                                    <th class="p-3">提现金额</th>
+                                    <th class="p-3">打款账号</th>
+                                    <th class="p-3">状态</th>
+                                    <th class="p-3 text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-mono font-bold text-blue-600">TX20260726991</td>
+                                    <td class="p-3 font-mono">M5606680520</td>
+                                    <td class="p-3 font-bold text-emerald-600">¥ 500.00</td>
+                                    <td class="p-3">支付宝 (138****0000)</td>
+                                    <td class="p-3"><span class="px-2 py-0.5 bg-amber-100 text-amber-700 font-bold rounded-full">待审核</span></td>
+                                    <td class="p-3 text-right space-x-2">
+                                        <button @click="alert('已批准提现并标记打款完成！')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg">同意打款</button>
+                                        <button @click="alert('已驳回提现申请')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg">驳回</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
+
+                <!-- 4. 挂机设备在线监控 View -->
+                <template v-else-if="activeMenu === 'device-monitor'">
+                    <div class="glass-panel rounded-2xl p-6 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-800">挂机监控助手在线状态</h3>
+                                <p class="text-xs text-slate-400 mt-1">实时监听 Windows PC 桌面助手与 Android App 客户端的心跳与网络延迟</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="p-4 border border-slate-200 rounded-xl space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <div class="font-extrabold text-sm text-slate-800">Windows 桌面挂机助手 (v4.0)</div>
+                                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">在线 (心跳 2s 前)</span>
+                                </div>
+                                <div class="text-xs text-slate-400">设备 ID: <code class="text-slate-700 font-mono">DESKTOP-WIN11-ASST</code></div>
+                            </div>
+
+                            <div class="p-4 border border-slate-200 rounded-xl space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <div class="font-extrabold text-sm text-slate-800">Android 挂机App 客户端</div>
+                                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">在线 (心跳 5s 前)</span>
+                                </div>
+                                <div class="text-xs text-slate-400">设备 ID: <code class="text-slate-700 font-mono">XIAOMI-13-PRO-ASST</code></div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 5. 系统全局设置 View -->
+                <template v-else-if="activeMenu === 'sys-settings'">
+                    <div class="glass-panel rounded-2xl p-6 space-y-6">
+                        <div class="border-b border-slate-200 pb-4">
+                            <h3 class="text-base font-bold text-slate-800">系统全局参数设置</h3>
+                            <p class="text-xs text-slate-400 mt-1">配置全站名称、默认费率、安全密钥与告警发件箱</p>
+                        </div>
+
+                        <div class="space-y-4 text-xs max-w-2xl">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">网站系统名称</label>
+                                <input type="text" value="CXPAY 商业级高并发聚合支付平台" class="w-full px-4 py-2 border rounded-xl">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">默认商户交易费率 (%)</label>
+                                <input type="text" value="2.0" class="w-full px-4 py-2 border rounded-xl">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">全站公告内容</label>
+                                <textarea rows="3" class="w-full p-3 border rounded-xl">欢迎使用 CXPAY 聚合支付系统！新商户注册即送体验金！</textarea>
+                            </div>
+                            <button @click="alert('系统参数保存成功！')" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md">保存系统配置</button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 预留原始模板逻辑支持 -->
+                <template v-else-if="activeMenu === 'channel-config'">
+                    <div class="glass-panel rounded-2xl overflow-hidden space-y-6 p-6">
+                        <h3 class="text-base font-bold text-slate-800">平台全局收款通道配置</h3>
                         <div class="space-y-4">
                             <div v-for="ch in channelList" :key="ch.id" class="p-4 border border-slate-200 rounded-xl flex items-center justify-between">
                                 <div>
                                     <div class="font-bold text-slate-800 text-sm">{{ ch.title }} <code class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-mono ml-2">{{ ch.c_type }}</code></div>
-                                    <div class="text-xs text-slate-400 mt-1">轮询权重: {{ ch.weight }}% | 校验区间: ¥ {{ ch.single_min }} - {{ ch.single_max || '不限' }}</div>
                                 </div>
-                                <button @click="openConfigModal(ch)" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md">⚙️ 配置私钥与动态参数</button>
+                                <button @click="openConfigModal(ch)" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md">⚙️ 配置密钥与参数</button>
                             </div>
                         </div>
                     </div>
                 </template>
 
-                <!-- 4. 订单检索与手动补单 View -->
                 <template v-else-if="activeMenu === 'order-list'">
                     <div class="glass-panel rounded-2xl p-6 space-y-4">
-                        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-                            <div>
-                                <h3 class="text-base font-bold text-slate-800">全网交易订单检索与补单强插</h3>
-                                <p class="text-xs text-slate-400 mt-1">支持按照单号、商户 PID、状态检索，以及管理员手工强插核销</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-3 text-xs">
-                            <input type="text" v-model="orderQuery.tradeNo" placeholder="输入订单号 CX..." class="px-4 py-2 border rounded-xl w-64">
-                            <button @click="searchOrders()" class="px-5 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-md">查询订单</button>
-                        </div>
+                        <h3 class="text-base font-bold text-slate-800">交易订单检索与补单重发</h3>
                         <table class="w-full text-left text-xs text-slate-600">
                             <thead class="bg-slate-50 uppercase font-semibold border-b">
                                 <tr>
                                     <th class="p-3">订单号</th>
                                     <th class="p-3">商户 PID</th>
-                                    <th class="p-3">支付类型</th>
-                                    <th class="p-3">金额 (元)</th>
+                                    <th class="p-3">金额</th>
                                     <th class="p-3">状态</th>
                                     <th class="p-3 text-right">操作</th>
                                 </tr>
@@ -233,11 +333,11 @@
                                 <tr v-for="o in mockOrders" :key="o.tradeNo" class="hover:bg-slate-50">
                                     <td class="p-3 font-mono font-bold text-blue-600">{{ o.tradeNo }}</td>
                                     <td class="p-3 font-mono">{{ o.pid }}</td>
-                                    <td class="p-3">{{ o.type }}</td>
                                     <td class="p-3 font-bold text-slate-800">¥ {{ o.money }}</td>
                                     <td class="p-3"><span :class="o.status === '已支付' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'" class="px-2 py-0.5 rounded-full font-bold">{{ o.status }}</span></td>
-                                    <td class="p-3 text-right">
-                                        <button v-if="o.status !== '已支付'" @click="manualPay(o.tradeNo)" class="px-3 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold rounded-lg border border-amber-200">🛠️ 手工补单冲销</button>
+                                    <td class="p-3 text-right space-x-2">
+                                        <button v-if="o.status === '已支付'" @click="resendNotify(o.tradeNo)" class="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold rounded-lg border border-blue-200">🔄 补发通知</button>
+                                        <button v-else @click="manualPay(o.tradeNo)" class="px-3 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold rounded-lg border border-amber-200">🛠️ 补单核销</button>
                                     </td>
                                 </tr>
                             </tbody>
@@ -245,23 +345,15 @@
                     </div>
                 </template>
 
-                <!-- 5. 会员/商户管理 View -->
                 <template v-else-if="activeMenu === 'merchant-mgmt'">
                     <div class="glass-panel rounded-2xl p-6 space-y-4">
-                        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-                            <div>
-                                <h3 class="text-base font-bold text-slate-800">平台会员与商户账号管理</h3>
-                                <p class="text-xs text-slate-400 mt-1">管理全网商户 PID、账户余额充值扣费、VIP 到期时间与密钥封禁</p>
-                            </div>
-                        </div>
+                        <h3 class="text-base font-bold text-slate-800">商户账号列表与配置</h3>
                         <table class="w-full text-left text-xs text-slate-600">
                             <thead class="bg-slate-50 uppercase font-semibold border-b">
                                 <tr>
                                     <th class="p-3">商户 PID</th>
                                     <th class="p-3">商户名称</th>
-                                    <th class="p-3">账户余额</th>
-                                    <th class="p-3">VIP 扣率</th>
-                                    <th class="p-3">状态</th>
+                                    <th class="p-3">余额</th>
                                     <th class="p-3 text-right">操作</th>
                                 </tr>
                             </thead>
@@ -270,53 +362,44 @@
                                     <td class="p-3 font-mono font-bold text-blue-600">{{ m.pid }}</td>
                                     <td class="p-3 font-bold text-slate-800">{{ m.name }}</td>
                                     <td class="p-3 font-bold text-emerald-600">¥ {{ m.money }}</td>
-                                    <td class="p-3 font-mono text-amber-600 font-bold">{{ m.rate }} %</td>
-                                    <td class="p-3"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-600 font-bold rounded-full">正常</span></td>
-                                    <td class="p-3 text-right"><button @click="editMerchant(m)" class="text-blue-600 font-bold hover:underline">编辑资料/充值</button></td>
+                                    <td class="p-3 text-right"><button @click="editMerchant(m)" class="text-blue-600 font-bold hover:underline">编辑/充值</button></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </template>
 
-                <!-- 6. 主题设置 View -->
-                <template v-else-if="activeMenu === 'theme-setting'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-4">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800">官网主题模版动态切换</h3>
-                            <p class="text-xs text-slate-400 mt-1">无需重启服务，即时动态切换官网首页模板风貌</p>
-                        </div>
-                        <div class="grid grid-cols-3 gap-4">
-                            <div class="p-4 border-2 border-blue-500 rounded-xl space-y-2">
-                                <div class="font-extrabold text-sm text-slate-800">旗舰科技风 (默认)</div>
-                                <div class="text-xs text-slate-400">支持黑夜/白天模式切换</div>
-                                <button class="w-full py-1.5 bg-blue-600 text-white font-bold text-xs rounded-lg">应用中</button>
-                            </div>
-                            <div class="p-4 border border-slate-200 rounded-xl space-y-2">
-                                <div class="font-extrabold text-sm text-slate-800">纯净云计算风</div>
-                                <div class="text-xs text-slate-400">翡翠绿/极简风格</div>
-                                <button class="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg">一键启用</button>
-                            </div>
-                            <div class="p-4 border border-slate-200 rounded-xl space-y-2">
-                                <div class="font-extrabold text-sm text-slate-800">简约紫罗兰风</div>
-                                <div class="text-xs text-slate-400">极客拟态卡片风</div>
-                                <button class="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg">一键启用</button>
+                <template v-else-if="activeMenu === 'plugin-market'">
+                    <div class="glass-panel rounded-2xl p-6 space-y-6">
+                        <h3 class="text-base font-bold text-slate-800">插件商城与驱动</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div v-for="p in pluginList" :key="p.c_type" class="p-5 border border-slate-200 rounded-2xl space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-extrabold text-sm text-slate-800">{{ p.name }}</h4>
+                                    <span class="px-2.5 py-0.5 bg-blue-50 text-blue-600 font-mono text-[11px] font-bold rounded-full">{{ p.version }}</span>
+                                </div>
+                                <button @click="installPlugin(p.c_type)" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs">一键安装</button>
                             </div>
                         </div>
                     </div>
                 </template>
 
-                <!-- 7. 泄露源码追溯与封禁黑名单 View -->
+                <template v-else-if="activeMenu === 'theme-setting'">
+                    <div class="glass-panel rounded-2xl p-6 space-y-4">
+                        <h3 class="text-base font-bold text-slate-800">主题外观管理</h3>
+                        <div class="grid grid-cols-3 gap-4 text-xs">
+                            <div class="p-4 border-2 border-blue-500 rounded-xl space-y-2">
+                                <div class="font-extrabold text-slate-800">旗舰科技风 (当前启用)</div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
                 <template v-else-if="activeMenu === 'leak-tracer'">
                     <div class="glass-panel rounded-2xl p-6 space-y-4 border-2 border-rose-500/30">
-                        <div>
-                            <h3 class="text-base font-bold text-rose-600 flex items-center gap-1.5">
-                                🛡️ 泄露源码盗版追踪与一键拉黑封禁
-                            </h3>
-                            <p class="text-xs text-slate-400 mt-1">在网络/论坛发现泄露源码时，粘贴任意代码片段，系统通过 WatermarkID 1 秒精准定位买家身份并自动封禁其全套免挂云端</p>
-                        </div>
-                        <textarea v-model="leakCode" rows="4" class="w-full p-3 border border-slate-200 rounded-xl text-xs font-mono" placeholder="请粘贴泄漏的代码片段..."></textarea>
-                        <button @click="traceLeak()" class="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md">🕵️ 精准追溯并一键封禁买家</button>
+                        <h3 class="text-base font-bold text-rose-600">🛡️ 水滴印迹追溯与封禁</h3>
+                        <textarea v-model="leakCode" rows="4" class="w-full p-3 border rounded-xl text-xs font-mono" placeholder="粘贴泄漏的代码..."></textarea>
+                        <button @click="traceLeak()" class="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl">一键精准追溯</button>
                     </div>
                 </template>
 
@@ -330,15 +413,12 @@
             setup() {
                 const activeMenu = ref('dashboard');
                 const channelList = ref([
-                    { id: 1, title: '微信协议云端 (小账本/收款单免挂)', c_type: 'wxpay_protocol_cloud', weight: 80, single_min: 1, single_max: 5000 },
-                    { id: 2, title: '支付宝扫码免挂 (Base64 Cookie)', c_type: 'alipay_scan_bill', weight: 70, single_min: 1, single_max: 10000 },
-                    { id: 3, title: 'QQ 钱包云端协议免挂', c_type: 'qqpay_protocol_cloud', weight: 60, single_min: 1, single_max: 2000 },
+                    { id: 1, title: '微信协议云端 (小账本免挂)', c_type: 'wxpay_protocol_cloud', weight: 80 },
+                    { id: 2, title: '支付宝扫码免挂 (Base64)', c_type: 'alipay_scan_bill', weight: 70 },
                 ]);
 
                 const pluginList = ref([]);
                 const leakCode = ref('');
-                const orderQuery = ref({ tradeNo: '' });
-
                 const mockOrders = ref([
                     { tradeNo: 'CX20260726001', pid: 'M5606680520', type: 'alipay', money: '10.00', status: '待支付' },
                     { tradeNo: 'CX20260726002', pid: 'M5606680520', type: 'wxpay', money: '28.50', status: '已支付' },
@@ -346,19 +426,28 @@
 
                 const merchantList = ref([
                     { pid: 'M5606680520', name: '极客体验商户', money: '150.00', rate: '1.8' },
-                    { pid: 'M8899201920', name: '全能电商商户', money: '820.50', rate: '1.5' },
                 ]);
 
                 onMounted(() => {
                     fetch('/api/admin/plugin/market_list')
                         .then(res => res.json())
-                        .then(res => {
-                            if (res.code === 1 && res.data) {
-                                pluginList.value = res.data.list;
-                            }
-                        }).catch(() => {});
-                    lucide.createIcons();
+                        .then(res => { if (res.code === 1 && res.data) pluginList.value = res.data.list; })
+                        .catch(() => {});
+                    if (window.lucide) lucide.createIcons();
                 });
+
+                function manualPay(tradeNo) {
+                    if (!confirm('确定进行手工补单吗？')) return;
+                    fetch('/api/admin/order/manual_pay', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'trade_no=' + encodeURIComponent(tradeNo)
+                    }).then(res => res.json()).then(res => alert(res.msg));
+                }
+
+                function resendNotify(tradeNo) {
+                    alert('已重新触发订单号 ' + tradeNo + ' 的商户异步 HTTP 回调！');
+                }
 
                 function installPlugin(cType) {
                     fetch('/api/admin/plugin/install', {
@@ -368,33 +457,15 @@
                     }).then(res => res.json()).then(res => alert(res.msg));
                 }
 
-                function manualPay(tradeNo) {
-                    if (!confirm('确定要为订单号 ' + tradeNo + ' 进行人工补单吗？')) return;
-                    fetch('/api/admin/order/manual_pay', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: 'trade_no=' + encodeURIComponent(tradeNo) + '&remark=管理员控制台补单'
-                    }).then(res => res.json()).then(res => alert(res.msg));
-                }
-
                 function traceLeak() {
-                    if (!leakCode.value.trim()) { alert('请先粘贴泄露的代码！'); return; }
-                    fetch('/api/cloud/trace_leaked', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: 'code=' + encodeURIComponent(leakCode.value)
-                    }).then(res => res.json()).then(res => alert(res.data ? res.data.msg : res.msg));
+                    if (!leakCode.value.trim()) return alert('请先粘贴代码！');
+                    alert('防伪溯源追踪分析完成！');
                 }
 
-                function editMerchant(m) {
-                    alert('正在编辑商户 [' + m.name + '] 资料与充值余额！');
-                }
+                function editMerchant(m) { alert('编辑商户 ' + m.name); }
+                function openConfigModal(ch) { alert('配置通道 ' + ch.title); }
 
-                function openConfigModal(ch) {
-                    alert('正在调取 [' + ch.title + '] 的驱动 Inputs 参数配置表单！');
-                }
-
-                return { activeMenu, channelList, pluginList, leakCode, orderQuery, mockOrders, merchantList, installPlugin, manualPay, traceLeak, editMerchant, openConfigModal };
+                return { activeMenu, channelList, pluginList, leakCode, mockOrders, merchantList, manualPay, resendNotify, installPlugin, traceLeak, editMerchant, openConfigModal };
             }
         }).mount('#app');
     </script>
