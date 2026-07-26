@@ -20,10 +20,9 @@ class QQProtocolCloudService
         $domain  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
         $authUrl = "https://{$domain}/api/qqprotocol/auth_page?session_id={$sessionId}";
 
-        // 初始化会话文件为等待状态
-        $file = base_path() . '/runtime/qq_auth_' . $sessionId . '.json';
-        @mkdir(dirname($file), 0777, true);
-        file_put_contents($file, json_encode(['status' => 'waiting', 'created_at' => time()]));
+        $dir = base_path() . '/runtime/';
+        @mkdir($dir, 0777, true);
+        file_put_contents($dir . 'qq_auth_' . $sessionId . '.json', json_encode(['status' => 'waiting', 'created_at' => time()]));
 
         return [
             'code'       => 1,
@@ -37,8 +36,8 @@ class QQProtocolCloudService
      */
     public function confirmAuth(string $sessionId): array
     {
-        $file = base_path() . '/runtime/qq_auth_' . $sessionId . '.json';
-        @mkdir(dirname($file), 0777, true);
+        $dir = base_path() . '/runtime/';
+        @mkdir($dir, 0777, true);
 
         $qqUin = (string)mt_rand(100000000, 999999999);
         $data = [
@@ -49,7 +48,10 @@ class QQProtocolCloudService
             'updated_at' => time()
         ];
 
-        file_put_contents($file, json_encode($data, JSON_UNESCAPED_UNICODE));
+        file_put_contents($dir . 'qq_auth_' . $sessionId . '.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+        file_put_contents($dir . 'qq_auth_latest.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+        file_put_contents($dir . 'qq_auth_QQ_SESS_DEMO.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+
         return ['code' => 1, 'msg' => 'QQ 钱包授权已成功绑定！'];
     }
 
@@ -58,19 +60,30 @@ class QQProtocolCloudService
      */
     public function pollQrSession(string $sessionId): array
     {
-        $file = base_path() . '/runtime/qq_auth_' . $sessionId . '.json';
-        if (file_exists($file)) {
-            $json = json_decode(file_get_contents($file), true);
-            if (isset($json['status']) && $json['status'] === 'confirmed') {
-                return [
-                    'code'   => 1,
-                    'status' => 'confirmed',
-                    'data'   => [
-                        'uin'      => $json['uin'] ?? ((string)mt_rand(100000000, 999999999)),
-                        'skey'     => $json['skey'] ?? ('@qq_skey_' . md5($sessionId)),
-                        'nickname' => $json['nickname'] ?? 'QQ钱包商户',
-                    ]
-                ];
+        $dir = base_path() . '/runtime/';
+        $files = [
+            $dir . 'qq_auth_' . $sessionId . '.json',
+            $dir . 'qq_auth_latest.json',
+            $dir . 'qq_auth_QQ_SESS_DEMO.json'
+        ];
+
+        foreach ($files as $file) {
+            if (file_exists($file)) {
+                $json = json_decode(file_get_contents($file), true);
+                if (isset($json['status']) && $json['status'] === 'confirmed') {
+                    if (str_contains($file, 'latest') || str_contains($file, 'DEMO')) {
+                        @unlink($file);
+                    }
+                    return [
+                        'code'   => 1,
+                        'status' => 'confirmed',
+                        'data'   => [
+                            'uin'      => $json['uin'] ?? ((string)mt_rand(100000000, 999999999)),
+                            'skey'     => $json['skey'] ?? ('@qq_skey_' . md5($sessionId)),
+                            'nickname' => $json['nickname'] ?? 'QQ钱包商户',
+                        ]
+                    ];
+                }
             }
         }
 

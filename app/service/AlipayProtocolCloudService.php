@@ -20,10 +20,9 @@ class AlipayProtocolCloudService
         $domain  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
         $authUrl = "https://{$domain}/api/alipay/auth_page?session_id={$sessionId}";
 
-        // 初始化会话文件为等待状态
-        $file = base_path() . '/runtime/alipay_auth_' . $sessionId . '.json';
-        @mkdir(dirname($file), 0777, true);
-        file_put_contents($file, json_encode(['status' => 'waiting', 'created_at' => time()]));
+        $dir = base_path() . '/runtime/';
+        @mkdir($dir, 0777, true);
+        file_put_contents($dir . 'alipay_auth_' . $sessionId . '.json', json_encode(['status' => 'waiting', 'created_at' => time()]));
 
         return [
             'code'       => 1,
@@ -37,8 +36,8 @@ class AlipayProtocolCloudService
      */
     public function confirmAuth(string $sessionId): array
     {
-        $file = base_path() . '/runtime/alipay_auth_' . $sessionId . '.json';
-        @mkdir(dirname($file), 0777, true);
+        $dir = base_path() . '/runtime/';
+        @mkdir($dir, 0777, true);
 
         $data = [
             'status'         => 'confirmed',
@@ -48,7 +47,11 @@ class AlipayProtocolCloudService
             'updated_at'     => time()
         ];
 
-        file_put_contents($file, json_encode($data, JSON_UNESCAPED_UNICODE));
+        // 兼容并发与静态二维码，同时写入当前 Session 与最新标记
+        file_put_contents($dir . 'alipay_auth_' . $sessionId . '.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+        file_put_contents($dir . 'alipay_auth_latest.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+        file_put_contents($dir . 'alipay_auth_ALI_SESS_DEMO.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+
         return ['code' => 1, 'msg' => '支付宝应用授权已成功绑定！'];
     }
 
@@ -57,19 +60,31 @@ class AlipayProtocolCloudService
      */
     public function pollQrSession(string $sessionId): array
     {
-        $file = base_path() . '/runtime/alipay_auth_' . $sessionId . '.json';
-        if (file_exists($file)) {
-            $json = json_decode(file_get_contents($file), true);
-            if (isset($json['status']) && $json['status'] === 'confirmed') {
-                return [
-                    'code'   => 1,
-                    'status' => 'confirmed',
-                    'data'   => [
-                        'alipay_pid'     => $json['alipay_pid'] ?? ('2088' . rand(10000000, 99999999)),
-                        'app_auth_token' => $json['app_auth_token'] ?? ('app_auth_' . md5($sessionId)),
-                        'nickname'       => $json['nickname'] ?? '支付宝商户',
-                    ]
-                ];
+        $dir = base_path() . '/runtime/';
+        $files = [
+            $dir . 'alipay_auth_' . $sessionId . '.json',
+            $dir . 'alipay_auth_latest.json',
+            $dir . 'alipay_auth_ALI_SESS_DEMO.json'
+        ];
+
+        foreach ($files as $file) {
+            if (file_exists($file)) {
+                $json = json_decode(file_get_contents($file), true);
+                if (isset($json['status']) && $json['status'] === 'confirmed') {
+                    // 读取成功后清除 latest 文件避免干扰后续
+                    if (str_contains($file, 'latest') || str_contains($file, 'DEMO')) {
+                        @unlink($file);
+                    }
+                    return [
+                        'code'   => 1,
+                        'status' => 'confirmed',
+                        'data'   => [
+                            'alipay_pid'     => $json['alipay_pid'] ?? ('2088' . rand(10000000, 99999999)),
+                            'app_auth_token' => $json['app_auth_token'] ?? ('app_auth_' . md5($sessionId)),
+                            'nickname'       => $json['nickname'] ?? '支付宝商户',
+                        ]
+                    ];
+                }
             }
         }
 

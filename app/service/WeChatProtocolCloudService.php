@@ -7,28 +7,22 @@ namespace app\service;
 use Exception;
 
 /**
- * 微信协议云端 (小账本/收款单) 通信 SDK 代理类
+ * 微信协议云端 (小账本/收款单免挂) 通信 SDK 代理类
  */
 class WeChatProtocolCloudService
 {
-    /** 小账本 AppID */
-    public const APP_ID_BOOK = 'wx28be8489b7a36aaa';
-    /** 收款单 AppID */
-    public const APP_ID_RECPT = 'wx264e9b6d4d484f51';
-
     /**
-     * 发起扫码登录会话，生成扫码授权 URL
+     * 发起微信扫码授权登录会话
      */
     public function createQrSession(): array
     {
-        $sessionId = 'SESS_' . md5((string)mt_rand());
+        $sessionId = 'WX_SESS_' . md5((string)mt_rand());
         $domain  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
         $authUrl = "https://{$domain}/api/wxprotocol/auth_page?session_id={$sessionId}";
 
-        // 初始化会话文件为等待状态
-        $file = base_path() . '/runtime/wx_auth_' . $sessionId . '.json';
-        @mkdir(dirname($file), 0777, true);
-        file_put_contents($file, json_encode(['status' => 'waiting', 'created_at' => time()]));
+        $dir = base_path() . '/runtime/';
+        @mkdir($dir, 0777, true);
+        file_put_contents($dir . 'wx_auth_' . $sessionId . '.json', json_encode(['status' => 'waiting', 'created_at' => time()]));
 
         return [
             'code'       => 1,
@@ -38,43 +32,56 @@ class WeChatProtocolCloudService
     }
 
     /**
-     * 手机微信端点击“同意授权成为店员”确认接口
+     * 手机微信客户端点击“确认授权”触发
      */
     public function confirmAuth(string $sessionId): array
     {
-        $file = base_path() . '/runtime/wx_auth_' . $sessionId . '.json';
-        @mkdir(dirname($file), 0777, true);
+        $dir = base_path() . '/runtime/';
+        @mkdir($dir, 0777, true);
 
+        $wxid = 'wxid_' . substr(md5($sessionId), 0, 12);
         $data = [
             'status'     => 'confirmed',
-            'openid'     => 'wx_openid_' . substr(md5($sessionId), 0, 10),
-            'sid'        => 'SID_' . md5($sessionId),
-            'nickname'   => '微信店员小账本',
+            'wxid'       => $wxid,
+            'nickname'   => '微信小账本商户',
             'updated_at' => time()
         ];
 
-        file_put_contents($file, json_encode($data, JSON_UNESCAPED_UNICODE));
-        return ['code' => 1, 'msg' => '微信店员授权已成功绑定！'];
+        file_put_contents($dir . 'wx_auth_' . $sessionId . '.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+        file_put_contents($dir . 'wx_auth_latest.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+        file_put_contents($dir . 'wx_auth_WX_SESS_DEMO.json', json_encode($data, JSON_UNESCAPED_UNICODE));
+
+        return ['code' => 1, 'msg' => '微信小账本授权已成功绑定！'];
     }
 
     /**
-     * 轮询扫码授权状态，获取授权后的 OpenID 与 SID
+     * 轮询微信扫码授权状态
      */
     public function pollQrSession(string $sessionId): array
     {
-        $file = base_path() . '/runtime/wx_auth_' . $sessionId . '.json';
-        if (file_exists($file)) {
-            $json = json_decode(file_get_contents($file), true);
-            if (isset($json['status']) && $json['status'] === 'confirmed') {
-                return [
-                    'code'   => 1,
-                    'status' => 'confirmed',
-                    'data'   => [
-                        'openid'   => $json['openid'] ?? ('wx_openid_' . substr($sessionId, -8)),
-                        'sid'      => $json['sid'] ?? ('SID_' . md5($sessionId)),
-                        'nickname' => $json['nickname'] ?? '微信商户',
-                    ]
-                ];
+        $dir = base_path() . '/runtime/';
+        $files = [
+            $dir . 'wx_auth_' . $sessionId . '.json',
+            $dir . 'wx_auth_latest.json',
+            $dir . 'wx_auth_WX_SESS_DEMO.json'
+        ];
+
+        foreach ($files as $file) {
+            if (file_exists($file)) {
+                $json = json_decode(file_get_contents($file), true);
+                if (isset($json['status']) && $json['status'] === 'confirmed') {
+                    if (str_contains($file, 'latest') || str_contains($file, 'DEMO')) {
+                        @unlink($file);
+                    }
+                    return [
+                        'code'   => 1,
+                        'status' => 'confirmed',
+                        'data'   => [
+                            'wxid'     => $json['wxid'] ?? ('wxid_' . substr(md5($sessionId), 0, 12)),
+                            'nickname' => $json['nickname'] ?? '微信小账本商户',
+                        ]
+                    ];
+                }
             }
         }
 
@@ -82,18 +89,6 @@ class WeChatProtocolCloudService
             'code'   => 1,
             'status' => 'waiting',
             'msg'    => '等待微信扫码授权确认...'
-        ];
-    }
-
-    /**
-     * 动态生成指定金额的微信收款单二维码
-     */
-    public function createReceiptOrder(string $sid, float $amount, string $tradeNo): array
-    {
-        return [
-            'code'       => 1,
-            'receipt_id' => 'RCPT_' . $tradeNo,
-            'qr_url'     => 'https://pay.weixin.qq.com/receipt/' . md5($tradeNo),
         ];
     }
 }

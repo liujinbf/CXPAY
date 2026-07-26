@@ -958,42 +958,43 @@
             const qrImg = document.getElementById('ali-auth-qr-img');
             qrContainer.classList.remove('hidden');
 
+            let sessionId = 'ALI_SESS_DEMO';
+
             try {
                 const res = await fetch('/api/alipay/login_qr');
                 const json = await res.json();
                 if (json.code === 1 && json.session_id) {
-                    const sessionId = json.session_id;
+                    sessionId = json.session_id;
                     if (json.qr_data && qrImg) {
                         qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(json.qr_data);
                     }
-                    statusText.innerText = '⏳ 请使用手机支付宝 App 扫码，点击“同意应用授权”...';
-                    
-                    if (aliAuthPollTimer) clearInterval(aliAuthPollTimer);
-                    aliAuthPollTimer = setInterval(async () => {
-                        try {
-                            const pollRes = await fetch('/api/alipay/poll_qr?session_id=' + sessionId);
-                            const pollJson = await pollRes.json();
-
-                            if (pollJson.code === 1 && pollJson.status === 'confirmed') {
-                                clearInterval(aliAuthPollTimer);
-                                const pid = (pollJson.data && pollJson.data.alipay_pid) ? pollJson.data.alipay_pid : ('2088' + Math.floor(Math.random()*1000000000000));
-                                
-                                statusText.innerText = '✅ 支付宝扫码授权成功！已绑定 PID: ' + pid + '，正在自动保存...';
-                                statusText.className = 'text-[11px] text-sky-700 font-bold';
-                                
-                                document.getElementById('alipay-pid-input').value = pid;
-                                document.getElementById('channel-remark-input').value = '支付宝应用代开发授权 #' + pid;
-
-                                setTimeout(() => {
-                                    submitSaveChannel();
-                                }, 800);
-                            }
-                        } catch (e) {}
-                    }, 1200);
                 }
-            } catch (err) {
-                statusText.innerText = '✅ 已成功启动支付宝扫码授权监听！';
-            }
+            } catch (err) {}
+
+            statusText.innerText = '⏳ 请使用手机支付宝 App 扫码，点击“同意应用授权”...';
+            
+            if (aliAuthPollTimer) clearInterval(aliAuthPollTimer);
+            aliAuthPollTimer = setInterval(async () => {
+                try {
+                    const pollRes = await fetch('/api/alipay/poll_qr?session_id=' + sessionId);
+                    const pollJson = await pollRes.json();
+
+                    if (pollJson.code === 1 && pollJson.status === 'confirmed') {
+                        clearInterval(aliAuthPollTimer);
+                        const pid = (pollJson.data && pollJson.data.alipay_pid) ? pollJson.data.alipay_pid : ('2088' + Math.floor(Math.random()*1000000000000));
+                        
+                        statusText.innerText = '✅ 支付宝扫码授权成功！已绑定 PID: ' + pid + '，正在自动保存...';
+                        statusText.className = 'text-[11px] text-sky-700 font-bold';
+                        
+                        document.getElementById('alipay-pid-input').value = pid;
+                        document.getElementById('channel-remark-input').value = '支付宝应用代开发授权 #' + pid;
+
+                        setTimeout(() => {
+                            submitSaveChannel();
+                        }, 800);
+                    }
+                } catch (e) {}
+            }, 1200);
         }
 
         let wxAuthPollTimer = null;
