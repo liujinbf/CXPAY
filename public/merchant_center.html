@@ -629,37 +629,50 @@
         async function submitCreateTestOrder() {
             const amount = document.getElementById('test-amount-input').value || '1.00';
             const enableFloat = document.getElementById('test-float-input').checked ? 1 : 0;
+            const btn = document.querySelector('#test-step-setup button');
 
-            const res = await fetch('/api/merchant/channel/create_test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `channel_id=${activeTestChannelId}&money=${amount}&enable_float=${enableFloat}`
-            }).then(r => r.json());
+            btn.disabled = true;
+            btn.innerText = '⏳ 正在生成真实测试订单...';
 
-            if (res.code === 1 && res.data) {
-                const d = res.data;
-                testOrderTradeNo = d.trade_no;
+            try {
+                const pid = window.currentMerchantPid || '1000';
+                const res = await fetch('/api/merchant/channel/create_test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `channel_id=${activeTestChannelId}&money=${amount}&enable_float=${enableFloat}&pid=${pid}`
+                }).then(r => r.json());
 
-                document.getElementById('test-order-no').innerText = d.trade_no;
-                document.getElementById('test-order-price').innerText = `¥ ${d.price}`;
+                if (res.code === 1 && res.data) {
+                    const d = res.data;
+                    testOrderTradeNo = d.trade_no;
 
-                // 渲染二维码
-                document.getElementById('test-qrcode-box').innerHTML = '';
-                new QRCode(document.getElementById('test-qrcode-box'), {
-                    text: d.qr_url,
-                    width: 160,
-                    height: 160,
-                    colorDark: '#0f172a',
-                    colorLight: '#ffffff'
-                });
+                    document.getElementById('test-order-no').innerText = d.trade_no;
+                    document.getElementById('test-order-price').innerText = `¥ ${d.price}`;
 
-                document.getElementById('test-step-setup').classList.add('hidden');
-                document.getElementById('test-step-qr').classList.remove('hidden');
+                    // 渲染二维码
+                    document.getElementById('test-qrcode-box').innerHTML = '';
+                    new QRCode(document.getElementById('test-qrcode-box'), {
+                        text: d.qr_url,
+                        width: 160,
+                        height: 160,
+                        colorDark: '#0f172a',
+                        colorLight: '#ffffff'
+                    });
 
-                // 启动轮询
-                startTestOrderPolling(d.trade_no);
-            } else {
-                alert(res.msg || '创建测试订单失败');
+                    document.getElementById('test-step-setup').classList.add('hidden');
+                    document.getElementById('test-step-qr').classList.remove('hidden');
+
+                    // 启动轮询
+                    startTestOrderPolling(d.trade_no);
+                } else {
+                    alert(res.msg || '创建测试订单失败');
+                }
+            } catch (err) {
+                alert('请求异常: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="qr-code" class="w-4 h-4"></i> 生成真实支付订单与收款码';
+                if (window.lucide) lucide.createIcons();
             }
         }
 
