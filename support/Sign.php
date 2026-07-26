@@ -59,4 +59,15 @@ class Sign
 
         return $data;
     }
+
+    /**
+     * 校验商户接收回调的响应文本是否正确 (标准易支付规范要求商户返回 success)
+     */
+    public static function callbackNotify($response): bool
+    {
+        if (is_string($response)) {
+            return str_contains(strtolower(trim($response)), 'success');
+        }
+        return false;
+    }
 }

@@ -80,6 +80,9 @@ Route::any('/api/order/query', [app\controller\api\OrderController::class, 'quer
 // 挂机助手 OpenAPI 账单上报推送
 Route::any('/api/appasst/push', [app\controller\api\AppasstController::class, 'push']);
 
+// 测试支付通道回调接收 API
+Route::any('/api/test_notify', [app\controller\api\MerchantChannelController::class, 'testNotify']);
+
 // 商户登录与注销公开 API
 Route::post('/api/merchant/login', [app\controller\api\MerchantApiController::class, 'login']);
 Route::post('/api/merchant/logout', [app\controller\api\MerchantApiController::class, 'logout']);

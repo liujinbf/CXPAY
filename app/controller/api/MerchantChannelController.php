@@ -426,14 +426,13 @@ class MerchantChannelController
         $tradeNo = trim((string)($params['trade_no'] ?? ''));
 
         if (!empty($tradeNo)) {
-            // 1. 尝试数据库到账更新
+            // 1. 尝试数据库到账更新与触发回调通知
             if (class_exists('app\model\Order')) {
                 try {
                     $order = \app\model\Order::where('trade_no', $tradeNo)->first();
                     if ($order) {
-                        $order->status = 1;
-                        $order->pay_time = time();
-                        $order->save();
+                        $orderService = new \app\service\OrderService();
+                        $orderService->markAsPaid($order->out_trade_no, $tradeNo, (float)($order->amount ?: 1.00));
                     }
                 } catch (\Throwable $e) {}
             }
@@ -455,13 +454,22 @@ class MerchantChannelController
                         'merchant_id' => 1000,
                     ];
                 }
-                $testOrders[$tradeNo]['status']   = 1;
-                $testOrders[$tradeNo]['pay_time'] = time();
+                $testOrders[$tradeNo]['status']        = 1;
+                $testOrders[$tradeNo]['notify_status'] = 1;
+                $testOrders[$tradeNo]['pay_time']      = time();
 
                 @file_put_contents($testOrderFile, json_encode($testOrders, JSON_UNESCAPED_UNICODE));
             } catch (\Throwable $e) {}
         }
 
-        return json(['code' => 1, 'msg' => '已模拟触发该订单支付成功状态，后台自动核销已完成！']);
+        return json(['code' => 1, 'msg' => '已模拟触发该订单支付成功状态，后台自动核销与回调已完成！']);
+    }
+
+    /**
+     * 测试支付回调接收处理 API (易支付规范要求返回 success)
+     */
+    public function testNotify(object $request)
+    {
+        return response('success');
     }
 }
