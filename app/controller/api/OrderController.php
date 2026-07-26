@@ -60,9 +60,11 @@ class OrderController
                 }
             }
 
-            // 兜底使用收银台 H5 真实访问路由，避免任何第三方平台报 404 页面缺失
+            // 兜底使用收银台 H5 真实访问路由（挂载完整域名协议），避免相对路径导致扫码识别为纯文本
             if (empty($payUrl)) {
-                $payUrl = "/cashier/index.html?trade_no=" . $order->trade_no;
+                $host  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
+                $proto = (($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https' : 'http';
+                $payUrl = "{$proto}://{$host}/cashier/index.html?trade_no=" . $order->trade_no;
             }
 
             $data = [

@@ -160,8 +160,12 @@
                         document.getElementById('order-amount').innerText = data.money || data.amount || '1.00';
                         document.getElementById('order-subject').innerText = data.subject || data.name || '网络商品';
                         document.getElementById('order-trade-no').innerText = tNo;
-                        window.lastPayUrl = data.pay_url || '';
-                        renderQr(data.pay_url || window.location.href);
+                        let finalQrUrl = data.pay_url || window.location.href;
+                        if (finalQrUrl.startsWith('/')) {
+                            finalQrUrl = window.location.origin + finalQrUrl;
+                        }
+                        window.lastPayUrl = finalQrUrl;
+                        renderQr(finalQrUrl);
 
                         if (data.status === 1) {
                             showPaidMask();
