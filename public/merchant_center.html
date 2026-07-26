@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CXPAY - 商户服务与结算中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.staticfile.net/vue/3.3.4/vue.global.prod.js"></script>
-    <script>if (!window.Vue) document.write('<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"><\/script>');</script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
@@ -15,6 +13,9 @@
         .glass-card { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px -2px rgba(0,0,0,0.03); }
         .tab-filter-active { background: #2563eb; color: #ffffff; font-weight: 700; }
         .nav-group-title { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px 4px; }
+        .nav-link-active { background-color: #eff6ff !important; color: #2563eb !important; font-weight: 700 !important; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
     </style>
 </head>
 
@@ -34,31 +35,31 @@
                 <nav class="space-y-1 text-xs">
                     <!-- 1. 概览与看板 -->
                     <div class="nav-group-title">概览与看板</div>
-                    <a @click="activeMenu = 'dashboard'" :class="activeMenu === 'dashboard' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn nav-link-active flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="layout-dashboard" class="w-4 h-4 text-blue-500"></i> 数据仪表盘
                     </a>
 
                     <!-- 2. 通道与收款码 -->
                     <div class="nav-group-title">收款通道与绑定</div>
-                    <a @click="activeMenu = 'my-channels'" :class="activeMenu === 'my-channels' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer font-bold text-emerald-600 transition-colors">
+                    <a onclick="switchTab('my-channels')" id="nav-my-channels" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer font-bold text-emerald-600 transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="qr-code" class="w-4 h-4 text-emerald-500"></i> 微信/支付宝/QQ收款码绑定
                     </a>
 
                     <!-- 3. 财务与提现结算 -->
                     <div class="nav-group-title">财务与提现结算</div>
-                    <a @click="activeMenu = 'payout-request'" :class="activeMenu === 'payout-request' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('payout-request')" id="nav-payout-request" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="banknote" class="w-4 h-4 text-emerald-600"></i> 申请提现与结算记录
                     </a>
-                    <a @click="activeMenu = 'finance-log'" :class="activeMenu === 'finance-log' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('finance-log')" id="nav-finance-log" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="history" class="w-4 h-4 text-indigo-500"></i> 交易流水与扣费账单
                     </a>
 
                     <!-- 4. API 对接与安全 -->
                     <div class="nav-group-title">开发与对接</div>
-                    <a @click="activeMenu = 'api-keys'" :class="activeMenu === 'api-keys' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('api-keys')" id="nav-api-keys" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="key" class="w-4 h-4 text-amber-500"></i> API 密钥与回调配置
                     </a>
-                    <a @click="activeMenu = 'profile'" :class="activeMenu === 'profile' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('profile')" id="nav-profile" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="user" class="w-4 h-4 text-slate-600"></i> 账户设置与资料
                     </a>
                 </nav>
@@ -74,7 +75,7 @@
         <main class="flex-1 h-full flex flex-col min-w-0 overflow-hidden bg-slate-50">
             <!-- 顶部 Bar -->
             <header class="bg-white border-b border-slate-200 px-8 py-3.5 flex items-center justify-between shadow-sm flex-shrink-0">
-                <div class="text-xs text-slate-400">商户服务中心 / <span class="text-slate-700 font-bold uppercase">{{ activeMenu }}</span></div>
+                <div class="text-xs text-slate-400">商户服务中心 / <span id="current-tab-title" class="text-slate-700 font-bold uppercase">DASHBOARD</span></div>
                 <div class="flex items-center gap-4 text-xs">
                     <span class="text-slate-600 font-bold flex items-center gap-1.5">
                         <i data-lucide="user-check" class="w-4 h-4 text-blue-600"></i> 极客体验商户
@@ -84,19 +85,14 @@
             </header>
 
             <div class="p-8 space-y-6 flex-1 overflow-y-auto min-h-0">
-                <!-- 1. Dashboard 视图 -->
-                <div v-if="activeMenu === 'dashboard'" class="space-y-6">
+                <!-- 1. Dashboard 视图 (默认 active) -->
+                <div id="tab-dashboard" class="tab-panel active space-y-6">
                     <div class="flex items-center justify-between">
                         <div>
                             <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
                                 <i data-lucide="bar-chart-2" class="w-6 h-6 text-blue-600"></i> 商户数据概览
                             </h2>
                             <p class="text-xs text-slate-400 mt-1">以下是您今天的交易与成功率实时概览</p>
-                        </div>
-                        <div class="flex bg-slate-200/60 p-1 rounded-xl text-xs space-x-1">
-                            <button @click="timeFilter = 'today'" :class="timeFilter === 'today' ? 'tab-filter-active' : 'text-slate-600'" class="px-3 py-1.5 rounded-lg transition-all">今日</button>
-                            <button @click="timeFilter = 'week'" :class="timeFilter === 'week' ? 'tab-filter-active' : 'text-slate-600'" class="px-3 py-1.5 rounded-lg transition-all">本周</button>
-                            <button @click="timeFilter = 'month'" :class="timeFilter === 'month' ? 'tab-filter-active' : 'text-slate-600'" class="px-3 py-1.5 rounded-lg transition-all">本月</button>
                         </div>
                     </div>
 
@@ -161,7 +157,7 @@
                 </div>
 
                 <!-- 2. 申请提现与结算 View -->
-                <div v-else-if="activeMenu === 'payout-request'" class="glass-card p-6 rounded-2xl space-y-6">
+                <div id="tab-payout-request" class="tab-panel glass-card p-6 rounded-2xl space-y-6">
                     <div class="flex items-center justify-between border-b border-slate-200 pb-4">
                         <div>
                             <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
@@ -169,7 +165,7 @@
                             </h3>
                             <p class="text-xs text-slate-400 mt-1">将您的账户可用余额结算至支付宝、微信或银行卡账号</p>
                         </div>
-                        <button @click="showPayoutModal = true" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
+                        <button onclick="alert('新建提现申请')" class="px-5 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
                             <i data-lucide="plus" class="w-4 h-4"></i> 发起提现申请
                         </button>
                     </div>
@@ -198,7 +194,7 @@
                 </div>
 
                 <!-- 3. 个人码绑定 View -->
-                <div v-else-if="activeMenu === 'my-channels'" class="glass-card p-6 rounded-2xl space-y-6">
+                <div id="tab-my-channels" class="tab-panel glass-card p-6 rounded-2xl space-y-6">
                     <div>
                         <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
                             <i data-lucide="qr-code" class="w-5 h-5 text-emerald-600"></i> 微信/支付宝/QQ 个人收款码绑定与上传
@@ -207,19 +203,18 @@
                     </div>
 
                     <div class="p-6 border-2 border-dashed border-blue-200 rounded-2xl bg-blue-50/50 text-center space-y-3">
-                        <input type="file" ref="qrFileInput" @change="handleQrUpload" class="hidden" accept="image/*">
                         <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto text-xl shadow-lg">
                             <i data-lucide="upload-cloud" class="w-6 h-6"></i>
                         </div>
                         <div class="text-xs font-bold text-slate-700">点击上传微信/支付宝/QQ个人收款码图片</div>
-                        <button @click="$refs.qrFileInput.click()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer inline-flex items-center gap-1.5">
+                        <button onclick="alert('选择二维码图片文件')" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer inline-flex items-center gap-1.5">
                             <i data-lucide="image" class="w-4 h-4"></i> 选择二维码文件
                         </button>
                     </div>
                 </div>
 
                 <!-- 4. API 对接密钥 View -->
-                <div v-else-if="activeMenu === 'api-keys'" class="glass-card p-6 rounded-2xl space-y-6">
+                <div id="tab-api-keys" class="tab-panel glass-card p-6 rounded-2xl space-y-6">
                     <div class="border-b border-slate-200 pb-4">
                         <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
                             <i data-lucide="key" class="w-5 h-5 text-amber-500"></i> API 对接参数与签名密钥
@@ -244,7 +239,7 @@
                 </div>
 
                 <!-- 5. 财务与流水 View -->
-                <div v-else-if="activeMenu === 'finance-log'" class="glass-card p-6 rounded-2xl space-y-4">
+                <div id="tab-finance-log" class="tab-panel glass-card p-6 rounded-2xl space-y-4">
                     <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
                         <i data-lucide="history" class="w-5 h-5 text-indigo-600"></i> 交易流水与手续费明细
                     </h3>
@@ -252,7 +247,7 @@
                 </div>
 
                 <!-- 6. 账户设置 View -->
-                <div v-else-if="activeMenu === 'profile'" class="glass-card p-6 rounded-2xl space-y-4">
+                <div id="tab-profile" class="tab-panel glass-card p-6 rounded-2xl space-y-4">
                     <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
                         <i data-lucide="user" class="w-5 h-5 text-slate-700"></i> 账户资料与基本信息
                     </h3>
@@ -264,78 +259,66 @@
     </div>
 
     <script>
-        (function() {
-            try {
-                const { createApp, ref, onMounted, updated, nextTick } = Vue;
-                createApp({
-                    setup() {
-                        const activeMenu = ref('dashboard');
-                        const timeFilter = ref('today');
-                        const showPayoutModal = ref(false);
+        function switchTab(tabId) {
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(function(p) { p.classList.remove('active'); });
 
-                        function refreshIcons() {
-                            try {
-                                if (window.lucide && typeof lucide.createIcons === 'function') {
-                                    lucide.createIcons();
-                                }
-                            } catch(e) {}
-                        }
+            var btns = document.querySelectorAll('.nav-btn');
+            btns.forEach(function(b) { b.classList.remove('nav-link-active'); });
 
-                        onMounted(() => {
-                            nextTick(() => {
-                                refreshIcons();
-                                initCharts();
-                            });
-                        });
+            var targetPanel = document.getElementById('tab-' + tabId);
+            if (targetPanel) { targetPanel.classList.add('active'); }
 
-                        updated(() => refreshIcons());
+            var targetBtn = document.getElementById('nav-' + tabId);
+            if (targetBtn) { targetBtn.classList.add('nav-link-active'); }
 
-                        function initCharts() {
-                            try {
-                                const trendDom = document.getElementById('trendChart');
-                                if (trendDom && window.echarts) {
-                                    const trendChart = echarts.init(trendDom);
-                                    trendChart.setOption({
-                                        tooltip: { trigger: 'axis' },
-                                        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-                                        xAxis: { type: 'category', data: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'] },
-                                        yAxis: { type: 'value' },
-                                        series: [{ data: [120, 300, 450, 800, 650, 1280], type: 'line', smooth: true, itemStyle: { color: '#10b981' } }]
-                                    });
-                                }
+            var titleEl = document.getElementById('current-tab-title');
+            if (titleEl) { titleEl.innerText = tabId.toUpperCase(); }
 
-                                const pieDom = document.getElementById('pieChart');
-                                if (pieDom && window.echarts) {
-                                    const pieChart = echarts.init(pieDom);
-                                    pieChart.setOption({
-                                        tooltip: { trigger: 'item' },
-                                        series: [{
-                                            type: 'pie',
-                                            radius: ['50%', '70%'],
-                                            data: [
-                                                { value: 650, name: '微信支付', itemStyle: { color: '#10b981' } },
-                                                { value: 500, name: '支付宝', itemStyle: { color: '#2563eb' } },
-                                                { value: 130, name: 'QQ钱包', itemStyle: { color: '#38bdf8' } }
-                                            ]
-                                        }]
-                                    });
-                                }
-                            } catch (e) {}
-                        }
-
-                        function handleQrUpload(e) {
-                            const file = e.target.files[0];
-                            if (!file) return;
-                            alert('已接收二维码图片，解析绑码成功！');
-                        }
-
-                        return { activeMenu, timeFilter, showPayoutModal, handleQrUpload };
-                    }
-                }).mount('#app');
-            } catch (e) {
-                console.error("Vue mount error:", e);
+            if (window.lucide && typeof lucide.createIcons === 'function') {
+                lucide.createIcons();
             }
-        })();
+        }
+
+        function initCharts() {
+            try {
+                var trendDom = document.getElementById('trendChart');
+                if (trendDom && window.echarts) {
+                    var trendChart = echarts.init(trendDom);
+                    trendChart.setOption({
+                        tooltip: { trigger: 'axis' },
+                        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                        xAxis: { type: 'category', data: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'] },
+                        yAxis: { type: 'value' },
+                        series: [{ data: [120, 300, 450, 800, 650, 1280], type: 'line', smooth: true, itemStyle: { color: '#10b981' } }]
+                    });
+                }
+
+                var pieDom = document.getElementById('pieChart');
+                if (pieDom && window.echarts) {
+                    var pieChart = echarts.init(pieDom);
+                    pieChart.setOption({
+                        tooltip: { trigger: 'item' },
+                        series: [{
+                            type: 'pie',
+                            radius: ['50%', '70%'],
+                            data: [
+                                { value: 650, name: '微信支付', itemStyle: { color: '#10b981' } },
+                                { value: 500, name: '支付宝', itemStyle: { color: '#2563eb' } },
+                                { value: 130, name: 'QQ钱包', itemStyle: { color: '#38bdf8' } }
+                            ]
+                        }]
+                    });
+                }
+            } catch (e) {}
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.lucide && typeof lucide.createIcons === 'function') {
+                lucide.createIcons();
+            }
+            initCharts();
+        });
     </script>
 </body>
 

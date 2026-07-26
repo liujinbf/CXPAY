@@ -6,13 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CXPAY - 商业级聚合支付管理控制台</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.staticfile.net/vue/3.3.4/vue.global.prod.js"></script>
-    <script>if (!window.Vue) document.write('<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"><\/script>');</script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
     <style>
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .glass-panel { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px -2px rgba(0,0,0,0.03); }
         .nav-group-title { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px 4px; }
+        .nav-link-active { background-color: #eff6ff !important; color: #2563eb !important; font-weight: 700 !important; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
     </style>
 </head>
 
@@ -35,52 +36,52 @@
                 <nav class="space-y-1 text-xs">
                     <!-- 1. 数据概览 -->
                     <div class="nav-group-title">数据概览</div>
-                    <a @click="activeMenu = 'dashboard'" :class="activeMenu === 'dashboard' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn nav-link-active flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="layout-dashboard" class="w-4 h-4 text-blue-500"></i> 控制台仪表盘
                     </a>
 
                     <!-- 2. 通道与轮询 -->
                     <div class="nav-group-title">通道与轮询管理</div>
-                    <a @click="activeMenu = 'channel-config'" :class="activeMenu === 'channel-config' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('channel-config')" id="nav-channel-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="settings-2" class="w-4 h-4 text-indigo-500"></i> 收款通道配置
                     </a>
-                    <a @click="activeMenu = 'poll-groups'" :class="activeMenu === 'poll-groups' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('poll-groups')" id="nav-poll-groups" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="shuffle" class="w-4 h-4 text-emerald-500"></i> 轮询组 (PollGroup) 防封
                     </a>
-                    <a @click="activeMenu = 'plugin-market'" :class="activeMenu === 'plugin-market' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('plugin-market')" id="nav-plugin-market" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="shopping-bag" class="w-4 h-4 text-amber-500"></i> 驱动插件商城
                     </a>
 
                     <!-- 3. 商户与应用 -->
                     <div class="nav-group-title">商户与会员</div>
-                    <a @click="activeMenu = 'merchant-mgmt'" :class="activeMenu === 'merchant-mgmt' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('merchant-mgmt')" id="nav-merchant-mgmt" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="users" class="w-4 h-4 text-purple-500"></i> 商户账号与费率
                     </a>
 
                     <!-- 4. 订单与财务结算 -->
                     <div class="nav-group-title">订单与财务结算</div>
-                    <a @click="activeMenu = 'order-list'" :class="activeMenu === 'order-list' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('order-list')" id="nav-order-list" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="receipt" class="w-4 h-4 text-sky-500"></i> 交易订单与补单
                     </a>
-                    <a @click="activeMenu = 'payout-audit'" :class="activeMenu === 'payout-audit' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('payout-audit')" id="nav-payout-audit" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="banknote" class="w-4 h-4 text-emerald-600"></i> 商户提现/结算审核
                     </a>
 
                     <!-- 5. 安全与设备监控 -->
                     <div class="nav-group-title">安全与风控监控</div>
-                    <a @click="activeMenu = 'device-monitor'" :class="activeMenu === 'device-monitor' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('device-monitor')" id="nav-device-monitor" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="activity" class="w-4 h-4 text-emerald-500"></i> 挂机设备在线监控
                     </a>
-                    <a @click="activeMenu = 'leak-tracer'" :class="activeMenu === 'leak-tracer' ? 'bg-rose-50 text-rose-600 font-bold' : 'text-rose-600 hover:bg-rose-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('leak-tracer')" id="nav-leak-tracer" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="shield-alert" class="w-4 h-4 text-rose-500"></i> 水滴追溯与一键封禁
                     </a>
 
                     <!-- 6. 系统配置 -->
                     <div class="nav-group-title">系统配置与设置</div>
-                    <a @click="activeMenu = 'sys-settings'" :class="activeMenu === 'sys-settings' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('sys-settings')" id="nav-sys-settings" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="sliders" class="w-4 h-4 text-slate-600"></i> 系统全局设置
                     </a>
-                    <a @click="activeMenu = 'theme-setting'" :class="activeMenu === 'theme-setting' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
+                    <a onclick="switchTab('theme-setting')" id="nav-theme-setting" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="palette" class="w-4 h-4 text-purple-500"></i> 主题外观设置
                     </a>
                 </nav>
@@ -92,13 +93,13 @@
             </div>
         </aside>
 
-        <!-- 右侧主工作区 (绝对高度定位与弹性展开) -->
+        <!-- 右侧主工作区 -->
         <main class="flex-1 h-full flex flex-col min-w-0 overflow-hidden bg-slate-50">
             <!-- 顶部 Bar -->
             <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between shadow-sm flex-shrink-0">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-slate-500">控制台 /</span>
-                    <span class="text-xs font-extrabold text-blue-600 uppercase">{{ activeMenu }}</span>
+                    <span id="current-tab-title" class="text-xs font-extrabold text-blue-600 uppercase">DASHBOARD</span>
                 </div>
                 <div class="flex items-center gap-4 text-xs">
                     <span class="text-slate-400">系统授权状态: <strong class="text-emerald-600 inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 商业旗舰版 (永久)</strong></span>
@@ -106,11 +107,11 @@
                 </div>
             </header>
 
-            <!-- 视图列表容器 (自动占据剩余全部高度并提供滚动) -->
+            <!-- 视图列表 -->
             <div class="p-6 space-y-6 flex-1 overflow-y-auto min-h-0">
 
-                <!-- 1. Dashboard 控制台 -->
-                <div v-if="activeMenu === 'dashboard'" class="space-y-6">
+                <!-- 1. Dashboard 控制台 (默认 active) -->
+                <div id="tab-dashboard" class="tab-panel active space-y-6">
                     <div class="flex items-center justify-between">
                         <div>
                             <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
@@ -175,16 +176,24 @@
                 </div>
 
                 <!-- 2. 收款通道配置 -->
-                <div v-else-if="activeMenu === 'channel-config'" class="glass-panel rounded-2xl overflow-hidden space-y-6 p-6">
+                <div id="tab-channel-config" class="tab-panel glass-panel rounded-2xl overflow-hidden space-y-6 p-6">
                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="settings-2" class="w-5 h-5 text-indigo-600"></i> 平台全局收款通道配置
                     </h3>
                     <div class="space-y-4">
-                        <div v-for="ch in channelList" :key="ch.id" class="p-4 border border-slate-200 rounded-xl flex items-center justify-between">
+                        <div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between">
                             <div>
-                                <div class="font-bold text-slate-800 text-sm">{{ ch.title }} <code class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-mono ml-2">{{ ch.c_type }}</code></div>
+                                <div class="font-bold text-slate-800 text-sm">微信协议云端 (小账本免挂) <code class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-mono ml-2">wxpay_protocol_cloud</code></div>
                             </div>
-                            <button @click="openConfigModal(ch)" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
+                            <button onclick="alert('配置微信通道')" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
+                                <i data-lucide="wrench" class="w-3.5 h-3.5"></i> 配置密钥与参数
+                            </button>
+                        </div>
+                        <div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between">
+                            <div>
+                                <div class="font-bold text-slate-800 text-sm">支付宝扫码免挂 (Base64 Cookie) <code class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-mono ml-2">alipay_scan_bill</code></div>
+                            </div>
+                            <button onclick="alert('配置支付宝通道')" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
                                 <i data-lucide="wrench" class="w-3.5 h-3.5"></i> 配置密钥与参数
                             </button>
                         </div>
@@ -192,7 +201,7 @@
                 </div>
 
                 <!-- 3. 轮询组 (PollGroup) 管理 -->
-                <div v-else-if="activeMenu === 'poll-groups'" class="glass-panel rounded-2xl p-6 space-y-4">
+                <div id="tab-poll-groups" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
                     <div class="flex items-center justify-between border-b border-slate-200 pb-4">
                         <div>
                             <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
@@ -200,7 +209,7 @@
                             </h3>
                             <p class="text-xs text-slate-400 mt-1">创建账号池轮询组，配置多账号比例分流与单日限额自动熔断防封</p>
                         </div>
-                        <button @click="alert('新增轮询组窗口')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
+                        <button onclick="alert('新增轮询组窗口')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
                             <i data-lucide="plus" class="w-4 h-4"></i> 创建新轮询组
                         </button>
                     </div>
@@ -231,23 +240,21 @@
                 </div>
 
                 <!-- 4. 插件商城 -->
-                <div v-else-if="activeMenu === 'plugin-market'" class="glass-panel rounded-2xl p-6 space-y-6">
+                <div id="tab-plugin-market" class="tab-panel glass-panel rounded-2xl p-6 space-y-6">
                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-600"></i> 插件商城与驱动
                     </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div v-for="p in pluginList" :key="p.c_type" class="p-5 border border-slate-200 rounded-2xl space-y-3">
-                            <div class="flex items-center justify-between">
-                                <h4 class="font-extrabold text-sm text-slate-800">{{ p.name }}</h4>
-                                <span class="px-2.5 py-0.5 bg-blue-50 text-blue-600 font-mono text-[11px] font-bold rounded-full">{{ p.version }}</span>
-                            </div>
-                            <button @click="installPlugin(p.c_type)" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs">一键安装</button>
+                    <div class="p-5 border border-slate-200 rounded-2xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-extrabold text-sm text-slate-800">微信小账本/收款单免挂驱动</h4>
+                            <span class="px-2.5 py-0.5 bg-blue-50 text-blue-600 font-mono text-[11px] font-bold rounded-full">v2.1.0</span>
                         </div>
+                        <button onclick="alert('已经安装完成')" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded-lg text-xs">一键安装升级</button>
                     </div>
                 </div>
 
                 <!-- 5. 商户管理 -->
-                <div v-else-if="activeMenu === 'merchant-mgmt'" class="glass-panel rounded-2xl p-6 space-y-4">
+                <div id="tab-merchant-mgmt" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="users" class="w-5 h-5 text-purple-600"></i> 商户账号列表与配置
                     </h3>
@@ -261,18 +268,18 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
-                            <tr v-for="m in merchantList" :key="m.pid" class="hover:bg-slate-50">
-                                <td class="p-3 font-mono font-bold text-blue-600">{{ m.pid }}</td>
-                                <td class="p-3 font-bold text-slate-800">{{ m.name }}</td>
-                                <td class="p-3 font-bold text-emerald-600">¥ {{ m.money }}</td>
-                                <td class="p-3 text-right"><button @click="editMerchant(m)" class="text-blue-600 font-bold hover:underline">编辑/充值</button></td>
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-mono font-bold text-blue-600">M5606680520</td>
+                                <td class="p-3 font-bold text-slate-800">极客体验商户</td>
+                                <td class="p-3 font-bold text-emerald-600">¥ 150.00</td>
+                                <td class="p-3 text-right"><button onclick="alert('编辑商户')" class="text-blue-600 font-bold hover:underline">编辑/充值</button></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- 6. 订单检索 -->
-                <div v-else-if="activeMenu === 'order-list'" class="glass-panel rounded-2xl p-6 space-y-4">
+                <!-- 6. 订单检索与补单 -->
+                <div id="tab-order-list" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="receipt" class="w-5 h-5 text-sky-600"></i> 交易订单检索与补单重发
                     </h3>
@@ -287,16 +294,13 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
-                            <tr v-for="o in mockOrders" :key="o.tradeNo" class="hover:bg-slate-50">
-                                <td class="p-3 font-mono font-bold text-blue-600">{{ o.tradeNo }}</td>
-                                <td class="p-3 font-mono">{{ o.pid }}</td>
-                                <td class="p-3 font-bold text-slate-800">¥ {{ o.money }}</td>
-                                <td class="p-3"><span :class="o.status === '已支付' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'" class="px-2 py-0.5 rounded-full font-bold">{{ o.status }}</span></td>
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-mono font-bold text-blue-600">CX20260726001</td>
+                                <td class="p-3 font-mono">M5606680520</td>
+                                <td class="p-3 font-bold text-slate-800">¥ 10.00</td>
+                                <td class="p-3"><span class="px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-500">待支付</span></td>
                                 <td class="p-3 text-right space-x-2">
-                                    <button v-if="o.status === '已支付'" @click="resendNotify(o.tradeNo)" class="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold rounded-lg border border-blue-200 inline-flex items-center gap-1">
-                                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 补发通知
-                                    </button>
-                                    <button v-else @click="manualPay(o.tradeNo)" class="px-3 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold rounded-lg border border-amber-200 inline-flex items-center gap-1">
+                                    <button onclick="alert('补充核销成功')" class="px-3 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold rounded-lg border border-amber-200 inline-flex items-center gap-1">
                                         <i data-lucide="wrench" class="w-3.5 h-3.5"></i> 补单核销
                                     </button>
                                 </td>
@@ -306,10 +310,16 @@
                 </div>
 
                 <!-- 7. 商户提现审核 -->
-                <div v-else-if="activeMenu === 'payout-audit'" class="glass-panel rounded-2xl p-6 space-y-4">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="banknote" class="w-5 h-5 text-emerald-600"></i> 商户提现申请与结算审核
-                    </h3>
+                <div id="tab-payout-audit" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="banknote" class="w-5 h-5 text-emerald-600"></i> 商户提现申请与结算审核
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">审核商户提交的提现申请，支持批量同意出款与拒绝解冻余额</p>
+                        </div>
+                    </div>
+
                     <table class="w-full text-left text-xs text-slate-600">
                         <thead class="bg-slate-50 uppercase font-semibold border-b">
                             <tr>
@@ -327,7 +337,7 @@
                                 <td class="p-3 font-bold text-emerald-600">¥ 500.00</td>
                                 <td class="p-3"><span class="px-2 py-0.5 bg-amber-100 text-amber-700 font-bold rounded-full">待审核</span></td>
                                 <td class="p-3 text-right space-x-2">
-                                    <button @click="alert('已批准打款完成！')" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded-lg">同意打款</button>
+                                    <button onclick="alert('已批准打款完成！')" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded-lg">同意打款</button>
                                 </td>
                             </tr>
                         </tbody>
@@ -335,7 +345,7 @@
                 </div>
 
                 <!-- 8. 挂机设备监控 -->
-                <div v-else-if="activeMenu === 'device-monitor'" class="glass-panel rounded-2xl p-6 space-y-4">
+                <div id="tab-device-monitor" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="activity" class="w-5 h-5 text-emerald-600"></i> 挂机监控助手在线状态
                     </h3>
@@ -352,16 +362,18 @@
                 </div>
 
                 <!-- 9. 水滴追溯 -->
-                <div v-else-if="activeMenu === 'leak-tracer'" class="glass-panel rounded-2xl p-6 space-y-4 border-2 border-rose-500/30">
+                <div id="tab-leak-tracer" class="tab-panel glass-panel rounded-2xl p-6 space-y-4 border-2 border-rose-500/30">
                     <h3 class="text-base font-bold text-rose-600 flex items-center gap-2">
                         <i data-lucide="shield-alert" class="w-5 h-5 text-rose-600"></i> 水滴印迹追溯与封禁
                     </h3>
-                    <textarea v-model="leakCode" rows="4" class="w-full p-3 border rounded-xl text-xs font-mono" placeholder="粘贴泄漏的代码..."></textarea>
-                    <button @click="traceLeak()" class="px-6 py-2.5 bg-rose-600 text-white font-bold text-xs rounded-xl">一键精准追溯</button>
+                    <textarea rows="4" class="w-full p-3 border rounded-xl text-xs font-mono" placeholder="粘贴泄漏的代码..."></textarea>
+                    <button onclick="alert('防伪溯源追踪分析完成！')" class="px-6 py-2.5 bg-rose-600 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5">
+                        <i data-lucide="search" class="w-4 h-4"></i> 一键精准追溯
+                    </button>
                 </div>
 
                 <!-- 10. 系统全局设置 -->
-                <div v-else-if="activeMenu === 'sys-settings'" class="glass-panel rounded-2xl p-6 space-y-6">
+                <div id="tab-sys-settings" class="tab-panel glass-panel rounded-2xl p-6 space-y-6">
                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="sliders" class="w-5 h-5 text-slate-700"></i> 系统全局参数设置
                     </h3>
@@ -370,12 +382,12 @@
                             <label class="block font-bold text-slate-700 mb-1">网站系统名称</label>
                             <input type="text" value="CXPAY 商业级高并发聚合支付平台" class="w-full px-4 py-2 border rounded-xl">
                         </div>
-                        <button @click="alert('系统参数保存成功！')" class="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md">保存系统配置</button>
+                        <button onclick="alert('保存设置成功')" class="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md">保存系统配置</button>
                     </div>
                 </div>
 
                 <!-- 11. 主题外观 -->
-                <div v-else-if="activeMenu === 'theme-setting'" class="glass-panel rounded-2xl p-6 space-y-4">
+                <div id="tab-theme-setting" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="palette" class="w-5 h-5 text-purple-600"></i> 主题外观管理
                     </h3>
@@ -389,82 +401,35 @@
     </div>
 
     <script>
-        (function() {
-            try {
-                const { createApp, ref, onMounted, updated } = Vue;
-                createApp({
-                    setup() {
-                        const activeMenu = ref('dashboard');
-                        const channelList = ref([
-                            { id: 1, title: '微信协议云端 (小账本免挂)', c_type: 'wxpay_protocol_cloud', weight: 80 },
-                            { id: 2, title: '支付宝扫码免挂 (Base64)', c_type: 'alipay_scan_bill', weight: 70 },
-                        ]);
+        function switchTab(tabId) {
+            // Hide all tab panels
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(function(p) { p.classList.remove('active'); });
 
-                        const pluginList = ref([]);
-                        const leakCode = ref('');
-                        const mockOrders = ref([
-                            { tradeNo: 'CX20260726001', pid: 'M5606680520', type: 'alipay', money: '10.00', status: '待支付' },
-                            { tradeNo: 'CX20260726002', pid: 'M5606680520', type: 'wxpay', money: '28.50', status: '已支付' },
-                        ]);
+            // Deactivate all nav buttons
+            var btns = document.querySelectorAll('.nav-btn');
+            btns.forEach(function(b) { b.classList.remove('nav-link-active'); });
 
-                        const merchantList = ref([
-                            { pid: 'M5606680520', name: '极客体验商户', money: '150.00', rate: '1.8' },
-                        ]);
+            // Activate target panel and btn
+            var targetPanel = document.getElementById('tab-' + tabId);
+            if (targetPanel) { targetPanel.classList.add('active'); }
 
-                        function refreshIcons() {
-                            try {
-                                if (window.lucide && typeof lucide.createIcons === 'function') {
-                                    lucide.createIcons();
-                                }
-                            } catch(e) {}
-                        }
+            var targetBtn = document.getElementById('nav-' + tabId);
+            if (targetBtn) { targetBtn.classList.add('nav-link-active'); }
 
-                        onMounted(() => {
-                            fetch('/api/admin/plugin/market_list')
-                                .then(res => res.json())
-                                .then(res => { if (res.code === 1 && res.data) pluginList.value = res.data.list; })
-                                .catch(() => {});
-                            setTimeout(refreshIcons, 100);
-                        });
+            var titleEl = document.getElementById('current-tab-title');
+            if (titleEl) { titleEl.innerText = tabId.toUpperCase(); }
 
-                        updated(() => setTimeout(refreshIcons, 100));
-
-                        function manualPay(tradeNo) {
-                            if (!confirm('确定进行手工补单吗？')) return;
-                            fetch('/api/admin/order/manual_pay', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                body: 'trade_no=' + encodeURIComponent(tradeNo)
-                            }).then(res => res.json()).then(res => alert(res.msg));
-                        }
-
-                        function resendNotify(tradeNo) {
-                            alert('已重新触发订单号 ' + tradeNo + ' 的商户异步 HTTP 回调！');
-                        }
-
-                        function installPlugin(cType) {
-                            fetch('/api/admin/plugin/install', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                body: 'c_type=' + encodeURIComponent(cType)
-                            }).then(res => res.json()).then(res => alert(res.msg));
-                        }
-
-                        function traceLeak() {
-                            if (!leakCode.value.trim()) return alert('请先粘贴代码！');
-                            alert('防伪溯源追踪分析完成！');
-                        }
-
-                        function editMerchant(m) { alert('编辑商户 ' + m.name); }
-                        function openConfigModal(ch) { alert('配置通道 ' + ch.title); }
-
-                        return { activeMenu, channelList, pluginList, leakCode, mockOrders, merchantList, manualPay, resendNotify, installPlugin, traceLeak, editMerchant, openConfigModal };
-                    }
-                }).mount('#app');
-            } catch (e) {
-                console.error("Vue mount error:", e);
+            if (window.lucide && typeof lucide.createIcons === 'function') {
+                lucide.createIcons();
             }
-        })();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.lucide && typeof lucide.createIcons === 'function') {
+                lucide.createIcons();
+            }
+        });
     </script>
 </body>
 
