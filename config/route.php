@@ -53,6 +53,7 @@ Route::any('/notify/{cType}', [app\controller\notify\NotifyController::class, 'i
 // 微信小账本/收款单 扫码登录授权免挂 API
 Route::get('/api/wxprotocol/login_qr', [app\controller\api\WeChatProtocolAdminController::class, 'getLoginQr']);
 Route::any('/api/wxprotocol/poll_qr', [app\controller\api\WeChatProtocolAdminController::class, 'pollQr']);
+Route::get('/api/wxprotocol/auth_page', [app\controller\api\WeChatProtocolAdminController::class, 'authPage']);
 
 // 个人收款码上传自动解码 API
 Route::post('/api/qr/upload', [app\controller\api\QrUploadController::class, 'upload']);

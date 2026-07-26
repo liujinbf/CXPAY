@@ -17,14 +17,20 @@ class WeChatProtocolCloudService
     public const APP_ID_RECPT = 'wx264e9b6d4d484f51';
 
     /**
-     * 发起扫码登录会话，生成扫码登录微信的 QR 二维码 Base64
+     * 发起扫码登录会话，生成扫码授权 URL
      */
     public function createQrSession(): array
     {
+        $sessionId = 'SESS_' . md5((string)mt_rand());
+        // 生成标准平台 H5 / 微信内扫码授权 URL
+        $domain = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
+        $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+        $authUrl = "{$scheme}://{$domain}/api/wxprotocol/auth_page?session_id={$sessionId}";
+
         return [
             'code'       => 1,
-            'session_id' => 'SESS_' . md5((string)mt_rand()),
-            'qr_data'    => 'https://open.weixin.qq.com/connect/qrconnect?appid=wx28be8489b7a36aaa',
+            'session_id' => $sessionId,
+            'qr_data'    => $authUrl,
         ];
     }
 

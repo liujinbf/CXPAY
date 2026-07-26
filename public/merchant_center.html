@@ -767,13 +767,17 @@
         async function startWxProtocolAuth() {
             const qrContainer = document.getElementById('wx-auth-qr-container');
             const statusText = document.getElementById('wx-auth-status-text');
+            const qrImg = document.getElementById('wx-auth-qr-img');
             qrContainer.classList.remove('hidden');
 
             try {
                 const res = await fetch('/api/wxprotocol/login_qr');
                 const json = await res.json();
                 if (json.code === 1 && json.session_id) {
-                    statusText.innerText = '⏳ 正在等待微信扫码授权店员小账本...';
+                    if (json.qr_data && qrImg) {
+                        qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(json.qr_data);
+                    }
+                    statusText.innerText = '⏳ 请使用手机微信扫码，点击“同意授权成为店员”...';
                     
                     if (wxAuthPollTimer) clearInterval(wxAuthPollTimer);
                     let count = 0;
@@ -783,7 +787,7 @@
                             clearInterval(wxAuthPollTimer);
                             statusText.innerText = '✅ 已成功获得微信授权！绑定的店员 OpenID: wx_openid_' + json.session_id.substring(5, 12);
                             statusText.className = 'text-[11px] text-emerald-700 font-bold';
-                            document.getElementById('channel-qr-url-input').value = 'wxp://protocol_auth_' + json.session_id;
+                            document.getElementById('channel-qr-url-input').value = json.qr_data;
                             document.getElementById('channel-remark-input').value = '店员小账本授权 #wx_openid_' + json.session_id.substring(5, 12);
                         }
                     }, 1500);

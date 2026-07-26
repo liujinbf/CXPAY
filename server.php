@@ -61,7 +61,6 @@ if (str_starts_with($uriPath, '/api/merchant/channel/')) {
 
 // 1.5 微信小账本/收款单 扫码登录授权免挂 API
 if (str_contains($uriPath, '/api/wxprotocol/')) {
-    header('Content-Type: application/json; charset=utf-8');
     $wxCtrl = new \app\controller\api\WeChatProtocolAdminController();
     $req = new class($uriPath) {
         private $path;
@@ -71,9 +70,13 @@ if (str_contains($uriPath, '/api/wxprotocol/')) {
         public function path() { return $this->path; }
     };
 
-    if (str_contains($uriPath, 'login_qr')) {
+    if (str_contains($uriPath, 'auth_page')) {
+        $res = $wxCtrl->authPage($req);
+    } elseif (str_contains($uriPath, 'login_qr')) {
+        header('Content-Type: application/json; charset=utf-8');
         $res = $wxCtrl->getLoginQr();
     } else {
+        header('Content-Type: application/json; charset=utf-8');
         $res = $wxCtrl->pollQr($req);
     }
 
