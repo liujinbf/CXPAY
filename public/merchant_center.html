@@ -506,21 +506,21 @@
                     <div class="text-[11px] text-sky-700/80">提示: 可在支付宝“商家中心-账号管理”获取 2088 开头的 16 位账号 PID。</div>
                 </div>
 
-                <!-- 📷 上传个人收款码与解码 URL (强提醒) -->
-                <div id="static-qr-upload-box" class="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2.5">
+                <!-- 📷 上传个人收款码与解码 URL -->
+                <div id="static-qr-upload-box" class="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2.5">
                     <div class="flex items-center justify-between">
                         <label class="font-extrabold text-slate-800 text-xs flex items-center gap-1">
                             <span>📷 收款码图片 / 解析 URL</span>
-                            <span id="qr-required-span" class="text-rose-500 font-black">* 必填</span>
+                            <span id="qr-required-span" class="text-emerald-600 font-bold">(选填/免强制)</span>
                         </label>
                         <input type="file" id="channel-qr-file" accept="image/*" onchange="uploadQrImage(this)" class="hidden">
                         <button type="button" onclick="document.getElementById('channel-qr-file').click()" class="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-[11px] font-extrabold shadow-sm hover:bg-blue-700 flex items-center gap-1">
                             <i data-lucide="upload" class="w-3.5 h-3.5"></i> 上传收款码图片自动识别
                         </button>
                     </div>
-                    <input id="channel-qr-url-input" type="text" placeholder="微信例如: wxp://... 支付宝例如: https://qr.alipay.com/..." class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white focus:ring-2 focus:ring-amber-400 outline-none">
-                    <div id="qr-upload-status" class="text-[11px] text-amber-900 font-medium leading-relaxed">
-                        ⚠️ <strong>强制提醒:</strong> 为确保用户扫码后能100%直接唤起官方付钱界面（规避第三方跳转警告），添加/编辑通道时<strong>必须上传/填入您的真实收款码</strong>！
+                    <input id="channel-qr-url-input" type="text" placeholder="微信例如: wxp://... 支付宝例如: https://qr.alipay.com/..." class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white focus:ring-2 focus:ring-emerald-400 outline-none">
+                    <div id="qr-upload-status" class="text-[11px] text-emerald-900 font-medium leading-relaxed">
+                        💡 <strong>微信通道说明:</strong> 微信原生支持店员小账本与微信收款单云端核销，<strong>无需强制上传收款码</strong>；如需静态直跳可自由上传。
                     </div>
                 </div>
 
@@ -1072,6 +1072,20 @@
             const cat = document.getElementById('channel-c-type').value;
             const driverList = document.getElementById('channel-driver-list');
             driverList.innerHTML = '';
+
+            const qrReqSpan = document.getElementById('qr-required-span');
+            const qrStatusEl = document.getElementById('qr-upload-status');
+            const staticQrBox = document.getElementById('static-qr-upload-box');
+
+            if (cat === 'wxpay') {
+                if (qrReqSpan) { qrReqSpan.innerText = '(选填/免强制)'; qrReqSpan.className = 'text-emerald-600 font-bold'; }
+                if (qrStatusEl) { qrStatusEl.innerHTML = '💡 <strong>微信通道说明:</strong> 微信原生支持店员小账本与微信收款单云端核销，<strong>无需强制上传收款码</strong>；如需静态直跳可自由上传。'; }
+                if (staticQrBox) { staticQrBox.className = 'p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2.5'; }
+            } else {
+                if (qrReqSpan) { qrReqSpan.innerText = '* 必填'; qrReqSpan.className = 'text-rose-500 font-black'; }
+                if (qrStatusEl) { qrStatusEl.innerHTML = '⚠️ <strong>支付宝通道提醒:</strong> 为规避第三方跳转警告并直出官方付款界面，添加/编辑支付宝通道时<strong>建议配置您的真实收款码/PID</strong>。'; }
+                if (staticQrBox) { staticQrBox.className = 'p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2.5'; }
+            }
 
             const drivers = {
                 'wxpay': [
