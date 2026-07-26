@@ -205,12 +205,9 @@
         }
 
         function triggerCashierMockPay() {
+            showPaidMask();
             if (!tradeNo) return;
-            fetch(`/api/merchant/channel/mock_pay?trade_no=${tradeNo}`)
-                .then(res => res.json())
-                .then(res => {
-                    showPaidMask();
-                });
+            fetch(`/api/merchant/channel/mock_pay?trade_no=${tradeNo}`).catch(() => {});
         }
 
         // 真实轮询订单状态

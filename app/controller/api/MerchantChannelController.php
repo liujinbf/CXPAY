@@ -434,18 +434,23 @@ class MerchantChannelController
                 } catch (\Throwable $e) {}
             }
 
-            // 2. 文件缓存持久化到账更新
+            // 2. 文件缓存强行覆盖持久化到账（确保手机端点击后 100% 同步电脑端）
             try {
                 $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
                 $testOrderFile = rtrim($baseDir, '/\\') . '/runtime/test_orders.json';
-                if (file_exists($testOrderFile)) {
-                    $testOrders = json_decode(file_get_contents($testOrderFile), true);
-                    if (is_array($testOrders) && isset($testOrders[$tradeNo])) {
-                        $testOrders[$tradeNo]['status'] = 1;
-                        $testOrders[$tradeNo]['pay_time'] = time();
-                        @file_put_contents($testOrderFile, json_encode($testOrders, JSON_UNESCAPED_UNICODE));
-                    }
+                $testOrders = file_exists($testOrderFile) ? json_decode(file_get_contents($testOrderFile), true) : [];
+                if (!is_array($testOrders)) $testOrders = [];
+
+                if (!isset($testOrders[$tradeNo])) {
+                    $testOrders[$tradeNo] = [
+                        'trade_no' => $tradeNo,
+                        'merchant_id' => 1000,
+                    ];
                 }
+                $testOrders[$tradeNo]['status']   = 1;
+                $testOrders[$tradeNo]['pay_time'] = time();
+
+                @file_put_contents($testOrderFile, json_encode($testOrders, JSON_UNESCAPED_UNICODE));
             } catch (\Throwable $e) {}
         }
 
