@@ -29,26 +29,43 @@ class OrderController
         try {
             $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
             $testOrderFile = rtrim($baseDir, '/\\') . '/runtime/test_orders.json';
+            $fileOrder = null;
             if (file_exists($testOrderFile)) {
                 $testOrders = json_decode(file_get_contents($testOrderFile), true);
                 if (is_array($testOrders) && !empty($tradeNo) && isset($testOrders[$tradeNo])) {
-                    return json(['code' => 1, 'data' => $testOrders[$tradeNo]]);
+                    $fileOrder = $testOrders[$tradeNo];
                 }
             }
 
-            $query = Order::query();
-            if (!empty($tradeNo)) {
-                $query->where('trade_no', $tradeNo);
-            } elseif (!empty($outTradeNo)) {
-                $query->where('out_trade_no', $outTradeNo);
-                if ($pid > 0) {
-                    $query->where('merchant_id', $pid);
-                }
-            } else {
-                return json(['code' => -1, 'msg' => '单号 (trade_no 或 out_trade_no) 不能为空']);
+            // 查询数据库订单
+            $dbOrder = null;
+            if (class_exists('app\model\Order')) {
+                try {
+                    $query = Order::query();
+                    if (!empty($tradeNo)) {
+                        $query->where('trade_no', $tradeNo);
+                    } elseif (!empty($outTradeNo)) {
+                        $query->where('out_trade_no', $outTradeNo);
+                        if ($pid > 0) {
+                            $query->where('merchant_id', $pid);
+                        }
+                    }
+                    $dbOrder = $query->first();
+                } catch (Throwable $e) {}
             }
 
-            $order = $query->first();
+            // 双向状态同步：只要 DB 或文件备份中任何一处标记已到账 (status == 1)，即返回已到账状态 1
+            if ($fileOrder || $dbOrder) {
+                $isPaid = ($fileOrder && (int)($fileOrder['status'] ?? 0) === 1)
+                       || ($dbOrder && (int)($dbOrder->status ?? 0) === 1);
+
+                if ($fileOrder) {
+                    $fileOrder['status'] = $isPaid ? 1 : 0;
+                    return json(['code' => 1, 'msg' => '查询成功', 'data' => $fileOrder]);
+                }
+            }
+
+            $order = $dbOrder;
             if (!$order) {
                 return json(['code' => -1, 'msg' => '订单不存在或已过期']);
             }
