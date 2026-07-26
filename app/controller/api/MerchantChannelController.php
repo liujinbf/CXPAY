@@ -383,7 +383,6 @@ class MerchantChannelController
                 'pay_type'     => $payCategory,
                 'has_real_qr'  => $hasRealQr,
                 'qr_url'       => $displayQr,
-                'real_qr_scheme'=> $realQrScheme,
                 'pay_url'      => "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}",
                 'channel_title'=> $targetChannel['title'] ?? '测试通道',
             ]
