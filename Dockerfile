@@ -18,4 +18,4 @@ COPY . /app
 
 EXPOSE 8787
 
-CMD ["php", "start.php", "start"]
+CMD ["php", "server.php", "start"]
