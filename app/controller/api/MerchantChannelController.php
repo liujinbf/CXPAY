@@ -334,11 +334,21 @@ class MerchantChannelController
         $proto = (($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https' : 'http';
         $baseUrl = "{$proto}://{$host}";
 
-        $qrUrl = $targetChannel['qr_url'] ?? '';
-        if (empty($qrUrl) || str_contains($qrUrl, 'bax') || str_contains($qrUrl, 'wxp://f2f0')) {
-            $qrUrl = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
-        } elseif (str_starts_with($qrUrl, '/')) {
-            $qrUrl = "{$baseUrl}" . $qrUrl;
+        $rawQr = $targetChannel['qr_url'] ?? '';
+        $hasRealQr = !empty($rawQr) 
+                     && !str_contains($rawQr, 'bax09876543210987') 
+                     && !str_contains($rawQr, 'wxp://f2f0') 
+                     && !str_contains($rawQr, 'i.qianbao.qq.com');
+
+        $displayQr = $rawQr;
+        if (!$hasRealQr) {
+            if ($payCategory === 'alipay' && !empty($targetChannel['app_id'])) {
+                $displayQr = "alipays://platformapi/startapp?appId=20000067&url=" . urlencode("{$baseUrl}/cashier/index.html?trade_no={$tradeNo}");
+            } else {
+                $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
+            }
+        } elseif (str_starts_with($displayQr, '/')) {
+            $displayQr = "{$baseUrl}" . $displayQr;
         }
 
         try {
@@ -370,7 +380,8 @@ class MerchantChannelController
                 'money'        => number_format($money, 2, '.', ''),
                 'price'        => number_format($floatMoney, 2, '.', ''),
                 'pay_type'     => $payCategory,
-                'qr_url'       => $qrUrl,
+                'has_real_qr'  => $hasRealQr,
+                'qr_url'       => $displayQr,
                 'pay_url'      => "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}",
                 'channel_title'=> $targetChannel['title'] ?? '测试通道',
             ]

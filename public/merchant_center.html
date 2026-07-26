@@ -571,6 +571,7 @@
                         <div>订单编号: <span id="test-order-no" class="font-bold text-slate-800">--</span></div>
                         <div>测试实付金额: <span id="test-order-price" class="text-lg font-black text-rose-600">¥ 1.00</span></div>
                     </div>
+                    <div id="test-qr-notice" class="text-[11px] text-slate-500 font-medium pt-1 leading-relaxed border-t border-slate-200/60"></div>
                 </div>
 
                 <div id="test-status-badge" class="px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700 animate-pulse flex items-center justify-center gap-1.5">
@@ -666,6 +667,13 @@
                         img.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(d.qr_url)}`;
                         img.className = 'w-40 h-40 mx-auto rounded-lg shadow-sm border border-slate-200';
                         qrBox.appendChild(img);
+                    }
+
+                    const noticeEl = document.getElementById('test-qr-notice');
+                    if (d.has_real_qr) {
+                        noticeEl.innerHTML = '📷 <strong class="text-emerald-600">已直接调用商户绑定的支付宝/微信收款码</strong>';
+                    } else {
+                        noticeEl.innerHTML = '💡 <strong>提示:</strong> 当前通道尚未在【编辑】中绑定您的个人收款码图片。现生成通用安全收银台供全能扫码测试。如需直出支付宝/微信原生收款码，请在【编辑通道】上传您的收款码图片。';
                     }
 
                     document.getElementById('test-step-setup').classList.add('hidden');
