@@ -103,6 +103,15 @@ if (str_contains($uriPath, '/api/wxprotocol/')) {
     exit;
 }
 
+// 1.8 支付宝/通道防掉线心跳检测 API
+if (str_contains($uriPath, '/api/channel/keepalive')) {
+    header('Content-Type: application/json; charset=utf-8');
+    $kaCtrl = new \app\controller\api\ChannelKeepAliveController();
+    $res = $kaCtrl->keepalive();
+    echo is_array($res) ? json_encode($res, JSON_UNESCAPED_UNICODE) : (string)$res;
+    exit;
+}
+
 // 2. 易支付标准下单网关协议 (/submit.php & /mapi.php)
 if (str_contains($uriPath, 'submit.php') || str_contains($uriPath, 'mapi.php')) {
     $amount  = $_GET['money'] ?? $_POST['money'] ?? '1.00';
