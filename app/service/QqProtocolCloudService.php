@@ -11,6 +11,16 @@ use Exception;
  */
 class QQProtocolCloudService
 {
+    protected function getRuntimeDir(): string
+    {
+        $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 2);
+        $dir = rtrim($baseDir, '/\\') . '/runtime/';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+        return $dir;
+    }
+
     /**
      * 发起 QQ 钱包扫码授权登录会话
      */
@@ -20,8 +30,7 @@ class QQProtocolCloudService
         $domain  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
         $authUrl = "https://{$domain}/api/qqprotocol/auth_page?session_id={$sessionId}";
 
-        $dir = base_path() . '/runtime/';
-        @mkdir($dir, 0777, true);
+        $dir = $this->getRuntimeDir();
         file_put_contents($dir . 'qq_auth_' . $sessionId . '.json', json_encode(['status' => 'waiting', 'created_at' => time()]));
 
         return [
@@ -36,8 +45,7 @@ class QQProtocolCloudService
      */
     public function confirmAuth(string $sessionId): array
     {
-        $dir = base_path() . '/runtime/';
-        @mkdir($dir, 0777, true);
+        $dir = $this->getRuntimeDir();
 
         $qqUin = (string)mt_rand(100000000, 999999999);
         $data = [
@@ -60,7 +68,7 @@ class QQProtocolCloudService
      */
     public function pollQrSession(string $sessionId): array
     {
-        $dir = base_path() . '/runtime/';
+        $dir = $this->getRuntimeDir();
         $files = [
             $dir . 'qq_auth_' . $sessionId . '.json',
             $dir . 'qq_auth_latest.json',

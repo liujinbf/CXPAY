@@ -11,6 +11,16 @@ use Exception;
  */
 class WeChatProtocolCloudService
 {
+    protected function getRuntimeDir(): string
+    {
+        $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 2);
+        $dir = rtrim($baseDir, '/\\') . '/runtime/';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+        return $dir;
+    }
+
     /**
      * 发起微信扫码授权登录会话
      */
@@ -20,8 +30,7 @@ class WeChatProtocolCloudService
         $domain  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
         $authUrl = "https://{$domain}/api/wxprotocol/auth_page?session_id={$sessionId}";
 
-        $dir = base_path() . '/runtime/';
-        @mkdir($dir, 0777, true);
+        $dir = $this->getRuntimeDir();
         file_put_contents($dir . 'wx_auth_' . $sessionId . '.json', json_encode(['status' => 'waiting', 'created_at' => time()]));
 
         return [
@@ -36,8 +45,7 @@ class WeChatProtocolCloudService
      */
     public function confirmAuth(string $sessionId): array
     {
-        $dir = base_path() . '/runtime/';
-        @mkdir($dir, 0777, true);
+        $dir = $this->getRuntimeDir();
 
         $wxid = 'wxid_' . substr(md5($sessionId), 0, 12);
         $data = [
@@ -59,7 +67,7 @@ class WeChatProtocolCloudService
      */
     public function pollQrSession(string $sessionId): array
     {
-        $dir = base_path() . '/runtime/';
+        $dir = $this->getRuntimeDir();
         $files = [
             $dir . 'wx_auth_' . $sessionId . '.json',
             $dir . 'wx_auth_latest.json',

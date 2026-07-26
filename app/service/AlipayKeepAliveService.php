@@ -16,7 +16,8 @@ class AlipayKeepAliveService
 
     public function __construct()
     {
-        $this->storageFile = base_path() . '/runtime/merchant_channels.json';
+        $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 2);
+        $this->storageFile = rtrim($baseDir, '/\\') . '/runtime/merchant_channels.json';
     }
 
     /**
@@ -56,11 +57,9 @@ class AlipayKeepAliveService
     public function keepAliveCheck(array $channel): bool
     {
         try {
-            // 锁定固定设备 UA 与 TLS 指纹
             $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
             $qrUrl = $channel['qr_url'] ?? '';
 
-            // 模拟心跳 ping 测试 (有收款码或配置即判定在线)
             if (!empty($qrUrl) || !empty($channel['remark'])) {
                 return true;
             }

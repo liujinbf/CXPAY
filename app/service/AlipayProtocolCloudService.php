@@ -11,6 +11,16 @@ use Exception;
  */
 class AlipayProtocolCloudService
 {
+    protected function getRuntimeDir(): string
+    {
+        $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 2);
+        $dir = rtrim($baseDir, '/\\') . '/runtime/';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+        return $dir;
+    }
+
     /**
      * 发起支付宝扫码授权登录会话
      */
@@ -20,8 +30,7 @@ class AlipayProtocolCloudService
         $domain  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
         $authUrl = "https://{$domain}/api/alipay/auth_page?session_id={$sessionId}";
 
-        $dir = base_path() . '/runtime/';
-        @mkdir($dir, 0777, true);
+        $dir = $this->getRuntimeDir();
         file_put_contents($dir . 'alipay_auth_' . $sessionId . '.json', json_encode(['status' => 'waiting', 'created_at' => time()]));
 
         return [
@@ -36,8 +45,7 @@ class AlipayProtocolCloudService
      */
     public function confirmAuth(string $sessionId): array
     {
-        $dir = base_path() . '/runtime/';
-        @mkdir($dir, 0777, true);
+        $dir = $this->getRuntimeDir();
 
         $data = [
             'status'         => 'confirmed',
@@ -60,7 +68,7 @@ class AlipayProtocolCloudService
      */
     public function pollQrSession(string $sessionId): array
     {
-        $dir = base_path() . '/runtime/';
+        $dir = $this->getRuntimeDir();
         $files = [
             $dir . 'alipay_auth_' . $sessionId . '.json',
             $dir . 'alipay_auth_latest.json',
@@ -71,7 +79,6 @@ class AlipayProtocolCloudService
             if (file_exists($file)) {
                 $json = json_decode(file_get_contents($file), true);
                 if (isset($json['status']) && $json['status'] === 'confirmed') {
-                    // 读取成功后清除 latest 文件避免干扰后续
                     if (str_contains($file, 'latest') || str_contains($file, 'DEMO')) {
                         @unlink($file);
                     }
