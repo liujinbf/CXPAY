@@ -12,7 +12,6 @@
         body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .glass-panel { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px -2px rgba(0,0,0,0.03); }
         .nav-group-title { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px 4px; }
-        .tab-btn-active { background: #ffffff; border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 700; }
     </style>
 </head>
 
@@ -101,16 +100,16 @@
                     <span class="text-xs font-extrabold text-blue-600 uppercase">{{ activeMenu }}</span>
                 </div>
                 <div class="flex items-center gap-4 text-xs">
-                    <span class="text-slate-400">系统授权状态: <strong class="text-emerald-600 flex-inline items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5 inline"></i> 商业旗舰版 (永久)</strong></span>
+                    <span class="text-slate-400">系统授权状态: <strong class="text-emerald-600 inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 商业旗舰版 (永久)</strong></span>
                     <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-extrabold flex items-center justify-center text-xs">Admin</div>
                 </div>
             </header>
 
-            <!-- 视图列表 -->
+            <!-- 视图列表 (确保每个菜单有且仅有一个 v-if / v-else-if) -->
             <div class="p-6 space-y-6 flex-1 overflow-y-auto">
 
                 <!-- 1. Dashboard 控制台 -->
-                <template v-if="activeMenu === 'dashboard'">
+                <div v-if="activeMenu === 'dashboard'" class="space-y-6">
                     <div class="flex items-center justify-between">
                         <div>
                             <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
@@ -172,294 +171,274 @@
                             </div>
                         </div>
                     </div>
-                </template>
+                </div>
 
-                <!-- 2. 轮询组 (PollGroup) 管理 View -->
-                <template v-else-if="activeMenu === 'poll-groups'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-4">
-                        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                <!-- 2. 收款通道配置 -->
+                <div v-else-if="activeMenu === 'channel-config'" class="glass-panel rounded-2xl overflow-hidden space-y-6 p-6">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="settings-2" class="w-5 h-5 text-indigo-600"></i> 平台全局收款通道配置
+                    </h3>
+                    <div class="space-y-4">
+                        <div v-for="ch in channelList" :key="ch.id" class="p-4 border border-slate-200 rounded-xl flex items-center justify-between">
                             <div>
-                                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                                    <i data-lucide="shuffle" class="w-5 h-5 text-emerald-600"></i> 轮询组 (PollGroup) 与权重分流配置
-                                </h3>
-                                <p class="text-xs text-slate-400 mt-1">创建账号池轮询组，配置多账号比例分流与单日限额自动熔断防封</p>
+                                <div class="font-bold text-slate-800 text-sm">{{ ch.title }} <code class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-mono ml-2">{{ ch.c_type }}</code></div>
                             </div>
-                            <button @click="alert('新增轮询组窗口')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
-                                <i data-lucide="plus" class="w-4 h-4"></i> 创建新轮询组
+                            <button @click="openConfigModal(ch)" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
+                                <i data-lucide="wrench" class="w-3.5 h-3.5"></i> 配置密钥与参数
                             </button>
                         </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="p-5 border border-slate-200 rounded-2xl space-y-3 bg-slate-50/50">
-                                <div class="flex items-center justify-between">
-                                    <div class="font-extrabold text-sm text-slate-800">微信个人码防封组 A</div>
-                                    <span class="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">轮询中</span>
-                                </div>
-                                <div class="text-xs text-slate-500 space-y-1">
-                                    <div>包含通道: <span class="font-mono text-slate-700">WX_ASST_01 (40%), WX_ASST_02 (60%)</span></div>
-                                    <div>单日限额: <span class="font-mono text-slate-700">¥ 3,000.00 / 账号</span></div>
-                                </div>
-                                <div class="flex gap-2 pt-2">
-                                    <button class="px-3 py-1 bg-blue-600 text-white font-bold text-xs rounded-lg">编辑规则</button>
-                                    <button class="px-3 py-1 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg">暂停轮询</button>
-                                </div>
-                            </div>
-
-                            <div class="p-5 border border-slate-200 rounded-2xl space-y-3 bg-slate-50/50">
-                                <div class="flex items-center justify-between">
-                                    <div class="font-extrabold text-sm text-slate-800">支付宝高频分流组 B</div>
-                                    <span class="px-2.5 py-0.5 bg-blue-100 text-blue-700 font-bold text-[11px] rounded-full">轮询中</span>
-                                </div>
-                                <div class="text-xs text-slate-500 space-y-1">
-                                    <div>包含通道: <span class="font-mono text-slate-700">ALI_SCAN_01 (50%), ALI_SCAN_02 (50%)</span></div>
-                                    <div>单日限额: <span class="font-mono text-slate-700">¥ 5,000.00 / 账号</span></div>
-                                </div>
-                                <div class="flex gap-2 pt-2">
-                                    <button class="px-3 py-1 bg-blue-600 text-white font-bold text-xs rounded-lg">编辑规则</button>
-                                    <button class="px-3 py-1 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg">暂停轮询</button>
-                                </div>
-                            </div>
-                        </div>
                     </div>
-                </template>
+                </div>
 
-                <!-- 3. 商户提现/结算审核 View -->
-                <template v-else-if="activeMenu === 'payout-audit'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-4">
-                        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-                            <div>
-                                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                                    <i data-lucide="banknote" class="w-5 h-5 text-emerald-600"></i> 商户提现申请与结算审核
-                                </h3>
-                                <p class="text-xs text-slate-400 mt-1">审核商户提交的提现申请，支持批量同意出款与拒绝解冻余额</p>
-                            </div>
-                        </div>
-
-                        <table class="w-full text-left text-xs text-slate-600">
-                            <thead class="bg-slate-50 uppercase font-semibold border-b">
-                                <tr>
-                                    <th class="p-3">申请单号</th>
-                                    <th class="p-3">商户 PID</th>
-                                    <th class="p-3">提现金额</th>
-                                    <th class="p-3">打款账号</th>
-                                    <th class="p-3">状态</th>
-                                    <th class="p-3 text-right">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                <tr class="hover:bg-slate-50">
-                                    <td class="p-3 font-mono font-bold text-blue-600">TX20260726991</td>
-                                    <td class="p-3 font-mono">M5606680520</td>
-                                    <td class="p-3 font-bold text-emerald-600">¥ 500.00</td>
-                                    <td class="p-3">支付宝 (138****0000)</td>
-                                    <td class="p-3"><span class="px-2 py-0.5 bg-amber-100 text-amber-700 font-bold rounded-full">待审核</span></td>
-                                    <td class="p-3 text-right space-x-2">
-                                        <button @click="alert('已批准提现并标记打款完成！')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg">同意打款</button>
-                                        <button @click="alert('已驳回提现申请')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg">驳回</button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </template>
-
-                <!-- 4. 挂机设备在线监控 View -->
-                <template v-else-if="activeMenu === 'device-monitor'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-4">
-                        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-                            <div>
-                                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                                    <i data-lucide="activity" class="w-5 h-5 text-emerald-600"></i> 挂机监控助手在线状态
-                                </h3>
-                                <p class="text-xs text-slate-400 mt-1">实时监听 Windows PC 桌面助手与 Android App 客户端的心跳与网络延迟</p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="p-4 border border-slate-200 rounded-xl space-y-2">
-                                <div class="flex items-center justify-between">
-                                    <div class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
-                                        <i data-lucide="monitor" class="w-4 h-4 text-blue-600"></i> Windows 桌面挂机助手 (v4.0)
-                                    </div>
-                                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">在线 (心跳 2s 前)</span>
-                                </div>
-                                <div class="text-xs text-slate-400">设备 ID: <code class="text-slate-700 font-mono">DESKTOP-WIN11-ASST</code></div>
-                            </div>
-
-                            <div class="p-4 border border-slate-200 rounded-xl space-y-2">
-                                <div class="flex items-center justify-between">
-                                    <div class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
-                                        <i data-lucide="smartphone" class="w-4 h-4 text-purple-600"></i> Android 挂机App 客户端
-                                    </div>
-                                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">在线 (心跳 5s 前)</span>
-                                </div>
-                                <div class="text-xs text-slate-400">设备 ID: <code class="text-slate-700 font-mono">XIAOMI-13-PRO-ASST</code></div>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- 5. 系统全局设置 View -->
-                <template v-else-if="activeMenu === 'sys-settings'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-6">
-                        <div class="border-b border-slate-200 pb-4">
+                <!-- 3. 轮询组 (PollGroup) 管理 -->
+                <div v-else-if="activeMenu === 'poll-groups'" class="glass-panel rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                        <div>
                             <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                                <i data-lucide="sliders" class="w-5 h-5 text-slate-700"></i> 系统全局参数设置
+                                <i data-lucide="shuffle" class="w-5 h-5 text-emerald-600"></i> 轮询组 (PollGroup) 与权重分流配置
                             </h3>
-                            <p class="text-xs text-slate-400 mt-1">配置全站名称、默认费率、安全密钥与告警发件箱</p>
+                            <p class="text-xs text-slate-400 mt-1">创建账号池轮询组，配置多账号比例分流与单日限额自动熔断防封</p>
                         </div>
-
-                        <div class="space-y-4 text-xs max-w-2xl">
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">网站系统名称</label>
-                                <input type="text" value="CXPAY 商业级高并发聚合支付平台" class="w-full px-4 py-2 border rounded-xl">
-                            </div>
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">默认商户交易费率 (%)</label>
-                                <input type="text" value="2.0" class="w-full px-4 py-2 border rounded-xl">
-                            </div>
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">全站公告内容</label>
-                                <textarea rows="3" class="w-full p-3 border rounded-xl">欢迎使用 CXPAY 聚合支付系统！新商户注册即送体验金！</textarea>
-                            </div>
-                            <button @click="alert('系统参数保存成功！')" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md">保存系统配置</button>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- 通道配置 -->
-                <template v-else-if="activeMenu === 'channel-config'">
-                    <div class="glass-panel rounded-2xl overflow-hidden space-y-6 p-6">
-                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                            <i data-lucide="settings-2" class="w-5 h-5 text-indigo-600"></i> 平台全局收款通道配置
-                        </h3>
-                        <div class="space-y-4">
-                            <div v-for="ch in channelList" :key="ch.id" class="p-4 border border-slate-200 rounded-xl flex items-center justify-between">
-                                <div>
-                                    <div class="font-bold text-slate-800 text-sm">{{ ch.title }} <code class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-mono ml-2">{{ ch.c_type }}</code></div>
-                                </div>
-                                <button @click="openConfigModal(ch)" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
-                                    <i data-lucide="wrench" class="w-3.5 h-3.5"></i> 配置密钥与参数
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- 订单列表 -->
-                <template v-else-if="activeMenu === 'order-list'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-4">
-                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                            <i data-lucide="receipt" class="w-5 h-5 text-sky-600"></i> 交易订单检索与补单重发
-                        </h3>
-                        <table class="w-full text-left text-xs text-slate-600">
-                            <thead class="bg-slate-50 uppercase font-semibold border-b">
-                                <tr>
-                                    <th class="p-3">订单号</th>
-                                    <th class="p-3">商户 PID</th>
-                                    <th class="p-3">金额</th>
-                                    <th class="p-3">状态</th>
-                                    <th class="p-3 text-right">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                <tr v-for="o in mockOrders" :key="o.tradeNo" class="hover:bg-slate-50">
-                                    <td class="p-3 font-mono font-bold text-blue-600">{{ o.tradeNo }}</td>
-                                    <td class="p-3 font-mono">{{ o.pid }}</td>
-                                    <td class="p-3 font-bold text-slate-800">¥ {{ o.money }}</td>
-                                    <td class="p-3"><span :class="o.status === '已支付' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'" class="px-2 py-0.5 rounded-full font-bold">{{ o.status }}</span></td>
-                                    <td class="p-3 text-right space-x-2">
-                                        <button v-if="o.status === '已支付'" @click="resendNotify(o.tradeNo)" class="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold rounded-lg border border-blue-200 inline-flex items-center gap-1">
-                                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 补发通知
-                                        </button>
-                                        <button v-else @click="manualPay(o.tradeNo)" class="px-3 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold rounded-lg border border-amber-200 inline-flex items-center gap-1">
-                                            <i data-lucide="wrench" class="w-3.5 h-3.5"></i> 补单核销
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </template>
-
-                <!-- 商户管理 -->
-                <template v-else-if="activeMenu === 'merchant-mgmt'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-4">
-                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                            <i data-lucide="users" class="w-5 h-5 text-purple-600"></i> 商户账号列表与配置
-                        </h3>
-                        <table class="w-full text-left text-xs text-slate-600">
-                            <thead class="bg-slate-50 uppercase font-semibold border-b">
-                                <tr>
-                                    <th class="p-3">商户 PID</th>
-                                    <th class="p-3">商户名称</th>
-                                    <th class="p-3">余额</th>
-                                    <th class="p-3 text-right">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                <tr v-for="m in merchantList" :key="m.pid" class="hover:bg-slate-50">
-                                    <td class="p-3 font-mono font-bold text-blue-600">{{ m.pid }}</td>
-                                    <td class="p-3 font-bold text-slate-800">{{ m.name }}</td>
-                                    <td class="p-3 font-bold text-emerald-600">¥ {{ m.money }}</td>
-                                    <td class="p-3 text-right"><button @click="editMerchant(m)" class="text-blue-600 font-bold hover:underline">编辑/充值</button></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </template>
-
-                <!-- 插件商城 -->
-                <template v-else-if="activeMenu === 'plugin-market'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-6">
-                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                            <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-600"></i> 插件商城与驱动
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div v-for="p in pluginList" :key="p.c_type" class="p-5 border border-slate-200 rounded-2xl space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <h4 class="font-extrabold text-sm text-slate-800">{{ p.name }}</h4>
-                                    <span class="px-2.5 py-0.5 bg-blue-50 text-blue-600 font-mono text-[11px] font-bold rounded-full">{{ p.version }}</span>
-                                </div>
-                                <button @click="installPlugin(p.c_type)" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs">一键安装</button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- 主题设置 -->
-                <template v-else-if="activeMenu === 'theme-setting'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-4">
-                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                            <i data-lucide="palette" class="w-5 h-5 text-purple-600"></i> 主题外观管理
-                        </h3>
-                        <div class="grid grid-cols-3 gap-4 text-xs">
-                            <div class="p-4 border-2 border-blue-500 rounded-xl space-y-2">
-                                <div class="font-extrabold text-slate-800">旗舰科技风 (当前启用)</div>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- 泄露追溯 -->
-                <template v-else-if="activeMenu === 'leak-tracer'">
-                    <div class="glass-panel rounded-2xl p-6 space-y-4 border-2 border-rose-500/30">
-                        <h3 class="text-base font-bold text-rose-600 flex items-center gap-2">
-                            <i data-lucide="shield-alert" class="w-5 h-5 text-rose-600"></i> 水滴印迹追溯与封禁
-                        </h3>
-                        <textarea v-model="leakCode" rows="4" class="w-full p-3 border rounded-xl text-xs font-mono" placeholder="粘贴泄漏的代码..."></textarea>
-                        <button @click="traceLeak()" class="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5">
-                            <i data-lucide="search" class="w-4 h-4"></i> 一键精准追溯
+                        <button @click="alert('新增轮询组窗口')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
+                            <i data-lucide="plus" class="w-4 h-4"></i> 创建新轮询组
                         </button>
                     </div>
-                </template>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-5 border border-slate-200 rounded-2xl space-y-3 bg-slate-50/50">
+                            <div class="flex items-center justify-between">
+                                <div class="font-extrabold text-sm text-slate-800">微信个人码防封组 A</div>
+                                <span class="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">轮询中</span>
+                            </div>
+                            <div class="text-xs text-slate-500 space-y-1">
+                                <div>包含通道: <span class="font-mono text-slate-700">WX_ASST_01 (40%), WX_ASST_02 (60%)</span></div>
+                                <div>单日限额: <span class="font-mono text-slate-700">¥ 3,000.00 / 账号</span></div>
+                            </div>
+                            <div class="flex gap-2 pt-2">
+                                <button class="px-3 py-1 bg-blue-600 text-white font-bold text-xs rounded-lg">编辑规则</button>
+                                <button class="px-3 py-1 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg">暂停轮询</button>
+                            </div>
+                        </div>
+
+                        <div class="p-5 border border-slate-200 rounded-2xl space-y-3 bg-slate-50/50">
+                            <div class="flex items-center justify-between">
+                                <div class="font-extrabold text-sm text-slate-800">支付宝高频分流组 B</div>
+                                <span class="px-2.5 py-0.5 bg-blue-100 text-blue-700 font-bold text-[11px] rounded-full">轮询中</span>
+                            </div>
+                            <div class="text-xs text-slate-500 space-y-1">
+                                <div>包含通道: <span class="font-mono text-slate-700">ALI_SCAN_01 (50%), ALI_SCAN_02 (50%)</span></div>
+                                <div>单日限额: <span class="font-mono text-slate-700">¥ 5,000.00 / 账号</span></div>
+                            </div>
+                            <div class="flex gap-2 pt-2">
+                                <button class="px-3 py-1 bg-blue-600 text-white font-bold text-xs rounded-lg">编辑规则</button>
+                                <button class="px-3 py-1 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg">暂停轮询</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. 插件商城 -->
+                <div v-else-if="activeMenu === 'plugin-market'" class="glass-panel rounded-2xl p-6 space-y-6">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-600"></i> 插件商城与驱动
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div v-for="p in pluginList" :key="p.c_type" class="p-5 border border-slate-200 rounded-2xl space-y-3">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-extrabold text-sm text-slate-800">{{ p.name }}</h4>
+                                <span class="px-2.5 py-0.5 bg-blue-50 text-blue-600 font-mono text-[11px] font-bold rounded-full">{{ p.version }}</span>
+                            </div>
+                            <button @click="installPlugin(p.c_type)" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs">一键安装</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. 商户管理 -->
+                <div v-else-if="activeMenu === 'merchant-mgmt'" class="glass-panel rounded-2xl p-6 space-y-4">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="users" class="w-5 h-5 text-purple-600"></i> 商户账号列表与配置
+                    </h3>
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-50 uppercase font-semibold border-b">
+                            <tr>
+                                <th class="p-3">商户 PID</th>
+                                <th class="p-3">商户名称</th>
+                                <th class="p-3">余额</th>
+                                <th class="p-3 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr v-for="m in merchantList" :key="m.pid" class="hover:bg-slate-50">
+                                <td class="p-3 font-mono font-bold text-blue-600">{{ m.pid }}</td>
+                                <td class="p-3 font-bold text-slate-800">{{ m.name }}</td>
+                                <td class="p-3 font-bold text-emerald-600">¥ {{ m.money }}</td>
+                                <td class="p-3 text-right"><button @click="editMerchant(m)" class="text-blue-600 font-bold hover:underline">编辑/充值</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 6. 订单检索与补单 -->
+                <div v-else-if="activeMenu === 'order-list'" class="glass-panel rounded-2xl p-6 space-y-4">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="receipt" class="w-5 h-5 text-sky-600"></i> 交易订单检索与补单重发
+                    </h3>
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-50 uppercase font-semibold border-b">
+                            <tr>
+                                <th class="p-3">订单号</th>
+                                <th class="p-3">商户 PID</th>
+                                <th class="p-3">金额</th>
+                                <th class="p-3">状态</th>
+                                <th class="p-3 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr v-for="o in mockOrders" :key="o.tradeNo" class="hover:bg-slate-50">
+                                <td class="p-3 font-mono font-bold text-blue-600">{{ o.tradeNo }}</td>
+                                <td class="p-3 font-mono">{{ o.pid }}</td>
+                                <td class="p-3 font-bold text-slate-800">¥ {{ o.money }}</td>
+                                <td class="p-3"><span :class="o.status === '已支付' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'" class="px-2 py-0.5 rounded-full font-bold">{{ o.status }}</span></td>
+                                <td class="p-3 text-right space-x-2">
+                                    <button v-if="o.status === '已支付'" @click="resendNotify(o.tradeNo)" class="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold rounded-lg border border-blue-200 inline-flex items-center gap-1">
+                                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 补发通知
+                                    </button>
+                                    <button v-else @click="manualPay(o.tradeNo)" class="px-3 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold rounded-lg border border-amber-200 inline-flex items-center gap-1">
+                                        <i data-lucide="wrench" class="w-3.5 h-3.5"></i> 补单核销
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 7. 商户提现审核 -->
+                <div v-else-if="activeMenu === 'payout-audit'" class="glass-panel rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="banknote" class="w-5 h-5 text-emerald-600"></i> 商户提现申请与结算审核
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">审核商户提交的提现申请，支持批量同意出款与拒绝解冻余额</p>
+                        </div>
+                    </div>
+
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-50 uppercase font-semibold border-b">
+                            <tr>
+                                <th class="p-3">申请单号</th>
+                                <th class="p-3">商户 PID</th>
+                                <th class="p-3">提现金额</th>
+                                <th class="p-3">打款账号</th>
+                                <th class="p-3">状态</th>
+                                <th class="p-3 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-mono font-bold text-blue-600">TX20260726991</td>
+                                <td class="p-3 font-mono">M5606680520</td>
+                                <td class="p-3 font-bold text-emerald-600">¥ 500.00</td>
+                                <td class="p-3">支付宝 (138****0000)</td>
+                                <td class="p-3"><span class="px-2 py-0.5 bg-amber-100 text-amber-700 font-bold rounded-full">待审核</span></td>
+                                <td class="p-3 text-right space-x-2">
+                                    <button @click="alert('已批准提现并标记打款完成！')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg">同意打款</button>
+                                    <button @click="alert('已驳回提现申请')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg">驳回</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 8. 挂机设备监控 -->
+                <div v-else-if="activeMenu === 'device-monitor'" class="glass-panel rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="activity" class="w-5 h-5 text-emerald-600"></i> 挂机监控助手在线状态
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">实时监听 Windows PC 桌面助手与 Android App 客户端的心跳与网络延迟</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 border border-slate-200 rounded-xl space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="monitor" class="w-4 h-4 text-blue-600"></i> Windows 桌面挂机助手 (v4.0)
+                                </div>
+                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">在线 (心跳 2s 前)</span>
+                            </div>
+                            <div class="text-xs text-slate-400">设备 ID: <code class="text-slate-700 font-mono">DESKTOP-WIN11-ASST</code></div>
+                        </div>
+
+                        <div class="p-4 border border-slate-200 rounded-xl space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="smartphone" class="w-4 h-4 text-purple-600"></i> Android 挂机App 客户端
+                                </div>
+                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">在线 (心跳 5s 前)</span>
+                            </div>
+                            <div class="text-xs text-slate-400">设备 ID: <code class="text-slate-700 font-mono">XIAOMI-13-PRO-ASST</code></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9. 水滴追溯 -->
+                <div v-else-if="activeMenu === 'leak-tracer'" class="glass-panel rounded-2xl p-6 space-y-4 border-2 border-rose-500/30">
+                    <h3 class="text-base font-bold text-rose-600 flex items-center gap-2">
+                        <i data-lucide="shield-alert" class="w-5 h-5 text-rose-600"></i> 水滴印迹追溯与封禁
+                    </h3>
+                    <textarea v-model="leakCode" rows="4" class="w-full p-3 border rounded-xl text-xs font-mono" placeholder="粘贴泄漏的代码..."></textarea>
+                    <button @click="traceLeak()" class="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5">
+                        <i data-lucide="search" class="w-4 h-4"></i> 一键精准追溯
+                    </button>
+                </div>
+
+                <!-- 10. 系统全局设置 -->
+                <div v-else-if="activeMenu === 'sys-settings'" class="glass-panel rounded-2xl p-6 space-y-6">
+                    <div class="border-b border-slate-200 pb-4">
+                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="sliders" class="w-5 h-5 text-slate-700"></i> 系统全局参数设置
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">配置全站名称、默认费率、安全密钥与告警发件箱</p>
+                    </div>
+
+                    <div class="space-y-4 text-xs max-w-2xl">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">网站系统名称</label>
+                            <input type="text" value="CXPAY 商业级高并发聚合支付平台" class="w-full px-4 py-2 border rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">默认商户交易费率 (%)</label>
+                            <input type="text" value="2.0" class="w-full px-4 py-2 border rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">全站公告内容</label>
+                            <textarea rows="3" class="w-full p-3 border rounded-xl">欢迎使用 CXPAY 聚合支付系统！新商户注册即送体验金！</textarea>
+                        </div>
+                        <button @click="alert('系统参数保存成功！')" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md">保存系统配置</button>
+                    </div>
+                </div>
+
+                <!-- 11. 主题外观管理 -->
+                <div v-else-if="activeMenu === 'theme-setting'" class="glass-panel rounded-2xl p-6 space-y-4">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="palette" class="w-5 h-5 text-purple-600"></i> 主题外观管理
+                    </h3>
+                    <div class="grid grid-cols-3 gap-4 text-xs">
+                        <div class="p-4 border-2 border-blue-500 rounded-xl space-y-2">
+                            <div class="font-extrabold text-slate-800">旗舰科技风 (当前启用)</div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
         </main>
     </div>
 
     <script>
-        const { createApp, ref, onMounted, updated } = Vue;
+        const { createApp, ref, onMounted, updated, nextTick } = Vue;
         createApp({
             setup() {
                 const activeMenu = ref('dashboard');
@@ -490,7 +469,7 @@
                         .then(res => res.json())
                         .then(res => { if (res.code === 1 && res.data) pluginList.value = res.data.list; })
                         .catch(() => {});
-                    refreshIcons();
+                    nextTick(() => refreshIcons());
                 });
 
                 updated(() => refreshIcons());
