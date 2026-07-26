@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace app\controller\api;
 
 use app\service\WeChatProtocolCloudService;
-use support\Response;
 use Throwable;
 
 /**
@@ -23,26 +22,32 @@ class WeChatProtocolAdminController
     /**
      * 发起扫码登录会话获取授权二维码 /api/wxprotocol/login_qr
      */
-    public function getLoginQr(): Response
+    public function getLoginQr()
     {
         $session = $this->protocolService->createQrSession();
-        return json($session);
+        if (function_exists('json')) {
+            return json($session);
+        }
+        return json_encode($session, JSON_UNESCAPED_UNICODE);
     }
 
     /**
      * 轮询扫码授权状态 /api/wxprotocol/poll_qr
      */
-    public function pollQr(object $request): Response
+    public function pollQr(object $request)
     {
         $sessionId = $request->get('session_id') ?? $request->post('session_id') ?? '';
         $res = $this->protocolService->pollQrSession($sessionId);
-        return json($res);
+        if (function_exists('json')) {
+            return json($res);
+        }
+        return json_encode($res, JSON_UNESCAPED_UNICODE);
     }
 
     /**
      * 微信扫码授权落地页 (支持微信直接扫描) /api/wxprotocol/auth_page
      */
-    public function authPage(object $request): Response
+    public function authPage(object $request)
     {
         $sessionId = $request->get('session_id') ?? 'SESS_DEMO';
 
@@ -96,6 +101,9 @@ class WeChatProtocolAdminController
 </html>
 HTML;
 
-        return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $html);
+        if (class_exists('\support\Response')) {
+            return new \support\Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $html);
+        }
+        return $html;
     }
 }

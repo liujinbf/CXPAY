@@ -82,6 +82,7 @@ if (str_contains($uriPath, '/api/wxprotocol/')) {
     };
 
     if (str_contains($uriPath, 'auth_page')) {
+        header('Content-Type: text/html; charset=utf-8');
         $res = $wxCtrl->authPage($req);
     } elseif (str_contains($uriPath, 'login_qr')) {
         header('Content-Type: application/json; charset=utf-8');
@@ -91,7 +92,11 @@ if (str_contains($uriPath, '/api/wxprotocol/')) {
         $res = $wxCtrl->pollQr($req);
     }
 
-    echo is_object($res) && method_exists($res, 'rawBody') ? $res->rawBody() : (string)$res;
+    if (is_object($res) && method_exists($res, 'rawBody')) {
+        echo $res->rawBody();
+    } else {
+        echo is_array($res) ? json_encode($res, JSON_UNESCAPED_UNICODE) : (string)$res;
+    }
     exit;
 }
 
