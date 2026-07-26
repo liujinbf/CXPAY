@@ -2,7 +2,8 @@
 // 本地开发模拟运行服务：免外部服务一键启动收银台 API 服务器
 // 监听端口：8787
 
-$uriPath = parse_url($requestUri, PHP_URL_PATH) ?: '/';
+$rawUri  = $_SERVER['REQUEST_URI'] ?? '/';
+$uriPath = parse_url($rawUri, PHP_URL_PATH) ?: '/';
 
 if (str_contains($uriPath, 'submit.php') || str_contains($uriPath, 'mapi.php')) {
     $amount  = $_GET['money'] ?? $_POST['money'] ?? '1.00';
