@@ -113,7 +113,7 @@ class CloudLicenseController
                 'domain'      => $domain,
                 'auth_key'    => $authKey ?: 'a61463******2893',
                 'status'      => 'authorized',
-                'agent'       => 'XLPAY 官方代理',
+                'agent'       => 'CXPAY 官方服务商',
                 'bound_qq'    => '1008611',
                 'bound_wx'    => 'wx_openid_99887766',
                 'module_check'=> $res,
