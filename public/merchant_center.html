@@ -510,8 +510,8 @@
                 <div id="static-qr-upload-box" class="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2.5">
                     <div class="flex items-center justify-between">
                         <label class="font-extrabold text-slate-800 text-xs flex items-center gap-1">
-                            <span>📷 支付宝/微信收款码图片</span>
-                            <span class="text-rose-500 font-black">* 必填</span>
+                            <span>📷 收款码图片 / 解析 URL</span>
+                            <span id="qr-required-span" class="text-rose-500 font-black">* 必填</span>
                         </label>
                         <input type="file" id="channel-qr-file" accept="image/*" onchange="uploadQrImage(this)" class="hidden">
                         <button type="button" onclick="document.getElementById('channel-qr-file').click()" class="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-[11px] font-extrabold shadow-sm hover:bg-blue-700 flex items-center gap-1">
