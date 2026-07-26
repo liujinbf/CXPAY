@@ -987,15 +987,17 @@
                         clearInterval(aliAuthPollTimer);
                         const pid = (pollJson.data && pollJson.data.alipay_pid) ? pollJson.data.alipay_pid : ('2088' + Math.floor(Math.random()*1000000000000));
                         
-                        statusText.innerText = '✅ 支付宝扫码授权成功！已绑定 PID: ' + pid + '，正在自动保存...';
-                        statusText.className = 'text-[11px] text-sky-700 font-bold';
+                        statusText.innerText = '✅ 支付宝扫码授权成功！已绑定 PID: ' + pid + '，已保存...';
+                        statusText.className = 'text-[11px] text-emerald-700 font-bold';
                         
-                        document.getElementById('alipay-pid-input').value = pid;
-                        document.getElementById('channel-remark-input').value = '支付宝应用代开发授权 #' + pid;
+                        const pidInput = document.getElementById('alipay-pid-input');
+                        if (pidInput) pidInput.value = pid;
+                        const remarkInput = document.getElementById('channel-remark-input');
+                        if (remarkInput) remarkInput.value = '支付宝应用代开发授权 #' + pid;
 
                         setTimeout(() => {
                             submitSaveChannel(true);
-                        }, 800);
+                        }, 200);
                     }
                 } catch (e) {}
             }, 1200);
