@@ -165,7 +165,14 @@
                             finalQrUrl = window.location.origin + finalQrUrl;
                         }
                         window.lastPayUrl = finalQrUrl;
-                        renderQr(finalQrUrl);
+                        window.realQrUrl  = data.qr_url || '';
+
+                        // 若后台返回了真实的商户个人/通用收款码，优先渲染真实收款码
+                        if (window.realQrUrl && (window.realQrUrl.startsWith('http') || window.realQrUrl.startsWith('alipays://') || window.realQrUrl.startsWith('wxp://'))) {
+                            renderQr(window.realQrUrl);
+                        } else {
+                            renderQr(finalQrUrl);
+                        }
 
                         if (data.status === 1) {
                             showPaidMask();
@@ -251,8 +258,35 @@
         }
 
         function openApp() {
-            const targetQr = window.lastPayUrl || window.location.href;
-            const aliScheme = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(targetQr);
+            const ua = navigator.userAgent.toLowerCase();
+            const isAli = ua.includes('alipayclient');
+            const realQr = window.realQrUrl || '';
+
+            // 1. 如果配置了支付宝/微信真实收款码，直接跳转跳转链接
+            if (realQr && !realQr.includes('/cashier/index.html')) {
+                if (realQr.startsWith('alipays://') || realQr.startsWith('https://qr.alipay.com/')) {
+                    window.location.href = realQr;
+                    return;
+                }
+                if (realQr.startsWith('wxp://') || realQr.includes('weixin.qq.com')) {
+                    window.location.href = realQr;
+                    return;
+                }
+            }
+
+            // 2. 如果用户已经在支付宝 App 内
+            if (isAli) {
+                if (realQr && realQr.startsWith('https://')) {
+                    window.location.href = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(realQr);
+                    return;
+                }
+                // 拦截避免将收银台自身的 URL 再次传给 alipays:// 造成无限重定向死循环
+                alert('您已在支付宝客户端内，请保存/截屏上方二维码或使用支付宝扫一扫完成支付');
+                return;
+            }
+
+            // 3. 外部浏览器唤起支付宝 App 打开收银台
+            const aliScheme = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(window.location.href);
             window.location.href = aliScheme;
         }
     </script>

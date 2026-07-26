@@ -78,6 +78,7 @@ class OrderController
                 'status'     => (int)$order->status,
                 'pay_type'   => $order->pay_type,
                 'pay_url'    => $payUrl,
+                'qr_url'     => $qr ?? '',
                 'return_url' => $order->return_url ?: '',
                 'create_time'=> $order->create_time,
                 'expire_time'=> $order->expire_time,
