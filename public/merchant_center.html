@@ -40,13 +40,13 @@
                     <!-- 2. 通道与收款码 -->
                     <div class="nav-group-title">收款通道与绑定</div>
                     <a @click="activeMenu = 'my-channels'" :class="activeMenu === 'my-channels' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer font-bold text-emerald-600 transition-colors">
-                        <i data-lucide="qr-code" class="w-4 h-4 text-emerald-500"></i> 📷 微信/支付宝/QQ收款码绑定
+                        <i data-lucide="qr-code" class="w-4 h-4 text-emerald-500"></i> 微信/支付宝/QQ收款码绑定
                     </a>
 
                     <!-- 3. 财务与提现结算 -->
                     <div class="nav-group-title">财务与提现结算</div>
                     <a @click="activeMenu = 'payout-request'" :class="activeMenu === 'payout-request' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
-                        <i data-lucide="banknote" class="w-4 h-4 text-emerald-600"></i> 💳 申请提现与结算记录
+                        <i data-lucide="banknote" class="w-4 h-4 text-emerald-600"></i> 申请提现与结算记录
                     </a>
                     <a @click="activeMenu = 'finance-log'" :class="activeMenu === 'finance-log' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors">
                         <i data-lucide="history" class="w-4 h-4 text-indigo-500"></i> 交易流水与扣费账单
@@ -63,8 +63,9 @@
                 </nav>
             </div>
 
-            <div class="pt-3 border-t border-slate-100 text-xs text-slate-400">
-                <span>商户余额: <strong class="text-emerald-600 font-extrabold">¥ 150.00</strong></span>
+            <div class="pt-3 border-t border-slate-100 text-xs text-slate-400 flex items-center justify-between">
+                <span>商户余额:</span>
+                <strong class="text-emerald-600 font-extrabold text-sm">¥ 150.00</strong>
             </div>
         </aside>
 
@@ -74,7 +75,9 @@
             <header class="bg-white border-b border-slate-200 px-8 py-3.5 flex items-center justify-between shadow-sm">
                 <div class="text-xs text-slate-400">商户服务中心 / <span class="text-slate-700 font-bold uppercase">{{ activeMenu }}</span></div>
                 <div class="flex items-center gap-4 text-xs">
-                    <span class="text-slate-600 font-bold">极客体验商户 👋</span>
+                    <span class="text-slate-600 font-bold flex items-center gap-1.5">
+                        <i data-lucide="user-check" class="w-4 h-4 text-blue-600"></i> 极客体验商户
+                    </span>
                     <button class="px-3 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-md">退出登录</button>
                 </div>
             </header>
@@ -84,7 +87,9 @@
                 <template v-if="activeMenu === 'dashboard'">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h2 class="text-xl font-extrabold text-slate-800">你好，极客体验商户 👋</h2>
+                            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="bar-chart-2" class="w-6 h-6 text-blue-600"></i> 商户数据概览
+                            </h2>
                             <p class="text-xs text-slate-400 mt-1">以下是您今天的交易与成功率实时概览</p>
                         </div>
                         <div class="flex bg-slate-200/60 p-1 rounded-xl text-xs space-x-1">
@@ -100,7 +105,9 @@
                                 <div class="text-xs text-slate-400 font-medium">累计交易额</div>
                                 <div class="text-2xl font-extrabold text-slate-800 mt-1">¥ 1,280.50</div>
                             </div>
-                            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold">💳</div>
+                            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                <i data-lucide="credit-card" class="w-5 h-5"></i>
+                            </div>
                         </div>
 
                         <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
@@ -108,7 +115,9 @@
                                 <div class="text-xs text-slate-400 font-medium">成功订单数</div>
                                 <div class="text-2xl font-extrabold text-emerald-600 mt-1">128</div>
                             </div>
-                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">🧾</div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                <i data-lucide="check-circle" class="w-5 h-5"></i>
+                            </div>
                         </div>
 
                         <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
@@ -116,7 +125,9 @@
                                 <div class="text-xs text-slate-400 font-medium">已绑定收款码</div>
                                 <div class="text-2xl font-extrabold text-slate-800 mt-1">3 个</div>
                             </div>
-                            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg font-bold">📷</div>
+                            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                                <i data-lucide="qr-code" class="w-5 h-5"></i>
+                            </div>
                         </div>
 
                         <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
@@ -124,19 +135,25 @@
                                 <div class="text-xs text-slate-400 font-medium">账户可提现余额</div>
                                 <div class="text-2xl font-extrabold text-emerald-600 mt-1">¥ 150.00</div>
                             </div>
-                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-lg font-bold">💰</div>
+                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                                <i data-lucide="wallet" class="w-5 h-5"></i>
+                            </div>
                         </div>
                     </div>
 
                     <!-- 图表区域 -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="glass-card p-6 rounded-2xl md:col-span-2 space-y-4">
-                            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">📈 24小时收款趋势</h3>
+                            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i> 24小时收款趋势
+                            </h3>
                             <div id="trendChart" class="w-full h-64"></div>
                         </div>
 
                         <div class="glass-card p-6 rounded-2xl space-y-4">
-                            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">🕒 支付通道占比</h3>
+                            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="pie-chart" class="w-4 h-4 text-blue-600"></i> 支付通道占比
+                            </h3>
                             <div id="pieChart" class="w-full h-64"></div>
                         </div>
                     </div>
@@ -147,10 +164,14 @@
                     <div class="glass-card p-6 rounded-2xl space-y-6">
                         <div class="flex items-center justify-between border-b border-slate-200 pb-4">
                             <div>
-                                <h3 class="text-base font-extrabold text-slate-800">💳 申请账户余额提现 / 自动结算</h3>
+                                <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="banknote" class="w-5 h-5 text-emerald-600"></i> 申请账户余额提现 / 自动结算
+                                </h3>
                                 <p class="text-xs text-slate-400 mt-1">将您的账户可用余额结算至支付宝、微信或银行卡账号</p>
                             </div>
-                            <button @click="showPayoutModal = true" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md">+ 发起提现申请</button>
+                            <button @click="showPayoutModal = true" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
+                                <i data-lucide="plus" class="w-4 h-4"></i> 发起提现申请
+                            </button>
                         </div>
 
                         <div class="space-y-4">
@@ -181,15 +202,21 @@
                 <template v-else-if="activeMenu === 'my-channels'">
                     <div class="glass-card p-6 rounded-2xl space-y-6">
                         <div>
-                            <h3 class="text-base font-extrabold text-slate-800">📷 微信/支付宝/QQ 个人收款码绑定与上传</h3>
+                            <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="qr-code" class="w-5 h-5 text-emerald-600"></i> 微信/支付宝/QQ 个人收款码绑定与上传
+                            </h3>
                             <p class="text-xs text-slate-400 mt-1">自动识别二维码解码，绑定后由挂机助手推送到账流水实现零图片出码</p>
                         </div>
 
                         <div class="p-6 border-2 border-dashed border-blue-200 rounded-2xl bg-blue-50/50 text-center space-y-3">
                             <input type="file" ref="qrFileInput" @change="handleQrUpload" class="hidden" accept="image/*">
-                            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto text-xl shadow-lg">📷</div>
+                            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto text-xl shadow-lg">
+                                <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+                            </div>
                             <div class="text-xs font-bold text-slate-700">点击上传微信/支付宝/QQ个人收款码图片</div>
-                            <button @click="$refs.qrFileInput.click()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer">选择二维码文件</button>
+                            <button @click="$refs.qrFileInput.click()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer inline-flex items-center gap-1.5">
+                                <i data-lucide="image" class="w-4 h-4"></i> 选择二维码文件
+                            </button>
                         </div>
                     </div>
                 </template>
@@ -198,7 +225,9 @@
                 <template v-else-if="activeMenu === 'api-keys'">
                     <div class="glass-card p-6 rounded-2xl space-y-6">
                         <div class="border-b border-slate-200 pb-4">
-                            <h3 class="text-base font-extrabold text-slate-800">🔑 API 对接参数与签名密钥</h3>
+                            <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="key" class="w-5 h-5 text-amber-500"></i> API 对接参数与签名密钥
+                            </h3>
                             <p class="text-xs text-slate-400 mt-1">用于易支付通用接口或原生 API 网关快速集成</p>
                         </div>
 
@@ -224,19 +253,27 @@
     </div>
 
     <script>
-        const { createApp, ref, onMounted, nextTick } = Vue;
+        const { createApp, ref, onMounted, updated, nextTick } = Vue;
         createApp({
             setup() {
                 const activeMenu = ref('dashboard');
                 const timeFilter = ref('today');
                 const showPayoutModal = ref(false);
 
+                function refreshIcons() {
+                    if (window.lucide) {
+                        setTimeout(() => lucide.createIcons(), 50);
+                    }
+                }
+
                 onMounted(() => {
                     nextTick(() => {
-                        if (window.lucide) lucide.createIcons();
+                        refreshIcons();
                         initCharts();
                     });
                 });
+
+                updated(() => refreshIcons());
 
                 function initCharts() {
                     const trendDom = document.getElementById('trendChart');
