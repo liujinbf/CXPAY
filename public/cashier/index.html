@@ -167,10 +167,12 @@
                         window.lastPayUrl = finalQrUrl;
                         window.realQrUrl  = data.qr_url || '';
 
-                        // 若用户在手机支付宝 APP 内访问，且返回了原生付钱 Scheme，秒级自动跳转转账界面
+                        // 若用户在手机支付宝 APP 内访问，且配置了 PID，秒级自动唤起原生支付宝付钱界面
                         const isAli = navigator.userAgent.toLowerCase().includes('alipayclient');
-                        if (isAli && window.realQrUrl && window.realQrUrl.startsWith('alipays://')) {
-                            window.location.replace(window.realQrUrl);
+                        const aliPid = data.alipay_pid || (data.config && data.config.alipay_pid ? data.config.alipay_pid : '');
+                        if (isAli && (window.realQrUrl.startsWith('alipays://') || aliPid)) {
+                            const aliScheme = window.realQrUrl.startsWith('alipays://') ? window.realQrUrl : ("alipays://platformapi/startapp?appId=09999988&actionType=toAccount&recUserId=" + aliPid + "&amount=" + (data.price || data.money) + "&memo=" + encodeURIComponent("CX" + tNo));
+                            window.location.replace(aliScheme);
                             return;
                         }
 
@@ -184,8 +186,10 @@
                                     <div class="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xl">
                                         ✓
                                     </div>
-                                    <div class="text-xs font-bold text-slate-200">订单已就绪 (待付款)</div>
-                                    <div class="text-[11px] text-slate-400 leading-relaxed">请通过微信/支付宝转账或点击下方一键核销到账</div>
+                                    <div class="text-xs font-extrabold text-slate-100">测试订单已就绪</div>
+                                    <div class="text-[11px] text-emerald-300 font-bold bg-emerald-950/80 p-2 rounded-xl border border-emerald-500/30">
+                                        👉 点击下方绿色按钮完成支付核销测试
+                                    </div>
                                 </div>
                             `;
                         }
