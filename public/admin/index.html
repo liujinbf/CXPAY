@@ -6,8 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CXPAY - 商业级聚合支付管理控制台</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- 多 CDN 容灾降级保证全球/国内无缝加载 Vue 3 & Lucide 图标 -->
+    <script src="https://cdn.staticfile.net/vue/3.3.4/vue.global.prod.js"></script>
+    <script>if (!window.Vue) document.write('<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"><\/script>');</script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
     <style>
         body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .glass-panel { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px -2px rgba(0,0,0,0.03); }
@@ -105,7 +107,7 @@
                 </div>
             </header>
 
-            <!-- 视图列表 (确保每个菜单有且仅有一个 v-if / v-else-if) -->
+            <!-- 视图列表 -->
             <div class="p-6 space-y-6 flex-1 overflow-y-auto">
 
                 <!-- 1. Dashboard 控制台 -->
@@ -438,74 +440,82 @@
     </div>
 
     <script>
-        const { createApp, ref, onMounted, updated, nextTick } = Vue;
-        createApp({
-            setup() {
-                const activeMenu = ref('dashboard');
-                const channelList = ref([
-                    { id: 1, title: '微信协议云端 (小账本免挂)', c_type: 'wxpay_protocol_cloud', weight: 80 },
-                    { id: 2, title: '支付宝扫码免挂 (Base64)', c_type: 'alipay_scan_bill', weight: 70 },
-                ]);
+        (function() {
+            try {
+                const { createApp, ref, onMounted, updated, nextTick } = Vue;
+                createApp({
+                    setup() {
+                        const activeMenu = ref('dashboard');
+                        const channelList = ref([
+                            { id: 1, title: '微信协议云端 (小账本免挂)', c_type: 'wxpay_protocol_cloud', weight: 80 },
+                            { id: 2, title: '支付宝扫码免挂 (Base64)', c_type: 'alipay_scan_bill', weight: 70 },
+                        ]);
 
-                const pluginList = ref([]);
-                const leakCode = ref('');
-                const mockOrders = ref([
-                    { tradeNo: 'CX20260726001', pid: 'M5606680520', type: 'alipay', money: '10.00', status: '待支付' },
-                    { tradeNo: 'CX20260726002', pid: 'M5606680520', type: 'wxpay', money: '28.50', status: '已支付' },
-                ]);
+                        const pluginList = ref([]);
+                        const leakCode = ref('');
+                        const mockOrders = ref([
+                            { tradeNo: 'CX20260726001', pid: 'M5606680520', type: 'alipay', money: '10.00', status: '待支付' },
+                            { tradeNo: 'CX20260726002', pid: 'M5606680520', type: 'wxpay', money: '28.50', status: '已支付' },
+                        ]);
 
-                const merchantList = ref([
-                    { pid: 'M5606680520', name: '极客体验商户', money: '150.00', rate: '1.8' },
-                ]);
+                        const merchantList = ref([
+                            { pid: 'M5606680520', name: '极客体验商户', money: '150.00', rate: '1.8' },
+                        ]);
 
-                function refreshIcons() {
-                    if (window.lucide) {
-                        setTimeout(() => lucide.createIcons(), 50);
+                        function refreshIcons() {
+                            try {
+                                if (window.lucide && typeof lucide.createIcons === 'function') {
+                                    lucide.createIcons();
+                                }
+                            } catch(e) {}
+                        }
+
+                        onMounted(() => {
+                            fetch('/api/admin/plugin/market_list')
+                                .then(res => res.json())
+                                .then(res => { if (res.code === 1 && res.data) pluginList.value = res.data.list; })
+                                .catch(() => {});
+                            setTimeout(refreshIcons, 100);
+                        });
+
+                        updated(() => setTimeout(refreshIcons, 100));
+
+                        function manualPay(tradeNo) {
+                            if (!confirm('确定进行手工补单吗？')) return;
+                            fetch('/api/admin/order/manual_pay', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: 'trade_no=' + encodeURIComponent(tradeNo)
+                            }).then(res => res.json()).then(res => alert(res.msg));
+                        }
+
+                        function resendNotify(tradeNo) {
+                            alert('已重新触发订单号 ' + tradeNo + ' 的商户异步 HTTP 回调！');
+                        }
+
+                        function installPlugin(cType) {
+                            fetch('/api/admin/plugin/install', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: 'c_type=' + encodeURIComponent(cType)
+                            }).then(res => res.json()).then(res => alert(res.msg));
+                        }
+
+                        function traceLeak() {
+                            if (!leakCode.value.trim()) return alert('请先粘贴代码！');
+                            alert('防伪溯源追踪分析完成！');
+                        }
+
+                        function editMerchant(m) { alert('编辑商户 ' + m.name); }
+                        function openConfigModal(ch) { alert('配置通道 ' + ch.title); }
+
+                        return { activeMenu, channelList, pluginList, leakCode, mockOrders, merchantList, manualPay, resendNotify, installPlugin, traceLeak, editMerchant, openConfigModal };
                     }
-                }
-
-                onMounted(() => {
-                    fetch('/api/admin/plugin/market_list')
-                        .then(res => res.json())
-                        .then(res => { if (res.code === 1 && res.data) pluginList.value = res.data.list; })
-                        .catch(() => {});
-                    nextTick(() => refreshIcons());
-                });
-
-                updated(() => refreshIcons());
-
-                function manualPay(tradeNo) {
-                    if (!confirm('确定进行手工补单吗？')) return;
-                    fetch('/api/admin/order/manual_pay', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: 'trade_no=' + encodeURIComponent(tradeNo)
-                    }).then(res => res.json()).then(res => alert(res.msg));
-                }
-
-                function resendNotify(tradeNo) {
-                    alert('已重新触发订单号 ' + tradeNo + ' 的商户异步 HTTP 回调！');
-                }
-
-                function installPlugin(cType) {
-                    fetch('/api/admin/plugin/install', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: 'c_type=' + encodeURIComponent(cType)
-                    }).then(res => res.json()).then(res => alert(res.msg));
-                }
-
-                function traceLeak() {
-                    if (!leakCode.value.trim()) return alert('请先粘贴代码！');
-                    alert('防伪溯源追踪分析完成！');
-                }
-
-                function editMerchant(m) { alert('编辑商户 ' + m.name); }
-                function openConfigModal(ch) { alert('配置通道 ' + ch.title); }
-
-                return { activeMenu, channelList, pluginList, leakCode, mockOrders, merchantList, manualPay, resendNotify, installPlugin, traceLeak, editMerchant, openConfigModal };
+                }).mount('#app');
+            } catch (e) {
+                console.error("Vue mount error:", e);
             }
-        }).mount('#app');
+        })();
     </script>
 </body>
 
