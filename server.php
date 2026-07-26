@@ -36,7 +36,24 @@ if (file_exists($filePath)) {
             exit;
         }
     } else {
-        return false; // 由内置 web server 直接输出文件
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $mimeTypes = [
+            'html' => 'text/html; charset=utf-8',
+            'css'  => 'text/css; charset=utf-8',
+            'js'   => 'application/javascript; charset=utf-8',
+            'json' => 'application/json; charset=utf-8',
+            'png'  => 'image/png',
+            'jpg'  => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif'  => 'image/gif',
+            'svg'  => 'image/svg+xml',
+            'ico'  => 'image/x-icon'
+        ];
+        if (isset($mimeTypes[$ext])) {
+            header('Content-Type: ' . $mimeTypes[$ext]);
+        }
+        echo file_get_contents($filePath);
+        exit;
     }
 }
 
