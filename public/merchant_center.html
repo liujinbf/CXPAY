@@ -963,9 +963,10 @@
             const driverText = driverSelect.options[driverSelect.selectedIndex] ? driverSelect.options[driverSelect.selectedIndex].text : cType;
             const title = titleInput ? titleInput : driverText;
 
-            // 强校验：未配置个人/商业收款码时强提醒拦截并聚焦
-            if (!qrUrl || qrUrl.trim() === '' || qrUrl.includes('bax09876543210987')) {
-                alert('⚠️ 【强提醒】请上传或填入您的支付宝/微信收款码！\n\n为确保用户扫码后能100%直接进入官方付钱页面（规避第三方重定向警告），必须绑定您的真实收款码。');
+            const isWx = payCategory === 'wxpay' || cType.includes('wx');
+            // 强校验：仅在支付宝通道未配置收款码时做提醒校验，微信支持小账本免挂免强制
+            if (!isWx && (!qrUrl || qrUrl.trim() === '' || qrUrl.includes('bax09876543210987'))) {
+                alert('⚠️ 【支付宝通道强提醒】请上传或填入您的支付宝收款码！\n\n为确保用户扫码后能100%直接进入官方付钱页面（规避第三方重定向警告），支付宝通道建议绑定您的真实收款码。');
                 document.getElementById('channel-qr-url-input').focus();
                 return;
             }
