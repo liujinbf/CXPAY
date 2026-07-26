@@ -98,6 +98,8 @@ Route::group('/api/merchant', function () {
     Route::post('/channel/toggle', [app\controller\api\MerchantChannelController::class, 'toggle']);
     Route::post('/channel/delete', [app\controller\api\MerchantChannelController::class, 'delete']);
     Route::get('/channel/drivers', [app\controller\api\MerchantChannelController::class, 'drivers']);
+    Route::any('/channel/create_test', [app\controller\api\MerchantChannelController::class, 'createTest']);
+    Route::any('/channel/mock_pay', [app\controller\api\MerchantChannelController::class, 'mockPay']);
     Route::post('/recharge/create', [app\controller\api\MerchantRechargeController::class, 'create']);
 })->middleware([app\middleware\MerchantAuthMiddleware::class]);
 
