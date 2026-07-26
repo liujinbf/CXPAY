@@ -8,6 +8,19 @@ if (!function_exists('base_path')) {
     }
 }
 
+if (!function_exists('json')) {
+    function json($data, $options = JSON_UNESCAPED_UNICODE) {
+        $body = is_string($data) ? $data : json_encode($data, $options);
+        return new class($body) {
+            private $body;
+            public function __construct($b) { $this->body = $b; }
+            public function rawBody() { return $this->body; }
+            public function __toString() { return $this->body; }
+            public function withStatus($s) { return $this; }
+        };
+    }
+}
+
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
 }

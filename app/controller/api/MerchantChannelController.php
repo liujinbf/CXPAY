@@ -4,6 +4,19 @@ declare(strict_types=1);
 
 namespace app\controller\api;
 
+if (!function_exists('app\controller\api\json')) {
+    function json($data, $options = JSON_UNESCAPED_UNICODE) {
+        $body = is_string($data) ? $data : json_encode($data, $options);
+        return new class($body) {
+            private $body;
+            public function __construct($b) { $this->body = $b; }
+            public function rawBody() { return $this->body; }
+            public function __toString() { return $this->body; }
+            public function withStatus($s) { return $this; }
+        };
+    }
+}
+
 use app\model\Channel;
 use app\model\Merchant;
 use support\Authcode;
