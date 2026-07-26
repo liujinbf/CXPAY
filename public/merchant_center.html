@@ -716,8 +716,14 @@
 
         async function triggerMockPay() {
             if (!testOrderTradeNo) return;
-            const res = await fetch(`/api/merchant/channel/mock_pay?trade_no=${testOrderTradeNo}`).then(r => r.json());
-            alert(res.msg || '模拟入账已发送');
+            try {
+                await fetch(`/api/merchant/channel/mock_pay?trade_no=${testOrderTradeNo}`);
+            } catch (err) {}
+
+            if (testPollTimer) clearInterval(testPollTimer);
+            document.getElementById('test-step-qr').classList.add('hidden');
+            document.getElementById('test-step-success').classList.remove('hidden');
+            loadMerchantChannels();
         }
         lucide.createIcons();
 

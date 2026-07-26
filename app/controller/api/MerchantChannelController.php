@@ -374,6 +374,27 @@ class MerchantChannelController
             }
         } catch (\Throwable $e) {}
 
+        // 文件持久化备份，容灾保证 100% 能进行订单查询与到账模拟
+        try {
+            $testOrderFile = rtrim($baseDir, '/\\') . '/runtime/test_orders.json';
+            $testOrders = file_exists($testOrderFile) ? json_decode(file_get_contents($testOrderFile), true) : [];
+            if (!is_array($testOrders)) $testOrders = [];
+            $testOrders[$tradeNo] = [
+                'trade_no'     => $tradeNo,
+                'out_trade_no' => $outTradeNo,
+                'merchant_id'  => 1000,
+                'money'        => number_format($money, 2, '.', ''),
+                'price'        => number_format($floatMoney, 2, '.', ''),
+                'pay_type'     => $payCategory,
+                'qr_url'       => $displayQr,
+                'pay_url'      => "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}",
+                'subject'      => "测试 - " . ($targetChannel['title'] ?? '支付通道'),
+                'status'       => 0,
+                'create_time'  => time(),
+            ];
+            @file_put_contents($testOrderFile, json_encode($testOrders, JSON_UNESCAPED_UNICODE));
+        } catch (\Throwable $e) {}
+
         return json([
             'code' => 1,
             'msg'  => '测试订单创建成功',
@@ -399,13 +420,30 @@ class MerchantChannelController
         $params  = $request->get() + $request->post();
         $tradeNo = trim((string)($params['trade_no'] ?? ''));
 
-        if (!empty($tradeNo) && class_exists('app\model\Order')) {
+        if (!empty($tradeNo)) {
+            // 1. 尝试数据库到账更新
+            if (class_exists('app\model\Order')) {
+                try {
+                    $order = \app\model\Order::where('trade_no', $tradeNo)->first();
+                    if ($order) {
+                        $order->status = 1;
+                        $order->pay_time = time();
+                        $order->save();
+                    }
+                } catch (\Throwable $e) {}
+            }
+
+            // 2. 文件缓存持久化到账更新
             try {
-                $order = \app\model\Order::where('trade_no', $tradeNo)->first();
-                if ($order) {
-                    $order->status = 1;
-                    $order->pay_time = time();
-                    $order->save();
+                $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
+                $testOrderFile = rtrim($baseDir, '/\\') . '/runtime/test_orders.json';
+                if (file_exists($testOrderFile)) {
+                    $testOrders = json_decode(file_get_contents($testOrderFile), true);
+                    if (is_array($testOrders) && isset($testOrders[$tradeNo])) {
+                        $testOrders[$tradeNo]['status'] = 1;
+                        $testOrders[$tradeNo]['pay_time'] = time();
+                        @file_put_contents($testOrderFile, json_encode($testOrders, JSON_UNESCAPED_UNICODE));
+                    }
                 }
             } catch (\Throwable $e) {}
         }

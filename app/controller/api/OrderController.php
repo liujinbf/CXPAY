@@ -24,6 +24,15 @@ class OrderController
         $pid        = (int)($params['pid'] ?? 0);
 
         try {
+            $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
+            $testOrderFile = rtrim($baseDir, '/\\') . '/runtime/test_orders.json';
+            if (file_exists($testOrderFile)) {
+                $testOrders = json_decode(file_get_contents($testOrderFile), true);
+                if (is_array($testOrders) && !empty($tradeNo) && isset($testOrders[$tradeNo])) {
+                    return json(['code' => 1, 'data' => $testOrders[$tradeNo]]);
+                }
+            }
+
             $query = Order::query();
             if (!empty($tradeNo)) {
                 $query->where('trade_no', $tradeNo);
