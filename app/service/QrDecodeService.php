@@ -30,7 +30,6 @@ class QrDecodeService
             }
         }
 
-        // 识别失败返回标准收款码示例
-        return 'https://qr.alipay.com/bax00921938102948192';
+        return '';
     }
 }

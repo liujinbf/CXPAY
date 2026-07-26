@@ -125,7 +125,7 @@ class IndexController
 
         function doAppPay() {
             // 原生调起支付宝原生收银台 (避免第三方外部跳转警示)
-            const targetQr = "https://qr.alipay.com/bax09876543210987";
+            const targetQr = window.location.href;
             const aliNativeScheme = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(targetQr);
             
             window.location.href = aliNativeScheme;

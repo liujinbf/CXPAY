@@ -247,7 +247,7 @@
         }
 
         function openApp() {
-            const targetQr = window.lastPayUrl || "https://qr.alipay.com/bax09876543210987";
+            const targetQr = window.lastPayUrl || window.location.href;
             const aliScheme = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(targetQr);
             window.location.href = aliScheme;
         }
