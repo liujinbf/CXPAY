@@ -423,12 +423,68 @@
             if (window.lucide && typeof lucide.createIcons === 'function') {
                 lucide.createIcons();
             }
+
+            // 根据当前切换到的选项卡按需加载真实数据
+            if (tabId === 'dashboard') loadDashboard();
+            if (tabId === 'order-list') loadOrders();
+            if (tabId === 'plugin-market') loadPluginMarket();
+            if (tabId === 'poll-groups') loadPollGroups();
+        }
+
+        async function loadDashboard() {
+            try {
+                const res = await fetch('/api/admin/dashboard');
+                const data = await res.json();
+                if (data.code === 1 && data.data) {
+                    const metrics = data.data;
+                    console.log('Dashboard Data loaded:', metrics);
+                }
+            } catch (e) {}
+        }
+
+        async function loadOrders() {
+            try {
+                const res = await fetch('/api/admin/order/list');
+                const data = await res.json();
+                if (data.code === 1 && data.data) {
+                    console.log('Orders loaded:', data.data);
+                }
+            } catch (e) {}
+        }
+
+        async function loadPluginMarket() {
+            try {
+                const res = await fetch('/api/admin/plugin/market_list');
+                const data = await res.json();
+                if (data.code === 1 && data.data) {
+                    console.log('Plugin Market loaded:', data.data);
+                }
+            } catch (e) {}
+        }
+
+        async function loadPollGroups() {
+            try {
+                const res = await fetch('/api/admin/poll_group/list');
+                const data = await res.json();
+                if (data.code === 1 && data.data) {
+                    console.log('Poll Groups loaded:', data.data);
+                }
+            } catch (e) {}
+        }
+
+        async function logoutAdmin() {
+            try {
+                await fetch('/api/admin/logout', { method: 'POST' });
+                localStorage.removeItem('cx_admin_token');
+            } catch (e) {}
+            window.location.href = '/admin_login.html';
         }
 
         document.addEventListener('DOMContentLoaded', function() {
             if (window.lucide && typeof lucide.createIcons === 'function') {
                 lucide.createIcons();
             }
+            loadDashboard();
         });
     </script>
 </body>

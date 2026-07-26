@@ -9,6 +9,12 @@ Route::get('/install', function () {
 });
 Route::post('/api/install/execute', [app\controller\api\InstallController::class, 'execute']);
 
+// 商户开放 API 开发对接文档
+Route::get('/doc', function () {
+    $content = file_get_contents(base_path() . '/public/doc.html');
+    return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
+});
+
 // 云端·授权中心 专属路由与 API
 Route::get('/cloud', function () {
     $content = file_get_contents(base_path() . '/public/cloud_auth.html');
@@ -54,6 +60,14 @@ Route::post('/api/qr/upload', [app\controller\api\QrUploadController::class, 'up
 // 挂机助手 OpenAPI 账单上报推送
 Route::any('/api/appasst/push', [app\controller\api\AppasstController::class, 'push']);
 
+// 商户登录与注销公开 API
+Route::post('/api/merchant/login', [app\controller\api\MerchantApiController::class, 'login']);
+Route::post('/api/merchant/logout', [app\controller\api\MerchantApiController::class, 'logout']);
+
+// 管理员登录与注销公开 API
+Route::post('/api/admin/login', [app\controller\admin\AdminController::class, 'login']);
+Route::post('/api/admin/logout', [app\controller\admin\AdminController::class, 'logout']);
+
 // 商户侧控制台 API
 Route::group('/api/merchant', function () {
     Route::get('/profile', [app\controller\api\MerchantApiController::class, 'getProfile']);
@@ -62,7 +76,7 @@ Route::group('/api/merchant', function () {
     Route::get('/channel/list', [app\controller\api\MerchantChannelController::class, 'list']);
     Route::post('/channel/save', [app\controller\api\MerchantChannelController::class, 'save']);
     Route::post('/recharge/create', [app\controller\api\MerchantRechargeController::class, 'create']);
-});
+})->middleware([app\middleware\MerchantAuthMiddleware::class]);
 
 // 管理员后台与插件商城 API
 Route::group('/api/admin', function () {
@@ -91,7 +105,7 @@ Route::group('/api/admin', function () {
     // VIP 套餐 API
     Route::get('/packvip/list', [app\controller\admin\PackvipAdminController::class, 'list']);
     Route::post('/packvip/save', [app\controller\admin\PackvipAdminController::class, 'save']);
-});
+})->middleware([app\middleware\AdminAuthMiddleware::class]);
 
 // 商户开放 API (带签名验证中间件)
 Route::group('/api', function () {

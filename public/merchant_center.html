@@ -56,6 +56,9 @@
 
                     <!-- 4. API 对接与安全 -->
                     <div class="nav-group-title">开发与对接</div>
+                    <a href="/doc.html" target="_blank" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer font-bold text-blue-600 hover:bg-blue-50 transition-colors">
+                        <i data-lucide="book-open" class="w-4 h-4 text-blue-500"></i> 开放 API 开发对接文档
+                    </a>
                     <a onclick="switchTab('api-keys')" id="nav-api-keys" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="key" class="w-4 h-4 text-amber-500"></i> API 密钥与回调配置
                     </a>
@@ -313,11 +316,52 @@
             } catch (e) {}
         }
 
+        async function loadMerchantProfile() {
+            try {
+                const pid = localStorage.getItem('cx_merchant_pid') || '';
+                const key = localStorage.getItem('cx_merchant_key') || '';
+                const res = await fetch(`/api/merchant/profile?pid=${pid}`, {
+                    headers: { 'x-merchant-pid': pid, 'x-merchant-key': key }
+                });
+                const data = await res.json();
+                if (data.code === 1 && data.data) {
+                    console.log('Merchant Profile loaded:', data.data);
+                }
+            } catch (e) {}
+        }
+
+        async function resetMerchantKey() {
+            try {
+                const pid = localStorage.getItem('cx_merchant_pid') || '';
+                const formData = new FormData();
+                formData.append('pid', pid);
+                const res = await fetch('/api/merchant/reset_key', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.code === 1 && data.new_key) {
+                    localStorage.setItem('cx_merchant_key', data.new_key);
+                    alert('对接密钥已成功重置：' + data.new_key);
+                }
+            } catch (e) {}
+        }
+
+        async function logoutMerchant() {
+            try {
+                await fetch('/api/merchant/logout', { method: 'POST' });
+                localStorage.removeItem('cx_merchant_pid');
+                localStorage.removeItem('cx_merchant_key');
+            } catch (e) {}
+            window.location.href = '/merchant_login.html';
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             if (window.lucide && typeof lucide.createIcons === 'function') {
                 lucide.createIcons();
             }
             initCharts();
+            loadMerchantProfile();
         });
     </script>
 </body>

@@ -121,8 +121,29 @@
                     setTimeout(() => lucide.createIcons(), 50);
                 }
 
-                function handleLogin() {
-                    window.location.href = '/admin/index.html?role=admin';
+                async function handleLogin() {
+                    try {
+                        const formData = new FormData();
+                        formData.append('account', account.value);
+                        formData.append('password', password.value);
+                        formData.append('mfa_code', mfaCode.value);
+
+                        const res = await fetch('/api/admin/login', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await res.json();
+                        if (data.code === 1) {
+                            if (data.data && data.data.token) {
+                                localStorage.setItem('cx_admin_token', data.data.token);
+                            }
+                            window.location.href = '/admin/index.html';
+                        } else {
+                            alert(data.msg || '登录失败，请检查账号密码');
+                        }
+                    } catch (e) {
+                        window.location.href = '/admin/index.html';
+                    }
                 }
 
                 return { account, password, mfaCode, isDark, toggleTheme, handleLogin }

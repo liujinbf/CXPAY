@@ -22,6 +22,10 @@ if (str_contains($uriPath, 'submit.php') || str_contains($uriPath, 'mapi.php')) 
     header('Content-Type: text/html; charset=utf-8');
     echo $html;
     exit;
+if ($uriPath === '/doc' || $uriPath === '/doc.html') {
+    header('Content-Type: text/html; charset=utf-8');
+    echo file_get_contents(__DIR__ . '/public/doc.html');
+    exit;
 }
 
 // 静态文件与目录 index.html 自动映射

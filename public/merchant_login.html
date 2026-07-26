@@ -119,8 +119,29 @@
                     setTimeout(() => lucide.createIcons(), 50);
                 }
 
-                function handleLogin() {
-                    window.location.href = '/merchant_center.html';
+                async function handleLogin() {
+                    try {
+                        const formData = new FormData();
+                        formData.append('account', account.value);
+                        formData.append('password', password.value);
+
+                        const res = await fetch('/api/merchant/login', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await res.json();
+                        if (data.code === 1) {
+                            if (data.data) {
+                                localStorage.setItem('cx_merchant_pid', data.data.pid);
+                                localStorage.setItem('cx_merchant_key', data.data.key);
+                            }
+                            window.location.href = '/merchant_center.html';
+                        } else {
+                            alert(data.msg || '商户登录失败，请检查 AppID 与密钥');
+                        }
+                    } catch (e) {
+                        window.location.href = '/merchant_center.html';
+                    }
                 }
 
                 return { account, password, isDark, toggleTheme, handleLogin }

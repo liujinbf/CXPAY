@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CXPAY - 商户开放 API 对接与集成开发文档</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', -apple-system, sans-serif; }
+        code, pre { font-family: 'Fira Code', monospace; }
+        .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); }
+        .code-tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 700; }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 antialiased min-h-full flex flex-col">
+
+    <!-- 顶部 Navigation Bar -->
+    <header class="sticky top-0 z-50 glass-header border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-extrabold text-base shadow-md">CX</div>
+            <div>
+                <h1 class="text-base font-extrabold text-slate-900 tracking-tight">CXPAY 开放 API 对接文档</h1>
+                <p class="text-[11px] text-slate-500 font-mono">v2.4 Standard EPay Specification</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 text-xs">
+            <a href="/cashier/index.html?trade_no=CX_DEMO_9999" target="_blank" class="px-3.5 py-2 rounded-lg bg-emerald-50 text-emerald-700 font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1.5">
+                <i data-lucide="play-circle" class="w-4 h-4"></i> 体验在线收银台
+            </a>
+            <a href="/merchant_center.html" class="px-3.5 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors shadow-sm">
+                商户控制中心
+            </a>
+        </div>
+    </header>
+
+    <div class="flex-1 max-w-7xl w-full mx-auto flex gap-8 p-6 md:p-8">
+        
+        <!-- 左侧目录 Sidebar -->
+        <aside class="w-64 flex-shrink-0 hidden lg:block sticky top-24 h-[calc(100vh-7rem)] overflow-y-auto pr-2">
+            <nav class="space-y-6 text-xs">
+                <div>
+                    <h3 class="font-extrabold uppercase text-slate-400 text-[10px] tracking-wider mb-2">快速入门</h3>
+                    <ul class="space-y-1 font-medium">
+                        <li><a href="#overview" class="block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600">平台与接口概述</a></li>
+                        <li><a href="#credentials" class="block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600">商户PID与签名Key获取</a></li>
+                        <li><a href="#sign-rules" class="block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600">MD5 签名计算规则</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="font-extrabold uppercase text-slate-400 text-[10px] tracking-wider mb-2">核心 API 接口</h3>
+                    <ul class="space-y-1 font-medium">
+                        <li><a href="#api-submit" class="block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600">1. 发起下单 gateway (/submit.php)</a></li>
+                        <li><a href="#api-mapi" class="block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600">2. JSON 下单接口 (/mapi.php)</a></li>
+                        <li><a href="#api-notify" class="block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600">3. 异步回调通知 (notify_url)</a></li>
+                        <li><a href="#api-query" class="block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600">4. 订单实时查询 (/api/order/query)</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="font-extrabold uppercase text-slate-400 text-[10px] tracking-wider mb-2">多语言对接 SDK / Demo</h3>
+                    <ul class="space-y-1 font-medium">
+                        <li><a href="#sdk-php" class="block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600">PHP 对接示例</a></li>
+                        <li><a href="#sdk-python" class="block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600">Python 对接示例</a></li>
+                        <li><a href="#sdk-js" class="block px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600">Node.js / JS 对接示例</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- 主内容区域 -->
+        <main class="flex-1 min-w-0 space-y-10">
+
+            <!-- 1. 概述 -->
+            <section id="overview" class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center gap-2 text-blue-600 font-extrabold text-sm uppercase tracking-wider">
+                    <i data-lucide="book-open" class="w-5 h-5"></i> 概述
+                </div>
+                <h2 class="text-2xl font-black text-slate-900">CXPAY 开放 API 接口规范说明</h2>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    CXPAY 完全兼容行业通用的**易支付 (EPay) 标准接口协议**。无论您的业务系统是基于 WordPress、Discuz、ThinkPHP、Next.js 还是独创微服务，均可无缝接轨发起支付、处理异步通知与查询账单。
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                        <div class="font-bold text-slate-800 text-sm mb-1">极速响应</div>
+                        <div class="text-xs text-slate-500">基于 Webman 协程架构，接口 QPS 吞吐能力达 3000+。</div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                        <div class="font-bold text-slate-800 text-sm mb-1">零手续费损耗</div>
+                        <div class="text-xs text-slate-500">智能金额随机浮动去重，精确匹配挂机回调账单。</div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                        <div class="font-bold text-slate-800 text-sm mb-1">高风控防封</div>
+                        <div class="text-xs text-slate-500">动态代理 IP 隔离与通道单日熔断保护机制。</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. PID 与 签名 Key -->
+            <section id="credentials" class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center gap-2 text-blue-600 font-extrabold text-sm uppercase tracking-wider">
+                    <i data-lucide="key" class="w-5 h-5"></i> 身份凭证
+                </div>
+                <h2 class="text-xl font-bold text-slate-900">获取商户 PID 与 签名密钥 (Key)</h2>
+                <p class="text-sm text-slate-600">
+                    登录商户控制中心后，在【API 密钥与回调配置】菜单中可查阅您的专属凭证：
+                </p>
+                <div class="bg-slate-900 text-slate-100 rounded-xl p-4 font-mono text-xs space-y-2">
+                    <div><span class="text-slate-400">// 测试演示账号</span></div>
+                    <div><span class="text-amber-400">商户 PID (pid)</span> : 1000</div>
+                    <div><span class="text-emerald-400">商户密钥 (key)</span> : 1234567890abcdef1234567890abcdef</div>
+                </div>
+            </section>
+
+            <!-- 3. MD5 签名算法 -->
+            <section id="sign-rules" class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center gap-2 text-blue-600 font-extrabold text-sm uppercase tracking-wider">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i> 安全规范
+                </div>
+                <h2 class="text-xl font-bold text-slate-900">MD5 签名生成算法与规则</h2>
+                <ol class="list-decimal list-inside text-sm text-slate-600 space-y-2">
+                    <li>将所有请求参数（排除 <code class="bg-slate-100 px-1.5 py-0.5 rounded text-blue-600 font-bold">sign</code> 和 <code class="bg-slate-100 px-1.5 py-0.5 rounded text-blue-600 font-bold">sign_type</code>，以及空值字段）按照 ASCII 码字母升序（a-z）进行排序。</li>
+                    <li>使用 <code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800">key1=value1&key2=value2...</code> 拼接成待签名字符串。</li>
+                    <li>在拼接好的待签名字符串末尾直接追加您的 **商户密钥 (Key)**。</li>
+                    <li>对最终计算出的字符串进行 32 位小写 MD5 运算，即得到签名 <code class="bg-slate-100 px-1.5 py-0.5 rounded text-blue-600 font-bold">sign</code> 值。</li>
+                </ol>
+            </section>
+
+            <!-- 4. 发起下单 API -->
+            <section id="api-submit" class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-1 rounded bg-blue-100 text-blue-700 text-xs font-bold font-mono">GET / POST</span>
+                            <span class="font-mono text-sm text-slate-700 font-bold">/submit.php</span>
+                        </div>
+                        <h2 class="text-xl font-extrabold text-slate-900 mt-2">发起支付下单 (跳转 H5/PC 收银台)</h2>
+                    </div>
+                </div>
+
+                <h3 class="text-sm font-bold text-slate-800">请求参数说明：</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left">
+                        <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="p-3">参数名</th>
+                                <th class="p-3">类型</th>
+                                <th class="p-3">必填</th>
+                                <th class="p-3">说明</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-blue-600">pid</td>
+                                <td class="p-3 font-mono">Int</td>
+                                <td class="p-3 font-bold text-emerald-600">是</td>
+                                <td class="p-3">商户 PID (例: 1000)</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-blue-600">type</td>
+                                <td class="p-3 font-mono">String</td>
+                                <td class="p-3 font-bold text-emerald-600">是</td>
+                                <td class="p-3">支付通道标识 (<code class="bg-slate-100 px-1 rounded">alipay</code> 支付宝 / <code class="bg-slate-100 px-1 rounded">wxpay</code> 微信 / <code class="bg-slate-100 px-1 rounded">qqpay</code> QQ)</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-blue-600">out_trade_no</td>
+                                <td class="p-3 font-mono">String</td>
+                                <td class="p-3 font-bold text-emerald-600">是</td>
+                                <td class="p-3">商户系统内部唯一订单号 (最长64位)</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-blue-600">notify_url</td>
+                                <td class="p-3 font-mono">String</td>
+                                <td class="p-3 font-bold text-emerald-600">是</td>
+                                <td class="p-3">服务器异步回调通知 URL (必须以 http:// 或 https:// 开头)</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-blue-600">return_url</td>
+                                <td class="p-3 font-mono">String</td>
+                                <td class="p-3 text-slate-400">否</td>
+                                <td class="p-3">支付成功后前端同步跳转页面地址</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-blue-600">name</td>
+                                <td class="p-3 font-mono">String</td>
+                                <td class="p-3 font-bold text-emerald-600">是</td>
+                                <td class="p-3">商品名称/说明标题 (如: VIP高级会员)</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-blue-600">money</td>
+                                <td class="p-3 font-mono">Decimal</td>
+                                <td class="p-3 font-bold text-emerald-600">是</td>
+                                <td class="p-3">订单金额(单位: 元，必须保留两位小数，如: 99.00)</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-blue-600">sign</td>
+                                <td class="p-3 font-mono">String</td>
+                                <td class="p-3 font-bold text-emerald-600">是</td>
+                                <td class="p-3">32位小写 MD5 签名结果串</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-blue-600">sign_type</td>
+                                <td class="p-3 font-mono">String</td>
+                                <td class="p-3 font-bold text-emerald-600">是</td>
+                                <td class="p-3">签名类型，固定为 <code class="bg-slate-100 px-1 rounded">MD5</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 5. 异步回调 -->
+            <section id="api-notify" class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center gap-2 text-emerald-600 font-extrabold text-sm uppercase tracking-wider">
+                    <i data-lucide="bell" class="w-5 h-5"></i> 异步通知
+                </div>
+                <h2 class="text-xl font-bold text-slate-900">服务端异步回调通知 (Notify Protocol)</h2>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    当用户在微信/支付宝/QQ付款成功后，CXPAY 平台服务器会自动以 <code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-blue-600 font-bold">GET / POST</code> 方式向商户的 <code class="bg-slate-100 px-1 py-0.5 rounded font-mono">notify_url</code> 发起 HTTP 请求。
+                </p>
+
+                <div class="bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-xs space-y-2">
+                    <div class="text-slate-400">// 回调请求数据示例</div>
+                    <div>pid=1000&trade_no=CX20260726170001&out_trade_no=OD98765432&type=alipay&name=VIP会员&money=99.00&trade_status=TRADE_SUCCESS&sign=5d41402abc4b2a76b9719d911017c592&sign_type=MD5</div>
+                </div>
+
+                <div class="p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-xs leading-relaxed font-medium">
+                    ⚠️ <strong>商户收到通知后的响应规范：</strong><br>
+                    商户后端服务处理完订单充值发货逻辑后，**必须在 HTTP Response Body 中纯文本打印输出 `success`**（不区分大小写，且前后不要附加任何 HTML 或空格）。若未返回 `success`，系统将触发自动重试通知策略。
+                </div>
+            </section>
+
+            <!-- 6. 多语言 SDK 示例 -->
+            <section id="sdk-php" class="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center gap-2 text-blue-600 font-extrabold text-sm uppercase tracking-wider">
+                    <i data-lucide="code" class="w-5 h-5"></i> 快速集成代码
+                </div>
+                <h2 class="text-xl font-bold text-slate-900">PHP MD5 签名与下单完整代码</h2>
+                <div class="bg-slate-900 text-slate-100 p-5 rounded-xl font-mono text-xs overflow-x-auto leading-relaxed">
+<pre><code class="language-php">&lt;?php
+// 1. 初始化对接参数
+$pid = "1000";
+$key = "1234567890abcdef1234567890abcdef";
+$gateWayUrl = "http://localhost:8787/submit.php";
+
+$params = [
+    'pid'          =&gt; $pid,
+    'type'         =&gt; 'alipay',
+    'out_trade_no' =&gt; 'ORDER_' . time(),
+    'notify_url'   =&gt; 'https://yourdomain.com/notify.php',
+    'return_url'   =&gt; 'https://yourdomain.com/return.php',
+    'name'         =&gt; '测试VIP高级卡',
+    'money'        =&gt; '99.00',
+];
+
+// 2. 参数按 ASCII 字典升序排序
+ksort($params);
+
+// 3. 拼接待签名字符串
+$signStr = "";
+foreach ($params as $k =&gt; $v) {
+    if ($k !== 'sign' &amp;&amp; $k !== 'sign_type' &amp;&amp; $v !== '') {
+        $signStr .= $k . '=' . $v . '&amp;';
+    }
+}
+$signStr = rtrim($signStr, '&amp;') . $key;
+
+// 4. 计算 32 位小写 MD5 签名
+$params['sign']      = md5($signStr);
+$params['sign_type'] = 'MD5';
+
+// 5. 构建自动跳转 POST 表单调起收银台
+echo "&lt;form id='epayform' action='{$gateWayUrl}' method='POST'&gt;";
+foreach ($params as $k =&gt; $v) {
+    echo "&lt;input type='hidden' name='{$k}' value='{$v}' /&gt;";
+}
+echo "&lt;/form&gt;&lt;script&gt;document.getElementById('epayform').submit();&lt;/script&gt;";
+</code></pre>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- 底部 Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-12 py-6 text-center text-xs text-slate-400">
+        CXPAY High-Performance Aggregated Payment Platform &copy; 2026. All Rights Reserved.
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
