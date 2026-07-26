@@ -85,7 +85,8 @@ class OrderController
 
             return json(['code' => 1, 'msg' => '查询成功', 'data' => $data]);
         } catch (Throwable $e) {
-            // 离线降级方案
+            $host  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
+            $proto = (($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https' : 'http';
             return json([
                 'code' => 1,
                 'msg'  => '查询成功',
@@ -98,7 +99,7 @@ class OrderController
                     'subject'    => '在线体验与测试商品',
                     'status'     => 0,
                     'pay_type'   => 'alipay',
-                    'pay_url'    => '/cashier/index.html?trade_no=' . ($tradeNo ?: 'CXDemo' . time()),
+                    'pay_url'    => "{$proto}://{$host}/cashier/index.html?trade_no=" . ($tradeNo ?: 'CXDemo' . time()),
                     'return_url' => '',
                 ]
             ]);
