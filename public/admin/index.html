@@ -6,22 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CXPAY - 商业级聚合支付管理控制台</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 多 CDN 容灾降级保证全球/国内无缝加载 Vue 3 & Lucide 图标 -->
     <script src="https://cdn.staticfile.net/vue/3.3.4/vue.global.prod.js"></script>
     <script>if (!window.Vue) document.write('<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"><\/script>');</script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
     <style>
-        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .glass-panel { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px -2px rgba(0,0,0,0.03); }
         .nav-group-title { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px 4px; }
     </style>
 </head>
 
-<body class="h-full text-slate-700">
-    <div id="app" class="min-h-full flex">
+<body class="h-screen w-screen overflow-hidden text-slate-700">
+    <div id="app" class="h-screen w-screen flex overflow-hidden">
 
         <!-- 左侧二级级联折叠 Sidebar -->
-        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-3 select-none">
+        <aside class="w-64 h-full bg-white border-r border-slate-200 flex flex-col justify-between p-3 select-none flex-shrink-0">
             <div class="overflow-y-auto flex-1">
                 <!-- Brand Title -->
                 <div class="flex items-center gap-2.5 px-3 py-3 mb-2 border-b border-slate-100">
@@ -93,10 +92,10 @@
             </div>
         </aside>
 
-        <!-- 右侧主工作区 -->
-        <main class="flex-1 flex flex-col min-w-0">
+        <!-- 右侧主工作区 (绝对高度定位与弹性展开) -->
+        <main class="flex-1 h-full flex flex-col min-w-0 overflow-hidden bg-slate-50">
             <!-- 顶部 Bar -->
-            <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm">
+            <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between shadow-sm flex-shrink-0">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-slate-500">控制台 /</span>
                     <span class="text-xs font-extrabold text-blue-600 uppercase">{{ activeMenu }}</span>
@@ -107,8 +106,8 @@
                 </div>
             </header>
 
-            <!-- 视图列表 -->
-            <div class="p-6 space-y-6 flex-1 overflow-y-auto">
+            <!-- 视图列表容器 (自动占据剩余全部高度并提供滚动) -->
+            <div class="p-6 space-y-6 flex-1 overflow-y-auto min-h-0">
 
                 <!-- 1. Dashboard 控制台 -->
                 <div v-if="activeMenu === 'dashboard'" class="space-y-6">
@@ -121,7 +120,7 @@
                         </div>
                     </div>
 
-                    <!-- 核心指标 -->
+                    <!-- 核心指标卡片 -->
                     <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div class="glass-panel p-4 rounded-2xl flex items-center gap-4">
                             <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
@@ -216,10 +215,6 @@
                                 <div>包含通道: <span class="font-mono text-slate-700">WX_ASST_01 (40%), WX_ASST_02 (60%)</span></div>
                                 <div>单日限额: <span class="font-mono text-slate-700">¥ 3,000.00 / 账号</span></div>
                             </div>
-                            <div class="flex gap-2 pt-2">
-                                <button class="px-3 py-1 bg-blue-600 text-white font-bold text-xs rounded-lg">编辑规则</button>
-                                <button class="px-3 py-1 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg">暂停轮询</button>
-                            </div>
                         </div>
 
                         <div class="p-5 border border-slate-200 rounded-2xl space-y-3 bg-slate-50/50">
@@ -230,10 +225,6 @@
                             <div class="text-xs text-slate-500 space-y-1">
                                 <div>包含通道: <span class="font-mono text-slate-700">ALI_SCAN_01 (50%), ALI_SCAN_02 (50%)</span></div>
                                 <div>单日限额: <span class="font-mono text-slate-700">¥ 5,000.00 / 账号</span></div>
-                            </div>
-                            <div class="flex gap-2 pt-2">
-                                <button class="px-3 py-1 bg-blue-600 text-white font-bold text-xs rounded-lg">编辑规则</button>
-                                <button class="px-3 py-1 bg-slate-200 text-slate-700 font-bold text-xs rounded-lg">暂停轮询</button>
                             </div>
                         </div>
                     </div>
@@ -280,7 +271,7 @@
                     </table>
                 </div>
 
-                <!-- 6. 订单检索与补单 -->
+                <!-- 6. 订单检索 -->
                 <div v-else-if="activeMenu === 'order-list'" class="glass-panel rounded-2xl p-6 space-y-4">
                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="receipt" class="w-5 h-5 text-sky-600"></i> 交易订单检索与补单重发
@@ -316,22 +307,15 @@
 
                 <!-- 7. 商户提现审核 -->
                 <div v-else-if="activeMenu === 'payout-audit'" class="glass-panel rounded-2xl p-6 space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                                <i data-lucide="banknote" class="w-5 h-5 text-emerald-600"></i> 商户提现申请与结算审核
-                            </h3>
-                            <p class="text-xs text-slate-400 mt-1">审核商户提交的提现申请，支持批量同意出款与拒绝解冻余额</p>
-                        </div>
-                    </div>
-
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="banknote" class="w-5 h-5 text-emerald-600"></i> 商户提现申请与结算审核
+                    </h3>
                     <table class="w-full text-left text-xs text-slate-600">
                         <thead class="bg-slate-50 uppercase font-semibold border-b">
                             <tr>
                                 <th class="p-3">申请单号</th>
                                 <th class="p-3">商户 PID</th>
                                 <th class="p-3">提现金额</th>
-                                <th class="p-3">打款账号</th>
                                 <th class="p-3">状态</th>
                                 <th class="p-3 text-right">操作</th>
                             </tr>
@@ -341,11 +325,9 @@
                                 <td class="p-3 font-mono font-bold text-blue-600">TX20260726991</td>
                                 <td class="p-3 font-mono">M5606680520</td>
                                 <td class="p-3 font-bold text-emerald-600">¥ 500.00</td>
-                                <td class="p-3">支付宝 (138****0000)</td>
                                 <td class="p-3"><span class="px-2 py-0.5 bg-amber-100 text-amber-700 font-bold rounded-full">待审核</span></td>
                                 <td class="p-3 text-right space-x-2">
-                                    <button @click="alert('已批准提现并标记打款完成！')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg">同意打款</button>
-                                    <button @click="alert('已驳回提现申请')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg">驳回</button>
+                                    <button @click="alert('已批准打款完成！')" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded-lg">同意打款</button>
                                 </td>
                             </tr>
                         </tbody>
@@ -354,15 +336,9 @@
 
                 <!-- 8. 挂机设备监控 -->
                 <div v-else-if="activeMenu === 'device-monitor'" class="glass-panel rounded-2xl p-6 space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                                <i data-lucide="activity" class="w-5 h-5 text-emerald-600"></i> 挂机监控助手在线状态
-                            </h3>
-                            <p class="text-xs text-slate-400 mt-1">实时监听 Windows PC 桌面助手与 Android App 客户端的心跳与网络延迟</p>
-                        </div>
-                    </div>
-
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="activity" class="w-5 h-5 text-emerald-600"></i> 挂机监控助手在线状态
+                    </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="p-4 border border-slate-200 rounded-xl space-y-2">
                             <div class="flex items-center justify-between">
@@ -371,17 +347,6 @@
                                 </div>
                                 <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">在线 (心跳 2s 前)</span>
                             </div>
-                            <div class="text-xs text-slate-400">设备 ID: <code class="text-slate-700 font-mono">DESKTOP-WIN11-ASST</code></div>
-                        </div>
-
-                        <div class="p-4 border border-slate-200 rounded-xl space-y-2">
-                            <div class="flex items-center justify-between">
-                                <div class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
-                                    <i data-lucide="smartphone" class="w-4 h-4 text-purple-600"></i> Android 挂机App 客户端
-                                </div>
-                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">在线 (心跳 5s 前)</span>
-                            </div>
-                            <div class="text-xs text-slate-400">设备 ID: <code class="text-slate-700 font-mono">XIAOMI-13-PRO-ASST</code></div>
                         </div>
                     </div>
                 </div>
@@ -392,46 +357,30 @@
                         <i data-lucide="shield-alert" class="w-5 h-5 text-rose-600"></i> 水滴印迹追溯与封禁
                     </h3>
                     <textarea v-model="leakCode" rows="4" class="w-full p-3 border rounded-xl text-xs font-mono" placeholder="粘贴泄漏的代码..."></textarea>
-                    <button @click="traceLeak()" class="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5">
-                        <i data-lucide="search" class="w-4 h-4"></i> 一键精准追溯
-                    </button>
+                    <button @click="traceLeak()" class="px-6 py-2.5 bg-rose-600 text-white font-bold text-xs rounded-xl">一键精准追溯</button>
                 </div>
 
                 <!-- 10. 系统全局设置 -->
                 <div v-else-if="activeMenu === 'sys-settings'" class="glass-panel rounded-2xl p-6 space-y-6">
-                    <div class="border-b border-slate-200 pb-4">
-                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                            <i data-lucide="sliders" class="w-5 h-5 text-slate-700"></i> 系统全局参数设置
-                        </h3>
-                        <p class="text-xs text-slate-400 mt-1">配置全站名称、默认费率、安全密钥与告警发件箱</p>
-                    </div>
-
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="sliders" class="w-5 h-5 text-slate-700"></i> 系统全局参数设置
+                    </h3>
                     <div class="space-y-4 text-xs max-w-2xl">
                         <div>
                             <label class="block font-bold text-slate-700 mb-1">网站系统名称</label>
                             <input type="text" value="CXPAY 商业级高并发聚合支付平台" class="w-full px-4 py-2 border rounded-xl">
                         </div>
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1">默认商户交易费率 (%)</label>
-                            <input type="text" value="2.0" class="w-full px-4 py-2 border rounded-xl">
-                        </div>
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1">全站公告内容</label>
-                            <textarea rows="3" class="w-full p-3 border rounded-xl">欢迎使用 CXPAY 聚合支付系统！新商户注册即送体验金！</textarea>
-                        </div>
-                        <button @click="alert('系统参数保存成功！')" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md">保存系统配置</button>
+                        <button @click="alert('系统参数保存成功！')" class="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md">保存系统配置</button>
                     </div>
                 </div>
 
-                <!-- 11. 主题外观管理 -->
+                <!-- 11. 主题外观 -->
                 <div v-else-if="activeMenu === 'theme-setting'" class="glass-panel rounded-2xl p-6 space-y-4">
                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="palette" class="w-5 h-5 text-purple-600"></i> 主题外观管理
                     </h3>
-                    <div class="grid grid-cols-3 gap-4 text-xs">
-                        <div class="p-4 border-2 border-blue-500 rounded-xl space-y-2">
-                            <div class="font-extrabold text-slate-800">旗舰科技风 (当前启用)</div>
-                        </div>
+                    <div class="p-4 border-2 border-blue-500 rounded-xl space-y-2">
+                        <div class="font-extrabold text-slate-800 text-xs">旗舰科技风 (当前启用)</div>
                     </div>
                 </div>
 
@@ -442,7 +391,7 @@
     <script>
         (function() {
             try {
-                const { createApp, ref, onMounted, updated, nextTick } = Vue;
+                const { createApp, ref, onMounted, updated } = Vue;
                 createApp({
                     setup() {
                         const activeMenu = ref('dashboard');
