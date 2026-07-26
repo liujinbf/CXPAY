@@ -1,10 +1,21 @@
 <?php
-// 本地开发模拟运行服务：免外部服务一键启动收银台 API 服务器
-// 监听端口：8787
+// 本地与 Docker 镜像 Web 路由支持服务
+// 监听端口：$PORT / 8787
 
 $rawUri  = $_SERVER['REQUEST_URI'] ?? '/';
 $uriPath = parse_url($rawUri, PHP_URL_PATH) ?: '/';
 
+// 1. 商户开放 API 文档映射 (/doc /doc.html)
+if ($uriPath === '/doc' || $uriPath === '/doc.html') {
+    $docFile = __DIR__ . '/public/doc.html';
+    if (file_exists($docFile)) {
+        header('Content-Type: text/html; charset=utf-8');
+        echo file_get_contents($docFile);
+        exit;
+    }
+}
+
+// 2. 易支付标准下单网关协议 (/submit.php & /mapi.php)
 if (str_contains($uriPath, 'submit.php') || str_contains($uriPath, 'mapi.php')) {
     $amount  = $_GET['money'] ?? $_POST['money'] ?? '1.00';
     $subject = $_GET['name'] ?? $_POST['name'] ?? 'CXPAY 极速测试订单';
@@ -22,13 +33,9 @@ if (str_contains($uriPath, 'submit.php') || str_contains($uriPath, 'mapi.php')) 
     header('Content-Type: text/html; charset=utf-8');
     echo $html;
     exit;
-if ($uriPath === '/doc' || $uriPath === '/doc.html') {
-    header('Content-Type: text/html; charset=utf-8');
-    echo file_get_contents(__DIR__ . '/public/doc.html');
-    exit;
 }
 
-// 静态文件与目录 index.html 自动映射
+// 3. 静态文件与目录 index.html 自动映射
 $filePath = __DIR__ . '/public' . $uriPath;
 
 if (file_exists($filePath)) {
@@ -61,7 +68,7 @@ if (file_exists($filePath)) {
     }
 }
 
-// 默认主页
+// 4. 默认主页映射
 if ($uriPath === '/' || $uriPath === '/index.html') {
     $homePath = __DIR__ . '/public/index.html';
     if (file_exists($homePath)) {
@@ -71,6 +78,5 @@ if ($uriPath === '/' || $uriPath === '/index.html') {
     }
 }
 
-// 默认重定向至体验收银台
+// 5. 兜底重定向至收银台
 header('Location: /submit.php?pid=1000&type=alipay&money=99.00&name=VIP高级订阅套餐&out_trade_no=' . time());
-
