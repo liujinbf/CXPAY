@@ -164,12 +164,12 @@
                     <p class="text-xs text-sub max-w-md mx-auto">数据库 `cxpay` 初始化构建完成，底层 8 大模型与 Webman 常驻协程已就绪。</p>
 
                     <div class="p-4 glass-card rounded-2xl text-left space-y-2 text-xs font-mono text-slate-300">
-                        <div>官网首页地址: <a href="/" class="text-sky-400 underline">https://yourdomain.com/</a></div>
-                        <div>商户独立登录: <a href="/merchant_login.html" class="text-sky-400 underline">/merchant_login.html</a></div>
-                        <div>管理员超级控制台: <a href="/admin/index.html" class="text-rose-400 underline">/admin/index.html</a></div>
+                        <div>官网首页地址: <a :href="siteOrigin + '/'" class="text-sky-400 underline">{{ siteOrigin }}/</a></div>
+                        <div>商户独立登录: <a :href="siteOrigin + '/merchant_login.html'" class="text-sky-400 underline">{{ siteOrigin }}/merchant_login.html</a></div>
+                        <div>管理员超级控制台: <a :href="siteOrigin + '/admin/index.html'" class="text-rose-400 underline">{{ siteOrigin }}/admin/index.html</a></div>
                     </div>
 
-                    <a href="/admin/index.html" class="inline-block px-8 py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-bold text-sm rounded-xl shadow-lg cursor-pointer">
+                    <a :href="siteOrigin + '/admin/index.html'" class="inline-block px-8 py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-bold text-sm rounded-xl shadow-lg cursor-pointer">
                         立即进入管理员控制台
                     </a>
                 </div>
@@ -183,6 +183,7 @@
         createApp({
             setup() {
                 const step = ref(1);
+                const siteOrigin = ref(window.location.origin);
                 const form = ref({
                     db_host: '127.0.0.1',
                     db_port: '3306',
@@ -200,7 +201,7 @@
 
                 onMounted(() => lucide.createIcons());
 
-                return { step, form, installSystem }
+                return { step, form, siteOrigin, installSystem }
             }
         }).mount('#app');
     </script>
