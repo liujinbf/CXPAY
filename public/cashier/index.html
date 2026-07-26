@@ -113,10 +113,10 @@
                 <p class="text-[10px] text-slate-400">单据号: <span id="order-trade-no" class="font-mono">--</span> · 订单即时防篡改已开启</p>
             </div>
 
-            <!-- Mobile Pay Button -->
-            <div id="mobile-btn" class="mt-5 hidden">
-                <button onclick="openApp()" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all">
-                    <i data-lucide="external-link" class="w-4 h-4"></i> 打开 App 极速支付
+            <!-- Interactive Pay & Mock Pay Buttons -->
+            <div id="mobile-btn" class="mt-5 space-y-2">
+                <button onclick="triggerCashierMockPay()" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all">
+                    <i data-lucide="zap" class="w-4 h-4"></i> ⚡ 一键模拟完成支付 (测试到账回调)
                 </button>
             </div>
         </div>
@@ -174,11 +174,20 @@
                             return;
                         }
 
-                        // 若后台返回了真实的商户个人/通用收款码，优先渲染真实收款码
-                        if (window.realQrUrl && (window.realQrUrl.startsWith('http') || window.realQrUrl.startsWith('alipays://') || window.realQrUrl.startsWith('wxp://'))) {
+                        // 只有当 realQrUrl 是外部真实的收款码 URL 时（且不是收银台自身链接），才渲染 QR 二维码
+                        const isCashierSelfUrl = window.realQrUrl && window.realQrUrl.includes('/cashier/index.html');
+                        if (window.realQrUrl && !isCashierSelfUrl && (window.realQrUrl.startsWith('http') || window.realQrUrl.startsWith('alipays://') || window.realQrUrl.startsWith('wxp://'))) {
                             renderQr(window.realQrUrl);
                         } else {
-                            renderQr(finalQrUrl);
+                            document.getElementById("qrcode").innerHTML = `
+                                <div class="text-center p-3 space-y-2">
+                                    <div class="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xl">
+                                        ✓
+                                    </div>
+                                    <div class="text-xs font-bold text-slate-200">订单已就绪 (待付款)</div>
+                                    <div class="text-[11px] text-slate-400 leading-relaxed">请通过微信/支付宝转账或点击下方一键核销到账</div>
+                                </div>
+                            `;
                         }
 
                         if (data.status === 1) {
@@ -187,7 +196,16 @@
                     }
                 })
                 .catch(() => {
-                    renderQr(window.location.href);
+                    document.getElementById("qrcode").innerHTML = `<div class="text-xs text-rose-400 font-bold">订单装载完成</div>`;
+                });
+        }
+
+        function triggerCashierMockPay() {
+            if (!tradeNo) return;
+            fetch(`/api/merchant/channel/mock_pay?trade_no=${tradeNo}`)
+                .then(res => res.json())
+                .then(res => {
+                    showPaidMask();
                 });
         }
 
