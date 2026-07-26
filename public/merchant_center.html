@@ -571,6 +571,15 @@
             }
         }
 
+        window.merchantChannelsMap = {};
+
+        function editChannelById(id) {
+            const item = window.merchantChannelsMap[id];
+            if (item) {
+                editChannel(item);
+            }
+        }
+
         // 异步从后端 API 加载通道列表并呈现卡片
         async function loadMerchantChannels() {
             const container = document.getElementById('channel-card-container');
@@ -582,8 +591,11 @@
 
                 if (json.code === 1 && Array.isArray(json.data)) {
                     container.innerHTML = '';
+                    window.merchantChannelsMap = {};
 
                     json.data.forEach(item => {
+                        window.merchantChannelsMap[item.id] = item;
+
                         const isWx = (item.pay_category === 'wxpay' || (item.c_type && item.c_type.includes('wx')));
                         const isAli = (item.pay_category === 'alipay' || (item.c_type && item.c_type.includes('ali')));
                         
@@ -618,13 +630,13 @@
                             <div class="text-xs text-slate-400">备注: <span class="font-mono text-slate-600 font-bold">${item.remark || '无备注'}</span></div>
 
                             <div class="pt-3 border-t border-slate-100 flex items-center gap-3 text-xs font-bold">
-                                <button onclick="toggleChannel(${item.id}, ${isEnabled ? 0 : 1})" class="${isEnabled ? 'text-amber-600' : 'text-emerald-600'} hover:underline">
+                                <button onclick="toggleChannel('${item.id}', ${isEnabled ? 0 : 1})" class="${isEnabled ? 'text-amber-600' : 'text-emerald-600'} hover:underline">
                                     ${isEnabled ? '禁用通道' : '开启通道'}
                                 </button>
-                                <button onclick="triggerKeepAlive(${item.id})" class="text-blue-600 hover:underline">🛡️ 心跳保活测试</button>
+                                <button onclick="triggerKeepAlive('${item.id}')" class="text-blue-600 hover:underline">🛡️ 心跳保活测试</button>
                                 <a href="/submit.php?pid=1000&type=${item.pay_category || 'alipay'}&money=1.00" target="_blank" class="text-slate-600 hover:underline">支付测试</a>
-                                <button onclick="editChannel(${JSON.stringify(item).replace(/"/g, '&quot;')})" class="text-slate-600 hover:underline">编辑</button>
-                                <button onclick="deleteChannel(${item.id})" class="text-rose-600 hover:underline ml-auto">删除</button>
+                                <button onclick="editChannelById('${item.id}')" class="text-slate-600 hover:underline">编辑</button>
+                                <button onclick="deleteChannel('${item.id}')" class="text-rose-600 hover:underline ml-auto">删除</button>
                             </div>
                         </div>`;
                         container.insertAdjacentHTML('beforeend', cardHtml);
