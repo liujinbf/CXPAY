@@ -16,6 +16,7 @@ WORKDIR /app
 
 COPY . /app
 
+ENV PORT=8787
 EXPOSE 8787
 
-CMD ["php", "-S", "0.0.0.0:8787", "server.php"]
+CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8787} server.php"]
