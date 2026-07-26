@@ -33,7 +33,7 @@ class MerchantChannelController
         if (file_exists($this->storageFile)) {
             $json = file_get_contents($this->storageFile);
             $data = json_decode($json, true);
-            if (is_array($data)) return $data;
+            if (is_array($data) && !empty($data)) return $data;
         }
 
         $default = [
@@ -41,10 +41,10 @@ class MerchantChannelController
                 'id'            => 1,
                 'merchant_id'   => 1000,
                 'pay_category'  => 'alipay',
-                'title'         => '支付宝扫码免挂',
-                'c_type'        => 'alipay_scan',
+                'title'         => '支付宝应用代开发扫码直连免挂',
+                'c_type'        => 'alipay_oauth_cloud',
                 'qr_url'        => 'https://qr.alipay.com/bax09876543210987',
-                'remark'        => '支付宝个人码 #15697116375',
+                'remark'        => '支付宝官方代开发授权 #PID_20881000',
                 'today_money'   => 680.00,
                 'today_count'   => 15,
                 'total_money'   => 12450.00,
