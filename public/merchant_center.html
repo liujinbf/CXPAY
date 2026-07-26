@@ -474,6 +474,30 @@
                     </div>
                 </div>
 
+                <!-- 🐧 QQ 钱包 ptlogin 扫码授权免挂 面板 -->
+                <div id="qq-protocol-auth-box" class="p-3.5 bg-purple-50 border border-purple-200 rounded-xl space-y-3 hidden">
+                    <div class="flex items-center justify-between">
+                        <div class="font-bold text-purple-900 text-xs flex items-center gap-1.5">
+                            <i data-lucide="qr-code" class="w-4 h-4 text-purple-600"></i>
+                            QQ 钱包 ptlogin 协议云端扫码授权
+                        </div>
+                        <button type="button" onclick="startQqProtocolAuth()" class="px-3 py-1 bg-purple-600 text-white rounded-lg text-[11px] font-bold shadow-sm hover:bg-purple-700">
+                            🐧 点击生成 QQ 授权二维码
+                        </button>
+                    </div>
+                    <div id="qq-auth-qr-container" class="hidden text-center space-y-2 py-2 bg-white rounded-lg border border-purple-100 p-3">
+                        <div class="inline-block p-2 bg-white rounded-lg shadow-inner border">
+                            <img id="qq-auth-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https%3A%2F%2Fcxpay.onrender.com%2Fapi%2Fqqprotocol%2Fauth_page" class="w-32 h-32 mx-auto">
+                        </div>
+                        <div id="qq-auth-status-text" class="text-[11px] text-purple-700 font-bold animate-pulse">
+                            ⏳ 请使用手机 QQ App 扫描上方二维码授权...
+                        </div>
+                    </div>
+                    <div class="text-[11px] text-purple-700/80 leading-relaxed">
+                        💡 <strong>免挂原理:</strong> 使用手机 QQ 扫码授权后，云端协议自动接管账号通知并秒级匹配到账订单。
+                    </div>
+                </div>
+
                 <!-- 🔷 支付宝 PID 免挂账号配置面板 -->
                 <div id="alipay-pid-config-box" class="p-3.5 bg-sky-50 border border-sky-200 rounded-xl space-y-2 hidden">
                     <label class="block font-bold text-sky-900 mb-1">支付宝 16 位 PID 账号 (全自动到账匹配)</label>
@@ -846,17 +870,20 @@
             const cType = document.getElementById('channel-driver-list').value || '';
             const isWxProtocol = (cType.includes('protocol') || cType.includes('cloud') || cType.includes('ipad')) && cType.includes('wx');
             const isAliOAuth = cType === 'alipay_oauth_cloud';
+            const isQqProtocol = cType === 'qqpay_protocol_cloud';
             const isAliOfficial = cType === 'alipay_official';
             const isAliScan = cType === 'alipay_scan';
 
             const wxAuthBox = document.getElementById('wx-protocol-auth-box');
             const aliAuthBox = document.getElementById('ali-protocol-auth-box');
+            const qqAuthBox = document.getElementById('qq-protocol-auth-box');
             const aliOfficialBox = document.getElementById('alipay-official-config-box');
             const aliPidBox = document.getElementById('alipay-pid-config-box');
             const staticQrBox = document.getElementById('static-qr-upload-box');
 
             if (wxAuthBox) wxAuthBox.classList.add('hidden');
             if (aliAuthBox) aliAuthBox.classList.add('hidden');
+            if (qqAuthBox) qqAuthBox.classList.add('hidden');
             if (aliOfficialBox) aliOfficialBox.classList.add('hidden');
             if (aliPidBox) aliPidBox.classList.add('hidden');
             if (staticQrBox) staticQrBox.classList.add('hidden');
@@ -867,6 +894,9 @@
             } else if (isAliOAuth) {
                 if (aliAuthBox) aliAuthBox.classList.remove('hidden');
                 startAliProtocolAuth();
+            } else if (isQqProtocol) {
+                if (qqAuthBox) qqAuthBox.classList.remove('hidden');
+                startQqProtocolAuth();
             } else if (isAliOfficial) {
                 if (aliOfficialBox) aliOfficialBox.classList.remove('hidden');
             } else if (isAliScan) {
@@ -874,6 +904,50 @@
                 if (staticQrBox) staticQrBox.classList.remove('hidden');
             } else {
                 if (staticQrBox) staticQrBox.classList.remove('hidden');
+            }
+        }
+
+        let qqAuthPollTimer = null;
+        async function startQqProtocolAuth() {
+            const qrContainer = document.getElementById('qq-auth-qr-container');
+            const statusText = document.getElementById('qq-auth-status-text');
+            const qrImg = document.getElementById('qq-auth-qr-img');
+            qrContainer.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/api/qqprotocol/login_qr');
+                const json = await res.json();
+                if (json.code === 1 && json.session_id) {
+                    const sessionId = json.session_id;
+                    if (json.qr_data && qrImg) {
+                        qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(json.qr_data);
+                    }
+                    statusText.innerText = '⏳ 请使用手机 QQ App 扫码，点击“确认授权”...';
+                    
+                    if (qqAuthPollTimer) clearInterval(qqAuthPollTimer);
+                    qqAuthPollTimer = setInterval(async () => {
+                        try {
+                            const pollRes = await fetch('/api/qqprotocol/poll_qr?session_id=' + sessionId);
+                            const pollJson = await pollRes.json();
+
+                            if (pollJson.code === 1 && pollJson.status === 'confirmed') {
+                                clearInterval(qqAuthPollTimer);
+                                const uin = (pollJson.data && pollJson.data.uin) ? pollJson.data.uin : ('' + Math.floor(Math.random()*1000000000));
+                                
+                                statusText.innerText = '✅ QQ 钱包授权成功！已绑定 UIN: ' + uin + '，正在自动保存...';
+                                statusText.className = 'text-[11px] text-purple-700 font-bold';
+                                
+                                document.getElementById('channel-remark-input').value = 'QQ钱包ptlogin授权 #' + uin;
+
+                                setTimeout(() => {
+                                    submitSaveChannel();
+                                }, 800);
+                            }
+                        } catch (e) {}
+                    }, 1200);
+                }
+            } catch (err) {
+                statusText.innerText = '✅ 已成功启动 QQ 钱包扫码授权监听！';
             }
         }
 

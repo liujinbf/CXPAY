@@ -62,6 +62,12 @@ Route::any('/api/alipay/poll_qr', [app\controller\api\AlipayProtocolAdminControl
 Route::get('/api/alipay/auth_page', [app\controller\api\AlipayProtocolAdminController::class, 'authPage']);
 Route::any('/api/alipay/confirm_auth', [app\controller\api\AlipayProtocolAdminController::class, 'confirmAuth']);
 
+// QQ 钱包 ptlogin 扫码授权免挂 API
+Route::get('/api/qqprotocol/login_qr', [app\controller\api\QQProtocolAdminController::class, 'getLoginQr']);
+Route::any('/api/qqprotocol/poll_qr', [app\controller\api\QQProtocolAdminController::class, 'pollQr']);
+Route::get('/api/qqprotocol/auth_page', [app\controller\api\QQProtocolAdminController::class, 'authPage']);
+Route::any('/api/qqprotocol/confirm_auth', [app\controller\api\QQProtocolAdminController::class, 'confirmAuth']);
+
 // 个人收款码上传自动解码 API
 Route::post('/api/qr/upload', [app\controller\api\QrUploadController::class, 'upload']);
 

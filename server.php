@@ -136,6 +136,39 @@ if (str_contains($uriPath, '/api/alipay/')) {
     exit;
 }
 
+// 1.7 QQ 钱包 ptlogin 扫码登录授权免挂 API
+if (str_contains($uriPath, '/api/qqprotocol/')) {
+    $qqCtrl = new \app\controller\api\QQProtocolAdminController();
+    $req = new class($uriPath) {
+        private $path;
+        public function __construct($p) { $this->path = $p; }
+        public function get($k = null) { return $k ? ($_GET[$k] ?? null) : $_GET; }
+        public function post($k = null) { return $k ? ($_POST[$k] ?? null) : $_POST; }
+        public function path() { return $this->path; }
+    };
+
+    if (str_contains($uriPath, 'auth_page')) {
+        header('Content-Type: text/html; charset=utf-8');
+        $res = $qqCtrl->authPage($req);
+    } elseif (str_contains($uriPath, 'confirm_auth')) {
+        header('Content-Type: application/json; charset=utf-8');
+        $res = $qqCtrl->confirmAuth($req);
+    } elseif (str_contains($uriPath, 'login_qr')) {
+        header('Content-Type: application/json; charset=utf-8');
+        $res = $qqCtrl->getLoginQr();
+    } else {
+        header('Content-Type: application/json; charset=utf-8');
+        $res = $qqCtrl->pollQr($req);
+    }
+
+    if (is_object($res) && method_exists($res, 'rawBody')) {
+        echo $res->rawBody();
+    } else {
+        echo is_array($res) ? json_encode($res, JSON_UNESCAPED_UNICODE) : (string)$res;
+    }
+    exit;
+}
+
 // 1.8 支付宝/通道防掉线心跳检测 API
 if (str_contains($uriPath, '/api/channel/keepalive')) {
     header('Content-Type: application/json; charset=utf-8');
