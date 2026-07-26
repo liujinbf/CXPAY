@@ -60,10 +60,13 @@
                         <i data-lucide="network" class="w-4 h-4 text-purple-500"></i> 轮询组
                     </a>
 
-                    <!-- 4. 财务管理 (服务费与明细，无提现) -->
-                    <div class="nav-group-title">财务与明细</div>
+                    <!-- 4. 财务与订单明细 -->
+                    <div class="nav-group-title">订单与财务</div>
+                    <a onclick="switchTab('order-list')" id="nav-order-list" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer font-bold transition-colors text-slate-600 hover:bg-slate-50">
+                        <i data-lucide="receipt" class="w-4 h-4 text-emerald-500"></i> 订单记录
+                    </a>
                     <a onclick="switchTab('finance-log')" id="nav-finance-log" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="receipt" class="w-4 h-4 text-amber-500"></i> 财务管理
+                        <i data-lucide="wallet" class="w-4 h-4 text-amber-500"></i> 财务明细
                     </a>
 
                     <!-- 5. API 配置 -->
@@ -297,6 +300,46 @@
                                 <span>2. 微信安卓APP挂机 (备用账号)</span>
                                 <span class="font-bold text-slate-700">权重: 30%</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 📋 订单记录 Order List 面板 -->
+                <div id="tab-order-list" class="tab-panel space-y-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="receipt" class="w-6 h-6 text-emerald-600"></i> 订单明细与交易记录
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-1">展示包含发起测试订单与系统所有接收到的充值与收款交易订单</p>
+                        </div>
+                        <button onclick="loadOrderList()" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 flex items-center gap-1.5 cursor-pointer">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 刷新订单记录
+                        </button>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-6 space-y-4">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-3">平台单号</th>
+                                        <th class="p-3">商户单号</th>
+                                        <th class="p-3">商品 / 说明</th>
+                                        <th class="p-3">支付方式</th>
+                                        <th class="p-3">订单金额</th>
+                                        <th class="p-3">实付/浮动</th>
+                                        <th class="p-3">状态</th>
+                                        <th class="p-3">创建时间</th>
+                                        <th class="p-3">完成/核销时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="order-table-body" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="9" class="p-6 text-center text-slate-400 font-bold">正在加载最新订单数据...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

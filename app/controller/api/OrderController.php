@@ -121,4 +121,73 @@ class OrderController
             ]);
         }
     }
+
+    /**
+     * 商户端订单列表获取（整合数据库与 runtime/test_orders.json 容灾到账记录）
+     */
+    public function list(object $request)
+    {
+        $orders = [];
+
+        // 1. 读取 runtime/test_orders.json 文件备份记录
+        try {
+            $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
+            $testOrderFile = rtrim($baseDir, '/\\') . '/runtime/test_orders.json';
+            if (file_exists($testOrderFile)) {
+                $fileOrders = json_decode(@file_get_contents($testOrderFile), true);
+                if (is_array($fileOrders)) {
+                    foreach ($fileOrders as $item) {
+                        $orders[] = [
+                            'trade_no'     => $item['trade_no'] ?? '',
+                            'out_trade_no' => $item['out_trade_no'] ?? '',
+                            'amount'       => $item['money'] ?? '1.00',
+                            'price'        => $item['price'] ?? ($item['money'] ?? '1.00'),
+                            'pay_type'     => $item['pay_type'] ?? 'alipay',
+                            'subject'      => $item['subject'] ?? '测试订单',
+                            'status'       => (int)($item['status'] ?? 0),
+                            'create_time'  => date('Y-m-d H:i:s', $item['create_time'] ?? time()),
+                            'pay_time'     => !empty($item['pay_time']) ? date('Y-m-d H:i:s', $item['pay_time']) : '-',
+                        ];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // 2. 读取数据库真实订单记录
+        try {
+            if (class_exists('app\model\Order')) {
+                $dbOrders = Order::where('merchant_id', 1000)->orderBy('id', 'desc')->limit(50)->get();
+                foreach ($dbOrders as $o) {
+                    $exists = false;
+                    foreach ($orders as $k => $v) {
+                        if ($v['trade_no'] === $o->trade_no) {
+                            $orders[$k]['status'] = (int)$o->status;
+                            $exists = true;
+                            break;
+                        }
+                    }
+                    if (!$exists) {
+                        $orders[] = [
+                            'trade_no'     => $o->trade_no,
+                            'out_trade_no' => $o->out_trade_no,
+                            'amount'       => number_format((float)$o->amount, 2, '.', ''),
+                            'price'        => number_format((float)($o->price ?: $o->amount), 2, '.', ''),
+                            'pay_type'     => $o->pay_type,
+                            'subject'      => $o->subject ?: '网络商品',
+                            'status'       => (int)$o->status,
+                            'create_time'  => date('Y-m-d H:i:s', $o->create_time ?: time()),
+                            'pay_time'     => $o->pay_time ? date('Y-m-d H:i:s', $o->pay_time) : '-',
+                        ];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // 按订单生成倒序排列
+        usort($orders, function($a, $b) {
+            return strcmp($b['create_time'], $a['create_time']);
+        });
+
+        return json(['code' => 1, 'msg' => '获取成功', 'data' => $orders]);
+    }
 }
