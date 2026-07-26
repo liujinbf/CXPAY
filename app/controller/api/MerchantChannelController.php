@@ -377,8 +377,12 @@ class MerchantChannelController
         // 文件持久化备份，容灾保证 100% 能进行订单查询与到账模拟
         try {
             $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
-            $testOrderFile = rtrim($baseDir, '/\\') . '/runtime/test_orders.json';
-            $testOrders = file_exists($testOrderFile) ? json_decode(file_get_contents($testOrderFile), true) : [];
+            $runtimeDir = rtrim($baseDir, '/\\') . '/runtime';
+            if (!is_dir($runtimeDir)) {
+                @mkdir($runtimeDir, 0777, true);
+            }
+            $testOrderFile = $runtimeDir . '/test_orders.json';
+            $testOrders = file_exists($testOrderFile) ? json_decode(@file_get_contents($testOrderFile), true) : [];
             if (!is_array($testOrders)) $testOrders = [];
             $testOrders[$tradeNo] = [
                 'trade_no'     => $tradeNo,
@@ -437,8 +441,12 @@ class MerchantChannelController
             // 2. 文件缓存强行覆盖持久化到账（确保手机端点击后 100% 同步电脑端）
             try {
                 $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
-                $testOrderFile = rtrim($baseDir, '/\\') . '/runtime/test_orders.json';
-                $testOrders = file_exists($testOrderFile) ? json_decode(file_get_contents($testOrderFile), true) : [];
+                $runtimeDir = rtrim($baseDir, '/\\') . '/runtime';
+                if (!is_dir($runtimeDir)) {
+                    @mkdir($runtimeDir, 0777, true);
+                }
+                $testOrderFile = $runtimeDir . '/test_orders.json';
+                $testOrders = file_exists($testOrderFile) ? json_decode(@file_get_contents($testOrderFile), true) : [];
                 if (!is_array($testOrders)) $testOrders = [];
 
                 if (!isset($testOrders[$tradeNo])) {
