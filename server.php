@@ -46,6 +46,16 @@ spl_autoload_register(function ($class) {
 $rawUri  = $_SERVER['REQUEST_URI'] ?? '/';
 $uriPath = parse_url($rawUri, PHP_URL_PATH) ?: '/';
 
+// 0.9 一键安装向导路由 (/install)
+if ($uriPath === '/install' || $uriPath === '/install/' || $uriPath === '/install/index.html') {
+    $installFile = __DIR__ . '/public/install/index.html';
+    if (file_exists($installFile)) {
+        header('Content-Type: text/html; charset=utf-8');
+        echo file_get_contents($installFile);
+        exit;
+    }
+}
+
 // 1. 商户开放 API 文档映射 (/doc /doc.html)
 if ($uriPath === '/doc' || $uriPath === '/doc.html') {
     $docFile = __DIR__ . '/public/doc.html';
