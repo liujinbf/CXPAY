@@ -22,10 +22,9 @@ class WeChatProtocolCloudService
     public function createQrSession(): array
     {
         $sessionId = 'SESS_' . md5((string)mt_rand());
-        // 生成标准平台 H5 / 微信内扫码授权 URL
-        $domain = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
-        $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
-        $authUrl = "{$scheme}://{$domain}/api/wxprotocol/auth_page?session_id={$sessionId}";
+        // 生成强制 HTTPS 的标准平台 H5 / 微信内扫码授权 URL
+        $domain  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
+        $authUrl = "https://{$domain}/api/wxprotocol/auth_page?session_id={$sessionId}";
 
         return [
             'code'       => 1,

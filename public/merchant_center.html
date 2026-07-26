@@ -417,7 +417,7 @@
                     </div>
                     <div id="wx-auth-qr-container" class="hidden text-center space-y-2 py-2 bg-white rounded-lg border border-emerald-100 p-3">
                         <div class="inline-block p-2 bg-white rounded-lg shadow-inner border">
-                            <img id="wx-auth-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https%3A%2F%2Fopen.weixin.qq.com%2Fconnect%2Fqrconnect%3Fappid%3Dwx28be8489b7a36aaa" class="w-32 h-32 mx-auto">
+                            <img id="wx-auth-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https%3A%2F%2Fcxpay.onrender.com%2Fapi%2Fwxprotocol%2Fauth_page" class="w-32 h-32 mx-auto">
                         </div>
                         <div id="wx-auth-status-text" class="text-[11px] text-emerald-700 font-bold animate-pulse">
                             ⏳ 请使用微信扫描上方二维码授权登录店员小账本...
@@ -757,6 +757,7 @@
             if (isProtocol && cType.includes('wx')) {
                 if (wxAuthBox) wxAuthBox.classList.remove('hidden');
                 if (staticQrBox) staticQrBox.classList.add('hidden');
+                startWxProtocolAuth();
             } else {
                 if (wxAuthBox) wxAuthBox.classList.add('hidden');
                 if (staticQrBox) staticQrBox.classList.remove('hidden');
