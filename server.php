@@ -250,19 +250,51 @@ if ($uriPath === '/' || $uriPath === '/index.html') {
 if (str_contains($uriPath, 'submit.php') || str_contains($uriPath, 'mapi.php')) {
     $amount  = $_GET['money'] ?? $_POST['money'] ?? '1.00';
     $subject = $_GET['name'] ?? $_POST['name'] ?? 'CXPAY 极速测试订单';
+    $type    = $_GET['type'] ?? $_POST['type'] ?? 'alipay';
+    $pid     = $_GET['pid'] ?? $_POST['pid'] ?? '1000';
+    $outTradeNo = $_GET['out_trade_no'] ?? $_POST['out_trade_no'] ?? ('DEMO' . time() . mt_rand(100, 999));
     $tradeNo = 'CX' . date('YmdHis') . sprintf('%04d', mt_rand(1, 9999));
 
-    $html = file_get_contents(__DIR__ . '/public/cashier/index.html');
-    
-    // 替换为动态下单数据
-    $html = str_replace(
-        ['"1.00"', '"测试应用 - VIP会员购买"', '"CX" + Date.now()'],
-        ['"' . number_format((float)$amount, 2, '.', '') . '"', '"' . addslashes($subject) . '"', '"' . $tradeNo . '"'],
-        $html
-    );
-    
-    header('Content-Type: text/html; charset=utf-8');
-    echo $html;
+    try {
+        $dbConfig = require __DIR__ . '/config/database.php';
+        if ($dbConfig && class_exists('Illuminate\Database\Capsule\Manager')) {
+            $capsule = new \Illuminate\Database\Capsule\Manager();
+            foreach ($dbConfig['connections'] as $name => $conn) {
+                $capsule->addConnection($conn, $name);
+            }
+            $capsule->setAsGlobal();
+            $capsule->bootEloquent();
+
+            \app\model\Order::create([
+                'merchant_id'  => (int)$pid,
+                'out_trade_no' => $outTradeNo,
+                'trade_no'     => $tradeNo,
+                'channel_id'   => 1,
+                'pay_type'     => $type,
+                'amount'       => (float)$amount,
+                'price'        => (float)$amount,
+                'subject'      => $subject,
+                'notify_url'   => 'https://cxpay.onrender.com/demo_notify',
+                'return_url'   => 'https://cxpay.onrender.com/merchant_center.html',
+                'status'       => 0,
+                'create_time'  => time(),
+                'expire_time'  => time() + 300,
+            ]);
+        }
+    } catch (\Throwable $e) {}
+
+    if (str_contains($uriPath, 'mapi')) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'code' => 1,
+            'msg'  => '下单成功',
+            'trade_no' => $tradeNo,
+            'payurl'   => "/cashier/index.html?trade_no={$tradeNo}"
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    header("Location: /cashier/index.html?trade_no={$tradeNo}");
     exit;
 }
 
