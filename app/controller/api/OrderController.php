@@ -47,12 +47,17 @@ class OrderController
                 $channel = Channel::find($order->channel_id);
                 if ($channel) {
                     $cfg = is_string($channel->config) ? json_decode($channel->config, true) : $channel->config;
-                    $payUrl = $channel->qr_url ?: ($cfg['qr_url'] ?? '');
+                    $qr = $channel->qr_url ?: ($cfg['qr_url'] ?? '');
+                    // 如果不是占位假码，则使用真实的通道二维码
+                    if (!empty($qr) && !str_contains($qr, 'bax09876543210987')) {
+                        $payUrl = $qr;
+                    }
                 }
             }
 
+            // 兜底使用收银台 H5 真实访问路由，避免 404 不存在的 alipay 占位域名
             if (empty($payUrl)) {
-                $payUrl = "https://qr.alipay.com/bax" . mt_rand(100000000, 999999999);
+                $payUrl = "/cashier/index.html?trade_no=" . $order->trade_no;
             }
 
             $data = [
@@ -86,7 +91,7 @@ class OrderController
                     'subject'    => '在线体验与测试商品',
                     'status'     => 0,
                     'pay_type'   => 'alipay',
-                    'pay_url'    => 'https://qr.alipay.com/bax' . mt_rand(100000000, 999999999),
+                    'pay_url'    => '/cashier/index.html?trade_no=' . ($tradeNo ?: 'CXDemo' . time()),
                     'return_url' => '',
                 ]
             ]);
