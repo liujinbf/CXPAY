@@ -343,14 +343,14 @@ class MerchantChannelController
                      && !str_contains($rawQr, 'wxp://f2f0') 
                      && !str_contains($rawQr, 'i.qianbao.qq.com');
 
-        $realQrScheme = $rawQr;
-        if (!$hasRealQr && $payCategory === 'alipay' && !empty($alipayPid)) {
-            $realQrScheme = "alipays://platformapi/startapp?appId=09999988&actionType=toAccount&recUserId={$alipayPid}&amount={$floatMoney}&memo=" . urlencode("CX{$tradeNo}");
-            $hasRealQr = true;
+        $displayQr = $rawQr;
+        if ($hasRealQr) {
+            if (str_starts_with($displayQr, '/')) {
+                $displayQr = "{$baseUrl}" . $displayQr;
+            }
+        } else {
+            $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
         }
-
-        // 二维码画面统一使用标准的 HTTPS 短链访问路由，规避支付宝扫码对裸 alipays:// 的“当前码值存在风险”拦截
-        $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
 
         try {
             if (class_exists('Illuminate\Database\Capsule\Manager') && class_exists('app\model\Order')) {
