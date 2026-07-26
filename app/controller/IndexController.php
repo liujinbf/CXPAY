@@ -26,7 +26,7 @@ class IndexController
     /**
      * 动态渲染主页或手机 App 内快捷支付收银台
      */
-    public function index(object $request = null): Response
+    public function index(object $request = null)
     {
         $get = $_GET ?? [];
         $flowT = $get['flowT'] ?? $get['trade_no'] ?? '';
