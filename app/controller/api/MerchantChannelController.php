@@ -376,6 +376,7 @@ class MerchantChannelController
 
         // 文件持久化备份，容灾保证 100% 能进行订单查询与到账模拟
         try {
+            $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
             $testOrderFile = rtrim($baseDir, '/\\') . '/runtime/test_orders.json';
             $testOrders = file_exists($testOrderFile) ? json_decode(file_get_contents($testOrderFile), true) : [];
             if (!is_array($testOrders)) $testOrders = [];
