@@ -1,3 +1,7 @@
+<?php
+// 本地与 Docker 镜像 Web 路由支持服务
+// 监听端口：$PORT / 8787
+
 if (!function_exists('base_path')) {
     function base_path($path = '') {
         return __DIR__ . ($path ? '/' . ltrim($path, '/') : '');
