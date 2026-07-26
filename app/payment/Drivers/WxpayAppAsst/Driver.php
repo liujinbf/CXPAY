@@ -18,7 +18,7 @@ class Driver implements PaymentDriverInterface
             'trade_no'     => $params['trade_no'],
             'out_trade_no' => $params['out_trade_no'],
             'amount'       => $params['money'],
-            'pay_url'      => $config['qr_code_url'] ?? 'wxp://f2f0',
+            'pay_url'      => $config['qr_code_url'] ?? ("/cashier/index.html?trade_no=" . $params['trade_no']),
         ];
     }
 

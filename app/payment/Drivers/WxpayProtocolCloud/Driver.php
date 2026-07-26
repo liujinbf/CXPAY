@@ -34,24 +34,14 @@ class Driver implements PaymentDriverInterface
 
         $appType = $config['app_type'] ?? 'book';
 
-        if ($appType === 'recpt') {
-            // 收款单模式：带隔离指纹请求云端生成专属收款单
-            return [
-                'type'         => 'qrcode',
-                'trade_no'     => $params['trade_no'],
-                'out_trade_no' => $params['out_trade_no'],
-                'amount'       => $params['money'],
-                'pay_url'      => 'https://pay.weixin.qq.com/receipt/' . md5($params['trade_no']),
-                'context'      => $context,
-            ];
-        }
+        $payUrl = $config['qr_url'] ?? ("/cashier/index.html?trade_no=" . $params['trade_no']);
 
         return [
             'type'         => 'qrcode',
             'trade_no'     => $params['trade_no'],
             'out_trade_no' => $params['out_trade_no'],
             'amount'       => $params['money'],
-            'pay_url'      => $config['qr_url'] ?? 'wxp://f2f0',
+            'pay_url'      => $payUrl,
             'context'      => $context,
         ];
     }

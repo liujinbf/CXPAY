@@ -48,14 +48,19 @@ class OrderController
                 if ($channel) {
                     $cfg = is_string($channel->config) ? json_decode($channel->config, true) : $channel->config;
                     $qr = $channel->qr_url ?: ($cfg['qr_url'] ?? '');
-                    // 如果不是占位假码，则使用真实的通道二维码
-                    if (!empty($qr) && !str_contains($qr, 'bax09876543210987')) {
+                    // 过滤所有微信/QQ/支付宝的假占位码，确保只有真实设定的收款码才会返回
+                    $isFake = str_contains($qr, 'bax09876543210987') 
+                           || str_contains($qr, 'wxp://f2f0') 
+                           || str_contains($qr, 'pay.weixin.qq.com/receipt') 
+                           || str_contains($qr, 'i.qianbao.qq.com');
+                           
+                    if (!empty($qr) && !$isFake) {
                         $payUrl = $qr;
                     }
                 }
             }
 
-            // 兜底使用收银台 H5 真实访问路由，避免 404 不存在的 alipay 占位域名
+            // 兜底使用收银台 H5 真实访问路由，避免任何第三方平台报 404 页面缺失
             if (empty($payUrl)) {
                 $payUrl = "/cashier/index.html?trade_no=" . $order->trade_no;
             }

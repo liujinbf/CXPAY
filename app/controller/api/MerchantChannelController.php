@@ -70,7 +70,7 @@ class MerchantChannelController
                 'pay_category'  => 'wxpay',
                 'title'         => '微信协议云端-[个人动态码]',
                 'c_type'        => 'wxpay_protocol_cloud',
-                'qr_url'        => 'wxp://f2f01234567890abcdef',
+                'qr_url'        => '',
                 'remark'        => '微信店员小账本免挂 #WX678',
                 'today_money'   => 600.50,
                 'today_count'   => 27,

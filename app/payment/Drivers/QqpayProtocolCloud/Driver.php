@@ -19,7 +19,7 @@ class Driver implements PaymentDriverInterface
             'trade_no'     => $params['trade_no'],
             'out_trade_no' => $params['out_trade_no'],
             'amount'       => $params['money'],
-            'pay_url'      => $config['qr_url'] ?? 'https://i.qianbao.qq.com/wallet/sq/i.html',
+            'pay_url'      => $config['qr_url'] ?? ("/cashier/index.html?trade_no=" . $params['trade_no']),
         ];
     }
 
