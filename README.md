@@ -26,24 +26,27 @@
 ## 二、 极速 3 步安装指南
 
 ### 1. 环境依赖要求
-- 服务器操作系统：Linux (Ubuntu / CentOS / Debian) 或 Windows Server
-- 环境要求：PHP 8.1+、`pcntl` 多进程扩展、PDO MySQL 与 Redis 扩展
+- **服务器操作系统**：Linux (Ubuntu / CentOS / Debian / 宝塔面板) 或 Windows Server
+- **环境要求**：PHP 8.1+、`pcntl` 多进程扩展、PDO MySQL 与 Redis 扩展
 
-### 2. 可视化一键安装步骤 (/install)
-1. 将项目部署至服务器后，在浏览器访问：`http://您的域名/install`。
+### 2. 宝塔面板 (AaPanel) 避坑配置 (防止 /install 报 404)
+将项目解压上传到宝塔网站目录后：
+1. **设置运行目录**：网站设置 -> 网站目录 -> **运行目录选择 `/public`** 并保存。
+2. **设置伪静态**：网站设置 -> 伪静态 -> 选择 **`thinkphp`** 并保存。
+
+### 3. 可视化一键安装步骤 (/install)
+1. 在浏览器访问：`http://您的域名/install`。
 2. **第一步 环境检测**：系统自动检测 PHP 版本及所需扩展状态。
 3. **第二步 数据库配置**：填入 MySQL 数据库地址、数据库名、端口以及超级管理员账号密码。
 4. **第三步 点击安装**：点击“一键安装导入”，系统自动完成数据库建表与安全锁配置 (`install.lock`)。
 
-### 3. 生产环境后台启动指令
+### 4. 生产环境常驻启动指令 (选填)
 ```bash
 # 生产环境常驻后台启动
 php start.php start -d
 
-# 停止进程
+# 停止进程 / 平滑重载
 php start.php stop
-
-# 平滑重载代码
 php start.php reload
 ```
 

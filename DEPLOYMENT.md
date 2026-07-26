@@ -1,6 +1,6 @@
 # CXPAY 部署与上线测试手册 (Deployment & Production Guide)
 
-本文档指导如何在单机低配置服务器 (如 2核2G) 上部署 **CXPAY** 系统并跑通测试。
+本文档指导如何在单机低配置服务器 (如 2核2G) 以及 **宝塔面板 (AaPanel / Pagoda)** 上一键部署 **CXPAY** 系统并跑通测试。
 
 ---
 
@@ -10,24 +10,43 @@
 2. **PHP 版本**: PHP ≥ 8.1 (需安装扩展: `ext-json`, `ext-pdo`, `ext-redis`, `ext-bcmath`, `ext-openssl`)
 3. **数据库**: MySQL ≥ 5.7 / 8.0
 4. **高速缓存**: Redis ≥ 5.0
-5. **Web 服务器**: Nginx (反向代理 Webman)
+5. **Web 服务器**: Nginx (反向代理 Webman 或常规 PHP-FPM)
 
 ---
 
-## 二、 部署步骤
+## 二、 宝塔面板 (AaPanel) 极速部署指南 (防 404 避坑)
 
-### 1. 导入数据库
-将 `database/install.sql` 导入 MySQL 数据库：
-```bash
-mysql -u root -p cxpay < database/install.sql
-```
+如果在宝塔面板 (Nginx + PHP) 环境下部署，请**严格按照以下 3 步设置**，防止打开 `/install` 报 404 错误：
 
-### 2. 配置环境变量与连接
-在 `.env` 或 `config/database.php` / `config/redis.php` 中配置数据库与 Redis 连接参数。
+### 1. 设置【运行目录】为 `/public` (最关键)
+* 在宝塔面板中，打开网站设置 -> **网站目录** -> **运行目录** 选择 **`/public`**。
+* 点击 **【保存】**。
 
-### 3. Nginx 反向代理配置
-Webman 默认在 `8787` 端口上监听，使用 Nginx 进行反向代理并配置 SSL 证书：
+### 2. 设置 Nginx 【伪静态】 (解决路由 404)
+在宝塔网站设置中，点击左侧 **【伪静态】** 选项卡：
+- **方案 A (下拉选择)**：在伪静态下拉菜单中选择 **`thinkphp`** 并保存。
+- **方案 B (手动粘贴代码)**：复制以下规则粘贴保存：
+  ```nginx
+  location / {
+      if (!-e $request_filename) {
+          rewrite ^/(.*)$ /index.php/$1 last;
+      }
+  }
+  ```
 
+### 3. 打开可视化安装向导 (`/install`)
+配置完以上两步后，直接在浏览器中访问：
+* `http://您的域名/install`
+
+系统会自动载入一键图形化安装向导，填入 MySQL 数据库信息，自动完成数据库建表与安全锁配置 (`install.lock`)！
+
+---
+
+## 三、 高性能常驻模式部署 (反向代理 Webman)
+
+Webman 默认在 `8787` 端口上监听，在生产环境推荐使用 Nginx 进行反向代理并配置 SSL 证书：
+
+### 1. Nginx 反向代理配置
 ```nginx
 server {
     listen 80;
@@ -54,7 +73,7 @@ server {
 }
 ```
 
-### 4. 启动 Webman 常驻服务
+### 2. 启动 Webman 常驻服务
 在 `CXPAY/` 根目录下执行启动命令：
 
 ```bash
@@ -71,7 +90,7 @@ php start.php restart
 
 ---
 
-## 三、 上线测试验证流程
+## 四、 上线测试验证流程
 
 ### 1. 基础下单链路验证
 - **接口地址**: `https://pay.yourdomain.com/submit.php`
