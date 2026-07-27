@@ -149,8 +149,8 @@
                                     runtime 目录: <span :class="envData.permissions?.runtime_writable ? 'text-emerald-400 font-bold' : 'text-rose-400'">{{ envData.permissions?.runtime_writable ? '✓ 可写' : '✗ 无写入权限' }}</span>
                                 </div>
                             </div>
-                            <span :class="envData.permissions?.all_perms_ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'" class="px-3 py-1 border text-xs rounded-full font-bold">
-                                {{ envData.permissions?.all_perms_ok ? '✓ 读写权限正常' : '⚠️ 建议在终端执行 chown -R www:www .' }}
+                            <span :class="(envData.all_perms_ok || envData.permissions?.all_perms_ok || (envData.permissions?.runtime_writable && envData.permissions?.env_writable)) ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'" class="px-3 py-1 border text-xs rounded-full font-bold">
+                                {{ (envData.all_perms_ok || envData.permissions?.all_perms_ok || (envData.permissions?.runtime_writable && envData.permissions?.env_writable)) ? '✓ 读写权限正常' : '⚠️ 建议在终端执行 chown -R www:www .' }}
                             </span>
                         </div>
                     </div>
