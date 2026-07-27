@@ -28,6 +28,12 @@ class IndexController
      */
     public function index(object $request = null)
     {
+        // 自动检测安装状态：未安装（缺失 install.lock）时自动引导跳转至一键安装向导页面
+        $lockFile = base_path() . '/install.lock';
+        if (!file_exists($lockFile)) {
+            return redirect('/install');
+        }
+
         $get = $_GET ?? [];
         $flowT = $get['flowT'] ?? $get['trade_no'] ?? '';
         $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';

@@ -2,8 +2,17 @@
 
 use Webman\Route;
 
-// 一键安装向导路由
+// 一键安装向导路由 (自动安装检测与已安装防护)
 Route::get('/install', function () {
+    $lockFile = base_path() . '/install.lock';
+    if (file_exists($lockFile)) {
+        return response('<div style="background:#0f172a;color:#f3f4f6;padding:40px;text-align:center;font-family:sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div style="font-size:48px;margin-bottom:16px;">🛡️</div>
+            <h2 style="font-size:24px;font-weight:bold;margin-bottom:8px;">系统已被安全锁定</h2>
+            <p style="color:#94a3b8;font-size:14px;max-width:480px;line-height:1.6;">当前系统已安装完成并生成了 <code>install.lock</code> 安全锁文件。如需重新安装，请在服务器中删除根目录下的 <code>install.lock</code> 锁文件。</p>
+            <a href="/" style="margin-top:24px;display:inline-block;padding:10px 24px;background:#0284c7;color:#fff;border-radius:12px;text-decoration:none;font-weight:bold;font-size:14px;">返回网站首页</a>
+        </div>', 200, ['Content-Type' => 'text/html; charset=utf-8']);
+    }
     $content = file_get_contents(base_path() . '/public/install/index.html');
     return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
 });

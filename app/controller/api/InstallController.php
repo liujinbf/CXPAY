@@ -205,12 +205,19 @@ class InstallController
             $envCode = "DB_HOST={$dbHost}\nDB_PORT={$dbPort}\nDB_NAME={$dbName}\nDB_USER={$dbUser}\nDB_PASS={$dbPass}\n";
             @file_put_contents($envFile, $envCode);
 
-            // 5. 生成 install.lock 安装锁文件
-            @file_put_contents($lockFile, date('Y-m-d H:i:s') . " Installed Successfully by CXPAY Auto Installer.\n");
+            // 5. 生成 install.lock 安装锁文件与安全隔离标记
+            @file_put_contents($lockFile, date('Y-m-d H:i:s') . " Installed Successfully by CXPAY Auto Installer.\nSTATUS=INSTALLED_AND_LOCKED\n");
+
+            // 6. 刷新配置缓存
+            try {
+                if (function_exists('opcache_reset')) {
+                    @opcache_reset();
+                }
+            } catch (Throwable) {}
 
             return json([
                 'code' => 1,
-                'msg'  => '🎉 CXPAY 商业级聚合支付系统初始化成功！安装锁及数据库配置已自动落盘！'
+                'msg'  => '🎉 CXPAY 商业级聚合支付系统初始化成功！安装锁 (install.lock) 与数据库配置已自动落盘安全锁定！'
             ]);
         } catch (Throwable $e) {
             return json(['code' => -1, 'msg' => '安装失败: ' . $e->getMessage()]);
