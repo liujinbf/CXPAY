@@ -51,14 +51,14 @@ class InstallController
         // 测试各文件/目录的实际写入能力
         $perms = [
             'runtime_writable'   => is_writable($runtimeDir),
-            'config_writable'    => is_writable($configDir),
+            'config_writable'    => is_writable($configDir) || (file_exists($dbConfigFile) && is_writable($dbConfigFile)),
             'root_writable'      => is_writable($baseDir),
             'env_writable'       => !file_exists($envFile) ? is_writable($baseDir) : is_writable($envFile),
             'db_config_writable' => !file_exists($dbConfigFile) ? is_writable($configDir) : is_writable($dbConfigFile),
         ];
 
-        // 只要 runtime 目录和 env 配置可写，即可支持一键安装与落盘
-        $allPermsOk = $perms['runtime_writable'] && $perms['env_writable'];
+        // 只要核心配置文件与 runtime 缓存目录可写，即可支持完美一键安装落盘
+        $allPermsOk = $perms['runtime_writable'] && $perms['env_writable'] && $perms['config_writable'];
         $installed  = file_exists($lockFile);
 
         return json([
