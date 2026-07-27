@@ -99,6 +99,55 @@ if ($uriPath === '/doc' || $uriPath === '/doc.html') {
     }
 }
 
+// 1.1 系统在线更新管理页面 (/admin/system_update)
+if ($uriPath === '/admin/system_update' || $uriPath === '/admin/system_update.html') {
+    $updateFile = __DIR__ . '/public/admin/system_update.html';
+    if (file_exists($updateFile)) {
+        header('Content-Type: text/html; charset=utf-8');
+        echo file_get_contents($updateFile);
+        exit;
+    }
+}
+
+// 1.2 系统在线更新 API 路由分发 (/api/admin/system/*)
+if (str_starts_with($uriPath, '/api/admin/system/')) {
+    header('Content-Type: application/json; charset=utf-8');
+
+    // 初始化数据库环境
+    try {
+        $dbConfig = require __DIR__ . '/config/database.php';
+        if ($dbConfig && class_exists('Illuminate\Database\Capsule\Manager')) {
+            $capsule = new \Illuminate\Database\Capsule\Manager();
+            foreach ($dbConfig['connections'] as $name => $conn) {
+                $capsule->addConnection($conn, $name);
+            }
+            $capsule->setAsGlobal();
+            $capsule->bootEloquent();
+        }
+    } catch (\Throwable $e) {}
+
+    $sysCtrl = new \app\controller\admin\SystemUpdateController();
+
+    if (str_contains($uriPath, 'check_update')) {
+        $res = $sysCtrl->checkUpdate();
+    } elseif (str_contains($uriPath, 'do_update')) {
+        $res = $sysCtrl->doUpdate();
+    } elseif (str_contains($uriPath, 'poll_progress')) {
+        $res = $sysCtrl->pollProgress();
+    } elseif (str_contains($uriPath, 'update_log')) {
+        $res = $sysCtrl->getUpdateLog();
+    } elseif (str_contains($uriPath, 'version_history')) {
+        $res = $sysCtrl->versionHistory();
+    } elseif (str_contains($uriPath, 'do_rollback')) {
+        $res = $sysCtrl->doRollback();
+    } else {
+        $res = json_encode(['code' => -1, 'msg' => '未知系统更新 API'], JSON_UNESCAPED_UNICODE);
+    }
+
+    echo is_object($res) && method_exists($res, 'rawBody') ? $res->rawBody() : (string)$res;
+    exit;
+}
+
 // 1.46 测试支付通道异步回调 API (/api/test_notify)
 if (str_contains($uriPath, '/api/test_notify')) {
     header('Content-Type: text/plain; charset=utf-8');
