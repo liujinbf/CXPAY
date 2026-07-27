@@ -8,7 +8,9 @@ use app\model\Merchant;
 use app\model\Order;
 use app\model\Channel;
 use app\service\MonitorService;
+use app\service\MerchantNotifyService;
 use support\Authcode;
+use Illuminate\Database\Capsule\Manager as DB;
 use Exception;
 
 /**
@@ -18,11 +20,13 @@ class AdminController
 {
     protected Authcode $authcode;
     protected MonitorService $monitorService;
+    protected MerchantNotifyService $notifyService;
 
     public function __construct()
     {
         $this->authcode       = new Authcode();
         $this->monitorService = new MonitorService();
+        $this->notifyService  = new MerchantNotifyService();
     }
 
     /**
@@ -33,32 +37,63 @@ class AdminController
         $params   = $request->post();
         $account  = trim((string)($params['account'] ?? ''));
         $password = trim((string)($params['password'] ?? ''));
-        $mfaCode  = trim((string)($params['mfa_code'] ?? ''));
 
         if (empty($account) || empty($password)) {
             return json_encode(['code' => -1, 'msg' => '管理员账号与密码不能为空'], JSON_UNESCAPED_UNICODE);
         }
 
-        // 默认 Root 校验或查库
-        if ($account === 'admin' && ($password === 'admin123' || $password === '••••••••')) {
-            $session = $request->session();
-            $session->set('admin_info', [
-                'username' => 'admin',
-                'login_time' => time(),
-                'role' => 'root'
-            ]);
+        // 从数据库读取管理员账号和 bcrypt 密码哈希
+        $row = DB::table('cx_config')->where('name', 'admin_account')->first();
+        $storedAccount = $row ? (string)$row->value : 'admin';
 
-            return json_encode([
-                'code' => 1,
-                'msg'  => '登录验证成功！正在跳转总控台...',
-                'data' => [
-                    'token' => md5('CX_ADMIN_' . time() . rand(1000, 9999)),
-                    'username' => 'admin'
-                ]
-            ], JSON_UNESCAPED_UNICODE);
+        $rowPwd = DB::table('cx_config')->where('name', 'admin_password_hash')->first();
+        $storedHash = $rowPwd ? (string)$rowPwd->value : '';
+
+        // 兼容旧版：若数据库中仍为明文密码，自动迁移为 bcrypt
+        if (!empty($storedHash) && !str_starts_with($storedHash, '$2y$')) {
+            // 旧版明文直接比对（仅迁移期间使用）
+            if ($account !== $storedAccount || $password !== $storedHash) {
+                return json_encode(['code' => -1, 'msg' => '管理员账号或密码错误'], JSON_UNESCAPED_UNICODE);
+            }
+            // 自动升级为 bcrypt 存储
+            $newHash = password_hash($storedHash, PASSWORD_BCRYPT, ['cost' => 12]);
+            DB::table('cx_config')->where('name', 'admin_password_hash')
+                ->update(['value' => $newHash, 'title' => '管理员密码Bcrypt哈希']);
+            $storedHash = $newHash;
+        } elseif (empty($storedHash)) {
+            // 未配置任何密码，拒绝登录
+            return json_encode(['code' => -1, 'msg' => '系统尚未初始化管理员密码，请联系部署人员'], JSON_UNESCAPED_UNICODE);
         }
 
-        return json_encode(['code' => -1, 'msg' => '管理员账号或密码错误'], JSON_UNESCAPED_UNICODE);
+        // 校验账号 + bcrypt 密码
+        if ($account !== $storedAccount || !password_verify($password, $storedHash)) {
+            return json_encode(['code' => -1, 'msg' => '管理员账号或密码错误'], JSON_UNESCAPED_UNICODE);
+        }
+
+        // 生成含签名的 Token（账号 + 时间戳 + 服务端盐，存入 Session 绑定）
+        $tokenSalt   = (string)(DB::table('cx_config')->where('name', 'token_salt')->value('value') ?: 'CX_TOKEN_SALT_DEFAULT');
+        $tokenExpire = time() + 7200; // 2小时有效期
+        $tokenRaw    = $account . '|' . $tokenExpire;
+        $tokenSign   = hash_hmac('sha256', $tokenRaw, $tokenSalt);
+        $token       = base64_encode($tokenRaw . '|' . $tokenSign);
+
+        $session = $request->session();
+        $session->set('admin_info', [
+            'username'     => $account,
+            'login_time'   => time(),
+            'token_expire' => $tokenExpire,
+            'role'         => 'root',
+        ]);
+
+        return json_encode([
+            'code' => 1,
+            'msg'  => '登录验证成功！正在跳转总控台...',
+            'data' => [
+                'token'    => $token,
+                'username' => $account,
+                'expire'   => $tokenExpire,
+            ]
+        ], JSON_UNESCAPED_UNICODE);
     }
 
     /**
@@ -208,11 +243,26 @@ class AdminController
             return json_encode(['code' => -1, 'msg' => '订单不存在'], JSON_UNESCAPED_UNICODE);
         }
 
-        $order->status   = 1;
-        $order->pay_time = time();
-        $order->save();
+        if ((int)$order->status !== 1) {
+            // 仅当未支付时才更新状态
+            Order::where('id', $order->id)
+                ->where('status', '!=', 1)
+                ->update([
+                    'status'           => 1,
+                    'pay_time'         => time(),
+                    'channel_trade_no' => 'MANUAL_' . time(),
+                ]);
+            $order->refresh();
+        }
 
-        return json_encode(['code' => 1, 'msg' => '强制标记订单成功'], JSON_UNESCAPED_UNICODE);
+        // 强制补单后必须触发异步回调通知商户系统
+        $notifyResult = $this->notifyService->notifyMerchant($order);
+
+        return json_encode([
+            'code' => 1,
+            'msg'  => '强制标记订单成功，已触发异步回调通知',
+            'data' => ['notify_sent' => $notifyResult],
+        ], JSON_UNESCAPED_UNICODE);
     }
 
     /**

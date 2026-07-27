@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS `cx_order` (
   `return_url` text COMMENT '支付成功同步跳转URL',
   `channel_trade_no` varchar(128) DEFAULT '' COMMENT '上游或助手上报单号',
   `status` tinyint(1) DEFAULT '0' COMMENT '0待支付 1已支付 2已超时 3已退款',
+  `notify_status` tinyint(1) DEFAULT '0' COMMENT '0未通知 1已成功通知 2通知失败重试中',
   `create_time` int(11) DEFAULT '0' COMMENT '下单时间',
   `expire_time` int(11) DEFAULT '0' COMMENT '失效时间',
   `pay_time` int(11) DEFAULT '0' COMMENT '支付完成时间',
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS `cx_pay_channel` (
   `single_max` decimal(10,2) DEFAULT '0.00' COMMENT '单笔最大限制',
   `day_max` decimal(10,2) DEFAULT '0.00' COMMENT '单日额度限制',
   `online_status` tinyint(1) DEFAULT '1' COMMENT '1在线 0离线',
+  `last_heartbeat_time` int(11) DEFAULT '0' COMMENT '最后一次心跳上报时间戳',
   `status` tinyint(1) DEFAULT '1' COMMENT '1启用 0关闭',
   PRIMARY KEY (`id`),
   KEY `idx_merchant_cat` (`merchant_id`, `pay_category`)
@@ -169,9 +171,11 @@ ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
 
 -- 插入默认系统配置
 INSERT INTO `cx_config` (`name`, `value`, `title`) VALUES 
-('active_home_template', 'default', '当前生效的主页模版'),
-('site_name', 'CXPAY 商业级聚合支付平台', '站点名称'),
-('admin_password', 'admin123', '管理员初始密码')
+('active_home_template', 'default',                                                              '当前生效的主页模版'),
+('site_name',            'CXPAY 商业级聚合支付平台',                                           '站点名称'),
+('admin_account',        'admin',                                                              '管理员账号'),
+('admin_password_hash',  '$2y$12$eImiTXuWVxfM37uY4JANjOe5XM.oFBkSPvHKxU3sXuCz5BKs8kFGy', '管理员密码Bcrypt哈希(默认admin123)'),
+('token_salt',           'CXPAY_TOKEN_SALT_CHANGE_ME_IN_PRODUCTION',                         'Token HMAC签名盐值')
 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 
 -- 插入默认测试支付通道

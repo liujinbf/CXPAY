@@ -35,10 +35,11 @@ class CallbillService
             'create_time' => time(),
         ]);
 
-        // 2. 匹配“待支付”且在有效期内、金额一致的单据
+        // 2. 匹配"待支付"且在有效期内、实际支付金额（price）一致的单据
+        //    注意：助手上报的是到账金额，对应 price 字段（含微浮动），而非原始 amount
         $now = time();
         $order = Order::where('status', 0)
-            ->where('amount', number_format($money, 2, '.', ''))
+            ->where('price', number_format($money, 2, '.', ''))
             ->where('expire_time', '>', $now)
             ->orderBy('id', 'desc')
             ->first();

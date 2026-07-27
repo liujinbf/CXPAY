@@ -7,28 +7,99 @@ namespace app\middleware;
 use Webman\MiddlewareInterface;
 use Webman\Http\Response;
 use Webman\Http\Request;
+use Illuminate\Database\Capsule\Manager as DB;
 
 /**
  * 管理员后台与 API 通用 Session/Token 身份验证中间件
+ * 修复：Token 必须通过 HMAC-SHA256 签名验证 + 过期时间校验，而非仅判断非空
  */
 class AdminAuthMiddleware implements MiddlewareInterface
 {
     public function process(Request $request, callable $handler): Response
     {
-        $session = $request->session();
+        $session   = $request->session();
         $adminInfo = $session->get('admin_info');
 
-        // 验证请求 Header 或 Session 登录状态
-        $token = $request->header('authorization') ?? $request->get('token') ?? '';
+        // Session 未登录时，尝试解析 Bearer Token 进行无状态校验
+        if (!$adminInfo) {
+            $rawToken = $request->header('authorization') ?? $request->get('token') ?? '';
+            // 兼容 "Bearer xxx" 格式
+            $rawToken = str_ireplace('Bearer ', '', trim((string)$rawToken));
 
-        if (!$adminInfo && empty($token)) {
-            // 如果是 API 请求，返回 JSON
-            if ($request->isAjax() || str_contains($request->path(), '/api/')) {
-                return json(['code' => 401, 'msg' => '管理员未登录或 Token 已过期，请重新登录'])->withStatus(401);
+            if (!empty($rawToken)) {
+                $adminInfo = $this->verifyToken($rawToken);
+                if (!$adminInfo) {
+                    return $this->unauthorized($request, 'Token 签名无效或已过期，请重新登录');
+                }
+                // 将解析成功的 adminInfo 写回 Session，延长会话
+                $session->set('admin_info', $adminInfo);
+            } else {
+                // 既无 Session 也无 Token
+                return $this->unauthorized($request, '管理员未登录，请先登录');
             }
-            return redirect('/admin_login.html');
+        }
+
+        // Session 有效时，额外检查过期时间
+        $tokenExpire = (int)($adminInfo['token_expire'] ?? 0);
+        if ($tokenExpire > 0 && time() > $tokenExpire) {
+            $session->forget('admin_info');
+            return $this->unauthorized($request, '登录状态已过期，请重新登录');
         }
 
         return $handler($request);
+    }
+
+    /**
+     * 解析并校验 HMAC-SHA256 签名 Token
+     */
+    protected function verifyToken(string $token): ?array
+    {
+        try {
+            $decoded = base64_decode($token, true);
+            if ($decoded === false) {
+                return null;
+            }
+
+            $parts = explode('|', $decoded);
+            if (count($parts) !== 3) {
+                return null;
+            }
+
+            [$account, $expireStr, $sign] = $parts;
+            $expire = (int)$expireStr;
+
+            // 校验过期时间
+            if (time() > $expire) {
+                return null;
+            }
+
+            // 取服务端盐并重算签名
+            $tokenSalt   = (string)(DB::table('cx_config')->where('name', 'token_salt')->value('value') ?: 'CX_TOKEN_SALT_DEFAULT');
+            $tokenRaw    = $account . '|' . $expireStr;
+            $expectedSign = hash_hmac('sha256', $tokenRaw, $tokenSalt);
+
+            if (!hash_equals($expectedSign, $sign)) {
+                return null;
+            }
+
+            return [
+                'username'     => $account,
+                'token_expire' => $expire,
+                'role'         => 'root',
+            ];
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * 统一返回未授权响应
+     */
+    protected function unauthorized(Request $request, string $msg): Response
+    {
+        if ($request->isAjax() || str_contains($request->path(), '/api/')) {
+            return json(['code' => 401, 'msg' => $msg])->withStatus(401);
+        }
+        return redirect('/admin_login.html');
     }
 }
