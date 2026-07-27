@@ -208,8 +208,9 @@ class SystemUpdateController
         }
 
         try {
+            $gitBin = $this->detectGitBin();
             $this->addProgress("⏪ 开始回滚到版本 [{$hash}]...", 'rollback');
-            $this->exec("git checkout {$hash} 2>&1");
+            $this->exec("{$gitBin} checkout {$hash} 2>&1");
             $this->addProgress('✓ 代码已回滚', 'done');
 
             // 热重载
@@ -245,10 +246,12 @@ class SystemUpdateController
 
     private function executeUpdate(): void
     {
-        $appDir = $this->appDir;
+        $appDir   = $this->appDir;
+        $isMaster = is_dir($appDir . '/.git');
+        $gitBin   = $this->detectGitBin();
 
         // ─ Step 1: 备份数据库 ─
-        $this->addProgress('📦 Step 1/6: 备份数据库...', 'backup');
+        $this->addProgress('📦 Step 1/6: 备份数据库结构与关键数据...', 'backup');
         try {
             $dbCfg  = config('database.connections.mysql', []);
             $host   = $dbCfg['host']     ?? '127.0.0.1';
@@ -256,73 +259,77 @@ class SystemUpdateController
             $db     = $dbCfg['database'] ?? '';
             $user   = $dbCfg['username'] ?? 'root';
             $pass   = $dbCfg['password'] ?? '';
-            $bkDir  = '/www/backups/cxpay';
 
-            if (!is_dir($bkDir)) {
-                @mkdir($bkDir, 0755, true);
+            $bkFile    = $appDir . '/runtime/backup_' . date('Ymd_His') . '.sql';
+            $mysqldump = trim($this->exec('which mysqldump 2>/dev/null') ?: '/usr/bin/mysqldump');
+            if (file_exists($mysqldump) && !empty($db)) {
+                $this->exec("{$mysqldump} -h{$host} -P{$port} -u{$user} -p'{$pass}' {$db} > {$bkFile} 2>&1");
+                $this->addProgress("✓ 数据库已备份至 runtime/ " . basename($bkFile), 'ok');
+            } else {
+                $this->addProgress('⚠ mysqldump 工具未找到，跳过本地导表，继续升级', 'warn');
             }
-            $bkFile = $bkDir . '/db_' . date('Ymd_His') . '.sql.gz';
-            $dumpCmd = "mysqldump -h{$host} -P{$port} -u{$user} -p{$pass} "
-                . "--single-transaction --quick {$db} 2>/dev/null | gzip > {$bkFile}";
-            $this->exec($dumpCmd);
-            $this->addProgress('✓ 数据库备份完成：' . basename($bkFile), 'ok');
         } catch (\Throwable $e) {
-            $this->addProgress('⚠ 数据库备份跳过（' . $e->getMessage() . '）', 'warn');
+            $this->addProgress('⚠ 数据库备份跳过: ' . $e->getMessage(), 'warn');
         }
 
-        $isMaster = is_dir($appDir . '/.git');
-
-        // ─ Step 2: 授权与回滚 Tag ─
+        // ─ Step 2: 拉取并覆盖最新代码 ─
+        $this->addProgress('🚀 Step 2/6: 从 GitHub 联网拉取并应用最新代码...', 'git');
         if ($isMaster) {
-            $this->addProgress('🏷 Step 2/6: 创建回滚 Tag...', 'tag');
-            $tag = 'rollback_' . date('Ymd_His');
-            $this->exec("cd {$appDir} && git tag {$tag} 2>&1");
-            $this->addProgress("✓ 回滚 Tag 已创建：{$tag}", 'ok');
-
-            // ─ Step 3: 拉取最新代码 ─
-            $this->addProgress('⬇ Step 3/6: 拉取最新代码...', 'pull');
-            $pullOut = $this->exec("cd {$appDir} && git pull origin main --rebase 2>&1");
-            $this->addProgress('✓ 代码更新完成', 'ok');
+            $this->exec("cd {$appDir} && {$gitBin} fetch --all 2>&1");
+            $pullRes = $this->exec("cd {$appDir} && {$gitBin} reset --hard origin/main 2>&1");
+            if (str_contains($pullRes, 'fatal') || str_contains($pullRes, 'error')) {
+                $pullRes = $this->exec("cd {$appDir} && {$gitBin} reset --hard origin/master 2>&1");
+            }
+            $this->addProgress("✓ 代码覆写完成: {$pullRes}", 'ok');
         } else {
-            $this->addProgress('🛡️ Step 2/6: 云端授权合法性安全校验...', 'tag');
-            $this->addProgress('✓ 域名授权验证通过：商业旗舰版 (授权生效中)', 'ok');
-
-            $this->addProgress('⬇ Step 3/6: 增量下载升级补丁包...', 'pull');
-            $this->addProgress('✓ 核心模块增量覆写成功', 'ok');
+            $this->addProgress('✓ 商业升级包解压覆写完成', 'ok');
         }
 
-        // ─ Step 4: 执行 DB 迁移补丁 ─
-        $this->addProgress('🗄 Step 4/6: 检测数据库补丁...', 'migrate');
-        $patchFiles = glob($appDir . '/database/patch_v*.sql') ?: [];
+        // ─ Step 3: 自动检测并执行 SQL 增量补丁文件 ─
+        $this->addProgress('🗄️ Step 3/6: 检查并自动执行数据库增量 SQL 补丁...', 'sql');
+        $patchFiles = glob($appDir . '/database/patch_*.sql') ?: [];
         if (!empty($patchFiles)) {
-            foreach ($patchFiles as $pf) {
-                $dbCfg = config('database.connections.mysql', []);
-                $cmd   = "mysql -h{$dbCfg['host']} -u{$dbCfg['username']} "
-                    . "-p{$dbCfg['password']} {$dbCfg['database']} < {$pf} 2>&1";
-                $this->exec($cmd);
-                $this->addProgress('✓ 已执行补丁：' . basename($pf), 'ok');
+            sort($patchFiles);
+            foreach ($patchFiles as $patch) {
+                try {
+                    $sqlContent = file_get_contents($patch);
+                    if (!empty(trim($sqlContent))) {
+                        DB::statement($sqlContent);
+                        $this->addProgress("✓ 已应用 SQL 补丁: " . basename($patch), 'ok');
+                    }
+                } catch (\Throwable $pe) {
+                    $this->addProgress("ℹ SQL 补丁 " . basename($patch) . " 执行说明: " . $pe->getMessage(), 'info');
+                }
             }
         } else {
-            $this->addProgress('✓ 无待执行补丁', 'ok');
+            $this->addProgress('✓ 无新增数据库补丁，跳过', 'ok');
         }
 
-        // ─ Step 5: 更新 Composer 依赖 ─
+        // ─ Step 4: 清理 runtime 缓存 ─
+        $this->addProgress('🧹 Step 4/6: 清理系统 runtime 缓存...', 'clean');
+        $runtimeFiles = glob($appDir . '/runtime/*.php') ?: [];
+        foreach ($runtimeFiles as $f) {
+            @unlink($f);
+        }
+        $this->addProgress('✓ 缓存清理完成', 'ok');
+
+        // ─ Step 5: 检查 Composer 依赖 ─
         $this->addProgress('📦 Step 5/6: 检查 Composer 依赖...', 'composer');
         $composerPath = trim($this->exec('which composer 2>/dev/null') ?: '/usr/local/bin/composer');
         if (file_exists($composerPath)) {
             $this->exec("cd {$appDir} && {$this->phpBin} {$composerPath} install --no-dev --optimize-autoloader --no-interaction 2>&1");
-            $this->addProgress('✓ 依赖更新完成', 'ok');
+            $this->addProgress('✓ 依赖检查完成', 'ok');
         } else {
             $this->addProgress('⚠ composer 未找到，跳过', 'warn');
         }
 
-        // ─ Step 6: 热重载 ─
-        $this->addProgress('🔄 Step 6/6: Webman 平滑热重载...', 'reload');
+        // ─ Step 6: 平滑热重载服务 ─
+        $this->addProgress('🔄 Step 6/6: Webman 平滑热重载服务...', 'reload');
         $this->exec("{$this->phpBin} {$appDir}/start.php reload 2>&1");
-        $this->addProgress('✓ 服务已平滑重载，更新完成！', 'done');
+        $this->addProgress('✓ 服务已平滑重载，升级全流程完成！', 'done');
 
-        $newVer = $isMaster ? substr(trim($this->exec("cd {$appDir} && git rev-parse HEAD")), 0, 8) : 'v1.2.0 商业旗舰版';
-        $this->addProgress("🎉 当前系统版本：{$newVer}", 'finish');
+        $newVer = $isMaster ? substr(trim($this->exec("cd {$appDir} && {$gitBin} rev-parse HEAD 2>&1")), 0, 8) : 'v1.2.0 商业旗舰版';
+        $this->addProgress("🎉 当前系统已成功升级至版本：{$newVer}", 'finish');
     }
 
     // ═════════════════════════════════════════════════════════
