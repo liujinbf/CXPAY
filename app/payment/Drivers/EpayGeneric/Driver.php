@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace app\payment\Drivers\EpayGeneric;
 
 use app\payment\Contracts\PaymentDriverInterface;
+use support\Sign;
 
 /**
  * 易支付通用 MD5 协议驱动
@@ -22,10 +23,19 @@ class Driver implements PaymentDriverInterface
         ];
     }
 
+    /**
+     * 易支付标准 MD5 验签
+     * 上游回调须携带 sign 字段，使用与下单相同的 key 校验
+     */
     public function notify(array $params, array $config): array
     {
+        $key = $config['key'] ?? '';
+
+        // 使用统一 Sign 工具类做 MD5 验签
+        $verified = !empty($key) && Sign::verifySign($params, $key);
+
         return [
-            'success'      => true,
+            'success'      => $verified,
             'out_trade_no' => $params['out_trade_no'] ?? '',
             'trade_no'     => $params['trade_no'] ?? '',
             'amount'       => (float)($params['money'] ?? 0),
@@ -34,7 +44,7 @@ class Driver implements PaymentDriverInterface
 
     public function query(string $tradeNo, array $config): array
     {
-        return ['paid' => true];
+        return ['paid' => false];
     }
 
     public function getMeta(): array
@@ -45,8 +55,8 @@ class Driver implements PaymentDriverInterface
             'description' => '标准易支付 MD5 签名上游接入驱动',
             'inputs'      => [
                 ['name' => 'api_url', 'title' => '易支付 API 网址', 'type' => 'string', 'required' => true],
-                ['name' => 'pid', 'title' => '易支付 PID', 'type' => 'string', 'required' => true],
-                ['name' => 'key', 'title' => '易支付 KEY', 'type' => 'string', 'required' => true],
+                ['name' => 'pid',     'title' => '易支付 PID',      'type' => 'string', 'required' => true],
+                ['name' => 'key',     'title' => '易支付 KEY',      'type' => 'string', 'required' => true],
             ]
         ];
     }

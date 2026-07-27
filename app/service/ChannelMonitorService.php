@@ -65,4 +65,21 @@ class ChannelMonitorService
             'auto_offlined' => $autoOfflined,
         ];
     }
+    /**
+     * 每日凌晨重置通道当日统计（today_money / today_count）
+     *
+     * 修复：today_money 无自动重置机制，导致日限额检查在跨日后永久失效
+     * （通道被 PollService 永久过滤，新流量无法进入）
+     *
+     * 调用方式：在 config/process.php 中配置 WorkerMan Timer，每日 00:00 调用
+     *
+     * @return int 重置的通道数量
+     */
+    public function resetDailyStats(): int
+    {
+        return Channel::query()->update([
+            'today_money' => 0,
+            'today_count' => 0,
+        ]);
+    }
 }

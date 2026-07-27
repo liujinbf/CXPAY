@@ -41,11 +41,18 @@ class Sign
 
     /**
      * 构建发送给商户的异步/同步通知数据包 (金额严格保留 2 位小数 "1.00")
+     *
+     * 修复：原来 pid 字段错误传入 merchant_id（数字）
+     *        正确应该是商户的字符串 PID（即 cx_merchant.您的 pid 字段）
+     *
+     * @param array  $order       订单数组
+     * @param string $merchantPid 商户字符串 PID（如 '1000'）
+     * @param string $merchantKey 商户 MD5 密鑰
      */
-    public static function buildMerchantNotifyData(array $order, string $merchantKey): array
+    public static function buildMerchantNotifyData(array $order, string $merchantPid, string $merchantKey): array
     {
         $data = [
-            'pid'          => $order['merchant_id'],
+            'pid'          => $merchantPid,          // 修复：使用字符串 PID 而非数字 merchant_id
             'trade_no'     => $order['trade_no'],
             'out_trade_no' => $order['out_trade_no'],
             'type'         => $order['pay_type'],

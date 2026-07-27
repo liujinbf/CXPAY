@@ -23,10 +23,22 @@ class Driver implements PaymentDriverInterface
         ];
     }
 
+    /**
+     * QQ 钱包协议云端回调 token 验签
+     */
     public function notify(array $params, array $config): array
     {
+        $notifyToken   = $config['notify_token'] ?? '';
+        $receivedToken = $params['token'] ?? '';
+
+        if (!empty($notifyToken)) {
+            $verified = !empty($receivedToken) && hash_equals($notifyToken, $receivedToken);
+        } else {
+            $verified = !empty($params['out_trade_no']);
+        }
+
         return [
-            'success'      => true,
+            'success'      => $verified,
             'out_trade_no' => $params['out_trade_no'] ?? '',
             'trade_no'     => $params['trade_no'] ?? '',
             'amount'       => (float)($params['money'] ?? 0),
@@ -45,9 +57,10 @@ class Driver implements PaymentDriverInterface
             'title'       => 'QQ 钱包云端协议免挂 (扫码获取 Cookie/skey)',
             'description' => '后台扫码登录 QQ 钱包网页版自动换取 skey 令牌，后端协程轮询账单核销',
             'inputs'      => [
-                ['name' => 'uin', 'title' => 'QQ 账号 (UIN)', 'type' => 'string', 'required' => true],
-                ['name' => 'skey', 'title' => 'QQ 钱包 Session skey 令牌', 'type' => 'string', 'required' => true],
-                ['name' => 'qr_url', 'title' => '个人 QQ 钱包收款码解析链接', 'type' => 'textarea', 'required' => true],
+                ['name' => 'uin',          'title' => 'QQ 账号 (UIN)',                   'type' => 'string',   'required' => true],
+                ['name' => 'skey',         'title' => 'QQ 錢包 Session skey 令牌',      'type' => 'string',   'required' => true],
+                ['name' => 'qr_url',       'title' => '个人 QQ 錢包收款码解析链接',       'type' => 'textarea', 'required' => true],
+                ['name' => 'notify_token', 'title' => '云端回调鉴权 Token（可选）',            'type' => 'string',   'required' => false],
             ]
         ];
     }

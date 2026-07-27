@@ -58,12 +58,22 @@ class PaymentManager
 
     /**
      * 获取所有已发现/已注册驱动元数据列表
+     *
+     * 修复：原来用 $class::getMeta() 静态调用实例方法，PHP 8 严格模式下会产生 Deprecation
+     *        改为先 new $class() 实例化再调用实例方法
      */
     public static function getRegisteredDrivers(): array
     {
         $list = [];
         foreach (static::$drivers as $cType => $class) {
-            $list[$cType] = $class::getMeta();
+            try {
+                // 使用单例缓存（如果已实例化则复用）
+                $instance     = static::$instances[$cType] ?? new $class();
+                $list[$cType] = $instance->getMeta();
+            } catch (\Throwable $e) {
+                // 驱动报错不影响其他驱动列表
+                $list[$cType] = ['name' => $cType, 'title' => $cType . ' (load error)'];
+            }
         }
         return $list;
     }

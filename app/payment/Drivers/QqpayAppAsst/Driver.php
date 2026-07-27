@@ -22,13 +22,29 @@ class Driver implements PaymentDriverInterface
         ];
     }
 
+    /**
+     * QQ 錢包挂机助手回调验签
+     * 挂机 App 推送时须携带 device_id + sign（HMAC-SHA256(device_id + '|' + money, secret)）
+     */
     public function notify(array $params, array $config): array
     {
+        $secret   = $config['notify_secret'] ?? '';
+        $deviceId = $params['device_id'] ?? '';
+        $money    = $params['money'] ?? '';
+        $sign     = $params['sign'] ?? '';
+
+        if (!empty($secret) && !empty($sign)) {
+            $expected = hash_hmac('sha256', $deviceId . '|' . $money, $secret);
+            $verified = hash_equals($expected, strtolower($sign));
+        } else {
+            $verified = !empty($deviceId);
+        }
+
         return [
-            'success'      => true,
+            'success'      => $verified,
             'out_trade_no' => $params['out_trade_no'] ?? '',
             'trade_no'     => $params['trade_no'] ?? '',
-            'amount'       => (float)($params['money'] ?? 0),
+            'amount'       => (float)($money),
         ];
     }
 
@@ -44,7 +60,8 @@ class Driver implements PaymentDriverInterface
             'title'       => 'QQ 钱包个人收款码 (挂机助手)',
             'description' => '上传 QQ 钱包个人收款码，搭配安卓挂机 App 监听 QQ 到账通知免签到账',
             'inputs'      => [
-                ['name' => 'qr_url', 'title' => 'QQ 钱包个人收款码解析链接', 'type' => 'string', 'required' => true],
+                ['name' => 'qr_url',        'title' => 'QQ 錢包个人收款码解析链接',          'type' => 'string', 'required' => true],
+                ['name' => 'notify_secret',  'title' => '挂机 App 推送签名 Secret（可选）', 'type' => 'string', 'required' => false],
             ]
         ];
     }

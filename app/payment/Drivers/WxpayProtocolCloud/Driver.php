@@ -46,10 +46,25 @@ class Driver implements PaymentDriverInterface
         ];
     }
 
+    /**
+     * 协议云端回调 token 验签
+     * 云端服务推送时须携带 token 字段，与 config 中的 notify_token 比对
+     */
     public function notify(array $params, array $config): array
     {
+        $notifyToken = $config['notify_token'] ?? '';
+        $receivedToken = $params['token'] ?? '';
+
+        if (!empty($notifyToken)) {
+            // 配置了 token 时严格校验
+            $verified = !empty($receivedToken) && hash_equals($notifyToken, $receivedToken);
+        } else {
+            // 无 token 配置时：校验必要字段存在
+            $verified = !empty($params['out_trade_no']);
+        }
+
         return [
-            'success'      => true,
+            'success'      => $verified,
             'out_trade_no' => $params['out_trade_no'] ?? '',
             'trade_no'     => $params['trade_no'] ?? '',
             'amount'       => (float)($params['money'] ?? 0),
@@ -68,10 +83,11 @@ class Driver implements PaymentDriverInterface
             'title'       => '微信协议云端 (小账本 / 收款单免挂 · 带多租户 IP 隔离)',
             'description' => '官方微信小账本/收款单云端协议免挂，内置住宅代理 IP 与客户端指纹防连坐隔离',
             'inputs'      => [
-                ['name' => 'openid', 'title' => '微信 OpenID / UIN', 'type' => 'string', 'required' => true],
-                ['name' => 'app_type', 'title' => '模式 (book 小账本 / recpt 收款单)', 'type' => 'string', 'required' => true],
-                ['name' => 'sid', 'title' => '会话 Session SID 令牌', 'type' => 'string', 'required' => true],
-                ['name' => 'proxy_ip', 'title' => '独立住宅代理 IP (留空使用系统代理池)', 'type' => 'string'],
+                ['name' => 'openid',       'title' => '微信 OpenID / UIN',                  'type' => 'string', 'required' => true],
+                ['name' => 'app_type',      'title' => '模式 (book 小账本 / recpt 收款单)',   'type' => 'string', 'required' => true],
+                ['name' => 'sid',           'title' => '会话 Session SID 令牌',              'type' => 'string', 'required' => true],
+                ['name' => 'proxy_ip',      'title' => '独立住宅代理 IP (留空使用系统代理池)', 'type' => 'string'],
+                ['name' => 'notify_token',  'title' => '云端回调鉴权 Token（可选）',          'type' => 'string', 'required' => false],
             ]
         ];
     }

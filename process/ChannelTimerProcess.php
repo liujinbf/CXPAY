@@ -1,0 +1,57 @@
+<?php
+
+declare(strict_types=1);
+
+namespace process;
+
+use app\service\ChannelMonitorService;
+use app\service\MerchantNotifyService;
+use Workerman\Timer;
+
+/**
+ * 通道定时维护进程
+ */
+class ChannelTimerProcess
+{
+    protected ChannelMonitorService $monitorService;
+    protected MerchantNotifyService $notifyService;
+
+    public function onWorkerStart(): void
+    {
+        $this->monitorService = new ChannelMonitorService();
+        $this->notifyService  = new MerchantNotifyService();
+
+        Timer::add(30, function () {
+            try {
+                $this->monitorService->checkExpiredOrders();
+            } catch (\Throwable $e) {
+                error_log('[ChannelTimer] checkExpiredOrders: ' . $e->getMessage());
+            }
+        });
+
+        Timer::add(60, function () {
+            try {
+                $this->notifyService->processRetryQueue();
+            } catch (\Throwable $e) {
+                error_log('[ChannelTimer] processRetryQueue: ' . $e->getMessage());
+            }
+        });
+
+        $this->scheduleDailyReset();
+    }
+
+    private function scheduleDailyReset(): void
+    {
+        $now  = time();
+        $next = mktime(0, 0, 0, (int)date('m', $now), (int)date('d', $now) + 1, (int)date('Y', $now));
+        Timer::add($next - $now, function () {
+            try {
+                $c = $this->monitorService->resetDailyStats();
+                error_log('[ChannelTimer] Daily stats reset, affected: ' . $c);
+            } catch (\Throwable $e) {
+                error_log('[ChannelTimer] resetDailyStats: ' . $e->getMessage());
+            }
+            $this->scheduleDailyReset();
+        }, null, false);
+    }
+}

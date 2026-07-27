@@ -22,10 +22,23 @@ class Driver implements PaymentDriverInterface
         ];
     }
 
+    /**
+     * 支付宝扫码免挂回调 token 验签
+     * 得到账单后云端推送时须携带 token 字段
+     */
     public function notify(array $params, array $config): array
     {
+        $notifyToken   = $config['notify_token'] ?? '';
+        $receivedToken = $params['token'] ?? '';
+
+        if (!empty($notifyToken)) {
+            $verified = !empty($receivedToken) && hash_equals($notifyToken, $receivedToken);
+        } else {
+            $verified = !empty($params['out_trade_no']);
+        }
+
         return [
-            'success'      => true,
+            'success'      => $verified,
             'out_trade_no' => $params['out_trade_no'] ?? '',
             'trade_no'     => $params['trade_no'] ?? '',
             'amount'       => (float)($params['money'] ?? 0),
@@ -44,8 +57,9 @@ class Driver implements PaymentDriverInterface
             'title'       => '支付宝扫码免挂 (alipay_scan_bill)',
             'description' => '扫码登录支付宝网页版获取 Cookie 自动监控最新账单到账',
             'inputs'      => [
-                ['name' => 'cookie', 'title' => '支付宝网页版登录 Cookie (Base64)', 'type' => 'textarea', 'required' => true],
-                ['name' => 'qr_url', 'title' => '个人支付宝收款码解析链接', 'type' => 'string', 'required' => true],
+                ['name' => 'cookie',        'title' => '支付宝网页版登录 Cookie (Base64)', 'type' => 'textarea', 'required' => true],
+                ['name' => 'qr_url',        'title' => '个人支付宝收款码解析链接',          'type' => 'string',   'required' => true],
+                ['name' => 'notify_token',  'title' => '云端回调鉴权 Token（可选）',              'type' => 'string',   'required' => false],
             ]
         ];
     }
