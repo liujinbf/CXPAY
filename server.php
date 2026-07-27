@@ -54,6 +54,28 @@ if ($uriPath === '/install' || $uriPath === '/install/' || $uriPath === '/instal
         echo file_get_contents($installFile);
         exit;
     }
+// 0.95 一键安装向导后端 API (/api/install/*)
+if (str_starts_with($uriPath, '/api/install/')) {
+    header('Content-Type: application/json; charset=utf-8');
+    $ctrl = new \app\controller\api\InstallController();
+    $req = new class($uriPath) {
+        private $path;
+        public function __construct($p) { $this->path = $p; }
+        public function get($k = null) { return $k ? ($_GET[$k] ?? null) : $_GET; }
+        public function post($k = null) { return $k ? ($_POST[$k] ?? null) : $_POST; }
+        public function path() { return $this->path; }
+    };
+
+    if (str_contains($uriPath, 'check')) {
+        $res = $ctrl->check($req);
+    } elseif (str_contains($uriPath, 'test_db')) {
+        $res = $ctrl->testDb($req);
+    } else {
+        $res = $ctrl->execute($req);
+    }
+
+    echo is_object($res) && method_exists($res, 'rawBody') ? $res->rawBody() : (string)$res;
+    exit;
 }
 
 // 1. 商户开放 API 文档映射 (/doc /doc.html)

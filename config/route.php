@@ -7,7 +7,9 @@ Route::get('/install', function () {
     $content = file_get_contents(base_path() . '/public/install/index.html');
     return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
 });
-Route::post('/api/install/execute', [app\controller\api\InstallController::class, 'execute']);
+Route::any('/api/install/check', [app\controller\api\InstallController::class, 'check']);
+Route::any('/api/install/test_db', [app\controller\api\InstallController::class, 'testDb']);
+Route::any('/api/install/execute', [app\controller\api\InstallController::class, 'execute']);
 
 // 商户开放 API 开发对接文档
 Route::get('/doc', function () {

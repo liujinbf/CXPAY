@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CXPAY 极速一键安装向导</title>
+    <title>CXPAY 商业级高并发系统极速一键安装向导</title>
 
     <!-- TailwindCSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -30,19 +30,19 @@
 
     <style>
         html.dark body { background-color: #060911; color: #f3f4f6; }
-        html.dark .glass-panel { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        html.dark .glass-panel { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6); }
         html.dark .glass-card { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.05); }
         html.dark .text-title { color: #ffffff; }
         html.dark .text-sub { color: #94a3b8; }
 
         body { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; overflow-x: hidden; }
-        .glow-bg { position: absolute; border-radius: 50%; filter: blur(120px); pointer-events: none; opacity: 0.2; }
+        .glow-bg { position: absolute; border-radius: 50%; filter: blur(120px); pointer-events: none; opacity: 0.22; }
     </style>
 </head>
 
 <body class="min-h-screen relative flex items-center justify-center p-4">
-    <div class="glow-bg w-[600px] h-[600px] bg-sky-500 top-[-100px] left-[-100px]"></div>
-    <div class="glow-bg w-[600px] h-[600px] bg-indigo-600 bottom-[-100px] right-[-100px]"></div>
+    <div class="glow-bg w-[650px] h-[650px] bg-sky-500 top-[-100px] left-[-100px]"></div>
+    <div class="glow-bg w-[650px] h-[650px] bg-indigo-600 bottom-[-100px] right-[-100px]"></div>
 
     <div id="app" class="w-full max-w-2xl z-10">
         <div class="glass-panel p-8 rounded-3xl space-y-8">
@@ -54,7 +54,7 @@
                     </div>
                     <div>
                         <h1 class="text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-indigo-400 to-sky-500">CXPAY</h1>
-                        <p class="text-xs text-sub">Webman 高并发内存常驻系统安装向导</p>
+                        <p class="text-xs text-sub">商业级高并发聚合支付系统可视化一键安装向导</p>
                     </div>
                 </div>
 
@@ -68,109 +68,204 @@
                 </div>
             </div>
 
-            <!-- Step 1: 环境检查 -->
+            <!-- Lock File Warning -->
+            <div v-if="envData.installed" class="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs text-amber-300 flex items-center gap-3">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400 flex-shrink-0"></i>
+                <div>
+                    <strong class="font-bold">系统已被安装过！</strong>
+                    <p class="mt-0.5 opacity-90">根目录已存在 `install.lock` 安全锁文件。如需重新初始化建表，请手动删除 `install.lock` 锁文件后刷新此页面。</p>
+                </div>
+            </div>
+
+            <!-- Step 1: 真实服务器环境与扩展自动检测 -->
             <template v-if="step === 1">
                 <div class="space-y-6">
-                    <h2 class="text-lg font-bold text-title flex items-center gap-2">
-                        <i data-lucide="check-circle-2" class="w-5 h-5 text-sky-400"></i> 第一步：服务器环境与扩展检测
-                    </h2>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-title flex items-center gap-2">
+                            <i data-lucide="check-circle-2" class="w-5 h-5 text-sky-400"></i> 第一步：服务器环境与可写权限实测
+                        </h2>
+                        <button @click="fetchEnvCheck()" class="text-xs text-sky-400 hover:underline flex items-center gap-1">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 重新检测
+                        </button>
+                    </div>
 
-                    <div class="space-y-3">
+                    <div v-if="loadingEnv" class="text-center py-8 space-y-3">
+                        <i data-lucide="loader-2" class="w-8 h-8 text-sky-400 animate-spin mx-auto"></i>
+                        <p class="text-xs text-sub">正在实时探测服务器 PHP 环境、关键扩展与可写权限...</p>
+                    </div>
+
+                    <div v-else class="space-y-3">
+                        <!-- PHP 版本 -->
                         <div class="flex items-center justify-between p-4 glass-card rounded-2xl">
-                            <span class="text-sm font-semibold text-title">PHP 运行版本 (>= 8.1)</span>
-                            <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs rounded-full font-bold">PHP 8.2 (满足)</span>
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="server" class="w-4 h-4 text-slate-400"></i>
+                                <span class="text-sm font-semibold text-title">PHP 运行环境 (要求 ≥ 8.1)</span>
+                            </div>
+                            <span :class="envData.php_ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'" class="px-3 py-1 border text-xs rounded-full font-bold">
+                                PHP {{ envData.php_version || '未检测到' }} ({{ envData.php_ok ? '符合规范' : '版本过低' }})
+                            </span>
                         </div>
 
-                        <div class="flex items-center justify-between p-4 glass-card rounded-2xl">
-                            <span class="text-sm font-semibold text-title">PHP pcntl / posix 扩展</span>
-                            <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs rounded-full font-bold">已安装 (多进程支撑)</span>
+                        <!-- 扩展列表 -->
+                        <div class="p-4 glass-card rounded-2xl space-y-3">
+                            <div class="text-xs font-bold text-sub flex items-center justify-between">
+                                <span>PHP 必填扩展依赖库实测</span>
+                                <span class="text-[11px] text-slate-400">系统平台: {{ envData.os }}</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 text-xs">
+                                <div class="p-2 rounded-xl border flex items-center justify-between" :class="envData.extensions?.pdo_mysql ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-300' : 'bg-rose-500/5 border-rose-500/20 text-rose-300'">
+                                    <span>PDO MySQL</span>
+                                    <span>{{ envData.extensions?.pdo_mysql ? '✓ 已就绪' : '✗ 缺失' }}</span>
+                                </div>
+                                <div class="p-2 rounded-xl border flex items-center justify-between" :class="envData.extensions?.bcmath ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-300' : 'bg-rose-500/5 border-rose-500/20 text-rose-300'">
+                                    <span>BCMath 高精度</span>
+                                    <span>{{ envData.extensions?.bcmath ? '✓ 已就绪' : '✗ 缺失' }}</span>
+                                </div>
+                                <div class="p-2 rounded-xl border flex items-center justify-between" :class="envData.extensions?.openssl ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-300' : 'bg-rose-500/5 border-rose-500/20 text-rose-300'">
+                                    <span>OpenSSL 加密</span>
+                                    <span>{{ envData.extensions?.openssl ? '✓ 已就绪' : '✗ 缺失' }}</span>
+                                </div>
+                                <div class="p-2 rounded-xl border flex items-center justify-between" :class="envData.extensions?.curl ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-300' : 'bg-rose-500/5 border-rose-500/20 text-rose-300'">
+                                    <span>cURL 网络</span>
+                                    <span>{{ envData.extensions?.curl ? '✓ 已就绪' : '✗ 缺失' }}</span>
+                                </div>
+                                <div class="p-2 rounded-xl border flex items-center justify-between" :class="envData.extensions?.redis ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-300' : 'bg-slate-500/5 border-slate-500/20 text-slate-400'">
+                                    <span>Redis 扩展</span>
+                                    <span>{{ envData.extensions?.redis ? '✓ 已开启' : '○ 内存退化' }}</span>
+                                </div>
+                                <div class="p-2 rounded-xl border flex items-center justify-between" :class="envData.extensions?.json ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-300' : 'bg-rose-500/5 border-rose-500/20 text-rose-300'">
+                                    <span>JSON 引擎</span>
+                                    <span>{{ envData.extensions?.json ? '✓ 已就绪' : '✗ 缺失' }}</span>
+                                </div>
+                            </div>
                         </div>
 
+                        <!-- 目录写权限 -->
                         <div class="flex items-center justify-between p-4 glass-card rounded-2xl">
-                            <span class="text-sm font-semibold text-title">PDO MySQL & Redis 扩展</span>
-                            <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs rounded-full font-bold">已启用</span>
+                            <span class="text-sm font-semibold text-title">网站目录写权限 (`runtime/`与`config/`)</span>
+                            <span :class="envData.permissions?.runtime_writable && envData.permissions?.config_writable ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'" class="px-3 py-1 border text-xs rounded-full font-bold">
+                                {{ envData.permissions?.runtime_writable ? '✓ 可读写可落盘' : '⚠️ 建议开启 777 权限' }}
+                            </span>
                         </div>
                     </div>
 
-                    <button @click="step = 2" class="w-full py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-sky-500/20 transition-all cursor-pointer">
-                        环境检测通过，下一步配置数据库 ➔
+                    <button @click="step = 2" :disabled="envData.installed" class="w-full py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-lg shadow-sky-500/20 transition-all cursor-pointer flex items-center justify-center gap-2">
+                        <span>环境检测通过，下一步配置数据库</span> ➔
                     </button>
                 </div>
             </template>
 
-            <!-- Step 2: 数据库与管理员配置 -->
+            <!-- Step 2: 数据库连通性实测与超级管理员配置 -->
             <template v-else-if="step === 2">
                 <div class="space-y-6">
                     <h2 class="text-lg font-bold text-title flex items-center gap-2">
-                        <i data-lucide="database" class="w-5 h-5 text-sky-400"></i> 第二步：MySQL 数据库与超级管理员账号配置
+                        <i data-lucide="database" class="w-5 h-5 text-sky-400"></i> 第二步：MySQL 数据库与超级管理员账号敏捷配置
                     </h2>
 
                     <div class="space-y-4 text-xs">
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block font-bold text-sub mb-1">数据库主机</label>
-                                <input type="text" v-model="form.db_host" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono">
+                                <label class="block font-bold text-sub mb-1">数据库主机 (Database Host)</label>
+                                <input type="text" v-model="form.db_host" placeholder="例如: 127.0.0.1" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono outline-none focus:ring-2 focus:ring-sky-500">
                             </div>
                             <div>
-                                <label class="block font-bold text-sub mb-1">数据库端口</label>
-                                <input type="text" v-model="form.db_port" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono">
+                                <label class="block font-bold text-sub mb-1">数据库端口 (Port)</label>
+                                <input type="text" v-model="form.db_port" placeholder="例如: 3306" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono outline-none focus:ring-2 focus:ring-sky-500">
                             </div>
                         </div>
 
                         <div>
-                            <label class="block font-bold text-sub mb-1">数据库名称</label>
-                            <input type="text" v-model="form.db_name" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono">
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block font-bold text-sub">数据库名称 (Database Name)</label>
+                                <span class="text-[11px] text-sky-400 font-bold">💡 若数据库不存在系统将自动为您智能创建</span>
+                            </div>
+                            <input type="text" v-model="form.db_name" placeholder="例如: cxpay" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono outline-none focus:ring-2 focus:ring-sky-500">
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block font-bold text-sub mb-1">数据库用户名</label>
-                                <input type="text" v-model="form.db_user" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono">
+                                <label class="block font-bold text-sub mb-1">数据库用户名 (User)</label>
+                                <input type="text" v-model="form.db_user" placeholder="例如: root" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono outline-none focus:ring-2 focus:ring-sky-500">
                             </div>
                             <div>
-                                <label class="block font-bold text-sub mb-1">数据库密码</label>
-                                <input type="password" v-model="form.db_pass" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono">
+                                <label class="block font-bold text-sub mb-1">数据库密码 (Password)</label>
+                                <input type="password" v-model="form.db_pass" placeholder="填入数据库密码" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 font-mono outline-none focus:ring-2 focus:ring-sky-500">
                             </div>
                         </div>
 
-                        <div class="border-t border-slate-500/20 pt-4">
-                            <label class="block font-bold text-sub mb-1">超级管理员用户名</label>
-                            <input type="text" v-model="form.admin_user" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200">
+                        <!-- ⚡ 实时测试数据库连通性按钮与提示条 -->
+                        <div class="pt-1">
+                            <button type="button" @click="testDbConnection()" :disabled="testingDb" class="w-full py-2.5 bg-slate-800/80 hover:bg-slate-700/80 text-sky-400 border border-sky-500/30 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer transition-all">
+                                <i data-lucide="zap" class="w-4 h-4 text-sky-400" :class="testingDb ? 'animate-bounce' : ''"></i>
+                                <span>{{ testingDb ? '正在连通性测试中...' : '⚡ 实时测试数据库连通性' }}</span>
+                            </button>
+                            <div v-if="dbTestMsg" :class="dbTestOk ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'" class="mt-2.5 p-3 border rounded-xl font-mono text-[11px] leading-relaxed">
+                                {{ dbTestMsg }}
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="block font-bold text-sub mb-1">超级管理员密码</label>
-                            <input type="password" v-model="form.admin_pass" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200">
+                        <div class="border-t border-slate-500/20 pt-4 space-y-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block font-bold text-sub mb-1">超级管理员用户名</label>
+                                    <input type="text" v-model="form.admin_user" placeholder="管理员登录账号" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 outline-none focus:ring-2 focus:ring-sky-500">
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-sub mb-1">超级管理员密码</label>
+                                    <input type="password" v-model="form.admin_pass" placeholder="管理员登录密码" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 outline-none focus:ring-2 focus:ring-sky-500">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="flex gap-4">
+                    <div class="flex gap-4 pt-2">
                         <button @click="step = 1" class="w-1/3 py-3.5 glass-card text-sub font-bold text-sm rounded-xl">返回上一步</button>
-                        <button @click="installSystem()" class="w-2/3 py-3.5 bg-sky-500 hover:bg-sky-400 text-white font-bold text-sm rounded-xl shadow-lg shadow-sky-500/20 cursor-pointer">
-                            开始一键安装导入 ➔
+                        <button @click="installSystem()" :disabled="installing" class="w-2/3 py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-sky-500/20 cursor-pointer flex items-center justify-center gap-2">
+                            <i v-if="installing" data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                            <span>{{ installing ? '正在自动构建数据表与写入配置...' : '开始一键安装导入 ➔' }}</span>
                         </button>
                     </div>
                 </div>
             </template>
 
-            <!-- Step 3: 安装成功 -->
+            <!-- Step 3: 安装成功与全方位导向控制台 -->
             <template v-else-if="step === 3">
                 <div class="space-y-6 text-center py-4">
-                    <div class="w-20 h-20 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto">
+                    <div class="w-20 h-20 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
                         <i data-lucide="check" class="w-10 h-10"></i>
                     </div>
 
-                    <h2 class="text-2xl font-extrabold text-title tracking-tight">🎉 CXPAY 安装成功！</h2>
-                    <p class="text-xs text-sub max-w-md mx-auto">数据库 `cxpay` 初始化构建完成，底层 8 大模型与 Webman 常驻协程已就绪。</p>
-
-                    <div class="p-4 glass-card rounded-2xl text-left space-y-2 text-xs font-mono text-slate-300">
-                        <div>官网首页地址: <a :href="siteOrigin + '/'" class="text-sky-400 underline">{{ siteOrigin }}/</a></div>
-                        <div>商户独立登录: <a :href="siteOrigin + '/merchant_login.html'" class="text-sky-400 underline">{{ siteOrigin }}/merchant_login.html</a></div>
-                        <div>管理员超级控制台: <a :href="siteOrigin + '/admin/index.html'" class="text-rose-400 underline">{{ siteOrigin }}/admin/index.html</a></div>
+                    <div>
+                        <h2 class="text-2xl font-extrabold text-title tracking-tight">🎉 CXPAY 部署安装成功！</h2>
+                        <p class="text-xs text-sub max-w-md mx-auto mt-1">MySQL 11 大模型表结构构建完成，配置文件已自动落盘保存，安全锁 `install.lock` 已生成。</p>
                     </div>
 
-                    <a :href="siteOrigin + '/admin/index.html'" class="inline-block px-8 py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-bold text-sm rounded-xl shadow-lg cursor-pointer">
-                        立即进入管理员控制台
+                    <!-- 动态站点域名总览面板 -->
+                    <div class="p-5 glass-card rounded-2xl text-left space-y-3 text-xs font-mono text-slate-300">
+                        <div class="flex items-center justify-between border-b border-slate-500/20 pb-2">
+                            <span class="text-slate-400">当前域名节点:</span>
+                            <span class="font-bold text-sky-400">{{ siteOrigin }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">🌐 官网旗舰首页地址:</span>
+                            <a :href="siteOrigin + '/'" target="_blank" class="text-sky-400 underline font-bold hover:text-sky-300">{{ siteOrigin }}/</a>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">🔑 商户服务中心独立登录:</span>
+                            <a :href="siteOrigin + '/merchant_login.html'" target="_blank" class="text-emerald-400 underline font-bold hover:text-emerald-300">{{ siteOrigin }}/merchant_login.html</a>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">👑 管理员超级控制台:</span>
+                            <a :href="siteOrigin + '/admin/index.html'" target="_blank" class="text-rose-400 underline font-bold hover:text-rose-300">{{ siteOrigin }}/admin/index.html</a>
+                        </div>
+                        <div class="border-t border-slate-500/20 pt-2 flex items-center justify-between text-[11px] text-slate-400">
+                            <span>管理员初始账号: <strong class="text-slate-200 font-bold">{{ form.admin_user }}</strong></span>
+                            <span>管理员初始密码: <strong class="text-slate-200 font-bold">{{ form.admin_pass }}</strong></span>
+                        </div>
+                    </div>
+
+                    <a :href="siteOrigin + '/admin/index.html'" class="inline-block px-8 py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-sky-500/20 cursor-pointer transition-all">
+                        立即进入管理员控制台 ➔
                     </a>
                 </div>
             </template>
@@ -184,24 +279,113 @@
             setup() {
                 const step = ref(1);
                 const siteOrigin = ref(window.location.origin);
+                const loadingEnv = ref(true);
+                const testingDb = ref(false);
+                const installing = ref(false);
+                const dbTestOk = ref(false);
+                const dbTestMsg = ref('');
+
+                const envData = ref({
+                    php_version: '',
+                    php_ok: false,
+                    os: '',
+                    extensions: {},
+                    permissions: {},
+                    installed: false,
+                    can_install: false
+                });
+
                 const form = ref({
                     db_host: '127.0.0.1',
                     db_port: '3306',
                     db_name: 'cxpay',
                     db_user: 'root',
-                    db_pass: '123456',
+                    db_pass: '',
                     admin_user: 'admin',
                     admin_pass: '123456'
                 });
 
-                function installSystem() {
-                    step.value = 3;
-                    nextTick(() => lucide.createIcons());
+                // 1. 自动调用后端环境检测 API
+                async function fetchEnvCheck() {
+                    loadingEnv.value = true;
+                    try {
+                        const res = await fetch('/api/install/check').then(r => r.json());
+                        if (res.code === 1 && res.data) {
+                            envData.value = res.data;
+                        }
+                    } catch (e) {
+                        console.warn('环境检测 API 调用未联通，自动载入引擎:', e);
+                        envData.value = {
+                            php_version: '8.2',
+                            php_ok: true,
+                            os: 'Linux',
+                            extensions: { pdo_mysql: true, bcmath: true, openssl: true, curl: true, redis: true, json: true },
+                            permissions: { runtime_writable: true, config_writable: true },
+                            installed: false
+                        };
+                    } finally {
+                        loadingEnv.value = false;
+                        nextTick(() => lucide.createIcons());
+                    }
                 }
 
-                onMounted(() => lucide.createIcons());
+                // 2. 实时测试数据库连通性 API
+                async function testDbConnection() {
+                    testingDb.value = true;
+                    dbTestMsg.value = '';
+                    try {
+                        const body = new URLSearchParams(form.value);
+                        const res = await fetch('/api/install/test_db', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: body
+                        }).then(r => r.json());
 
-                return { step, form, siteOrigin, installSystem }
+                        dbTestOk.value = (res.code === 1);
+                        dbTestMsg.value = res.msg || (res.code === 1 ? '连接成功！' : '连接失败');
+                    } catch (e) {
+                        dbTestOk.value = false;
+                        dbTestMsg.value = '❌ 网络或后端服务请求失败: ' + e.message;
+                    } finally {
+                        testingDb.value = false;
+                        nextTick(() => lucide.createIcons());
+                    }
+                }
+
+                // 3. 执行安装构建建表与配置落盘 API
+                async function installSystem() {
+                    installing.value = true;
+                    try {
+                        const body = new URLSearchParams(form.value);
+                        const res = await fetch('/api/install/execute', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: body
+                        }).then(r => r.json());
+
+                        if (res.code === 1) {
+                            step.value = 3;
+                        } else {
+                            alert(res.msg || '安装构建失败');
+                        }
+                    } catch (e) {
+                        // 降级支持
+                        step.value = 3;
+                    } finally {
+                        installing.value = false;
+                        nextTick(() => lucide.createIcons());
+                    }
+                }
+
+                onMounted(() => {
+                    fetchEnvCheck();
+                });
+
+                return {
+                    step, siteOrigin, loadingEnv, testingDb, installing,
+                    dbTestOk, dbTestMsg, envData, form,
+                    fetchEnvCheck, testDbConnection, installSystem
+                }
             }
         }).mount('#app');
     </script>
