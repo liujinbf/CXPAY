@@ -6,12 +6,23 @@ namespace app\controller;
 
 if (!function_exists('app\controller\response')) {
     function response($body = '', $status = 200, $headers = []) {
-        return new class($body) {
+        return new class($body, $status, $headers) {
             private $body;
-            public function __construct($b) { $this->body = $b; }
+            private $status;
+            private $headers;
+            public function __construct($b, $s = 200, $h = []) { $this->body = $b; $this->status = $s; $this->headers = $h; }
             public function rawBody() { return $this->body; }
-            public function __toString() { return $this->body; }
+            public function __toString() { return (string)$this->body; }
         };
+    }
+}
+
+if (!function_exists('app\controller\redirect')) {
+    function redirect($url, $status = 302) {
+        if (!headers_sent()) {
+            header("Location: {$url}", true, $status);
+        }
+        return response("<script>location.href='{$url}';</script>", $status, ['Location' => $url]);
     }
 }
 
