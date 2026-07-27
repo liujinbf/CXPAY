@@ -57,7 +57,8 @@ class InstallController
             'db_config_writable' => !file_exists($dbConfigFile) ? is_writable($configDir) : is_writable($dbConfigFile),
         ];
 
-        $allPermsOk = $perms['runtime_writable'] && $perms['config_writable'] && $perms['env_writable'];
+        // 只要 runtime 目录和 env 配置可写，即可支持一键安装与落盘
+        $allPermsOk = $perms['runtime_writable'] && $perms['env_writable'];
         $installed  = file_exists($lockFile);
 
         return json([
