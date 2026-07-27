@@ -234,44 +234,53 @@
                 </div>
             </template>
 
-            <!-- Step 3: 安装成功与全方位导向控制台 -->
+            <!-- Step 3: 平台总控部署成功与管理员控制台入口 -->
             <template v-else-if="step === 3">
                 <div class="space-y-6 text-center py-4">
                     <div class="w-20 h-20 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
-                        <i data-lucide="check" class="w-10 h-10"></i>
+                        <i data-lucide="shield-check" class="w-10 h-10"></i>
                     </div>
 
                     <div>
-                        <h2 class="text-2xl font-extrabold text-title tracking-tight">🎉 CXPAY 部署安装成功！</h2>
-                        <p class="text-xs text-sub max-w-md mx-auto mt-1">MySQL 11 大模型表结构构建完成，配置文件已自动落盘保存，安全锁 `install.lock` 已生成。</p>
+                        <h2 class="text-2xl font-extrabold text-title tracking-tight">🎉 CXPAY 平台总控端部署成功！</h2>
+                        <p class="text-xs text-sub max-w-md mx-auto mt-1">总控核心架构、权限体系与数据表初始化完成，安全锁 `install.lock` 已自动落盘生效。</p>
                     </div>
 
-                    <!-- 动态站点域名总览面板 -->
+                    <!-- 平台总控端核心入口面板 -->
                     <div class="p-5 glass-card rounded-2xl text-left space-y-3 text-xs font-mono text-slate-300">
                         <div class="flex items-center justify-between border-b border-slate-500/20 pb-2">
-                            <span class="text-slate-400">当前域名节点:</span>
+                            <span class="text-slate-400">当前总控节点:</span>
                             <span class="font-bold text-sky-400">{{ siteOrigin }}</span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-slate-400">🌐 官网旗舰首页地址:</span>
-                            <a :href="siteOrigin + '/'" target="_blank" class="text-sky-400 underline font-bold hover:text-sky-300">{{ siteOrigin }}/</a>
+                            <span class="text-slate-400">👑 平台总控超级管理后台:</span>
+                            <a :href="siteOrigin + '/admin_login.html'" target="_blank" class="text-rose-400 underline font-bold hover:text-rose-300">{{ siteOrigin }}/admin_login.html</a>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-slate-400">🔑 商户服务中心独立登录:</span>
-                            <a :href="siteOrigin + '/merchant_login.html'" target="_blank" class="text-emerald-400 underline font-bold hover:text-emerald-300">{{ siteOrigin }}/merchant_login.html</a>
+                            <span class="text-slate-400">⚡ 云端授权与代理开通中心:</span>
+                            <a :href="siteOrigin + '/cloud'" target="_blank" class="text-sky-400 underline font-bold hover:text-sky-300">{{ siteOrigin }}/cloud</a>
                         </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-400">👑 管理员超级控制台:</span>
-                            <a :href="siteOrigin + '/admin/index.html'" target="_blank" class="text-rose-400 underline font-bold hover:text-rose-300">{{ siteOrigin }}/admin/index.html</a>
+
+                        <!-- 账号信息防护 -->
+                        <div class="border-t border-b border-slate-500/20 py-2.5 my-2 space-y-1 bg-slate-900/40 p-3 rounded-xl">
+                            <div class="text-[11px] text-amber-400 font-bold flex items-center gap-1 mb-1">
+                                <i data-lucide="key" class="w-3.5 h-3.5"></i> 超级管理员初始化凭据:
+                            </div>
+                            <div class="flex justify-between text-[11px]">
+                                <span class="text-slate-400">管理员账号: <strong class="text-slate-100 font-bold">{{ form.admin_user }}</strong></span>
+                                <span class="text-slate-400">管理员密码: <strong class="text-slate-100 font-bold">{{ form.admin_pass }}</strong></span>
+                            </div>
                         </div>
-                        <div class="border-t border-slate-500/20 pt-2 flex items-center justify-between text-[11px] text-slate-400">
-                            <span>管理员初始账号: <strong class="text-slate-200 font-bold">{{ form.admin_user }}</strong></span>
-                            <span>管理员初始密码: <strong class="text-slate-200 font-bold">{{ form.admin_pass }}</strong></span>
+
+                        <!-- 下游商户架构说明 -->
+                        <div class="pt-1 text-[11px] text-slate-400 leading-relaxed">
+                            <span class="text-emerald-400 font-bold">💡 下游商户体系说明：</span>
+                            商户端属于下游独立业务，商户通过注册或总控开户后在 <code>/merchant_login.html</code> 自由登录使用，与总控管理互相隔离。
                         </div>
                     </div>
 
-                    <a :href="siteOrigin + '/admin/index.html'" class="inline-block px-8 py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-sky-500/20 cursor-pointer transition-all">
-                        立即进入管理员控制台 ➔
+                    <a :href="siteOrigin + '/admin_login.html'" class="inline-block px-8 py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-sky-500/20 cursor-pointer transition-all">
+                        立即登录总控管理后台 ➔
                     </a>
                 </div>
             </template>
