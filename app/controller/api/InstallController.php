@@ -21,7 +21,7 @@ class InstallController
     /**
      * 1. 实时服务器环境与可写权限检测 API
      */
-    public function check(object $request): Response
+    public function check(object $request)
     {
         $baseDir    = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
         $runtimeDir = rtrim($baseDir, '/\\') . '/runtime';
@@ -81,7 +81,7 @@ class InstallController
     /**
      * 2. 数据库连接实时测试与数据库预创建 API
      */
-    public function testDb(object $request): Response
+    public function testDb(object $request)
     {
         // 开启输出缓冲区防护，屏蔽底层任何可能的 HTML/Warning 污染
         if (ob_get_level() === 0) {
@@ -126,11 +126,15 @@ class InstallController
         try {
             // 先不指定数据库名连接 MySQL 实例
             $dsn = "mysql:host={$dbHost};port={$dbPort};charset=utf8mb4";
-            $pdo = new PDO($dsn, $dbUser, $dbPass, [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_TIMEOUT            => 5,
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
-            ]);
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_TIMEOUT => 5,
+            ];
+            if (defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
+                $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES utf8mb4";
+            }
+            $pdo = new PDO($dsn, $dbUser, $dbPass, $options);
+            @$pdo->exec("SET NAMES utf8mb4");
 
             // 获取 MySQL 版本
             $version = $pdo->getAttribute(PDO::ATTR_SERVER_VERSION);
@@ -159,7 +163,7 @@ class InstallController
     /**
      * 3. 自动构建数据库表结构、落盘配置与生成锁文件 API
      */
-    public function execute(object $request): Response
+    public function execute(object $request)
     {
         if (ob_get_level() === 0) {
             ob_start();
@@ -211,10 +215,14 @@ class InstallController
         try {
             // 1. PDO 建立连接并创建目标数据库
             $dsn = "mysql:host={$dbHost};port={$dbPort};charset=utf8mb4";
-            $pdo = new PDO($dsn, $dbUser, $dbPass, [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
-            ]);
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            ];
+            if (defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
+                $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES utf8mb4";
+            }
+            $pdo = new PDO($dsn, $dbUser, $dbPass, $options);
+            @$pdo->exec("SET NAMES utf8mb4");
             $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
             $pdo->exec("USE `{$dbName}`;");
 
