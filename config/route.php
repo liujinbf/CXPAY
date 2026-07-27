@@ -23,6 +23,12 @@ Route::get('/cloud', function () {
     return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
 });
 
+// 系统在线更新管理页面（需管理员登录）
+Route::get('/admin/system_update', function () {
+    $content = file_get_contents(base_path() . '/public/admin/system_update.html');
+    return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
+})->middleware([app\middleware\AdminAuthMiddleware::class]);
+
 Route::group('/api/cloud', function () {
     Route::get('/site_info', [app\controller\api\CloudLicenseController::class, 'getSiteInfo']);
     Route::post('/renew_module', [app\controller\api\CloudLicenseController::class, 'renewModule']);
@@ -136,6 +142,14 @@ Route::group('/api/admin', function () {
     // VIP 套餐 API
     Route::get('/packvip/list', [app\controller\admin\PackvipAdminController::class, 'list']);
     Route::post('/packvip/save', [app\controller\admin\PackvipAdminController::class, 'save']);
+
+    // 系统在线更新 API
+    Route::get('/system/check_update',   [app\controller\admin\SystemUpdateController::class, 'checkUpdate']);
+    Route::post('/system/do_update',     [app\controller\admin\SystemUpdateController::class, 'doUpdate']);
+    Route::get('/system/poll_progress',  [app\controller\admin\SystemUpdateController::class, 'pollProgress']);
+    Route::get('/system/update_log',     [app\controller\admin\SystemUpdateController::class, 'getUpdateLog']);
+    Route::get('/system/version_history',[app\controller\admin\SystemUpdateController::class, 'versionHistory']);
+    Route::post('/system/do_rollback',   [app\controller\admin\SystemUpdateController::class, 'doRollback']);
 })->middleware([app\middleware\AdminAuthMiddleware::class]);
 
 // 商户开放 API (带签名验证中间件)

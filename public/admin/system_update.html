@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CXPAY · 系统在线更新</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+    --primary: #6c63ff; --primary-glow: rgba(108,99,255,.25);
+    --success: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+    --text: #e2e8f0; --muted: #64748b;
+    --radius: 12px; --font: 'Inter', system-ui, sans-serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; padding: 24px; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+
+  /* ─── 卡片 ─── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; }
+  .card-title { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 16px; }
+
+  /* ─── 版本信息块 ─── */
+  .version-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .ver-badge { background: #1e2035; border: 1px solid var(--border); border-radius: 8px; padding: 10px 18px; }
+  .ver-badge .label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .ver-badge .hash { font-family: monospace; font-size: 16px; font-weight: 700; }
+  .ver-badge .hash.up-to-date { color: var(--success); }
+  .ver-badge .hash.has-update  { color: var(--warn); }
+  .arrow { font-size: 20px; color: var(--muted); }
+
+  /* ─── 按钮 ─── */
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; font-family: var(--font); transition: all .2s; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 0 18px var(--primary-glow); }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover:not(:disabled) { background: var(--border); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover:not(:disabled) { filter: brightness(1.15); }
+  .btn-sm { padding: 6px 14px; font-size: 13px; }
+
+  /* ─── 更新日志条目 ─── */
+  .changelog { list-style: none; max-height: 200px; overflow-y: auto; }
+  .changelog li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--muted); display: flex; gap: 10px; }
+  .changelog li .badge { font-size: 11px; background: #1e2035; border-radius: 4px; padding: 1px 6px; color: var(--text); white-space: nowrap; }
+
+  /* ─── 进度终端 ─── */
+  .terminal { background: #0a0b10; border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.7; max-height: 340px; overflow-y: auto; }
+  .terminal .step { display: flex; gap: 10px; align-items: flex-start; }
+  .terminal .step .ts { color: var(--muted); white-space: nowrap; font-size: 11px; margin-top: 2px; }
+  .terminal .step .msg { flex: 1; }
+  .terminal .step.ok     .msg { color: var(--success); }
+  .terminal .step.warn   .msg { color: var(--warn); }
+  .terminal .step.error  .msg { color: var(--danger); }
+  .terminal .step.done   .msg { color: var(--primary); font-weight: 600; }
+  .terminal .step.finish .msg { color: var(--success); font-weight: 700; }
+  .terminal .step.start  .msg { color: var(--primary); }
+  .terminal .step.info   .msg { color: var(--text); }
+
+  /* ─── 进度条 ─── */
+  .progress-wrap { background: #1e2035; border-radius: 99px; height: 6px; margin: 14px 0; overflow: hidden; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, var(--primary), #a78bfa); border-radius: 99px; transition: width .4s ease; }
+
+  /* ─── 版本历史表格 ─── */
+  .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .history-table th { padding: 8px 12px; text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); }
+  .history-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .history-table tr:last-child td { border-bottom: none; }
+  .hash-chip { font-family: monospace; background: #1e2035; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--success); }
+
+  /* ─── 宝塔提示框 ─── */
+  .bt-tip { background: linear-gradient(135deg, #1a1d27, #1e2035); border: 1px solid #3b4065; border-radius: 10px; padding: 16px 20px; }
+  .bt-tip h4 { font-size: 14px; color: #a78bfa; margin-bottom: 10px; }
+  .bt-tip code { background: #0a0b10; border-radius: 6px; padding: 10px 14px; display: block; font-size: 12px; font-family: monospace; color: #22c55e; margin: 6px 0; line-height: 1.8; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin-right: 4px; }
+  .tag-success { background: rgba(34,197,94,.15); color: var(--success); }
+  .tag-warn    { background: rgba(245,158,11,.15); color: var(--warn); }
+
+  /* ─── 无更新状态 ─── */
+  .no-update { display: flex; align-items: center; gap: 12px; padding: 16px; background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.2); border-radius: 10px; color: var(--success); font-size: 14px; }
+  .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.2); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<h1>⚡ 系统在线更新</h1>
+<p class="subtitle">CXPAY 管理后台 · 一键拉取 GitHub 最新版本 · 零停机热重载</p>
+
+<!-- ─── 版本状态卡片 ─── -->
+<div class="card" id="card-version">
+  <div class="card-title">版本状态</div>
+  <div class="version-row">
+    <div class="ver-badge">
+      <div class="label">当前运行版本</div>
+      <div class="hash" id="local-ver">检查中...</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="ver-badge">
+      <div class="label">GitHub 最新版本</div>
+      <div class="hash" id="remote-ver">—</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:10px">
+      <button class="btn btn-ghost" id="btn-check" onclick="checkUpdate()">
+        🔍 检查更新
+      </button>
+      <button class="btn btn-primary" id="btn-update" onclick="startUpdate()" disabled>
+        🚀 立即更新
+      </button>
+    </div>
+  </div>
+
+  <!-- 更新日志（有更新时显示） -->
+  <div id="changelog-wrap" style="margin-top:20px;display:none">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px">
+      本次更新包含 <strong id="commit-count" style="color:var(--text)">0</strong> 个提交：
+    </div>
+    <ul class="changelog" id="changelog-list"></ul>
+  </div>
+
+  <!-- 已是最新版本 -->
+  <div id="up-to-date" style="margin-top:20px;display:none">
+    <div class="no-update">✅ 当前已是最新版本，无需更新</div>
+  </div>
+</div>
+
+<!-- ─── 更新进度卡片 ─── -->
+<div class="card" id="card-progress" style="display:none">
+  <div class="card-title">更新进度</div>
+  <div class="progress-wrap"><div class="progress-bar" id="progress-bar" style="width:5%"></div></div>
+  <div class="terminal" id="terminal"></div>
+  <div style="margin-top:14px;display:flex;gap:10px">
+    <button class="btn btn-ghost btn-sm" onclick="fetchLog()">📄 查看完整日志</button>
+  </div>
+</div>
+
+<!-- ─── 版本历史与回滚 ─── -->
+<div class="card">
+  <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>版本历史 / 紧急回滚</span>
+    <button class="btn btn-ghost btn-sm" onclick="loadHistory()">🔄 刷新</button>
+  </div>
+  <div id="history-wrap">
+    <div style="color:var(--muted);font-size:13px">点击"刷新"加载版本历史...</div>
+  </div>
+</div>
+
+<!-- ─── 宝塔定时自动更新配置 ─── -->
+<div class="card bt-tip">
+  <h4>🟣 宝塔面板 · 自动定时更新配置</h4>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+    在宝塔面板 → <strong style="color:var(--text)">计划任务</strong> → 添加 Shell 脚本，设置为每天凌晨执行：
+  </p>
+  <code id="cron-cmd">#!/bin/bash
+# 修改为你的实际路径
+APP_DIR="/www/wwwroot/你的域名"
+PHP_BIN="/www/server/php/81/bin/php"
+DB_NAME="cxpay"
+DB_USER="root"
+DB_PASS="你的数据库密码"
+
+export DB_NAME DB_USER DB_PASS
+bash ${APP_DIR}/update.sh >> ${APP_DIR}/runtime/cron_update.log 2>&1</code>
+  <div style="margin-top:10px;font-size:12px;color:var(--muted);display:flex;gap:16px">
+    <span><span class="tag tag-success">执行周期</span>每天 03:00 自动检查更新</span>
+    <span><span class="tag tag-warn">注意</span>有更新时才执行，无更新自动跳过</span>
+  </div>
+</div>
+
+<script>
+const API = '/api/admin';
+let pollTimer = null;
+let progressSteps = 0;
+
+// ─── 检查更新 ────────────────────────────────────────────────
+async function checkUpdate() {
+  const btn = document.getElementById('btn-check');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 检查中...';
+  document.getElementById('changelog-wrap').style.display = 'none';
+  document.getElementById('up-to-date').style.display = 'none';
+
+  try {
+    const res = await fetch(`${API}/system/check_update`).then(r => r.json());
+    if (res.code !== 1) throw new Error(res.msg);
+
+    const d = res.data;
+    const localEl  = document.getElementById('local-ver');
+    const remoteEl = document.getElementById('remote-ver');
+
+    localEl.textContent  = d.local_ver;
+    remoteEl.textContent = d.remote_ver;
+
+    if (d.has_update) {
+      localEl.className  = 'hash has-update';
+      remoteEl.className = 'hash has-update';
+      document.getElementById('commit-count').textContent = d.commit_count;
+      const list = document.getElementById('changelog-list');
+      list.innerHTML = d.changelog.map(c => {
+        const [hash, ...rest] = c.split(' ');
+        return `<li><span class="badge">${hash}</span><span>${rest.join(' ')}</span></li>`;
+      }).join('');
+      document.getElementById('changelog-wrap').style.display = 'block';
+      document.getElementById('btn-update').disabled = false;
+    } else {
+      localEl.className  = 'hash up-to-date';
+      remoteEl.className = 'hash up-to-date';
+      document.getElementById('up-to-date').style.display = 'block';
+      document.getElementById('btn-update').disabled = true;
+    }
+  } catch(e) {
+    alert('检查失败：' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔍 检查更新';
+  }
+}
+
+// ─── 开始更新 ────────────────────────────────────────────────
+async function startUpdate() {
+  if (!confirm('确认立即更新？系统将平滑热重载，不会中断正在进行的支付请求。')) return;
+
+  document.getElementById('btn-update').disabled = true;
+  document.getElementById('btn-check').disabled  = true;
+  document.getElementById('card-progress').style.display = 'block';
+  document.getElementById('card-progress').scrollIntoView({ behavior: 'smooth' });
+
+  clearTerminal();
+  addTerminalLine('🚀 正在发送更新指令...', 'start');
+
+  try {
+    const res = await fetch(`${API}/system/do_update`, { method: 'POST' }).then(r => r.json());
+    if (res.code !== 1) throw new Error(res.msg);
+    startPolling();
+  } catch(e) {
+    addTerminalLine('❌ 启动失败：' + e.message, 'error');
+    document.getElementById('btn-update').disabled = false;
+    document.getElementById('btn-check').disabled  = false;
+  }
+}
+
+// ─── 轮询进度 ────────────────────────────────────────────────
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollProgress, 1800);
+}
+
+async function pollProgress() {
+  try {
+    const res = await fetch(`${API}/system/poll_progress`).then(r => r.json());
+    if (res.code !== 1) return;
+
+    const steps = res.data.steps || [];
+    renderProgress(steps);
+
+    if (!res.data.running) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      setProgressBar(100);
+      document.getElementById('btn-check').disabled = false;
+      // 更新完成后刷新版本号
+      setTimeout(checkUpdate, 1500);
+    }
+  } catch(e) { /* 网络抖动忽略 */ }
+}
+
+function renderProgress(steps) {
+  if (steps.length === progressSteps) return;
+  progressSteps = steps.length;
+  const pct = Math.min(95, 5 + steps.length * 12);
+  setProgressBar(pct);
+
+  const term = document.getElementById('terminal');
+  term.innerHTML = steps.map(s =>
+    `<div class="step ${s.type || 'info'}">
+      <span class="ts">${s.time}</span>
+      <span class="msg">${escHtml(s.message)}</span>
+    </div>`
+  ).join('');
+  term.scrollTop = term.scrollHeight;
+}
+
+// ─── 版本历史 ────────────────────────────────────────────────
+async function loadHistory() {
+  document.getElementById('history-wrap').innerHTML =
+    '<div style="color:var(--muted);font-size:13px"><span class="spinner"></span> 加载中...</div>';
+  try {
+    const res = await fetch(`${API}/system/version_history`).then(r => r.json());
+    if (res.code !== 1) throw new Error(res.msg);
+    const commits = res.data.commits || [];
+    document.getElementById('history-wrap').innerHTML = `
+      <table class="history-table">
+        <thead><tr>
+          <th>版本</th><th>提交说明</th><th>时间</th><th>操作</th>
+        </tr></thead>
+        <tbody>
+          ${commits.map((c, i) => `
+          <tr>
+            <td><span class="hash-chip">${c.short}</span>${i === 0 ? ' <span class="tag tag-success">当前</span>' : ''}</td>
+            <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(c.message)}</td>
+            <td style="color:var(--muted);font-size:12px">${c.date}</td>
+            <td>${i > 0 ? `<button class="btn btn-danger btn-sm" onclick="doRollback('${c.hash}','${escHtml(c.message)}')">⏪ 回滚</button>` : '<span style="color:var(--muted);font-size:12px">运行中</span>'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('history-wrap').innerHTML =
+      `<div style="color:var(--danger);font-size:13px">加载失败：${e.message}</div>`;
+  }
+}
+
+// ─── 执行回滚 ────────────────────────────────────────────────
+async function doRollback(hash, msg) {
+  if (!confirm(`确认回滚到版本 [${hash.slice(0,8)}]？\n\n${msg}\n\n⚠ 此操作将立即热重载服务！`)) return;
+  document.getElementById('card-progress').style.display = 'block';
+  clearTerminal();
+  addTerminalLine(`⏪ 开始回滚到 ${hash.slice(0,8)}...`, 'start');
+  try {
+    const res = await fetch(`${API}/system/do_rollback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `hash=${hash}`
+    }).then(r => r.json());
+    addTerminalLine(res.code === 1 ? '✅ ' + res.msg : '❌ ' + res.msg, res.code === 1 ? 'finish' : 'error');
+    if (res.code === 1) setTimeout(checkUpdate, 1500);
+  } catch(e) {
+    addTerminalLine('❌ 回滚请求失败：' + e.message, 'error');
+  }
+}
+
+// ─── 查看日志 ────────────────────────────────────────────────
+async function fetchLog() {
+  try {
+    const res = await fetch(`${API}/system/update_log`).then(r => r.json());
+    const win = window.open('', '_blank', 'width=900,height=600');
+    win.document.write(`<pre style="background:#0a0b10;color:#22c55e;padding:20px;font-size:12px;font-family:monospace;white-space:pre-wrap">${escHtml(res.data?.log || '')}</pre>`);
+  } catch(e) { alert('获取日志失败：' + e.message); }
+}
+
+// ─── 工具函数 ────────────────────────────────────────────────
+function clearTerminal() {
+  document.getElementById('terminal').innerHTML = '';
+  progressSteps = 0;
+  setProgressBar(5);
+}
+
+function addTerminalLine(msg, type = 'info') {
+  const term = document.getElementById('terminal');
+  const ts   = new Date().toTimeString().slice(0,8);
+  term.innerHTML += `<div class="step ${type}"><span class="ts">${ts}</span><span class="msg">${escHtml(msg)}</span></div>`;
+  term.scrollTop = term.scrollHeight;
+}
+
+function setProgressBar(pct) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// 页面加载时自动检查版本
+window.addEventListener('DOMContentLoaded', () => { checkUpdate(); loadHistory(); });
+</script>
+</body>
+</html>
