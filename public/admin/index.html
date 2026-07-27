@@ -78,6 +78,15 @@
 
                     <!-- 6. 系统配置 -->
                     <div class="nav-group-title">系统配置与设置</div>
+                    <a onclick="switchTab('sys-update')" id="nav-sys-update" class="nav-btn flex items-center justify-between px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 text-blue-600"></i> 系统在线更新
+                        </div>
+                        <span id="nav-update-badge" class="hidden flex h-2 w-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                        </span>
+                    </a>
                     <a onclick="switchTab('sys-settings')" id="nav-sys-settings" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="sliders" class="w-4 h-4 text-slate-600"></i> 系统全局设置
                     </a>
@@ -88,8 +97,10 @@
             </div>
 
             <div class="text-[11px] text-slate-400 px-3 py-2 border-t border-slate-100 flex items-center justify-between">
-                <span>系统版本 v1.1.0</span>
-                <span class="text-emerald-500 font-bold flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 运行正常</span>
+                <span>系统版本 <span id="sidebar-version">v1.1.0</span></span>
+                <a onclick="switchTab('sys-update')" class="cursor-pointer font-bold flex items-center gap-1 hover:underline" id="sidebar-status-tag">
+                    <span class="text-emerald-500 flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 已是最新</span>
+                </a>
             </div>
         </aside>
 
@@ -396,6 +407,11 @@
                     </div>
                 </div>
 
+                <!-- 12. 系统在线更新 -->
+                <div id="tab-sys-update" class="tab-panel glass-panel rounded-2xl overflow-hidden p-0 h-full min-h-[650px]">
+                    <iframe id="update-iframe" src="/admin/system_update" class="w-full h-full border-0 min-h-[680px]"></iframe>
+                </div>
+
             </div>
         </main>
     </div>
@@ -429,6 +445,38 @@
             if (tabId === 'order-list') loadOrders();
             if (tabId === 'plugin-market') loadPluginMarket();
             if (tabId === 'poll-groups') loadPollGroups();
+            if (tabId === 'sys-update') {
+                const iframe = document.getElementById('update-iframe');
+                if (iframe) iframe.src = '/admin/system_update';
+            }
+        }
+
+        async function checkSystemUpdateBadge() {
+            try {
+                const res = await fetch('/api/admin/system/check_update');
+                const data = await res.json();
+                if (data.code === 1 && data.data) {
+                    const d = data.data;
+                    const verEl = document.getElementById('sidebar-version');
+                    if (verEl && d.local_ver) verEl.innerText = d.local_ver;
+
+                    const badge = document.getElementById('nav-update-badge');
+                    const statusTag = document.getElementById('sidebar-status-tag');
+
+                    if (d.has_update) {
+                        if (badge) badge.classList.remove('hidden');
+                        if (statusTag) {
+                            statusTag.innerHTML = '<span class="text-rose-500 font-bold flex items-center gap-1"><i data-lucide="arrow-up-circle" class="w-3.5 h-3.5 animate-bounce"></i> 有新版本!</span>';
+                        }
+                    } else {
+                        if (badge) badge.classList.add('hidden');
+                        if (statusTag) {
+                            statusTag.innerHTML = '<span class="text-emerald-500 flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 已是最新</span>';
+                        }
+                    }
+                    if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+                }
+            } catch (e) {}
         }
 
         async function loadDashboard() {
@@ -485,6 +533,7 @@
                 lucide.createIcons();
             }
             loadDashboard();
+            checkSystemUpdateBadge();
         });
     </script>
 </body>
