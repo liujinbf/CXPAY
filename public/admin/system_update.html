@@ -218,6 +218,8 @@ async function checkUpdate() {
       document.getElementById('changelog-wrap').style.display = 'block';
       document.getElementById('btn-update').disabled = false;
     } else {
+      localEl.textContent = d.local_ver;
+      remoteEl.textContent = d.remote_ver;
       localEl.className  = 'hash up-to-date';
       remoteEl.className = 'hash up-to-date';
       document.getElementById('up-to-date').style.display = 'block';
