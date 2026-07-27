@@ -42,9 +42,14 @@ class SystemUpdateController
 
             if ($isMaster) {
                 // 【总控开发者模式】：走 Git / GitHub 原生同步流程
-                $this->exec('git fetch origin 2>&1');
+                $this->exec('git fetch --all 2>&1');
                 $localHash  = trim($this->exec('git rev-parse HEAD 2>&1'));
                 $remoteHash = trim($this->exec('git rev-parse origin/main 2>&1'));
+
+                if (empty($remoteHash) || str_contains($remoteHash, 'fatal')) {
+                    $remoteHash = trim($this->exec('git rev-parse origin/master 2>&1'));
+                }
+
                 $hasUpdate  = (!empty($localHash) && !empty($remoteHash) && $localHash !== $remoteHash);
 
                 $changelog = [];
@@ -166,12 +171,14 @@ class SystemUpdateController
     {
         try {
             $log = $this->exec(
-                'git log --pretty=format:"%H|%h|%s|%ad|%an" --date=format:"%Y-%m-%d %H:%M" -20 2>&1'
+                'git log HEAD origin/main --pretty=format:"%H|%h|%s|%ad|%an" --date=format:"%Y-%m-%d %H:%M" -20 2>&1'
             );
             $commits = [];
+            $seen = [];
             foreach (explode("\n", trim($log)) as $line) {
                 $parts = explode('|', $line, 5);
-                if (count($parts) === 5) {
+                if (count($parts) === 5 && !isset($seen[$parts[0]])) {
+                    $seen[$parts[0]] = true;
                     $commits[] = [
                         'hash'    => $parts[0],
                         'short'   => $parts[1],
