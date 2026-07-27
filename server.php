@@ -48,13 +48,24 @@ $uriPath = parse_url($rawUri, PHP_URL_PATH) ?: '/';
 
 // 0.9 一键安装向导路由 (/install)
 if ($uriPath === '/install' || $uriPath === '/install/' || $uriPath === '/install/index.html') {
+    $lockFile = __DIR__ . '/install.lock';
+    if (file_exists($lockFile)) {
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<div style="background:#0f172a;color:#f3f4f6;padding:40px;text-align:center;font-family:sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div style="font-size:48px;margin-bottom:16px;">🛡️</div>
+            <h2 style="font-size:24px;font-weight:bold;margin-bottom:8px;">系统已被安全锁定</h2>
+            <p style="color:#94a3b8;font-size:14px;max-width:480px;line-height:1.6;">当前系统已安装完成并生成了 <code>install.lock</code> 安全锁文件。如需重新安装，请在服务器中删除根目录下的 <code>install.lock</code> 锁文件。</p>
+            <a href="/" style="margin-top:24px;display:inline-block;padding:10px 24px;background:#0284c7;color:#fff;border-radius:12px;text-decoration:none;font-weight:bold;font-size:14px;">返回网站首页</a>
+        </div>';
+        exit;
+    }
     $installFile = __DIR__ . '/public/install/index.html';
     if (file_exists($installFile)) {
         header('Content-Type: text/html; charset=utf-8');
         echo file_get_contents($installFile);
         exit;
     }
-// 0.95 一键安装向导后端 API (/api/install/*)
+}
 if (str_starts_with($uriPath, '/api/install/')) {
     header('Content-Type: application/json; charset=utf-8');
     $ctrl = new \app\controller\api\InstallController();
