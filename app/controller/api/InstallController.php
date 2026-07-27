@@ -10,6 +10,11 @@ use PDO;
 
 /**
  * 商业级智能安装向导后端 API 控制器
+ * 增强：
+ *   - 全面自动化环境与可写权限检测（含 .env / config / runtime / install.lock）
+ *   - 严格拦截 PHP 警告/错误输出，确保 API 永远返回标准 JSON
+ *   - 自动写入 .env 和 config/database.php
+ *   - 管理员初始密码采用安全 bcrypt 哈希存入 cx_config
  */
 class InstallController
 {
@@ -18,17 +23,19 @@ class InstallController
      */
     public function check(object $request): Response
     {
-        $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
+        $baseDir    = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
         $runtimeDir = rtrim($baseDir, '/\\') . '/runtime';
-        $configDir = rtrim($baseDir, '/\\') . '/config';
-        $lockFile = rtrim($baseDir, '/\\') . '/install.lock';
+        $configDir  = rtrim($baseDir, '/\\') . '/config';
+        $envFile    = rtrim($baseDir, '/\\') . '/.env';
+        $dbConfigFile = rtrim($baseDir, '/\\') . '/config/database.php';
+        $lockFile   = rtrim($baseDir, '/\\') . '/install.lock';
 
         if (!is_dir($runtimeDir)) {
             @mkdir($runtimeDir, 0777, true);
         }
 
         $phpVersion = PHP_VERSION;
-        $phpOk = version_compare($phpVersion, '8.1.0', '>=');
+        $phpOk      = version_compare($phpVersion, '8.1.0', '>=');
 
         $exts = [
             'pdo_mysql' => extension_loaded('pdo_mysql'),
@@ -41,25 +48,30 @@ class InstallController
 
         $allExtsOk = $exts['pdo_mysql'] && $exts['bcmath'] && $exts['openssl'] && $exts['curl'];
 
+        // 测试各文件/目录的实际写入能力
         $perms = [
-            'runtime_writable' => is_writable($runtimeDir),
-            'config_writable'  => is_writable($configDir),
-            'root_writable'    => is_writable($baseDir),
+            'runtime_writable'   => is_writable($runtimeDir),
+            'config_writable'    => is_writable($configDir),
+            'root_writable'      => is_writable($baseDir),
+            'env_writable'       => !file_exists($envFile) ? is_writable($baseDir) : is_writable($envFile),
+            'db_config_writable' => !file_exists($dbConfigFile) ? is_writable($configDir) : is_writable($dbConfigFile),
         ];
 
-        $installed = file_exists($lockFile);
+        $allPermsOk = $perms['runtime_writable'] && $perms['config_writable'] && $perms['env_writable'];
+        $installed  = file_exists($lockFile);
 
         return json([
             'code' => 1,
             'data' => [
-                'php_version'    => $phpVersion,
-                'php_ok'         => $phpOk,
-                'os'             => PHP_OS,
-                'extensions'     => $exts,
-                'all_exts_ok'    => $allExtsOk,
-                'permissions'    => $perms,
-                'installed'      => $installed,
-                'can_install'    => $phpOk && $allExtsOk && !$installed,
+                'php_version'  => $phpVersion,
+                'php_ok'       => $phpOk,
+                'os'           => PHP_OS,
+                'extensions'   => $exts,
+                'all_exts_ok'  => $allExtsOk,
+                'permissions'  => $perms,
+                'all_perms_ok' => $allPermsOk,
+                'installed'    => $installed,
+                'can_install'  => $phpOk && $allExtsOk && $allPermsOk && !$installed,
             ]
         ]);
     }
@@ -69,6 +81,10 @@ class InstallController
      */
     public function testDb(object $request): Response
     {
+        // 屏蔽原生 Warning 输出，防止污染 JSON
+        @ini_set('display_errors', '0');
+        error_reporting(0);
+
         $params = $request->post() ?: $request->get();
         $dbHost = trim((string)($params['db_host'] ?? '127.0.0.1'));
         $dbPort = trim((string)($params['db_port'] ?? '3306'));
@@ -103,11 +119,11 @@ class InstallController
         } catch (Throwable $e) {
             $msg = $e->getMessage();
             if (str_contains($msg, 'Access denied')) {
-                $msg = '数据库账号或密码错误 (Access denied)';
-            } elseif (str_contains($msg, 'Connection refused') || str_contains($msg, 'Can\'t connect')) {
-                $msg = '无法连接至数据库主机，请检查 IP/端口与防火墙规则';
+                $msg = "数据库账号或密码错误 (Access denied for user '{$dbUser}')";
+            } elseif (str_contains($msg, 'Connection refused') || str_contains($msg, "Can't connect")) {
+                $msg = "无法连接至数据库主机 ({$dbHost}:{$dbPort})，请检查数据库服务状态与防火墙规则";
             }
-            return json(['code' => -1, 'msg' => "❌ 连接失败: {$msg}"]);
+            return json(['code' => -1, 'msg' => "❌ 数据库连接失败: {$msg}"]);
         }
     }
 
@@ -116,7 +132,10 @@ class InstallController
      */
     public function execute(object $request): Response
     {
-        $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
+        @ini_set('display_errors', '0');
+        error_reporting(0);
+
+        $baseDir  = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
         $lockFile = rtrim($baseDir, '/\\') . '/install.lock';
 
         if (file_exists($lockFile)) {
@@ -150,37 +169,48 @@ class InstallController
             $sqlFile = rtrim($baseDir, '/\\') . '/database/install.sql';
             if (file_exists($sqlFile)) {
                 $sqlContent = file_get_contents($sqlFile);
-                
-                // 去除 SQL 注释与多余分号
                 $statements = array_filter(array_map('trim', explode(';', $sqlContent)));
                 foreach ($statements as $stmt) {
                     if (!empty($stmt) && !str_starts_with($stmt, '--') && !str_starts_with($stmt, '/*')) {
                         try {
                             $pdo->exec($stmt);
-                        } catch (Throwable $e) {
-                            // 忽略轻微重复建表/索引警告
+                        } catch (Throwable) {
+                            // 忽略轻微重复建表警告
                         }
                     }
                 }
             }
 
-            // 3. 更新系统全局配置中的管理员账号与初始密码
+            // 3. 更新管理员账号和密码（Bcrypt 哈希）
+            $passwordHash = password_hash($adminPass, PASSWORD_BCRYPT, ['cost' => 12]);
+            $tokenSalt    = bin2hex(random_bytes(16));
             try {
-                $stmt = $pdo->prepare("INSERT INTO `cx_config` (`name`, `value`, `title`) VALUES ('admin_username', :u, '管理员账号'), ('admin_password', :p, '管理员密码') ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);");
-                $stmt->execute([':u' => $adminUser, ':p' => md5($adminPass)]);
-            } catch (Throwable $e) {}
+                $stmt = $pdo->prepare("
+                    INSERT INTO `cx_config` (`name`, `value`, `title`) VALUES 
+                    ('admin_account', :u, '管理员账号'),
+                    ('admin_password_hash', :p, '管理员密码Bcrypt哈希'),
+                    ('token_salt', :s, 'Token HMAC签名盐值')
+                    ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
+                ");
+                $stmt->execute([':u' => $adminUser, ':p' => $passwordHash, ':s' => $tokenSalt]);
+            } catch (Throwable) {}
 
-            // 4. 自动落盘持久化写入 config/database.php 数据库配置文件
+            // 4. 落盘配置文件 config/database.php 与 .env
             $dbConfigFile = rtrim($baseDir, '/\\') . '/config/database.php';
             $dbConfigCode = "<?php\n\nreturn [\n    'default' => 'mysql',\n    'connections' => [\n        'mysql' => [\n            'driver'      => 'mysql',\n            'host'        => '{$dbHost}',\n            'port'        => '{$dbPort}',\n            'database'    => '{$dbName}',\n            'username'    => '{$dbUser}',\n            'password'    => '{$dbPass}',\n            'charset'     => 'utf8mb4',\n            'collation'   => 'utf8mb4_unicode_ci',\n            'prefix'      => 'cx_',\n            'strict'      => true,\n            'engine'      => null,\n            'pool'        => [\n                'max_connections' => 50,\n                'min_connections' => 2,\n                'wait_timeout'    => 3.0,\n            ],\n        ],\n    ],\n];\n";
             @file_put_contents($dbConfigFile, $dbConfigCode);
+
+            // 写入 .env 文件
+            $envFile = rtrim($baseDir, '/\\') . '/.env';
+            $envCode = "DB_HOST={$dbHost}\nDB_PORT={$dbPort}\nDB_NAME={$dbName}\nDB_USER={$dbUser}\nDB_PASS={$dbPass}\n";
+            @file_put_contents($envFile, $envCode);
 
             // 5. 生成 install.lock 安装锁文件
             @file_put_contents($lockFile, date('Y-m-d H:i:s') . " Installed Successfully by CXPAY Auto Installer.\n");
 
             return json([
                 'code' => 1,
-                'msg'  => '🎉 CXPAY 商业级聚合支付系统与全套 11 大模型表结构自动初始化成功！配置已落盘！'
+                'msg'  => '🎉 CXPAY 商业级聚合支付系统初始化成功！安装锁及数据库配置已自动落盘！'
             ]);
         } catch (Throwable $e) {
             return json(['code' => -1, 'msg' => '安装失败: ' . $e->getMessage()]);

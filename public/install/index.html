@@ -140,11 +140,17 @@
                             </div>
                         </div>
 
-                        <!-- 目录写权限 -->
+                        <!-- 目录与文件写权限 -->
                         <div class="flex items-center justify-between p-4 glass-card rounded-2xl">
-                            <span class="text-sm font-semibold text-title">网站目录写权限 (`runtime/`与`config/`)</span>
-                            <span :class="envData.permissions?.runtime_writable && envData.permissions?.config_writable ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'" class="px-3 py-1 border text-xs rounded-full font-bold">
-                                {{ envData.permissions?.runtime_writable ? '✓ 可读写可落盘' : '⚠️ 建议开启 777 权限' }}
+                            <div class="space-y-0.5">
+                                <div class="text-sm font-semibold text-title">环境配置与目录写权限 (`.env` / `runtime/` / `config/`)</div>
+                                <div class="text-[11px] text-slate-400">
+                                    .env 文件: <span :class="envData.permissions?.env_writable ? 'text-emerald-400' : 'text-rose-400'">{{ envData.permissions?.env_writable ? '✓ 可写' : '✗ 无写入权限' }}</span> |
+                                    runtime 目录: <span :class="envData.permissions?.runtime_writable ? 'text-emerald-400' : 'text-rose-400'">{{ envData.permissions?.runtime_writable ? '✓ 可写' : '✗ 无写入权限' }}</span>
+                                </div>
+                            </div>
+                            <span :class="envData.permissions?.all_perms_ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'" class="px-3 py-1 border text-xs rounded-full font-bold">
+                                {{ envData.permissions?.all_perms_ok ? '✓ 权限正常' : '⚠️ 建议执行 chmod -R 755 / www:www' }}
                             </span>
                         </div>
                     </div>
@@ -314,13 +320,13 @@
                             envData.value = res.data;
                         }
                     } catch (e) {
-                        console.warn('环境检测 API 调用未联通，自动载入引擎:', e);
+                        console.warn('环境检测 API 调用未联通，载入保底:', e);
                         envData.value = {
-                            php_version: '8.2',
+                            php_version: '8.1+',
                             php_ok: true,
-                            os: 'Linux',
+                            os: 'Linux/Unix',
                             extensions: { pdo_mysql: true, bcmath: true, openssl: true, curl: true, redis: true, json: true },
-                            permissions: { runtime_writable: true, config_writable: true },
+                            permissions: { runtime_writable: true, config_writable: true, root_writable: true, env_writable: true },
                             installed: false
                         };
                     } finally {
@@ -335,17 +341,27 @@
                     dbTestMsg.value = '';
                     try {
                         const body = new URLSearchParams(form.value);
-                        const res = await fetch('/api/install/test_db', {
+                        const resp = await fetch('/api/install/test_db', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                             body: body
-                        }).then(r => r.json());
+                        });
+
+                        const text = await resp.text();
+                        let res;
+                        try {
+                            res = JSON.parse(text);
+                        } catch (err) {
+                            // 提取 HTML 中的纯文本错误
+                            const cleanMsg = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                            throw new Error(cleanMsg.slice(0, 180) || '服务器未返回合法的 JSON 响应');
+                        }
 
                         dbTestOk.value = (res.code === 1);
                         dbTestMsg.value = res.msg || (res.code === 1 ? '连接成功！' : '连接失败');
                     } catch (e) {
                         dbTestOk.value = false;
-                        dbTestMsg.value = '❌ 网络或后端服务请求失败: ' + e.message;
+                        dbTestMsg.value = '❌ 数据库测试失败: ' + e.message;
                     } finally {
                         testingDb.value = false;
                         nextTick(() => lucide.createIcons());
@@ -357,20 +373,28 @@
                     installing.value = true;
                     try {
                         const body = new URLSearchParams(form.value);
-                        const res = await fetch('/api/install/execute', {
+                        const resp = await fetch('/api/install/execute', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                             body: body
-                        }).then(r => r.json());
+                        });
+
+                        const text = await resp.text();
+                        let res;
+                        try {
+                            res = JSON.parse(text);
+                        } catch (err) {
+                            const cleanMsg = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                            throw new Error(cleanMsg.slice(0, 180) || '服务器未返回合法的 JSON 响应');
+                        }
 
                         if (res.code === 1) {
                             step.value = 3;
                         } else {
-                            alert(res.msg || '安装构建失败');
+                            alert('⚠️ 安装失败: ' + (res.msg || '未知错误'));
                         }
                     } catch (e) {
-                        // 降级支持
-                        step.value = 3;
+                        alert('⚠️ 安装请求异常: ' + e.message);
                     } finally {
                         installing.value = false;
                         nextTick(() => lucide.createIcons());
