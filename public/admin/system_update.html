@@ -140,9 +140,9 @@
 </div>
 
 <!-- ─── 版本历史与回滚 ─── -->
-<div class="card">
+<div class="card" id="card-history">
   <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
-    <span>版本历史 / 紧急回滚</span>
+    <span id="history-title">版本历史 / 紧急回滚</span>
     <button class="btn btn-ghost btn-sm" onclick="loadHistory()">🔄 刷新</button>
   </div>
   <div id="history-wrap">
@@ -150,9 +150,9 @@
   </div>
 </div>
 
-<!-- ─── 宝塔定时自动更新配置 ─── -->
-<div class="card bt-tip">
-  <h4>🟣 宝塔面板 · 自动定时更新配置</h4>
+<!-- ─── 宝塔定时自动更新配置 (仅总控开发者模式可见) ─── -->
+<div class="card bt-tip" id="card-bt-tip">
+  <h4>🟣 宝塔面板 · 自动定时更新配置 (总控端开发者专用)</h4>
   <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
     在宝塔面板 → <strong style="color:var(--text)">计划任务</strong> → 添加 Shell 脚本，设置为每天凌晨执行：
   </p>
@@ -193,6 +193,12 @@ async function checkUpdate() {
     const localEl  = document.getElementById('local-ver');
     const remoteEl = document.getElementById('remote-ver');
 
+    // 智能模式判断与商业版 UI 切换
+    const btTipCard = document.getElementById('card-bt-tip');
+    if (!d.is_master && btTipCard) {
+      btTipCard.style.display = 'none'; // 客户授权模式：彻底隐藏宝塔命令行提示
+    }
+
     localEl.textContent  = d.local_ver;
     remoteEl.textContent = d.remote_ver;
 
@@ -202,8 +208,12 @@ async function checkUpdate() {
       document.getElementById('commit-count').textContent = d.commit_count;
       const list = document.getElementById('changelog-list');
       list.innerHTML = d.changelog.map(c => {
-        const [hash, ...rest] = c.split(' ');
-        return `<li><span class="badge">${hash}</span><span>${rest.join(' ')}</span></li>`;
+        if (d.is_master) {
+          const [hash, ...rest] = c.split(' ');
+          return `<li><span class="badge">${hash}</span><span>${rest.join(' ')}</span></li>`;
+        } else {
+          return `<li><span class="badge">🚀 升级项</span><span>${c}</span></li>`;
+        }
       }).join('');
       document.getElementById('changelog-wrap').style.display = 'block';
       document.getElementById('btn-update').disabled = false;
