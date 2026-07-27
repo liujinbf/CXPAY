@@ -83,11 +83,35 @@ class InstallController
      */
     public function testDb(object $request): Response
     {
-        // 屏蔽原生 Warning 输出，防止污染 JSON
+        // 开启输出缓冲区防护，屏蔽底层任何可能的 HTML/Warning 污染
+        if (ob_get_level() === 0) {
+            ob_start();
+        } else {
+            @ob_clean();
+        }
         @ini_set('display_errors', '0');
         error_reporting(0);
 
-        $params = $request->post() ?: $request->get();
+        // 全渠道参数兼容解析 (support/Request, $_POST, php://input)
+        $params = [];
+        if (is_object($request) && method_exists($request, 'post')) {
+            $params = $request->post() ?: [];
+        }
+        if (empty($params)) {
+            $params = $_POST ?: $_GET ?: $_REQUEST;
+        }
+        if (empty($params)) {
+            $rawInput = @file_get_contents('php://input');
+            if (!empty($rawInput)) {
+                parse_str($rawInput, $parsed);
+                if (!empty($parsed)) {
+                    $params = $parsed;
+                } else {
+                    $params = json_decode($rawInput, true) ?: [];
+                }
+            }
+        }
+
         $dbHost = trim((string)($params['db_host'] ?? '127.0.0.1'));
         $dbPort = trim((string)($params['db_port'] ?? '3306'));
         $dbName = trim((string)($params['db_name'] ?? 'cxpay'));
@@ -95,6 +119,7 @@ class InstallController
         $dbPass = trim((string)($params['db_pass'] ?? ''));
 
         if (empty($dbHost) || empty($dbName) || empty($dbUser)) {
+            @ob_clean();
             return json(['code' => -1, 'msg' => '数据库主机、名称与用户名不能为空']);
         }
 
@@ -113,12 +138,14 @@ class InstallController
             // 尝试自动创建数据库（若不存在）
             $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
 
+            @ob_clean();
             return json([
                 'code'    => 1,
                 'msg'     => "✅ 数据库连接校验成功！MySQL 版本: {$version}，已准备好建表导入。",
                 'version' => $version
             ]);
         } catch (Throwable $e) {
+            @ob_clean();
             $msg = $e->getMessage();
             if (str_contains($msg, 'Access denied')) {
                 $msg = "数据库账号或密码错误 (Access denied for user '{$dbUser}')";
@@ -134,6 +161,11 @@ class InstallController
      */
     public function execute(object $request): Response
     {
+        if (ob_get_level() === 0) {
+            ob_start();
+        } else {
+            @ob_clean();
+        }
         @ini_set('display_errors', '0');
         error_reporting(0);
 
@@ -141,10 +173,29 @@ class InstallController
         $lockFile = rtrim($baseDir, '/\\') . '/install.lock';
 
         if (file_exists($lockFile)) {
+            @ob_clean();
             return json(['code' => -1, 'msg' => '⚠️ 系统已被安装过！如需重新安装，请删除根目录下的 install.lock 文件']);
         }
 
-        $params = $request->post() ?: $request->get();
+        // 全渠道参数兼容解析
+        $params = [];
+        if (is_object($request) && method_exists($request, 'post')) {
+            $params = $request->post() ?: [];
+        }
+        if (empty($params)) {
+            $params = $_POST ?: $_GET ?: $_REQUEST;
+        }
+        if (empty($params)) {
+            $rawInput = @file_get_contents('php://input');
+            if (!empty($rawInput)) {
+                parse_str($rawInput, $parsed);
+                if (!empty($parsed)) {
+                    $params = $parsed;
+                } else {
+                    $params = json_decode($rawInput, true) ?: [];
+                }
+            }
+        }
         $dbHost = trim((string)($params['db_host'] ?? '127.0.0.1'));
         $dbPort = trim((string)($params['db_port'] ?? '3306'));
         $dbName = trim((string)($params['db_name'] ?? 'cxpay'));
@@ -217,11 +268,13 @@ class InstallController
                 }
             } catch (Throwable) {}
 
+            @ob_clean();
             return json([
                 'code' => 1,
                 'msg'  => '🎉 CXPAY 商业级聚合支付系统初始化成功！安装锁 (install.lock) 与数据库配置已自动落盘安全锁定！'
             ]);
         } catch (Throwable $e) {
+            @ob_clean();
             return json(['code' => -1, 'msg' => '安装失败: ' . $e->getMessage()]);
         }
     }
