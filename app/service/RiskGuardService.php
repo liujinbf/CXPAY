@@ -23,9 +23,7 @@ class RiskGuardService
     {
         // 1. 检查日封顶限额 (Day Max)
         if ($channel->day_max > 0 && ($channel->today_money + $amount) > $channel->day_max) {
-            // 超出日交易限额，自动停用休眠
-            $channel->status = 0;
-            $channel->save();
+            // 只跳过本次调度；每日统计重置后通道应自动恢复可选，不能永久改写人工启停状态。
             return false;
         }
 

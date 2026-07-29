@@ -5,12 +5,18 @@ declare(strict_types=1);
 namespace app\payment\Drivers\AlipayScanBill;
 
 use app\payment\Contracts\PaymentDriverInterface;
+use app\payment\Contracts\MonitorableDriverInterface;
 
 /**
- * 支付宝扫码免挂 Cookie 驱动插件 (alipay_scan_bill)
+ * 支付宝外部账单推送驱动。
  */
-class Driver implements PaymentDriverInterface
+class Driver implements PaymentDriverInterface, MonitorableDriverInterface
 {
+    public function monitorMode(): string
+    {
+        return MonitorableDriverInterface::MODE_CALLBACK;
+    }
+
     public function pay(array $params, array $config): array
     {
         return [
@@ -34,7 +40,7 @@ class Driver implements PaymentDriverInterface
         if (!empty($notifyToken)) {
             $verified = !empty($receivedToken) && hash_equals($notifyToken, $receivedToken);
         } else {
-            $verified = !empty($params['out_trade_no']);
+            $verified = false;
         }
 
         return [
@@ -54,20 +60,27 @@ class Driver implements PaymentDriverInterface
     {
         return [
             'name'        => 'alipay_scan_bill',
-            'title'       => '支付宝扫码免挂 (alipay_scan_bill)',
-            'description' => '扫码登录支付宝网页版获取 Cookie 自动监控最新账单到账',
+            'title'       => '支付宝旧版账单回调（已停用）',
+            'description' => '旧版共享 Token 协议缺少订单登记和防重放能力，请安装支付宝扫码免挂插件',
+            'deprecated'  => true,
+            'replacement' => 'alipay_scan_monitor',
+            'pay_category' => 'alipay',
+            'collection_mode' => 'personal_qr',
+            'monitor_mode' => $this->monitorMode(),
             'inputs'      => [
-                ['name' => 'cookie',        'title' => '支付宝网页版登录 Cookie (Base64)', 'type' => 'textarea', 'required' => true],
                 ['name' => 'qr_url',        'title' => '个人支付宝收款码解析链接',          'type' => 'string',   'required' => true],
-                ['name' => 'notify_token',  'title' => '云端回调鉴权 Token（可选）',              'type' => 'string',   'required' => false],
+                ['name' => 'notify_token',  'title' => '云端回调鉴权 Token',              'type' => 'string',   'required' => true],
             ]
         ];
     }
 
     public function upchannel(array $channelRow, array $config): array
     {
-        if (empty($config['cookie']) && empty($config['qr_url'])) {
-            return ['code' => -1, 'msg' => '请填写支付宝 Cookie 或解析出的收款码链接'];
+        if (empty($config['qr_url'])) {
+            return ['code' => -1, 'msg' => '支付宝收款码内容不能为空'];
+        }
+        if (empty($config['notify_token'])) {
+            return ['code' => -1, 'msg' => '云端回调鉴权 Token 不能为空'];
         }
         return $config;
     }

@@ -1,79 +1,104 @@
-# CXPAY 商业级高并发聚合支付平台
+# CXPAY 聚合支付网关
 
-> **项目简介**：基于 Webman 2.x 常驻协程架构打造的高并发、低延迟聚合支付/易支付 (EPay) 平台。支持官方 API 直连、易支付网关、微信小账本/收款单协议云端免挂、支付宝扫码 Cookie 免挂以及个人微信/支付宝/QQ 钱包全自动挂机冲销。
+CXPAY 是基于 PHP 8.1、Webman 2、MySQL 和 Redis 的个人收款码监控网关。项目聚焦支付宝、微信和 QQ 钱包个人收款码，通过安卓或 PC 监控端、可信外部账单服务完成到账确认，并向下游商户提供易支付兼容的下单与通知协议。
 
----
+## 当前能力边界
 
-## 📖 目录
+已可用：
 
-1. [项目简介与核心亮点](#一-项目简介与核心亮点)
-2. [极速 3 步安装指南](#二-极速-3-步安装指南)
-3. [商业配套客户端软件下载 (Windows & Android)](#三-商业配套客户端软件下载-windows--android)
-4. [常见问题与使用帮助 (FAQ)](#四-常见问题与使用帮助-faq)
-5. [技术团队二次开发说明](#五-技术团队二次开发说明)
+- 易支付风格的 `/submit.php`、`/mapi.php` 下单入口与 MD5 参数签名。
+- 商户隔离的通道管理、订单查询、余额充值单和后台人工补单。
+- 支付宝、微信、QQ 钱包个人固定收款码，以及安卓/PC 监控端安全账单上报。
+- 支付宝、微信、QQ 外部账单服务回调型个人码驱动；外部服务必须配置共享鉴权凭据。
+- 订单幂等、手续费预占/核销/释放、支付出码并发认领、通道金额校验、回调重试和 SSRF 防护。
+- 管理员与商户 Session 登录、登录限流、同源写操作校验。
+- 商户后台登录密码与支付 API 密钥相互独立；管理员创建商户时只返回一次初始凭据。
+- Docker Compose 部署及浏览器安装向导。
 
----
+尚未完成或默认停用：
 
-## 一、 项目简介与核心亮点
+- 项目不接入支付宝、微信官方商户支付，也不把第三方易支付上游作为收款通道；相关驱动源码仅作历史兼容并统一标记为不可用。
+- 微信/QQ/支付宝“协议云端扫码登录”没有真实供应商接入，相关登录 API 明确返回 501；对应驱动仅适用于已经具备外部账单推送服务的部署者。
+- VIP 在线购买、云端授权供应商尚未接入；在线更新与在线回滚因缺少可信发布包签名和原子部署链路而明确禁用。
+- 旧版轮询组表尚未接入当前通道调度器，管理写接口已禁用；现有调度直接使用通道权重、金额区间和日限额。
+- 旧版 VIP 套餐表仅保留历史数据读取；购买、续期和套餐费率应用未形成闭环，套餐写接口已禁用。
+- 前端样式及二维码解析脚本来自公共 CDN；严格离线环境需要自行托管这些静态依赖。
 
-- **高并发协程架构**：基于 Webman 2.x + PHP 8.1+ 内存常驻协程，性能较传统 ThinkPHP/PHP-FPM 提升 5-10 倍。
-- **免挂零图片出码**：微信小账本/收款单协议云端免挂、支付宝扫码 Base64 免挂、QQ 钱包 ptlogin 免挂。
-- **智能防封与隔离**：内置动态住宅 IP 代理池与设备 User-Agent 指纹离散，单通道日封顶自动熔断休眠。
-- **全套 9 大精美 UI**：内置 3 套官网旗舰科技风模版、商户控制中心、超级管理员控制台与极速收银台。
+个人收款码、通知监听和非官方账单接口可能受到支付机构规则、账号风控和当地法规限制。生产部署前应自行完成合规评估，并准备监控端掉线、通知格式变化和人工复核方案。
 
----
+## 环境要求
 
-## 二、 极速 3 步安装指南
+- PHP 8.1 及以上
+- PHP 扩展：`pdo_mysql`、`redis`、`bcmath`、`mbstring`、`curl`、`openssl`、`pcntl`（Linux）
+- MySQL 5.7+/8.0
+- Redis 5+
+- Composer 2
 
-### 1. 环境依赖要求
-- **服务器操作系统**：Linux (Ubuntu / CentOS / Debian / 宝塔面板) 或 Windows Server
-- **环境要求**：PHP 8.1+、`pcntl` 多进程扩展、PDO MySQL 与 Redis 扩展
+## 本地运行
 
-### 2. 宝塔面板 (AaPanel) 避坑配置 (防止 /install 报 404)
-将项目解压上传到宝塔网站目录后：
-1. **设置运行目录**：网站设置 -> 网站目录 -> **运行目录选择 `/public`** 并保存。
-2. **设置伪静态**：网站设置 -> 伪静态 -> 选择 **`thinkphp`** 并保存。
-
-### 3. 可视化一键安装步骤 (/install)
-1. 在浏览器访问：`http://您的域名/install`。
-2. **第一步 环境检测**：系统自动检测 PHP 版本及所需扩展状态。
-3. **第二步 数据库配置**：填入 MySQL 数据库地址、数据库名、端口以及超级管理员账号密码。
-4. **第三步 点击安装**：点击“一键安装导入”，系统自动完成数据库建表与安全锁配置 (`install.lock`)。
-
-### 4. 生产环境常驻启动指令 (选填)
 ```bash
-# 生产环境常驻后台启动
-php start.php start -d
-
-# 停止进程 / 平滑重载
-php start.php stop
-php start.php reload
+composer install
+cp .env.example .env
+php start.php start
 ```
 
----
+访问 `http://127.0.0.1:8787/install` 完成安装。安装器会生成 `APP_KEY`、管理员密码哈希、Token 盐并创建安装锁。
 
-## 三、 商业配套客户端软件下载 (Windows & Android)
+Webman 是常驻进程框架，不支持把 `public/index.php` 配成 PHP-FPM 单入口。生产环境必须启动 `php start.php start -d`，再由 Nginx 反向代理到 Webman 监听端口。
 
-- **Windows 桌面挂机监控助手 (v4.0 拟态旗舰版)**：  
-  文件路径：[scratch/pc_project/CXPayAssistant_v4.exe](file:///c:/Users/Administrator/Desktop/m.fcwan.cn_cJxd7/CXPAY/scratch/pc_project/CXPayAssistant_v4.exe)  
-  *特点：带左侧侧边栏、实时订单与到账流水表格、全局独立 Toggle 监控开关。*
+## Docker Compose
 
-- **Android 手机挂机助手工程**：  
-  文件路径：[scratch/android_project/](file:///c:/Users/Administrator/Desktop/m.fcwan.cn_cJxd7/CXPAY/scratch/android_project/)
+先创建 `.env` 并至少设置以下随机强密钥：
 
----
+```dotenv
+APP_URL=https://pay.example.com
+APP_KEY=请填写至少32位随机值
+DB_PASSWORD=请填写数据库密码
+MYSQL_ROOT_PASSWORD=请填写MySQL根密码
+REDIS_PASSWORD=请填写Redis密码
+```
 
-## 四、 常见问题与使用帮助 (FAQ)
+然后执行：
 
-1. **商户如何添加个人收款码？**  
-   商户登录后进入“商户服务中心”，点击【📷 微信/支付宝/QQ 个人码绑定】，直接上传二维码图片，系统会自动完成 URL 解码并绑定。
-2. **如何防止微信/支付宝账号被封？**  
-   系统内置了【轮询组 (PollGroup)】功能，建议商户绑定 3 个以上的收款账号开启轮询分流；同时在通道配置中设置“单日最大额度（如 3000 元）”，超出后系统会自动熔断切换到下一个账号。
+```bash
+docker compose up -d --build
+```
 
----
+MySQL 与 Redis 默认不暴露宿主机端口。首次启动后访问 `/install`，数据库主机填写 `cxpay-mysql`。
 
-## 五、 技术团队二次开发说明
+## 下单签名
 
-> 🛠️ **技术团队二开专用文档**：  
-> 本项目已将架构设计图、时序图、编码红线、数据库建模与驱动扩展开发规范完全独立收录于 **[DEVELOPMENT.md](file:///c:/Users/Administrator/Desktop/m.fcwan.cn_cJxd7/CXPAY/DEVELOPMENT.md)** 中。  
-> 二开开发者请直接查阅 `DEVELOPMENT.md` 获取完整的底层设计说明。
+除 `sign`、`sign_type` 外，将所有非空参数按键名升序排列成 `key=value&key=value`，末尾直接拼接商户密钥，再计算小写 MD5。
+
+必填业务参数：`pid`、`type`、`out_trade_no`、`money`、`notify_url`、`sign`。`type` 仅支持 `alipay`、`wxpay`、`qqpay`。同一商户的 `out_trade_no` 唯一；重复提交只有在金额、支付类型和业务类型一致时才返回原订单。
+
+商户登录密码只用于后台 Session 登录，API 密钥只用于支付请求和通知签名，两者不可混用。管理员编辑商户时，登录密码与 API 密钥留空都会保持原值；填写 API 密钥代表主动轮换。商户配置了 IP 白名单后，开放 API 只接受列表中的 IPv4/IPv6 来源地址。
+
+## 挂机助手上报
+
+接口：`POST /api/appasst/push`。
+
+当前接口只接受 v2 协议。每个监控端绑定一个支付宝、微信或 QQ 钱包通道，并传入与通道 `pay_category` 一致的 `pay_type`。账单事件传 `event=bill`，并提供稳定的 `source_bill_id`（同一笔真实到账重试时保持不变）与实际发生时间 `occurred_at`；心跳事件传 `event=heartbeat`，且这两个字段分别为空字符串和 `0`。签名原文为：
+
+```text
+version|channel_id|device_id|event|pay_type|money(两位小数)|source_bill_id|occurred_at|timestamp|nonce|client_version
+```
+
+使用通道的 `notify_secret` 计算 HMAC-SHA256，该密钥必须为 32～128 位。`device_id` 必须与通道绑定设备完全一致，`pay_type` 必须与通道分类一致；`timestamp` 允许误差 300 秒，`nonce` 为 16～128 位随机字符串且不可重复。服务端以 `(channel_id, source_bill_id)` 做数据库级幂等校验。助手类通道超过 60 秒没有心跳会被标记离线，但不会改变人工启停状态。
+
+## 数据库升级
+
+全新安装使用 `database/install.sql`。旧数据库升级前请先完整备份并核对已执行版本；未执行过补丁的旧库应按 `patch_v1.sql`、`patch_v2.sql`、`patch_v3.sql`、`patch_v4.sql`、`patch_v5.sql` 的顺序逐个执行，已经执行过的版本必须跳过，所有补丁都不可重复执行。`v3` 会增加手续费状态、支付出码认领状态和商户订单唯一索引，`v4` 会增加助手账单幂等字段，`v5` 会增加 PC 授权账单源暂存队列。如果历史数据存在重复的 `(merchant_id, out_trade_no)`，需先清理重复记录才能执行 `v3`。
+
+升级后，旧订单仍在支付成功时扣除手续费，新订单则在创建时预占手续费并在超时或人工关闭时原路释放。旧商户可以暂时用原 API 密钥完成首次后台登录，系统会立即生成独立密码哈希；建议随后修改登录密码并轮换 API 密钥。
+
+## 验证命令
+
+```bash
+composer validate --strict
+composer audit
+vendor/bin/phpunit
+php start.php start
+```
+
+详细部署方式见 `DEPLOYMENT.md`，驱动开发约定见 `DEVELOPMENT.md`。

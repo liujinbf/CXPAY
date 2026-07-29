@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "id": "cxpay.wxpay.cloud_adapter",
+  "slug": "wxpay_cloud_adapter",
+  "name": "微信云监控适配器",
+  "version": "1.3.0",
+  "publisher": "cxpay.official",
+  "description": "连接独立部署的 WX Monitor Cloud，完成微信个人收款账号能力探测和签名到账回调。",
+  "payment_type": "wxpay",
+  "collection_mode": "personal_qr",
+  "monitor_mode": "callback",
+  "requires": {
+    "cxpay": ">=1.0.0 <2.0.0",
+    "php": ">=8.1.0",
+    "extensions": ["json", "openssl"]
+  },
+  "capabilities": {
+    "dynamic_qr": false,
+    "server_monitor": true,
+    "account_authorization": true,
+    "account_capability_detection": true,
+    "payment_event_review": true,
+    "operations_status": true
+  },
+  "permissions": {
+    "outbound_domains": ["由管理员配置的 WX Monitor Cloud 域名"],
+    "callbacks": ["/notify/wxpay_cloud_adapter"],
+    "scheduled_tasks": false,
+    "secret_config": ["client_secret", "callback_secret", "callback_secret_previous"]
+  },
+  "drivers": [
+    {
+      "code": "wxpay_cloud_adapter",
+      "class": "plugin\\cxpay\\wxpay_cloud_adapter\\Driver",
+      "file": "src/Driver.php"
+    }
+  ]
+}

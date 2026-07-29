@@ -1,7 +1,5 @@
 <?php
 
 return [
-    'bootstrap' => [
-        support\DatabaseBootstrap::class,
-    ],
+    support\DatabaseBootstrap::class,
 ];

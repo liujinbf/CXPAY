@@ -4,91 +4,201 @@ declare(strict_types=1);
 
 namespace app\controller\admin;
 
+use app\model\Channel;
+use app\payment\PaymentManager;
+use app\payment\Plugin\PluginException;
+use app\payment\Plugin\PluginLifecycleManager;
+use app\payment\Plugin\PluginManager;
+use app\payment\Plugin\PluginPackageInstaller;
+use support\Request;
 use support\Response;
-use Throwable;
 
 /**
- * 插件商城与云端驱动热安装/更新控制器 (Plugin Market Controller)
+ * 支付插件市场与本地签名包安装。
  */
 class PluginMarketController
 {
-    /**
-     * 获取在线插件商城驱动列表 /api/admin/plugin/market_list
-     */
     public function getMarketList(): Response
     {
-        $plugins = [
-            [
-                'c_type'      => 'wxpay_protocol_cloud',
-                'name'        => '微信协议云端 (小账本/收款单免挂)',
-                'version'     => 'v3.5.0',
-                'author'      => 'CXPAY 官方',
-                'type'        => '免签云端协议',
-                'installed'   => true,
-                'description' => '不需要商户上传图片，微信扫码授权即用，自动动态出码'
-            ],
-            [
-                'c_type'      => 'alipay_scan_bill',
-                'name'        => '支付宝扫码免挂 (Base64 Cookie)',
-                'version'     => 'v2.8.0',
-                'author'      => 'CXPAY 官方',
-                'type'        => '免签扫码',
-                'installed'   => true,
-                'description' => '扫码自动捕获 Base64 Cookie，后台协程自动查账'
-            ],
-            [
-                'c_type'      => 'qqpay_protocol_cloud',
-                'name'        => 'QQ 钱包云端协议 (ptlogin 免挂)',
-                'version'     => 'v2.1.0',
-                'author'      => 'CXPAY 官方',
-                'type'        => '免签云端协议',
-                'installed'   => true,
-                'description' => '腾讯 ptlogin 扫码登录换取 skey/pskey 自动秒级冲销'
-            ],
-            [
-                'c_type'      => 'alipay_official',
-                'name'        => '支付宝官方 Open API (RSA2)',
-                'version'     => 'v4.0.0',
-                'author'      => 'CXPAY 官方',
-                'type'        => '官方 API',
-                'installed'   => true,
-                'description' => '官方 RSA2 秘钥直连，支持手机 Wap 与 PC 网页'
-            ],
-            [
-                'c_type'      => 'wxpay_official',
-                'name'        => '微信支付原生 V3 官方驱动',
-                'version'     => 'v4.0.0',
-                'author'      => 'CXPAY 官方',
-                'type'        => '官方 API',
-                'installed'   => true,
-                'description' => '微信原生 V3 接口，支持 Native 扫码与 H5 出码'
-            ],
-        ];
+        $plugins = [];
+        foreach (PaymentManager::getRegisteredDrivers() as $cType => $meta) {
+            $plugins[] = [
+                'c_type' => $cType,
+                'name' => (string)($meta['title'] ?? $cType),
+                'version' => (string)($meta['version'] ?? '内置'),
+                'author' => (string)($meta['author'] ?? '本地代码库'),
+                'type' => '支付驱动',
+                'source' => 'builtin',
+                'plugin_id' => null,
+                'installed' => true,
+                'enabled' => true,
+                'description' => (string)($meta['description'] ?? ''),
+            ];
+        }
 
-        return json([
-            'code'  => 1,
-            'msg'   => '获取成功',
-            'data'  => [
-                'list'      => $plugins,
-                'total'     => count($plugins),
-                'installed' => count($plugins)
-            ]
-        ]);
-    }
-
-    /**
-     * 一键热安装/更新指定驱动插件 /api/admin/plugin/install
-     */
-    public function installPlugin(object $request): Response
-    {
-        $cType = (string)($request->post('c_type') ?? '');
-        if (empty($cType)) {
-            return json(['code' => -1, 'msg' => '驱动插件类型 (c_type) 不能为空']);
+        foreach (PluginManager::installed() as $pluginId => $entry) {
+            $manifest = is_array($entry['manifest'] ?? null) ? $entry['manifest'] : [];
+            $drivers = is_array($manifest['drivers'] ?? null) ? $manifest['drivers'] : [];
+            if ($drivers === []) {
+                $drivers = [['code' => '']];
+            }
+            foreach ($drivers as $driver) {
+                $plugins[] = [
+                    'c_type' => (string)($driver['code'] ?? ''),
+                    'name' => (string)($manifest['name'] ?? $entry['name'] ?? $pluginId),
+                    'version' => (string)($entry['active_version'] ?? ''),
+                    'author' => (string)($entry['publisher'] ?? ''),
+                    'type' => '支付插件',
+                    'source' => 'plugin',
+                    'plugin_id' => $pluginId,
+                    'installed' => true,
+                    'enabled' => ($entry['enabled'] ?? false) === true,
+                    'broken' => ($entry['broken'] ?? false) === true,
+                    'description' => (string)($manifest['description'] ?? $entry['error'] ?? ''),
+                    'permissions' => (array)($manifest['permissions'] ?? []),
+                    'versions' => array_keys((array)($entry['versions'] ?? [])),
+                ];
+            }
         }
 
         return json([
             'code' => 1,
-            'msg'  => "插件 [{$cType}] 已成功从云端在线安装并加载至系统驱动库！"
+            'msg' => '获取成功',
+            'data' => [
+                'list' => $plugins,
+                'total' => count($plugins),
+                'installed' => count($plugins),
+            ],
         ]);
+    }
+
+    public function installPlugin(Request $request): Response
+    {
+        $package = $request->file('package');
+        if (!$package || is_array($package) || !$package->isValid()) {
+            return json(['code' => -1, 'msg' => '请选择有效的插件安装包']);
+        }
+        if (!str_ends_with(strtolower((string)$package->getUploadName()), '.cxpay-plugin')) {
+            return json(['code' => -1, 'msg' => '只允许上传 .cxpay-plugin 安装包']);
+        }
+
+        try {
+            $installer = new PluginPackageInstaller(
+                (string)config('payment_plugin.path', base_path() . '/plugin/cxpay'),
+                (string)config('payment_plugin.trusted_keys', base_path() . '/config/plugin_keys'),
+                PluginManager::registry(),
+                (int)config('payment_plugin.max_package_size', 20 * 1024 * 1024),
+                (int)config('payment_plugin.max_file_size', 5 * 1024 * 1024),
+                (int)config('payment_plugin.max_files', 500),
+            );
+            $plugin = $installer->install($package->getPathname());
+            PaymentManager::flush();
+            return json(['code' => 1, 'msg' => '插件安装成功，完成配置并检查权限后可手动启用', 'data' => $plugin]);
+        } catch (PluginException $e) {
+            return json(['code' => -1, 'msg' => $e->getMessage()]);
+        } catch (\Throwable) {
+            return json(['code' => -1, 'msg' => '插件安装失败，请检查服务端日志'])->withStatus(500);
+        }
+    }
+
+    public function setEnabled(Request $request): Response
+    {
+        $pluginId = trim((string)$request->post('plugin_id'));
+        $enabled = (int)$request->post('enabled', 0) === 1;
+        if (!preg_match('/^cxpay\.[a-z0-9][a-z0-9._-]{2,80}$/', $pluginId)) {
+            return json(['code' => -1, 'msg' => '插件 ID 不合法']);
+        }
+
+        $entry = PluginManager::installed()[$pluginId] ?? null;
+        if (!$entry) {
+            return json(['code' => -1, 'msg' => '插件尚未安装']);
+        }
+        $drivers = (array)($entry['manifest']['drivers'] ?? []);
+        $driverCodes = array_values(array_filter(array_map(
+            static fn(array $driver): string => (string)($driver['code'] ?? ''),
+            $drivers
+        )));
+
+        if (!$enabled && $driverCodes !== []) {
+            $activeChannels = Channel::whereIn('c_type', $driverCodes)->where('status', 1)->count();
+            if ($activeChannels > 0) {
+                return json(['code' => -1, 'msg' => '该插件仍有启用中的支付通道，请先停用通道']);
+            }
+        }
+
+        try {
+            PluginManager::registry()->setEnabled($pluginId, $enabled);
+            PaymentManager::flush();
+            if ($enabled) {
+                foreach ($driverCodes as $driverCode) {
+                    PaymentManager::make($driverCode);
+                    if (PaymentManager::pluginId($driverCode) !== $pluginId) {
+                        throw new PluginException("驱动标识与已有通道冲突: {$driverCode}");
+                    }
+                }
+            }
+            return json(['code' => 1, 'msg' => $enabled ? '插件已启用' : '插件已停用']);
+        } catch (\Throwable $e) {
+            if ($enabled) {
+                PluginManager::registry()->setEnabled($pluginId, false);
+                PaymentManager::flush();
+            }
+            return json(['code' => -1, 'msg' => '插件启停检查失败：' . $e->getMessage()]);
+        }
+    }
+
+    public function rollback(Request $request): Response
+    {
+        $pluginId = trim((string)$request->post('plugin_id'));
+        $version = trim((string)$request->post('version'));
+        if (!$this->validPluginId($pluginId)) {
+            return json(['code' => -1, 'msg' => '插件 ID 不合法']);
+        }
+        try {
+            $result = $this->lifecycle()->rollback($pluginId, $version);
+            PaymentManager::flush();
+            return json(['code' => 1, 'msg' => "插件已回滚到 {$version}，请检查配置后重新启用", 'data' => $result]);
+        } catch (PluginException $e) {
+            return json(['code' => -1, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function uninstall(Request $request): Response
+    {
+        $pluginId = trim((string)$request->post('plugin_id'));
+        if (!$this->validPluginId($pluginId)) {
+            return json(['code' => -1, 'msg' => '插件 ID 不合法']);
+        }
+        $entry = PluginManager::installed()[$pluginId] ?? null;
+        if (!$entry) {
+            return json(['code' => -1, 'msg' => '插件尚未安装']);
+        }
+        $driverCodes = array_values(array_filter(array_map(
+            static fn(array $driver): string => (string)($driver['code'] ?? ''),
+            (array)($entry['manifest']['drivers'] ?? [])
+        )));
+        if ($driverCodes !== [] && Channel::whereIn('c_type', $driverCodes)->exists()) {
+            return json(['code' => -1, 'msg' => '仍有支付通道引用该插件，请先删除或迁移这些通道配置']);
+        }
+        try {
+            $this->lifecycle()->uninstall($pluginId);
+            PaymentManager::flush();
+            return json(['code' => 1, 'msg' => '插件已卸载，历史订单和审计数据未删除']);
+        } catch (PluginException $e) {
+            return json(['code' => -1, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    private function lifecycle(): PluginLifecycleManager
+    {
+        return new PluginLifecycleManager(
+            (string)config('payment_plugin.path', base_path() . '/plugin/cxpay'),
+            PluginManager::registry(),
+        );
+    }
+
+    private function validPluginId(string $pluginId): bool
+    {
+        return preg_match('/^cxpay\.[a-z0-9][a-z0-9._-]{2,80}$/', $pluginId) === 1;
     }
 }

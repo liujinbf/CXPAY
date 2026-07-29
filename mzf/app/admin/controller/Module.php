@@ -1,0 +1,136 @@
+<?php
+
+namespace app\admin\controller;
+
+use Throwable;
+use ba\Exception;
+use think\facade\Config;
+use app\admin\model\AdminLog;
+use app\admin\library\module\Server;
+use app\admin\library\module\Manage;
+use app\common\controller\Backend;
+
+class Module extends Backend
+{
+    protected array $noNeedPermission = ['state', 'dependentInstallComplete'];
+
+    public function initialize(): void
+    {
+        parent::initialize();
+    }
+
+    public function index(): void
+    {
+        $this->success('', [
+            'installed'   => Server::installedList(root_path() . 'modules' . DIRECTORY_SEPARATOR),
+            'sysVersion'  => Config::get('buildadmin.version'),
+            'nuxtVersion' => Server::getNuxtVersion(),
+        ]);
+    }
+
+    public function state(): void
+    {
+        $uid = $this->request->get("uid/s", '');
+        if (!$uid) {
+            $this->error(__('Parameter error'));
+        }
+        $this->success('', [
+            'state' => Manage::instance($uid)->getInstallState()
+        ]);
+    }
+
+    public function install(): void
+    {
+        AdminLog::instance()->setTitle(__('Install module'));
+        $uid    = $this->request->param("uid/s", '');
+        $token  = $this->request->param("token/s", '');
+        $update = $this->request->param("update/b", false);
+        if (!$uid) $this->error(__('Parameter error'));
+        if (!$token) $this->error(__('Please login to the official website account first'));
+
+        $res = [];
+        try {
+            $res = Manage::instance($uid)->install($token, $update);
+        } catch (Exception $e) {
+            $this->error(__($e->getMessage()), $e->getData(), $e->getCode());
+        } catch (Throwable $e) {
+            $this->error(__($e->getMessage()));
+        }
+        $this->success('', [
+            'data' => $res,
+        ]);
+    }
+
+    public function dependentInstallComplete(): void
+    {
+        $uid = $this->request->get("uid/s", '');
+        if (!$uid) {
+            $this->error(__('Parameter error'));
+        }
+        try {
+            Manage::instance($uid)->dependentInstallComplete('all');
+        } catch (Exception $e) {
+            $this->error(__($e->getMessage()), $e->getData(), $e->getCode());
+        } catch (Throwable $e) {
+            $this->error(__($e->getMessage()));
+        }
+        $this->success();
+    }
+
+    public function changeState(): void
+    {
+        AdminLog::instance()->setTitle(__('Change module state'));
+        $uid   = $this->request->post("uid/s", '');
+        $state = $this->request->post("state/b", false);
+        if (!$uid) {
+            $this->error(__('Parameter error'));
+        }
+        $info = [];
+        try {
+            $info = Manage::instance($uid)->changeState($state);
+        } catch (Exception $e) {
+            $this->error(__($e->getMessage()), $e->getData(), $e->getCode());
+        } catch (Throwable $e) {
+            $this->error(__($e->getMessage()));
+        }
+        $this->success('', [
+            'info' => $info,
+        ]);
+    }
+
+    public function uninstall(): void
+    {
+        AdminLog::instance()->setTitle(__('Unload module'));
+        $uid = $this->request->get("uid/s", '');
+        if (!$uid) {
+            $this->error(__('Parameter error'));
+        }
+        try {
+            Manage::instance($uid)->uninstall();
+        } catch (Exception $e) {
+            $this->error(__($e->getMessage()), $e->getData(), $e->getCode());
+        } catch (Throwable $e) {
+            $this->error(__($e->getMessage()));
+        }
+        $this->success();
+    }
+
+    public function upload(): void
+    {
+        AdminLog::instance()->setTitle(__('Upload install module'));
+        $file = $this->request->get("file/s", '');
+        if (!$file) $this->error(__('Parameter error'));
+
+        $info = [];
+        try {
+            $info = Manage::instance()->upload($file);
+        } catch (Exception $e) {
+            $this->error(__($e->getMessage()), $e->getData(), $e->getCode());
+        } catch (Throwable $e) {
+            $this->error(__($e->getMessage()));
+        }
+        $this->success('', [
+            'info' => $info
+        ]);
+    }
+}

@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "id": "cxpay.alipay.scan_monitor",
+  "slug": "alipay_scan_monitor",
+  "name": "支付宝扫码免挂适配器",
+  "version": "1.1.0",
+  "publisher": "cxpay.official",
+  "description": "连接经过授权的支付宝云账单监控服务，为支付宝个人收款码提供订单登记与签名到账回调。",
+  "payment_type": "alipay",
+  "collection_mode": "personal_qr",
+  "monitor_mode": "callback",
+  "requires": {
+    "cxpay": ">=1.0.0 <2.0.0",
+    "php": ">=8.1.0",
+    "extensions": ["json", "openssl"]
+  },
+  "capabilities": {
+    "dynamic_qr": false,
+    "server_monitor": true,
+    "account_authorization": true,
+    "order_registration": true,
+    "signed_callback": true,
+    "callback_key_rotation": true,
+    "payment_event_review": true,
+    "operations_status": true
+  },
+  "permissions": {
+    "outbound_domains": ["由管理员配置的支付宝云账单服务域名"],
+    "callbacks": ["/notify/alipay_scan_monitor"],
+    "scheduled_tasks": false,
+    "secret_config": ["client_secret", "callback_secret", "callback_secret_previous"]
+  },
+  "drivers": [
+    {
+      "code": "alipay_scan_monitor",
+      "class": "plugin\\cxpay\\alipay_scan_monitor\\Driver",
+      "file": "src/Driver.php"
+    }
+  ]
+}

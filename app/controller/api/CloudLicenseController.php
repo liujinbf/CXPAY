@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace app\controller\api;
 
 use app\service\CloudLicenseService;
-use app\service\CloudAuthSecurityService;
-use app\service\WeChatAuthService;
 use support\Response;
 use Throwable;
 
@@ -16,14 +14,10 @@ use Throwable;
 class CloudLicenseController
 {
     protected CloudLicenseService $licenseService;
-    protected CloudAuthSecurityService $authSecurityService;
-    protected WeChatAuthService $wxAuthService;
 
     public function __construct()
     {
-        $this->licenseService       = new CloudLicenseService();
-        $this->authSecurityService = new CloudAuthSecurityService();
-        $this->wxAuthService        = new WeChatAuthService();
+        $this->licenseService = new CloudLicenseService();
     }
 
     /**
@@ -31,51 +25,38 @@ class CloudLicenseController
      */
     public function getWxLoginQr(): Response
     {
-        $res = $this->wxAuthService->createWxLoginSession();
-        return json($res);
+        return $this->providerUnavailable('微信扫码登录');
     }
 
     /**
      * 轮询微信扫码状态 /api/cloud/poll_wx_login
      */
-    public function pollWxLogin(object $request): Response
+    public function pollWxLogin(\support\Request $request): Response
     {
-        $sessionId = (string)($request->get('session_id') ?? $request->post('session_id') ?? '');
-        $res = $this->wxAuthService->pollWxLoginSession($sessionId);
-        return json($res);
+        return $this->providerUnavailable('微信扫码登录');
     }
 
     public function getQqLoginQr(): Response
     {
-        $res = $this->authSecurityService->createQqLoginSession();
-        return json($res);
+        return $this->providerUnavailable('QQ扫码登录');
     }
 
-    public function pollQqLogin(object $request): Response
+    public function pollQqLogin(\support\Request $request): Response
     {
-        $sessionId = (string)($request->get('session_id') ?? $request->post('session_id') ?? '');
-        $res = $this->authSecurityService->pollQqLoginSession($sessionId);
-        return json($res);
+        return $this->providerUnavailable('QQ扫码登录');
     }
 
-    public function sendEmailCode(object $request): Response
+    public function sendEmailCode(\support\Request $request): Response
     {
-        $email = (string)($request->post('email') ?? '');
-        $res   = $this->authSecurityService->sendEmailVerifyCode($email);
-        return json($res);
+        return $this->providerUnavailable('邮件验证码');
     }
 
-    public function bindQq(object $request): Response
+    public function bindQq(\support\Request $request): Response
     {
-        $email      = (string)($request->post('email') ?? '');
-        $verifyCode = (string)($request->post('code') ?? '');
-        $qq         = (string)($request->post('qq') ?? '');
-
-        $res = $this->authSecurityService->verifyEmailAndBindQq($email, $verifyCode, $qq);
-        return json($res);
+        return $this->providerUnavailable('邮件绑定');
     }
 
-    public function downloadPackage(object $request): Response
+    public function downloadPackage(\support\Request $request): Response
     {
         try {
             $domain = (string)($request->get('domain') ?? $request->host() ?? 'm.fcwan.cn');
@@ -86,7 +67,7 @@ class CloudLicenseController
         }
     }
 
-    public function traceLeaked(object $request): Response
+    public function traceLeaked(\support\Request $request): Response
     {
         try {
             $codeSnippet = (string)($request->post('code') ?? '');
@@ -101,27 +82,27 @@ class CloudLicenseController
         }
     }
 
-    public function getSiteInfo(object $request): Response
+    public function getSiteInfo(\support\Request $request): Response
     {
-        $domain = (string)($request->get('domain') ?? $request->host() ?? 'm.fcwan.cn');
+        $domain = strtolower(trim((string)($request->get('domain') ?? $request->host()), " .\t\n\r\0\x0B"));
         $authKey = (string)($request->get('auth_key') ?? '');
+
+        if (!$this->validDomain($domain) || $authKey === '') {
+            return json(['code' => -1, 'msg' => 'domain 与 auth_key 参数不合法'])->withStatus(400);
+        }
 
         $res = $this->licenseService->validateSiteAuth($domain, $authKey, 'wx_protocol_cloud');
         return json([
-            'code' => 1,
+            'code' => !empty($res['valid']) ? 1 : -1,
             'data' => [
                 'domain'      => $domain,
-                'auth_key'    => $authKey ?: 'a61463******2893',
-                'status'      => 'authorized',
-                'agent'       => 'CXPAY 官方服务商',
-                'bound_qq'    => '1008611',
-                'bound_wx'    => 'wx_openid_99887766',
+                'status'      => !empty($res['valid']) ? 'authorized' : 'unauthorized',
                 'module_check'=> $res,
             ]
         ]);
     }
 
-    public function renewModule(object $request): Response
+    public function renewModule(\support\Request $request): Response
     {
         try {
             $domain    = (string)($request->post('domain') ?? $request->host() ?? 'm.fcwan.cn');
@@ -135,7 +116,7 @@ class CloudLicenseController
         }
     }
 
-    public function resetKey(object $request): Response
+    public function resetKey(\support\Request $request): Response
     {
         try {
             $domain = (string)($request->post('domain') ?? $request->host() ?? 'm.fcwan.cn');
@@ -146,7 +127,7 @@ class CloudLicenseController
         }
     }
 
-    public function changeDomain(object $request): Response
+    public function changeDomain(\support\Request $request): Response
     {
         try {
             $oldDomain = (string)($request->post('old_domain') ?? '');
@@ -161,5 +142,15 @@ class CloudLicenseController
         } catch (Throwable $e) {
             return json(['code' => -1, 'msg' => $e->getMessage()]);
         }
+    }
+
+    private function providerUnavailable(string $provider): Response
+    {
+        return json(['code' => -1, 'msg' => "{$provider}尚未配置真实服务，功能暂不可用"])->withStatus(501);
+    }
+
+    private function validDomain(string $domain): bool
+    {
+        return (bool)preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/', $domain);
     }
 }

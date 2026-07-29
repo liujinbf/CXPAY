@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS `cx_merchant` (
   `name` varchar(100) NOT NULL DEFAULT '新商户' COMMENT '商户名称',
   `pid` varchar(32) NOT NULL DEFAULT '' COMMENT '商户对接PID',
   `key` varchar(64) NOT NULL DEFAULT '' COMMENT '商户签名MD5密钥',
-  `money` decimal(10,2) DEFAULT '100.00' COMMENT '账户余额(元)',
+  `password_hash` varchar(255) NOT NULL DEFAULT '' COMMENT '商户后台登录密码哈希',
+  `money` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT '账户余额(元)',
   `rate` decimal(5,4) DEFAULT '0.0200' COMMENT '交易手续费率(例如0.02表示2%)',
   `packvip_id` int(11) DEFAULT '0' COMMENT 'VIP套餐ID',
   `packvip_time` int(11) DEFAULT '0' COMMENT 'VIP到期时间戳',
@@ -30,22 +31,31 @@ CREATE TABLE IF NOT EXISTS `cx_order` (
   `trade_no` varchar(64) NOT NULL COMMENT 'CXPAY平台流水号',
   `channel_id` int(11) DEFAULT '0' COMMENT '匹配通道ID',
   `pay_type` varchar(32) NOT NULL DEFAULT 'alipay' COMMENT '支付通道类型(alipay/wxpay/qqpay)',
+  `business_type` varchar(20) NOT NULL DEFAULT 'payment' COMMENT '业务类型(payment/recharge)',
+  `fee_amount` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT '订单手续费金额',
+  `fee_status` tinyint(1) NOT NULL DEFAULT '0' COMMENT '手续费状态(0无预占/旧单 1已预占 2已核销 3已释放)',
   `amount` decimal(10,2) NOT NULL COMMENT '商户发起原始金额(元)',
   `price` decimal(10,2) NOT NULL COMMENT '浮动去重实际支付金额(元)',
   `subject` varchar(255) DEFAULT '网络支付' COMMENT '商品标题说明',
   `notify_url` text COMMENT '异步回调推送URL',
   `return_url` text COMMENT '支付成功同步跳转URL',
+  `pay_url` text COMMENT '支付驱动生成的支付地址或二维码内容',
+  `pay_mode` varchar(16) NOT NULL DEFAULT 'qrcode' COMMENT '出码类型(url/qrcode)',
+  `pay_init_status` tinyint(1) NOT NULL DEFAULT '0' COMMENT '出码初始化状态(0未开始 1处理中 2完成 3失败)',
+  `pay_init_time` int(11) NOT NULL DEFAULT '0' COMMENT '最近一次出码初始化时间',
   `channel_trade_no` varchar(128) DEFAULT '' COMMENT '上游或助手上报单号',
   `status` tinyint(1) DEFAULT '0' COMMENT '0待支付 1已支付 2已超时 3已退款',
-  `notify_status` tinyint(1) DEFAULT '0' COMMENT '0未通知 1已成功通知 2通知失败重试中',
+  `notify_status` tinyint(1) DEFAULT '0' COMMENT '0未通知 1成功 2重试中 3最终失败',
   `create_time` int(11) DEFAULT '0' COMMENT '下单时间',
   `expire_time` int(11) DEFAULT '0' COMMENT '失效时间',
   `pay_time` int(11) DEFAULT '0' COMMENT '支付完成时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_trade_no` (`trade_no`),
-  KEY `idx_out_trade_no` (`out_trade_no`),
+  UNIQUE KEY `uk_merchant_out_trade_no` (`merchant_id`, `out_trade_no`),
   KEY `idx_merchant_id` (`merchant_id`),
-  KEY `idx_status` (`status`)
+  KEY `idx_status` (`status`),
+  KEY `idx_channel_price_status` (`channel_id`, `price`, `status`),
+  KEY `idx_expire_status` (`expire_time`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='交易订单表';
 
 -- 3. 支付通道表 cx_pay_channel
@@ -75,14 +85,42 @@ CREATE TABLE IF NOT EXISTS `cx_pay_channel` (
 CREATE TABLE IF NOT EXISTS `cx_callbill` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `device_id` varchar(64) NOT NULL COMMENT '挂机设备/APP唯一标识',
+  `source_bill_id` varchar(128) NOT NULL COMMENT '客户端生成的稳定来源账单唯一标识',
   `app_name` varchar(50) NOT NULL COMMENT '应用类型(alipay_asst/wxpay_asst)',
   `money` decimal(10,2) NOT NULL COMMENT '实际到账金额',
   `remark` varchar(255) DEFAULT '' COMMENT '账单备注/订单号',
-  `status` tinyint(1) DEFAULT '0' COMMENT '0待匹配 1已自动销账',
+  `channel_id` int(11) NOT NULL DEFAULT '0' COMMENT '来源支付通道ID',
+  `trade_no` varchar(64) NOT NULL DEFAULT '' COMMENT '匹配到的平台流水号',
+  `order_id` int(11) NOT NULL DEFAULT '0' COMMENT '匹配到的订单ID',
+  `occurred_at` int(11) NOT NULL DEFAULT '0' COMMENT '账单在收款端发生的时间戳',
+  `raw_hash` char(64) NOT NULL DEFAULT '' COMMENT '原始通知内容SHA256摘要',
+  `client_version` varchar(32) NOT NULL DEFAULT '' COMMENT '助手客户端版本',
+  `review_note` varchar(255) NOT NULL DEFAULT '' COMMENT '人工复核备注',
+  `status` tinyint(1) DEFAULT '0' COMMENT '0待匹配 1已销账 2无匹配 3待复核 4处理中 5已忽略',
   `create_time` int(11) DEFAULT '0' COMMENT '上报时间',
   PRIMARY KEY (`id`),
-  KEY `idx_money_status` (`money`, `status`)
+  UNIQUE KEY `uk_channel_source_bill` (`channel_id`, `source_bill_id`),
+  KEY `idx_channel_raw_time` (`channel_id`, `raw_hash`, `occurred_at`),
+  KEY `idx_money_status` (`money`, `status`),
+  KEY `idx_channel_money_status` (`channel_id`, `money`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='挂机监控助手流水表';
+
+-- 4.1 授权账单源暂存表（采集端写入、PC按游标拉取）
+CREATE TABLE IF NOT EXISTS `cx_bill_source_event` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `channel_id` int(11) NOT NULL COMMENT '绑定的支付通道ID',
+  `source_bill_id` varchar(128) NOT NULL COMMENT '账单源稳定唯一标识',
+  `pay_type` varchar(16) NOT NULL COMMENT '支付类型(wxpay/alipay/qqpay)',
+  `money` decimal(10,2) NOT NULL COMMENT '真实到账金额',
+  `occurred_at` int(11) NOT NULL COMMENT '账单实际发生时间',
+  `remark` varchar(255) NOT NULL DEFAULT '' COMMENT '到账备注',
+  `collector_id` varchar(64) NOT NULL COMMENT '授权采集端ID',
+  `create_time` int(11) NOT NULL COMMENT '服务端接收时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_bill_source_channel_bill` (`channel_id`, `source_bill_id`),
+  KEY `idx_bill_source_channel_cursor` (`channel_id`, `id`),
+  KEY `idx_bill_source_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='PC监控端授权账单源队列';
 
 -- 5. 系统全局配置表 cx_config
 CREATE TABLE IF NOT EXISTS `cx_config` (
@@ -164,25 +202,25 @@ CREATE TABLE IF NOT EXISTS `cx_user_money_log` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商户余额变动明细日志表';
 
--- 插入默认体验商户账号 (PID: 1000, KEY: 1234567890abcdef1234567890abcdef)
-INSERT INTO `cx_merchant` (`id`, `name`, `pid`, `key`, `money`, `rate`, `status`, `create_time`) 
-VALUES (1000, '极客演示体验商户', '1000', '1234567890abcdef1234567890abcdef', 500.00, 0.0150, 1, UNIX_TIMESTAMP())
+-- 插入一个禁用的初始化商户占位记录，密钥由数据库随机生成，不能用于登录或下单。
+INSERT INTO `cx_merchant` (`id`, `name`, `pid`, `key`, `password_hash`, `money`, `rate`, `status`, `create_time`)
+VALUES (1000, '初始化占位商户（已禁用）', '1000', SHA2(CONCAT(UUID(), RAND()), 256), '', 0.00, 0.0150, 0, UNIX_TIMESTAMP())
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
 
 -- 插入默认系统配置
 INSERT INTO `cx_config` (`name`, `value`, `title`) VALUES 
 ('active_home_template', 'default',                                                              '当前生效的主页模版'),
-('site_name',            'CXPAY 商业级聚合支付平台',                                           '站点名称'),
+('site_name',            'CXPAY 聚合支付网关',                                               '站点名称'),
 ('admin_account',        'admin',                                                              '管理员账号'),
-('admin_password_hash',  '$2y$12$eImiTXuWVxfM37uY4JANjOe5XM.oFBkSPvHKxU3sXuCz5BKs8kFGy', '管理员密码Bcrypt哈希(默认admin123)'),
-('token_salt',           'CXPAY_TOKEN_SALT_CHANGE_ME_IN_PRODUCTION',                         'Token HMAC签名盐值')
+('admin_password_hash',  '',                                                                  '管理员密码Bcrypt哈希(由安装器写入)'),
+('token_salt',           '',                                                                  'Token HMAC签名盐值(由安装器写入)')
 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 
--- 插入默认测试支付通道
-INSERT INTO `cx_pay_channel` (`id`, `title`, `c_type`, `config`, `weight`, `status`) VALUES 
-(1, '支付宝官方原生扫码 (Demo)', 'alipay_official', '{}', 100, 1),
-(2, '微信小账本云端免挂 (Demo)', 'wxpay_protocol_cloud', '{}', 80, 1),
-(3, 'QQ钱包 APP 助手挂机', 'qqpay_app_asst', '{}', 50, 1)
+-- 插入禁用的通道配置示例；管理员必须填写真实配置并主动启用。
+INSERT INTO `cx_pay_channel` (`id`, `pay_category`, `title`, `c_type`, `config`, `weight`, `online_status`, `status`) VALUES
+(1, 'alipay', '支付宝官方网页支付（待配置）', 'alipay_official', '{}', 100, 0, 0),
+(2, 'wxpay', '微信外部账单回调（待配置）', 'wxpay_protocol_cloud', '{}', 80, 0, 0),
+(3, 'qqpay', 'QQ 钱包 App 助手（待配置）', 'qqpay_app_asst', '{}', 50, 0, 0)
 ON DUPLICATE KEY UPDATE `title` = VALUES(`title`);
 
 SET FOREIGN_KEY_CHECKS = 1;

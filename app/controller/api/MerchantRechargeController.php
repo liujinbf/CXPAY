@@ -25,29 +25,27 @@ class MerchantRechargeController
     /**
      * 发起在线充值余额订单 /api/merchant/recharge/create
      */
-    public function create(object $request): Response
+    public function create(\support\Request $request): Response
     {
         try {
-            $pid    = $request->post('pid') ?? $request->get('pid') ?? '';
             $money  = (float)($request->post('money') ?? 0);
             $type   = (string)($request->post('type') ?? 'alipay');
+            $merchant = $request->context['merchant'] ?? null;
 
-            if (empty($pid) || $money <= 0) {
-                return json(['code' => -1, 'msg' => '商户 PID 与充值金额 (money) 不能为空且必须大于0']);
+            if (!$merchant instanceof Merchant) {
+                return json(['code' => -1, 'msg' => '商户身份无效']);
             }
-
-            $merchant = Merchant::where('pid', $pid)->first();
-            if (!$merchant) {
-                return json(['code' => -1, 'msg' => '商户不存在']);
+            if ($money <= 0) {
+                return json(['code' => -1, 'msg' => '充值金额必须大于0']);
             }
 
             // 生成在线充值订单
-            $outTradeNo = 'RECHARGE_' . time() . mt_rand(100, 999);
+            $outTradeNo = 'RECHARGE_' . time() . '_' . bin2hex(random_bytes(6));
             $params = [
-                'pid'          => $pid,
+                'pid'          => $merchant->pid,
                 'out_trade_no' => $outTradeNo,
-                'notify_url'   => 'http://' . ($request->host() ?? '127.0.0.1') . '/notify/' . $type,
-                'return_url'   => 'http://' . ($request->host() ?? '127.0.0.1') . '/merchant_center.html',
+                'notify_url'   => '',
+                'return_url'   => $this->baseUrl($request) . '/merchant_center.html',
                 'name'         => '商户账户余额充值 ¥' . number_format($money, 2, '.', ''),
                 'money'        => $money,
                 'type'         => $type,
@@ -57,11 +55,24 @@ class MerchantRechargeController
             // 验签模拟
             $res = $this->orderService->createOrder(array_merge($params, [
                 'sign' => \support\Sign::makeSign($params, $merchant->key)
-            ]));
+            ]), $this->baseUrl($request), 'recharge');
 
             return json(['code' => 1, 'msg' => '充值订单创建成功', 'data' => $res]);
         } catch (Throwable $e) {
             return json(['code' => -1, 'msg' => $e->getMessage()]);
         }
+    }
+
+    private function baseUrl(\support\Request $request): string
+    {
+        $configured = (string)config('app.url', '');
+        if (filter_var($configured, FILTER_VALIDATE_URL)) {
+            return rtrim($configured, '/');
+        }
+        $forwarded = strtolower((string)$request->header('x-forwarded-proto'));
+        $scheme = in_array($forwarded, ['http', 'https'], true)
+            ? $forwarded
+            : (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http');
+        return $scheme . '://' . $request->host();
     }
 }

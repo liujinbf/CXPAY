@@ -24,20 +24,14 @@ class ChannelAdminController
     /**
      * 获取指定 c_type 驱动的 inputs 动态表单项定义
      */
-    public function getConfigInputs(object $request): string
+    public function getConfigInputs(\support\Request $request): string
     {
         $cType = $request->get('c_type') ?? $request->post('c_type') ?? '';
 
         if (empty($cType) || !PaymentManager::has($cType)) {
             return json_encode([
-                'code' => 1,
-                'data' => [
-                    'c_type' => $cType,
-                    'inputs' => [
-                        ['name' => 'pid', 'title' => '商户 PID / 账号', 'type' => 'string'],
-                        ['name' => 'key', 'title' => '私钥 / 密钥 KEY', 'type' => 'textarea'],
-                    ]
-                ]
+                'code' => -1,
+                'msg' => '支付驱动不存在或尚未安装',
             ], JSON_UNESCAPED_UNICODE);
         }
 

@@ -13,12 +13,39 @@ class Driver implements PaymentDriverInterface
 {
     public function pay(array $params, array $config): array
     {
+        $gateway = (string)($config['gateway_url'] ?? 'https://openapi.alipay.com/gateway.do');
+        $requestParams = [
+            'app_id' => (string)($config['app_id'] ?? ''),
+            'method' => 'alipay.trade.page.pay',
+            'format' => 'JSON',
+            'charset' => 'utf-8',
+            'sign_type' => 'RSA2',
+            'timestamp' => date('Y-m-d H:i:s'),
+            'version' => '1.0',
+            'notify_url' => (string)($params['notify_url'] ?? ''),
+            'return_url' => (string)($params['return_url'] ?? ''),
+            'biz_content' => json_encode([
+                'out_trade_no' => (string)$params['out_trade_no'],
+                'product_code' => 'FAST_INSTANT_TRADE_PAY',
+                'total_amount' => number_format((float)$params['money'], 2, '.', ''),
+                'subject' => mb_substr((string)($params['name'] ?? '网络支付'), 0, 128),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        ];
+        if ($requestParams['return_url'] === '') {
+            unset($requestParams['return_url']);
+        }
+
+        $requestParams['sign'] = $this->signRsa2(
+            $this->buildSignContent($requestParams),
+            (string)($config['merchant_private_key'] ?? '')
+        );
+
         return [
             'type'         => 'url',
             'trade_no'     => $params['trade_no'],
             'out_trade_no' => $params['out_trade_no'],
             'amount'       => $params['money'],
-            'pay_url'      => 'https://openapi.alipay.com/gateway.do',
+            'pay_url'      => $gateway . '?' . http_build_query($requestParams, '', '&', PHP_QUERY_RFC3986),
         ];
     }
 
@@ -32,11 +59,11 @@ class Driver implements PaymentDriverInterface
 
         // 若配置了支付宝公钥则做 RSA2 验签，否则降级校验基本字段
         if (!empty($alipayPublicKey) && !empty($params['sign'])) {
-            $verified = $this->verifyRsa2($params, $alipayPublicKey);
+            $verified = $this->verifyRsa2($params, $alipayPublicKey)
+                && in_array((string)($params['trade_status'] ?? ''), ['TRADE_SUCCESS', 'TRADE_FINISHED'], true)
+                && hash_equals((string)($config['app_id'] ?? ''), (string)($params['app_id'] ?? ''));
         } else {
-            // 无公钥时：至少校验通知状态为成功且包含必要字段
-            $verified = isset($params['out_trade_no'])
-                && ($params['trade_status'] ?? '') === 'TRADE_SUCCESS';
+            $verified = false;
         }
 
         // 支付宝通知的实际金额字段为 total_amount
@@ -61,10 +88,12 @@ class Driver implements PaymentDriverInterface
             'name'        => 'alipay_official',
             'title'       => '支付宝官方 Open API',
             'description' => '支持 RSA2 私钥加签与网页/手机 Wap 支付',
+            'available'   => false,
             'inputs'      => [
                 ['name' => 'app_id',               'title' => '支付宝 AppID',        'type' => 'string',   'required' => true],
                 ['name' => 'merchant_private_key',  'title' => '应用私钥 (RSA2)',     'type' => 'textarea', 'required' => true],
                 ['name' => 'alipay_public_key',     'title' => '支付宝公钥',          'type' => 'textarea', 'required' => true],
+                ['name' => 'gateway_url',           'title' => '支付宝网关地址',       'type' => 'string', 'required' => true, 'default' => 'https://openapi.alipay.com/gateway.do'],
             ]
         ];
     }
@@ -77,7 +106,55 @@ class Driver implements PaymentDriverInterface
         if (empty($config['alipay_public_key'])) {
             return ['code' => -1, 'msg' => '支付宝公钥不能为空（用于验签）'];
         }
+        if (empty($config['merchant_private_key'])) {
+            return ['code' => -1, 'msg' => '支付宝应用私钥不能为空（用于下单签名）'];
+        }
+        $allowedGateways = [
+            'https://openapi.alipay.com/gateway.do',
+            'https://openapi-sandbox.dl.alipaydev.com/gateway.do',
+        ];
+        $gateway = (string)($config['gateway_url'] ?? $allowedGateways[0]);
+        if (!in_array($gateway, $allowedGateways, true)) {
+            return ['code' => -1, 'msg' => '支付宝网关地址不在允许列表中'];
+        }
         return $config;
+    }
+
+    private function signRsa2(string $content, string $privateKey): string
+    {
+        $key = $this->normalizePrivateKey($privateKey);
+        $resource = openssl_pkey_get_private($key);
+        if ($resource === false) {
+            throw new \RuntimeException('支付宝应用私钥格式不正确');
+        }
+        $signature = '';
+        if (!openssl_sign($content, $signature, $resource, OPENSSL_ALGO_SHA256)) {
+            throw new \RuntimeException('支付宝 RSA2 下单签名失败');
+        }
+        return base64_encode($signature);
+    }
+
+    private function buildSignContent(array $params): string
+    {
+        ksort($params);
+        $pairs = [];
+        foreach ($params as $key => $value) {
+            if ($value !== '' && $value !== null && $key !== 'sign') {
+                $pairs[] = $key . '=' . $value;
+            }
+        }
+        return implode('&', $pairs);
+    }
+
+    private function normalizePrivateKey(string $key): string
+    {
+        $key = trim($key);
+        if (str_contains($key, '-----BEGIN')) {
+            return $key;
+        }
+        return "-----BEGIN PRIVATE KEY-----\n"
+            . wordwrap(preg_replace('/\s+/', '', $key), 64, "\n", true)
+            . "\n-----END PRIVATE KEY-----";
     }
 
     /**

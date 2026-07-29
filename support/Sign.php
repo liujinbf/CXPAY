@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace support;
 
 /**
- * 易支付/平台统一签名工具类 (带宽松比较与保留两位小数格式化)
+ * 易支付/平台统一签名工具类。
  */
 class Sign
 {
@@ -18,7 +18,7 @@ class Sign
         $signstr = '';
 
         foreach ($param as $k => $v) {
-            if ($k !== 'sign' && $k !== 'sign_type' && $k !== 'a' && $k !== 'c' && $k !== 'm' && $k !== 's' && $v !== '' && $v !== null) {
+            if ($k !== 'sign' && $k !== 'sign_type' && $v !== '' && $v !== null) {
                 $signstr .= $k . '=' . $v . '&';
             }
         }
@@ -36,7 +36,9 @@ class Sign
         if (empty($data['sign'])) {
             return false;
         }
-        return self::makeSign($data, $key) === $data['sign'];
+        $provided = strtolower(trim((string)$data['sign']));
+        return preg_match('/^[a-f0-9]{32}$/', $provided) === 1
+            && hash_equals(self::makeSign($data, $key), $provided);
     }
 
     /**
@@ -72,9 +74,6 @@ class Sign
      */
     public static function callbackNotify($response): bool
     {
-        if (is_string($response)) {
-            return str_contains(strtolower(trim($response)), 'success');
-        }
-        return false;
+        return is_string($response) && strtolower(trim($response)) === 'success';
     }
 }

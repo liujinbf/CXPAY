@@ -111,9 +111,9 @@
                     登录商户控制中心后，在【API 密钥与回调配置】菜单中可查阅您的专属凭证：
                 </p>
                 <div class="bg-slate-900 text-slate-100 rounded-xl p-4 font-mono text-xs space-y-2">
-                    <div><span class="text-slate-400">// 测试演示账号</span></div>
-                    <div><span class="text-amber-400">商户 PID (pid)</span> : 1000</div>
-                    <div><span class="text-emerald-400">商户密钥 (key)</span> : 1234567890abcdef1234567890abcdef</div>
+                    <div><span class="text-slate-400">// 请从商户中心获取真实凭据</span></div>
+                    <div><span class="text-amber-400">商户 PID (pid)</span> : YOUR_PID</div>
+                    <div><span class="text-emerald-400">商户密钥 (key)</span> : YOUR_SECRET_KEY</div>
                 </div>
             </section>
 
@@ -157,7 +157,7 @@
                         <tbody class="divide-y divide-slate-100">
                             <tr>
                                 <td class="p-3 font-mono font-bold text-blue-600">pid</td>
-                                <td class="p-3 font-mono">Int</td>
+                                <td class="p-3 font-mono">String</td>
                                 <td class="p-3 font-bold text-emerald-600">是</td>
                                 <td class="p-3">商户 PID (例: 1000)</td>
                             </tr>
@@ -188,14 +188,14 @@
                             <tr>
                                 <td class="p-3 font-mono font-bold text-blue-600">name</td>
                                 <td class="p-3 font-mono">String</td>
-                                <td class="p-3 font-bold text-emerald-600">是</td>
-                                <td class="p-3">商品名称/说明标题 (如: VIP高级会员)</td>
+                                <td class="p-3 text-slate-400">否</td>
+                                <td class="p-3">商品名称/说明标题，最长255个字符</td>
                             </tr>
                             <tr>
                                 <td class="p-3 font-mono font-bold text-blue-600">money</td>
                                 <td class="p-3 font-mono">Decimal</td>
                                 <td class="p-3 font-bold text-emerald-600">是</td>
-                                <td class="p-3">订单金额(单位: 元，必须保留两位小数，如: 99.00)</td>
+                                <td class="p-3">订单金额（单位：元，最多8位整数和2位小数）</td>
                             </tr>
                             <tr>
                                 <td class="p-3 font-mono font-bold text-blue-600">sign</td>
@@ -206,8 +206,8 @@
                             <tr>
                                 <td class="p-3 font-mono font-bold text-blue-600">sign_type</td>
                                 <td class="p-3 font-mono">String</td>
-                                <td class="p-3 font-bold text-emerald-600">是</td>
-                                <td class="p-3">签名类型，固定为 <code class="bg-slate-100 px-1 rounded">MD5</code></td>
+                                <td class="p-3 text-slate-400">否</td>
+                                <td class="p-3">签名类型；传入时填写 <code class="bg-slate-100 px-1 rounded">MD5</code></td>
                             </tr>
                         </tbody>
                     </table>
@@ -221,7 +221,7 @@
                 </div>
                 <h2 class="text-xl font-bold text-slate-900">服务端异步回调通知 (Notify Protocol)</h2>
                 <p class="text-sm text-slate-600 leading-relaxed">
-                    当用户在微信/支付宝/QQ付款成功后，CXPAY 平台服务器会自动以 <code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-blue-600 font-bold">GET / POST</code> 方式向商户的 <code class="bg-slate-100 px-1 py-0.5 rounded font-mono">notify_url</code> 发起 HTTP 请求。
+                    支付订单完成事务结算后，CXPAY 会以 <code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-blue-600 font-bold">GET</code> 方式向商户的 <code class="bg-slate-100 px-1 py-0.5 rounded font-mono">notify_url</code> 发送带签名参数的异步通知。
                 </p>
 
                 <div class="bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-xs space-y-2">
@@ -244,8 +244,8 @@
                 <div class="bg-slate-900 text-slate-100 p-5 rounded-xl font-mono text-xs overflow-x-auto leading-relaxed">
 <pre><code class="language-php">&lt;?php
 // 1. 初始化对接参数
-$pid = "1000";
-$key = "1234567890abcdef1234567890abcdef";
+$pid = "YOUR_PID";
+$key = "YOUR_SECRET_KEY";
 $gateWayUrl = "http://localhost:8787/submit.php";
 
 $params = [

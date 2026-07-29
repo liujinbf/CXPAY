@@ -54,17 +54,11 @@ class Driver implements PaymentDriverInterface
             }
         }
 
-        // 降级：直接从 params 读取（适配不加密的测试回调）
-        $outTradeNo = $params['out_trade_no'] ?? '';
-        $tradeNo    = $params['transaction_id'] ?? '';
-        // 校验必要字段存在且无 v3_key 依赖的基础验证
-        $verified = !empty($outTradeNo) && !empty($tradeNo);
-
         return [
-            'success'      => $verified,
-            'out_trade_no' => $outTradeNo,
-            'trade_no'     => $tradeNo,
-            'amount'       => (float)(($params['amount']['total'] ?? 0)) / 100,
+            'success'      => false,
+            'out_trade_no' => '',
+            'trade_no'     => '',
+            'amount'       => 0.0,
         ];
     }
 
@@ -78,7 +72,8 @@ class Driver implements PaymentDriverInterface
         return [
             'name'        => 'wxpay_official',
             'title'       => '微信支付原生 V3 驱动',
-            'description' => '支持微信 Native 扫码与 H5 MWEB 支付',
+            'description' => '尚未完成微信 Native 下单与平台证书回调验签，当前不可启用',
+            'available'   => false,
             'inputs'      => [
                 ['name' => 'mch_id',    'title' => '微信商户号 (MCHID)',   'type' => 'string', 'required' => true],
                 ['name' => 'v3_key',    'title' => 'API v3 密钥',          'type' => 'string', 'required' => true],

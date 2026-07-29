@@ -113,10 +113,10 @@
                 <p class="text-[10px] text-slate-400">单据号: <span id="order-trade-no" class="font-mono">--</span> · 订单即时防篡改已开启</p>
             </div>
 
-            <!-- Interactive Pay & Mock Pay Buttons -->
+            <!-- 移动端拉起支付应用 -->
             <div id="mobile-btn" class="mt-5 space-y-2">
-                <button onclick="triggerCashierMockPay()" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all">
-                    <i data-lucide="zap" class="w-4 h-4"></i> ⚡ 一键模拟完成支付 (测试到账回调)
+                <button onclick="openApp()" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all">
+                    <i data-lucide="external-link" class="w-4 h-4"></i> 打开支付应用
                 </button>
             </div>
         </div>
@@ -137,9 +137,9 @@
                 fetchOrderDetails(tradeNo);
                 startOrderPolling(tradeNo);
             } else {
-                document.getElementById('order-subject').innerText = '测试演示订单';
-                document.getElementById('order-amount').innerText = '1.00';
-                renderQr("https://qr.alipay.com/bax09876543210987");
+                document.getElementById('order-subject').innerText = '订单参数无效';
+                document.getElementById('order-amount').innerText = '--';
+                document.getElementById('qrcode').innerHTML = '<div class="text-xs text-rose-500 font-bold">缺少平台流水号</div>';
             }
 
             lucide.createIcons();
@@ -160,12 +160,12 @@
                         document.getElementById('order-amount').innerText = data.price || data.money || data.amount || '1.00';
                         document.getElementById('order-subject').innerText = data.subject || data.name || '网络商品';
                         document.getElementById('order-trade-no').innerText = tNo;
-                        let finalQrUrl = data.pay_url || window.location.href;
+                        let finalQrUrl = data.pay_url || '';
                         if (finalQrUrl.startsWith('/')) {
                             finalQrUrl = window.location.origin + finalQrUrl;
                         }
                         window.lastPayUrl = finalQrUrl;
-                        window.realQrUrl  = data.qr_url || '';
+                        window.realQrUrl  = finalQrUrl;
 
                         // 依据订单真实的支付类型 (wxpay / alipay / qqpay) 自动高亮切换对应 Tab
                         const pType = data.pay_type || data.pay_category || 'alipay';
@@ -187,12 +187,12 @@
                         } else {
                             document.getElementById("qrcode").innerHTML = `
                                 <div class="text-center p-3 space-y-2">
-                                    <div class="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xl">
-                                        ✓
+                                    <div class="w-12 h-12 mx-auto rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-xl">
+                                        !
                                     </div>
-                                    <div class="text-xs font-extrabold text-slate-100">测试订单已就绪</div>
-                                    <div class="text-[11px] text-emerald-300 font-bold bg-emerald-950/80 p-2 rounded-xl border border-emerald-500/30">
-                                        👉 点击下方绿色按钮完成支付核销测试
+                                    <div class="text-xs font-extrabold text-slate-100">支付地址暂不可用</div>
+                                    <div class="text-[11px] text-rose-300 font-bold bg-rose-950/80 p-2 rounded-xl border border-rose-500/30">
+                                        请返回商户页面重试，或联系商户处理
                                     </div>
                                 </div>
                             `;
@@ -204,14 +204,8 @@
                     }
                 })
                 .catch(() => {
-                    document.getElementById("qrcode").innerHTML = `<div class="text-xs text-rose-400 font-bold">订单装载完成</div>`;
+                    document.getElementById("qrcode").innerHTML = `<div class="text-xs text-rose-400 font-bold">订单加载失败，请稍后重试</div>`;
                 });
-        }
-
-        function triggerCashierMockPay() {
-            showPaidMask();
-            if (!tradeNo) return;
-            fetch(`/api/merchant/channel/mock_pay?trade_no=${tradeNo}`).catch(() => {});
         }
 
         // 真实轮询订单状态

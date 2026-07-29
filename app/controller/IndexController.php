@@ -4,161 +4,49 @@ declare(strict_types=1);
 
 namespace app\controller;
 
-if (!function_exists('app\controller\response')) {
-    function response($body = '', $status = 200, $headers = []) {
-        return new class($body, $status, $headers) {
-            private $body;
-            private $status;
-            private $headers;
-            public function __construct($b, $s = 200, $h = []) { $this->body = $b; $this->status = $s; $this->headers = $h; }
-            public function rawBody() { return $this->body; }
-            public function __toString() { return (string)$this->body; }
-        };
-    }
-}
-
-if (!function_exists('app\controller\redirect')) {
-    function redirect($url, $status = 302) {
-        if (!headers_sent()) {
-            header("Location: {$url}", true, $status);
-        }
-        return response("<script>location.href='{$url}';</script>", $status, ['Location' => $url]);
-    }
-}
-
-use support\Response;
 use Illuminate\Database\Capsule\Manager as DB;
+use support\Request;
+use Throwable;
 
 /**
- * 首页模版动态渲染与 H5 手机扫码直连支付控制器
+ * 首页模板入口。
  */
 class IndexController
 {
-    /**
-     * 动态渲染主页或手机 App 内快捷支付收银台
-     */
-    public function index(object $request = null)
+    public function index(Request $request)
     {
-        // 自动检测安装状态：未安装（缺失 install.lock）时自动引导跳转至一键安装向导页面
-        $lockFile = base_path() . '/install.lock';
+        $lockFile = (string)config('app.install_lock', base_path() . '/install.lock');
         if (!file_exists($lockFile)) {
             return redirect('/install');
         }
 
-        $get = $_GET ?? [];
-        $flowT = $get['flowT'] ?? $get['trade_no'] ?? '';
-        $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
-        $isAlipay = (bool)str_contains($ua, 'AlipayClient');
-        $isWx = (bool)str_contains($ua, 'MicroMessenger');
-
-        // 如果携带了 flowT / trade_no 参数，或属于支付宝/微信 App 内扫码访问，直接呈现移动端极速收银单
-        if (!empty($flowT) || $isAlipay || $isWx) {
-            $html = $this->renderMobilePayPage($flowT, $isAlipay, $isWx);
-            return response($html, 200, ['Content-Type' => 'text/html; charset=utf-8']);
+        $tradeNo = trim((string)($request->get('trade_no') ?? $request->get('flowT') ?? ''));
+        if ($tradeNo !== '') {
+            if (!preg_match('/^[A-Za-z0-9_-]{8,64}$/', $tradeNo)) {
+                return response('订单号格式不正确', 400);
+            }
+            return redirect('/cashier/index.html?trade_no=' . rawurlencode($tradeNo));
         }
 
         $activeTemplate = 'default';
-
         try {
-            $configRow = DB::table('cx_config')->where('name', 'active_home_template')->first();
-            if ($configRow && !empty($configRow->value)) {
-                $activeTemplate = $configRow->value;
+            $configured = (string)(DB::table('cx_config')
+                ->where('name', 'active_home_template')
+                ->value('value') ?? '');
+            if (preg_match('/^[A-Za-z0-9_-]{1,50}$/', $configured)) {
+                $activeTemplate = $configured;
             }
-        } catch (\Throwable $e) {}
+        } catch (Throwable) {
+            // 数据库暂不可用时使用默认首页。
+        }
 
         $templatePath = base_path() . "/public/home_templates/{$activeTemplate}.html";
-        if (!file_exists($templatePath)) {
-            $templatePath = base_path() . "/public/index.html";
+        if (!is_file($templatePath)) {
+            $templatePath = base_path() . '/public/index.html';
         }
-
         $content = file_get_contents($templatePath);
-        return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
-    }
-
-    /**
-     * 渲染手机端 H5 极速收银与 App 调起唤醒界面
-     */
-    protected function renderMobilePayPage(string $tradeNo, bool $isAlipay, bool $isWx): string
-    {
-        $displayNo = !empty($tradeNo) ? $tradeNo : ('CX' . date('YmdHis') . sprintf('%03d', mt_rand(1, 999)));
-        
-        return <<<HTML
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CXPAY 极速收银支付</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        body { background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        .glass-card { background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
-    </style>
-</head>
-<body class="min-h-screen flex items-center justify-center p-4 text-slate-100">
-    <div class="w-full max-w-sm glass-card rounded-3xl p-6 space-y-6 text-center shadow-2xl">
-        <div class="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto text-white font-black text-xl shadow-lg shadow-blue-500/30">
-            CX
-        </div>
-
-        <div>
-            <span class="text-xs font-bold text-slate-400">订单已安全接入 · 即刻支付</span>
-            <div class="text-4xl font-black text-white mt-1 font-mono">¥ <span id="pay-money">1.00</span></div>
-            <div class="text-xs text-blue-400 font-bold mt-2">测试体验商品</div>
-        </div>
-
-        <div class="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/50 text-left space-y-2 text-xs font-mono">
-            <div class="flex justify-between text-slate-400">
-                <span>单据编号:</span>
-                <span id="display-trade-no" class="text-slate-200 font-bold">{$displayNo}</span>
-            </div>
-            <div class="flex justify-between text-slate-400">
-                <span>支付通道:</span>
-                <span class="text-emerald-400 font-bold">支付宝扫码直连免挂</span>
-            </div>
-            <div class="flex justify-between text-slate-400">
-                <span>倒计时:</span>
-                <span class="text-amber-400 font-bold" id="pay-timer">180 秒</span>
-            </div>
-        </div>
-
-        <div class="space-y-3">
-            <button onclick="doAppPay()" class="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
-                <i data-lucide="zap" class="w-5 h-5"></i> 启动支付宝 App 确认支付
-            </button>
-            <button onclick="location.href='/merchant_center.html'" class="w-full py-2.5 border border-slate-700 rounded-2xl text-xs font-bold text-slate-400 hover:bg-slate-800">
-                返回商户控制台
-            </button>
-        </div>
-
-        <div class="text-[11px] text-slate-500">
-            🔒 CXPAY 全流程高阶加密与订单防篡改已防护
-        </div>
-    </div>
-
-    <script>
-        lucide.createIcons();
-
-        function doAppPay() {
-            // 原生调起支付宝原生收银台 (避免第三方外部跳转警示)
-            const targetQr = window.location.href;
-            const aliNativeScheme = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(targetQr);
-            
-            window.location.href = aliNativeScheme;
-
-            setTimeout(() => {
-                window.location.href = targetQr;
-            }, 1200);
-        }
-
-        // 在支付宝 App 内直接自动唤醒原生收银台
-        if (navigator.userAgent.includes('AlipayClient')) {
-            setTimeout(doAppPay, 300);
-        }
-    </script>
-</body>
-</html>
-HTML;
+        return response($content !== false ? $content : '首页模板读取失败', $content !== false ? 200 : 500, [
+            'Content-Type' => 'text/html; charset=utf-8',
+        ]);
     }
 }

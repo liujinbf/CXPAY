@@ -68,7 +68,7 @@
                 <i data-lucide="store" class="w-6 h-6 text-white"></i>
             </div>
             <h2 class="text-2xl font-extrabold tracking-tight text-white">CXPAY 商户服务中心</h2>
-            <p class="text-xs text-slate-400 mt-1">输入您的商户 AppID 或账号登录</p>
+            <p class="text-xs text-slate-400 mt-1">使用商户 PID 与后台登录密码登录</p>
         </div>
 
         <!-- Login Form -->
@@ -82,18 +82,18 @@
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-slate-400 mb-1.5">商户通讯密钥 / 密码</label>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5">商户后台登录密码</label>
                 <div class="relative">
                     <i data-lucide="key" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
-                    <input v-model="password" type="password" required placeholder="请输入 AppSecret" class="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all">
+                    <input v-model="password" type="password" required placeholder="请输入后台登录密码" class="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all">
                 </div>
             </div>
 
             <div class="flex items-center justify-between text-xs text-slate-400 pt-1">
                 <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" class="rounded bg-slate-800 border-slate-700 text-sky-500 focus:ring-0"> 记住商户凭证
+                    <input type="checkbox" disabled class="rounded bg-slate-800 border-slate-700 text-sky-500 focus:ring-0"> 使用安全会话
                 </label>
-                <a href="#" class="text-sky-400 hover:underline">找回商户密钥</a>
+                <span class="text-slate-500">忘记密码请联系管理员重置</span>
             </div>
 
             <button type="submit" class="w-full py-3.5 mt-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-sky-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer">
@@ -107,8 +107,8 @@
         const { createApp, ref, onMounted } = Vue;
         createApp({
             setup() {
-                const account = ref('10001');
-                const password = ref('••••••••');
+                const account = ref('');
+                const password = ref('');
                 const isDark = ref(true);
 
                 onMounted(() => lucide.createIcons());
@@ -131,16 +131,13 @@
                         });
                         const data = await res.json();
                         if (data.code === 1) {
-                            if (data.data) {
-                                localStorage.setItem('cx_merchant_pid', data.data.pid);
-                                localStorage.setItem('cx_merchant_key', data.data.key);
-                            }
+                            localStorage.removeItem('cx_merchant_key');
                             window.location.href = '/merchant_center.html';
                         } else {
-                            alert(data.msg || '商户登录失败，请检查 AppID 与密钥');
+                            alert(data.msg || '商户登录失败，请检查 PID 与登录密码');
                         }
                     } catch (e) {
-                        window.location.href = '/merchant_center.html';
+                        alert('登录请求失败，请检查网络后重试');
                     }
                 }
 

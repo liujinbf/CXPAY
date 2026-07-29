@@ -53,6 +53,7 @@ class Driver implements PaymentDriverInterface
             'name'        => 'epay_generic',
             'title'       => '易支付通用 MD5 协议驱动',
             'description' => '标准易支付 MD5 签名上游接入驱动',
+            'available'   => false,
             'inputs'      => [
                 ['name' => 'api_url', 'title' => '易支付 API 网址', 'type' => 'string', 'required' => true],
                 ['name' => 'pid',     'title' => '易支付 PID',      'type' => 'string', 'required' => true],

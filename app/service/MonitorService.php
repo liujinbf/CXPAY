@@ -20,11 +20,11 @@ class MonitorService
         $memoryBytes = memory_get_usage(true);
         $memoryFormatted = sprintf('%.2f MB', $memoryBytes / 1024 / 1024);
 
-        // 2. 模拟/获取服务器 1 分钟 CPU 负载
-        $cpuLoad = '0.15';
+        // 2. 获取服务器 1 分钟 CPU 负载；Windows 等不支持的平台明确返回不可用。
+        $cpuLoad = null;
         if (function_exists('sys_getloadavg')) {
             $load = sys_getloadavg();
-            $cpuLoad = isset($load[0]) ? (string)$load[0] : '0.15';
+            $cpuLoad = isset($load[0]) ? (string)$load[0] : null;
         }
 
         // 3. MySQL / Redis 连接池运行状态检测
@@ -40,7 +40,9 @@ class MonitorService
             'cpu_load'       => $cpuLoad,
             'db_pool'        => $dbPoolStatus,
             'php_version'    => PHP_VERSION,
-            'workerman_ver'  => '4.1.x',
+            'workerman_ver'  => class_exists(\Composer\InstalledVersions::class)
+                ? (\Composer\InstalledVersions::getPrettyVersion('workerman/workerman') ?: '未知')
+                : '未知',
             'opcache_status' => function_exists('opcache_get_status') ? 'ON' : 'OFF',
         ];
     }

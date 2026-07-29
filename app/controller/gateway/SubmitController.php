@@ -23,13 +23,18 @@ class SubmitController
     /**
      * 易支付标准下单入口 /submit.php & /mapi.php
      */
-    public function submit(object $request): Response
+    public function submit(\support\Request $request): Response
     {
         try {
             $params = $request->get() + $request->post();
             
             // 1. 创建订单 (包含验签/余额扣费/金额去重)
-            $orderResult = $this->orderService->createOrder($params);
+            $orderResult = $this->orderService->createOrder(
+                $params,
+                $this->baseUrl($request),
+                'payment',
+                $request->getRemoteIp()
+            );
 
             // 2. 如果是 mapi.php 返回 JSON 响应
             $path = $request->path();
@@ -38,7 +43,8 @@ class SubmitController
                     'code' => 1,
                     'msg'  => '下单成功',
                     'trade_no' => $orderResult['trade_no'],
-                    'payurl'   => "/cashier/index.html?trade_no={$orderResult['trade_no']}",
+                    'payurl'   => $orderResult['pay_url'],
+                    'qrcode'   => $orderResult['pay_mode'] === 'qrcode' ? $orderResult['pay_url'] : '',
                 ]);
             }
 
@@ -48,5 +54,18 @@ class SubmitController
         } catch (Throwable $e) {
             return json(['code' => -1, 'msg' => $e->getMessage()]);
         }
+    }
+
+    private function baseUrl(\support\Request $request): string
+    {
+        $configured = (string)config('app.url', '');
+        if (filter_var($configured, FILTER_VALIDATE_URL)) {
+            return rtrim($configured, '/');
+        }
+        $forwarded = strtolower((string)$request->header('x-forwarded-proto'));
+        $scheme = in_array($forwarded, ['http', 'https'], true)
+            ? $forwarded
+            : (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http');
+        return $scheme . '://' . $request->host();
     }
 }

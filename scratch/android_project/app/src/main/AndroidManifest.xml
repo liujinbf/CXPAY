@@ -3,20 +3,17 @@
     package="com.cxpay.asst">
 
     <!-- 挂机助手网络上报权限 -->
-    <uses-permission android.permission.NAME="android.permission.INTERNET" />
-    <uses-permission android.permission.NAME="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- 保持 CPU 运行防止息屏挂断 -->
-    <uses-permission android.permission.NAME="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- 开机自启动 -->
-    <uses-permission android.permission.NAME="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
         android:label="CXPAY挂机助手"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+        android:supportsRtl="true">
 
         <!-- 主界面 Activity -->
         <activity
@@ -31,7 +28,7 @@
         <!-- 核心通知栏监听服务 NotificationListenerService -->
         <service
             android:name=".CXPayNotificationListener"
-            android:label="CXPAY微信支付宝通知监听器"
+            android:label="CXPAY支付到账通知监听器"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="true">
             <intent-filter>

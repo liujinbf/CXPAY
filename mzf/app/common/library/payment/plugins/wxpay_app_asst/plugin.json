@@ -1,0 +1,14 @@
+{
+    "c_type": "wxpay_app_asst",
+    "name": "Peak助手-微信APP监控",
+    "type": "wxpay",
+    "version": "1.0.0",
+    "author": "小乐",
+    "link": "https://xiaole.ink",
+    "capabilities": {
+        "monitor": "push",
+        "verify_callback": false,
+        "qrlogin": false,
+        "switch_qr_url": true
+    }
+}

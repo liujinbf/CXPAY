@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use support\Model;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * 授权站点与模块订阅模型 (cx_license)

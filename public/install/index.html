@@ -218,7 +218,7 @@
                                 </div>
                                 <div>
                                     <label class="block font-bold text-sub mb-1">超级管理员密码</label>
-                                    <input type="password" v-model="form.admin_pass" placeholder="管理员登录密码" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 outline-none focus:ring-2 focus:ring-sky-500">
+                            <input type="password" v-model="form.admin_pass" placeholder="管理员登录密码（至少10个字符）" class="w-full px-4 py-3 glass-card rounded-xl text-slate-200 outline-none focus:ring-2 focus:ring-sky-500">
                                 </div>
                             </div>
                         </div>
@@ -268,7 +268,7 @@
                             </div>
                             <div class="flex justify-between text-[11px]">
                                 <span class="text-slate-400">管理员账号: <strong class="text-slate-100 font-bold">{{ form.admin_user }}</strong></span>
-                                <span class="text-slate-400">管理员密码: <strong class="text-slate-100 font-bold">{{ form.admin_pass }}</strong></span>
+                                <span class="text-slate-400">管理员密码: <strong class="text-slate-100 font-bold">已安全填写</strong></span>
                             </div>
                         </div>
 
@@ -317,7 +317,7 @@
                     db_user: 'root',
                     db_pass: '',
                     admin_user: 'admin',
-                    admin_pass: '123456'
+                    admin_pass: ''
                 });
 
                 // 1. 自动调用后端环境检测 API

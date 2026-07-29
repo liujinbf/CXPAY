@@ -16,30 +16,16 @@ class MerchantAuthMiddleware implements MiddlewareInterface
 {
     public function process(Request $request, callable $handler): Response
     {
+        if (!$this->isSameOrigin($request)) {
+            return json(['code' => 403, 'msg' => '请求来源校验失败'])->withStatus(403);
+        }
         $session = $request->session();
         $merchantId = $session->get('merchant_id');
-
-        // 支持通过 Header 传递 AppID & AppSecret 或 Bearer Token 鉴权
-        $pid = $request->header('x-merchant-pid') ?? $request->get('pid') ?? $request->post('pid') ?? '';
-        $key = $request->header('x-merchant-key') ?? $request->get('key') ?? $request->post('key') ?? '';
-
-        // 默认演示/管理控制台 (PID 1000) 或拥有商户 PID 的请求放行
-        if ($pid === '1000' || !empty($pid)) {
-            return $handler($request);
-        }
-
-        if (!empty($pid) && !empty($key)) {
-            $merchant = Merchant::where('id', $pid)->where('key', $key)->first();
-            if ($merchant && (int)$merchant->status === 1) {
-                $request->merchant = $merchant;
-                return $handler($request);
-            }
-        }
 
         if ($merchantId) {
             $merchant = Merchant::find($merchantId);
             if ($merchant && (int)$merchant->status === 1) {
-                $request->merchant = $merchant;
+                $request->context['merchant'] = $merchant;
                 return $handler($request);
             }
         }
@@ -49,5 +35,19 @@ class MerchantAuthMiddleware implements MiddlewareInterface
         }
 
         return redirect('/merchant_login.html');
+    }
+
+    private function isSameOrigin(Request $request): bool
+    {
+        if (in_array(strtoupper($request->method()), ['GET', 'HEAD', 'OPTIONS'], true)) {
+            return true;
+        }
+        $origin = trim((string)$request->header('origin'));
+        if ($origin === '') {
+            return true;
+        }
+        $originHost = strtolower((string)parse_url($origin, PHP_URL_HOST));
+        $requestHost = strtolower(explode(':', $request->host())[0]);
+        return $originHost !== '' && hash_equals($requestHost, $originHost);
     }
 }

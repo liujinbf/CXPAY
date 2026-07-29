@@ -78,7 +78,7 @@
         <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
             <a href="#features" class="hover:text-sky-400 transition-colors">核心优势</a>
             <a href="#architecture" class="hover:text-sky-400 transition-colors">技术架构</a>
-            <a href="/cashier/index.html" class="hover:text-sky-400 transition-colors flex items-center gap-1.5"><i data-lucide="credit-card" class="w-4 h-4 text-sky-400"></i> 收银台演示</a>
+            <a href="/doc" class="hover:text-sky-400 transition-colors flex items-center gap-1.5"><i data-lucide="book-open" class="w-4 h-4 text-sky-400"></i> 接口文档</a>
         </nav>
 
         <div class="flex items-center gap-3">
@@ -100,14 +100,14 @@
     <!-- Hero Section -->
     <section class="max-w-5xl mx-auto text-center px-6 pt-20 pb-16 relative z-10">
         <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-400 bg-sky-500/10 px-4 py-1.5 rounded-full border border-sky-500/20 mb-6">
-            <i data-lucide="sparkles" class="w-4 h-4"></i> 基于常驻内存协程引擎 · 万级并发高可用
+            <i data-lucide="sparkles" class="w-4 h-4"></i> Webman 常驻进程 · 驱动化支付接入
         </div>
         <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight mb-6">
             下一代高吞吐 <br>
             <span class="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-indigo-300 to-sky-500">智能聚合支付网关系统</span>
         </h1>
         <p class="text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            专为现代数字商业打造。提供驱动化开放扩展接口、智能权重轮询与限额风控、全管道防重幂等与挂机账单自动化匹配。
+            提供驱动扩展接口、权重轮询与限额控制、订单幂等、事务结算和挂机助手账单匹配。
         </p>
 
         <!-- CTA Buttons -->
@@ -118,8 +118,8 @@
             <a href="/admin_login.html" class="w-full sm:w-auto px-8 py-4 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-rose-300 font-bold rounded-2xl transition-all flex items-center justify-center gap-2">
                 <i data-lucide="shield-alert" class="w-5 h-5 text-rose-400"></i> 管理员总控入口
             </a>
-            <a href="/cashier/index.html" class="w-full sm:w-auto px-6 py-4 glass-card text-slate-300 hover:text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2">
-                <i data-lucide="qr-code" class="w-5 h-5 text-sky-400"></i> 在线体验收银台
+            <a href="/doc" class="w-full sm:w-auto px-6 py-4 glass-card text-slate-300 hover:text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2">
+                <i data-lucide="book-open" class="w-5 h-5 text-sky-400"></i> 查看接口文档
             </a>
         </div>
     </section>
@@ -131,8 +131,8 @@
                 <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 mb-6">
                     <i data-lucide="cpu" class="w-6 h-6"></i>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-3">常驻内存协程架构</h3>
-                <p class="text-sm text-slate-400 leading-relaxed">彻底摆脱传统 PHP-FPM 生命周期限制，单机轻松承受 3,000+ QPS 吞吐，内存占用低至 50MB。</p>
+                <h3 class="text-xl font-bold text-slate-100 mb-3">常驻进程架构</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">基于 Webman 与 Workerman 运行，支持多进程 HTTP 服务和独立定时任务。</p>
             </div>
 
             <div class="glass-card p-8 rounded-3xl">
@@ -140,15 +140,15 @@
                     <i data-lucide="git-merge" class="w-6 h-6"></i>
                 </div>
                 <h3 class="text-xl font-bold text-slate-100 mb-3">驱动插件化生态</h3>
-                <p class="text-sm text-slate-400 leading-relaxed">内置支付宝 RSA2、微信 V3、通用易支付与挂机助手驱动，通道零侵入随时平滑扩展。</p>
+                <p class="text-sm text-slate-400 leading-relaxed">内置支付宝 RSA2、通用易支付与挂机助手驱动；未完成驱动不会进入可用列表。</p>
             </div>
 
             <div class="glass-card p-8 rounded-3xl">
                 <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-6">
                     <i data-lucide="shield-check" class="w-6 h-6"></i>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-3">资金安全与防重锁</h3>
-                <p class="text-sm text-slate-400 leading-relaxed">全链路 HMAC-SHA256 / MD5 参数加签验签，基于 Redis Redlock 保证异步回调绝不发生重复入账。</p>
+                <h3 class="text-xl font-bold text-slate-100 mb-3">事务结算与幂等</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">通过数据库行锁、订单状态校验、唯一订单号和回调验签降低重复入账风险。</p>
             </div>
         </div>
     </section>

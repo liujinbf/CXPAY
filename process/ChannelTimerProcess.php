@@ -24,16 +24,25 @@ class ChannelTimerProcess
         Timer::add(30, function () {
             try {
                 $this->monitorService->checkExpiredOrders();
+                $this->monitorService->checkChannelHeartbeats();
             } catch (\Throwable $e) {
-                error_log('[ChannelTimer] checkExpiredOrders: ' . $e->getMessage());
+                error_log('[ChannelTimer] periodic maintenance: ' . $e->getMessage());
             }
         });
 
-        Timer::add(60, function () {
+        Timer::add(5, function () {
             try {
                 $this->notifyService->processRetryQueue();
             } catch (\Throwable $e) {
                 error_log('[ChannelTimer] processRetryQueue: ' . $e->getMessage());
+            }
+        });
+
+        Timer::add(15, function () {
+            try {
+                $this->monitorService->pollServerChannels();
+            } catch (\Throwable $e) {
+                error_log('[ChannelTimer] pollServerChannels: ' . $e->getMessage());
             }
         });
 

@@ -28,7 +28,7 @@
                     <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md">CX</div>
                     <div>
                         <span class="text-base font-extrabold text-slate-800 tracking-tight">CXPAY 控制台</span>
-                        <span class="block text-[10px] text-blue-600 font-mono font-bold">商业旗舰版 v1.1.0</span>
+                        <span class="block text-[10px] text-blue-600 font-mono font-bold">聚合支付管理后台</span>
                     </div>
                 </div>
 
@@ -45,11 +45,11 @@
                     <a onclick="switchTab('channel-config')" id="nav-channel-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="settings-2" class="w-4 h-4 text-indigo-500"></i> 收款通道配置
                     </a>
-                    <a onclick="switchTab('poll-groups')" id="nav-poll-groups" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="shuffle" class="w-4 h-4 text-emerald-500"></i> 轮询组 (PollGroup) 防封
-                    </a>
                     <a onclick="switchTab('plugin-market')" id="nav-plugin-market" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="shopping-bag" class="w-4 h-4 text-amber-500"></i> 驱动插件商城
+                        <i data-lucide="package-check" class="w-4 h-4 text-amber-500"></i> 已安装支付驱动
+                    </a>
+                    <a onclick="switchTab('cloud-monitor')" id="nav-cloud-monitor" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                        <i data-lucide="cloud-cog" class="w-4 h-4 text-cyan-500"></i> 个人码云监控运维
                     </a>
 
                     <!-- 3. 商户与应用 -->
@@ -63,44 +63,15 @@
                     <a onclick="switchTab('order-list')" id="nav-order-list" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="receipt" class="w-4 h-4 text-sky-500"></i> 交易订单与补单
                     </a>
-                    <a onclick="switchTab('payout-audit')" id="nav-payout-audit" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="banknote" class="w-4 h-4 text-emerald-600"></i> 商户提现/结算审核
-                    </a>
-
-                    <!-- 5. 安全与设备监控 -->
-                    <div class="nav-group-title">安全与风控监控</div>
-                    <a onclick="switchTab('device-monitor')" id="nav-device-monitor" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="activity" class="w-4 h-4 text-emerald-500"></i> 挂机设备在线监控
-                    </a>
-                    <a onclick="switchTab('leak-tracer')" id="nav-leak-tracer" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="shield-alert" class="w-4 h-4 text-rose-500"></i> 水滴追溯与一键封禁
-                    </a>
-
-                    <!-- 6. 系统配置 -->
-                    <div class="nav-group-title">系统配置与设置</div>
-                    <a onclick="switchTab('sys-update')" id="nav-sys-update" class="nav-btn flex items-center justify-between px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <div class="flex items-center gap-3">
-                            <i data-lucide="refresh-cw" class="w-4 h-4 text-blue-600"></i> 系统在线更新
-                        </div>
-                        <span id="nav-update-badge" class="hidden flex h-2 w-2 relative">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-                        </span>
-                    </a>
-                    <a onclick="switchTab('sys-settings')" id="nav-sys-settings" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="sliders" class="w-4 h-4 text-slate-600"></i> 系统全局设置
-                    </a>
-                    <a onclick="switchTab('theme-setting')" id="nav-theme-setting" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="palette" class="w-4 h-4 text-purple-500"></i> 主题外观设置
+                    <a onclick="switchTab('callbill-review')" id="nav-callbill-review" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                        <i data-lucide="scan-search" class="w-4 h-4 text-amber-500"></i> 到账账单复核
                     </a>
                 </nav>
             </div>
 
             <div class="text-[11px] text-slate-400 px-3 py-2 border-t border-slate-100 flex items-center justify-between">
-                <span>系统版本 <span id="sidebar-version">v1.1.0</span></span>
-                <a onclick="switchTab('sys-update')" class="cursor-pointer font-bold flex items-center gap-1 hover:underline" id="sidebar-status-tag">
-                    <span class="text-emerald-500 flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 已是最新</span>
-                </a>
+                <span>版本由部署流程管理</span>
+                <span class="text-slate-500 flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 在线更新已禁用</span>
             </div>
         </aside>
 
@@ -113,7 +84,7 @@
                     <span id="current-tab-title" class="text-xs font-extrabold text-blue-600 uppercase">DASHBOARD</span>
                 </div>
                 <div class="flex items-center gap-4 text-xs">
-                    <span class="text-slate-400">系统授权状态: <strong class="text-emerald-600 inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 商业旗舰版 (永久)</strong></span>
+                    <span class="text-slate-400">访问状态: <strong class="text-emerald-600 inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 管理员会话已认证</strong></span>
                     <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-extrabold flex items-center justify-center text-xs">Admin</div>
                 </div>
             </header>
@@ -128,7 +99,7 @@
                             <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
                                 <i data-lucide="bar-chart-3" class="w-6 h-6 text-blue-600"></i> 管理控制台
                             </h2>
-                            <p class="text-xs text-slate-400 mt-1">CXPAY 高并发常驻协程聚合支付平台实时统计数据</p>
+                            <p class="text-xs text-slate-400 mt-1">CXPAY 聚合支付网关实时统计数据</p>
                         </div>
                     </div>
 
@@ -140,7 +111,7 @@
                             </div>
                             <div>
                                 <div class="text-xs text-slate-400">累计成功流水</div>
-                                <div class="text-lg font-extrabold text-slate-800 mt-0.5">¥ 128,490.00</div>
+                                <div id="metric-total-amount" class="text-lg font-extrabold text-slate-800 mt-0.5">--</div>
                             </div>
                         </div>
 
@@ -150,7 +121,7 @@
                             </div>
                             <div>
                                 <div class="text-xs text-slate-400">总处理订单</div>
-                                <div class="text-lg font-extrabold text-slate-800 mt-0.5">3,842</div>
+                                <div id="metric-total-orders" class="text-lg font-extrabold text-slate-800 mt-0.5">--</div>
                             </div>
                         </div>
 
@@ -160,7 +131,7 @@
                             </div>
                             <div>
                                 <div class="text-xs text-slate-400">商户总数</div>
-                                <div class="text-lg font-extrabold text-slate-800 mt-0.5">168</div>
+                                <div id="metric-merchant-count" class="text-lg font-extrabold text-slate-800 mt-0.5">--</div>
                             </div>
                         </div>
 
@@ -170,7 +141,7 @@
                             </div>
                             <div>
                                 <div class="text-xs text-slate-400">VIP商户数</div>
-                                <div class="text-lg font-extrabold text-slate-800 mt-0.5">32</div>
+                                <div id="metric-vip-count" class="text-lg font-extrabold text-slate-800 mt-0.5">--</div>
                             </div>
                         </div>
 
@@ -180,7 +151,7 @@
                             </div>
                             <div>
                                 <div class="text-xs text-slate-400">在线通道数</div>
-                                <div class="text-lg font-extrabold text-emerald-600 mt-0.5">10 / 10</div>
+                                <div id="metric-channel-count" class="text-lg font-extrabold text-emerald-600 mt-0.5">--</div>
                             </div>
                         </div>
                     </div>
@@ -191,84 +162,43 @@
                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="settings-2" class="w-5 h-5 text-indigo-600"></i> 平台全局收款通道配置
                     </h3>
-                    <div class="space-y-4">
-                        <div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between">
-                            <div>
-                                <div class="font-bold text-slate-800 text-sm">微信协议云端 (小账本免挂) <code class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-mono ml-2">wxpay_protocol_cloud</code></div>
-                            </div>
-                            <button onclick="alert('配置微信通道')" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
-                                <i data-lucide="wrench" class="w-3.5 h-3.5"></i> 配置密钥与参数
-                            </button>
-                        </div>
-                        <div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between">
-                            <div>
-                                <div class="font-bold text-slate-800 text-sm">支付宝扫码免挂 (Base64 Cookie) <code class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-mono ml-2">alipay_scan_bill</code></div>
-                            </div>
-                            <button onclick="alert('配置支付宝通道')" class="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
-                                <i data-lucide="wrench" class="w-3.5 h-3.5"></i> 配置密钥与参数
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. 轮询组 (PollGroup) 管理 -->
-                <div id="tab-poll-groups" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                                <i data-lucide="shuffle" class="w-5 h-5 text-emerald-600"></i> 轮询组 (PollGroup) 与权重分流配置
-                            </h3>
-                            <p class="text-xs text-slate-400 mt-1">创建账号池轮询组，配置多账号比例分流与单日限额自动熔断防封</p>
-                        </div>
-                        <button onclick="alert('新增轮询组窗口')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5">
-                            <i data-lucide="plus" class="w-4 h-4"></i> 创建新轮询组
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="p-5 border border-slate-200 rounded-2xl space-y-3 bg-slate-50/50">
-                            <div class="flex items-center justify-between">
-                                <div class="font-extrabold text-sm text-slate-800">微信个人码防封组 A</div>
-                                <span class="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">轮询中</span>
-                            </div>
-                            <div class="text-xs text-slate-500 space-y-1">
-                                <div>包含通道: <span class="font-mono text-slate-700">WX_ASST_01 (40%), WX_ASST_02 (60%)</span></div>
-                                <div>单日限额: <span class="font-mono text-slate-700">¥ 3,000.00 / 账号</span></div>
-                            </div>
-                        </div>
-
-                        <div class="p-5 border border-slate-200 rounded-2xl space-y-3 bg-slate-50/50">
-                            <div class="flex items-center justify-between">
-                                <div class="font-extrabold text-sm text-slate-800">支付宝高频分流组 B</div>
-                                <span class="px-2.5 py-0.5 bg-blue-100 text-blue-700 font-bold text-[11px] rounded-full">轮询中</span>
-                            </div>
-                            <div class="text-xs text-slate-500 space-y-1">
-                                <div>包含通道: <span class="font-mono text-slate-700">ALI_SCAN_01 (50%), ALI_SCAN_02 (50%)</span></div>
-                                <div>单日限额: <span class="font-mono text-slate-700">¥ 5,000.00 / 账号</span></div>
-                            </div>
-                        </div>
+                    <p class="text-xs text-slate-400">仅展示平台级通道概览，敏感配置不会通过列表接口下发。</p>
+                    <div id="admin-channel-list" class="space-y-3">
+                        <div class="p-5 text-center text-xs text-slate-400">正在加载平台通道...</div>
                     </div>
                 </div>
 
                 <!-- 4. 插件商城 -->
                 <div id="tab-plugin-market" class="tab-panel glass-panel rounded-2xl p-6 space-y-6">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-600"></i> 插件商城与驱动
-                    </h3>
-                    <div class="p-5 border border-slate-200 rounded-2xl space-y-3">
-                        <div class="flex items-center justify-between">
-                            <h4 class="font-extrabold text-sm text-slate-800">微信小账本/收款单免挂驱动</h4>
-                            <span class="px-2.5 py-0.5 bg-blue-50 text-blue-600 font-mono text-[11px] font-bold rounded-full">v2.1.0</span>
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="package-check" class="w-5 h-5 text-amber-600"></i> 支付通道插件
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">仅接受已加入信任列表的发布者签名包；远程插件仓库仍保持关闭。</p>
                         </div>
-                        <button onclick="alert('已经安装完成')" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded-lg text-xs">一键安装升级</button>
+                        <label class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer text-center">
+                            安装本地签名包
+                            <input id="plugin-package-input" type="file" accept=".cxpay-plugin" class="hidden" onchange="installPluginPackage(this)">
+                        </label>
+                    </div>
+                    <div id="plugin-driver-list" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="p-5 text-center text-xs text-slate-400">正在读取本地驱动...</div>
                     </div>
                 </div>
 
                 <!-- 5. 商户管理 -->
                 <div id="tab-merchant-mgmt" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="users" class="w-5 h-5 text-purple-600"></i> 商户账号列表与配置
-                    </h3>
+                    <div class="flex items-center justify-between gap-4">
+                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="users" class="w-5 h-5 text-purple-600"></i> 商户账号列表与配置
+                        </h3>
+                        <div class="flex gap-2">
+                            <input id="merchant-search" type="search" placeholder="搜索 PID / 名称" class="px-3 py-2 border border-slate-200 rounded-xl text-xs" onkeydown="if(event.key==='Enter')loadMerchants()">
+                            <button onclick="loadMerchants()" class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">搜索</button>
+                            <button onclick="openMerchantEditor()" class="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">新增商户</button>
+                        </div>
+                    </div>
                     <table class="w-full text-left text-xs text-slate-600">
                         <thead class="bg-slate-50 uppercase font-semibold border-b">
                             <tr>
@@ -278,13 +208,8 @@
                                 <th class="p-3 text-right">操作</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <tr class="hover:bg-slate-50">
-                                <td class="p-3 font-mono font-bold text-blue-600">M5606680520</td>
-                                <td class="p-3 font-bold text-slate-800">极客体验商户</td>
-                                <td class="p-3 font-bold text-emerald-600">¥ 150.00</td>
-                                <td class="p-3 text-right"><button onclick="alert('编辑商户')" class="text-blue-600 font-bold hover:underline">编辑/充值</button></td>
-                            </tr>
+                        <tbody id="merchant-table-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="4" class="p-6 text-center text-slate-400">正在加载商户数据...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -304,119 +229,105 @@
                                 <th class="p-3 text-right">操作</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <tr class="hover:bg-slate-50">
-                                <td class="p-3 font-mono font-bold text-blue-600">CX20260726001</td>
-                                <td class="p-3 font-mono">M5606680520</td>
-                                <td class="p-3 font-bold text-slate-800">¥ 10.00</td>
-                                <td class="p-3"><span class="px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-500">待支付</span></td>
-                                <td class="p-3 text-right space-x-2">
-                                    <button onclick="alert('补充核销成功')" class="px-3 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold rounded-lg border border-amber-200 inline-flex items-center gap-1">
-                                        <i data-lucide="wrench" class="w-3.5 h-3.5"></i> 补单核销
-                                    </button>
-                                </td>
-                            </tr>
+                        <tbody id="order-table-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="5" class="p-6 text-center text-slate-400">正在加载订单数据...</td></tr>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- 7. 商户提现审核 -->
-                <div id="tab-payout-audit" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                <div id="tab-callbill-review" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between gap-4">
                         <div>
                             <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                                <i data-lucide="banknote" class="w-5 h-5 text-emerald-600"></i> 商户提现申请与结算审核
+                                <i data-lucide="scan-search" class="w-5 h-5 text-amber-600"></i> 到账账单人工复核
                             </h3>
-                            <p class="text-xs text-slate-400 mt-1">审核商户提交的提现申请，支持批量同意出款与拒绝解冻余额</p>
+                            <p class="text-xs text-slate-400 mt-1">仅允许匹配同一通道、相同实付金额且仍待支付的订单。</p>
                         </div>
+                        <button onclick="loadCallbillReviews()" class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">刷新</button>
                     </div>
-
-                    <table class="w-full text-left text-xs text-slate-600">
-                        <thead class="bg-slate-50 uppercase font-semibold border-b">
-                            <tr>
-                                <th class="p-3">申请单号</th>
-                                <th class="p-3">商户 PID</th>
-                                <th class="p-3">提现金额</th>
-                                <th class="p-3">状态</th>
-                                <th class="p-3 text-right">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <tr class="hover:bg-slate-50">
-                                <td class="p-3 font-mono font-bold text-blue-600">TX20260726991</td>
-                                <td class="p-3 font-mono">M5606680520</td>
-                                <td class="p-3 font-bold text-emerald-600">¥ 500.00</td>
-                                <td class="p-3"><span class="px-2 py-0.5 bg-amber-100 text-amber-700 font-bold rounded-full">待审核</span></td>
-                                <td class="p-3 text-right space-x-2">
-                                    <button onclick="alert('已批准打款完成！')" class="px-3 py-1 bg-emerald-600 text-white font-bold rounded-lg">同意打款</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 8. 挂机设备监控 -->
-                <div id="tab-device-monitor" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="activity" class="w-5 h-5 text-emerald-600"></i> 挂机监控助手在线状态
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="p-4 border border-slate-200 rounded-xl space-y-2">
-                            <div class="flex items-center justify-between">
-                                <div class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
-                                    <i data-lucide="monitor" class="w-4 h-4 text-blue-600"></i> Windows 桌面挂机助手 (v4.0)
-                                </div>
-                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold text-[11px] rounded-full">在线 (心跳 2s 前)</span>
-                            </div>
-                        </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 uppercase font-semibold border-b">
+                                <tr>
+                                    <th class="p-3">账单/来源</th>
+                                    <th class="p-3">到账信息</th>
+                                    <th class="p-3">候选订单</th>
+                                    <th class="p-3">状态</th>
+                                    <th class="p-3 text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="callbill-review-body" class="divide-y divide-slate-100">
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400">正在加载待复核账单...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- 9. 水滴追溯 -->
-                <div id="tab-leak-tracer" class="tab-panel glass-panel rounded-2xl p-6 space-y-4 border-2 border-rose-500/30">
-                    <h3 class="text-base font-bold text-rose-600 flex items-center gap-2">
-                        <i data-lucide="shield-alert" class="w-5 h-5 text-rose-600"></i> 水滴印迹追溯与封禁
-                    </h3>
-                    <textarea rows="4" class="w-full p-3 border rounded-xl text-xs font-mono" placeholder="粘贴泄漏的代码..."></textarea>
-                    <button onclick="alert('防伪溯源追踪分析完成！')" class="px-6 py-2.5 bg-rose-600 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5">
-                        <i data-lucide="search" class="w-4 h-4"></i> 一键精准追溯
-                    </button>
-                </div>
-
-                <!-- 10. 系统全局设置 -->
-                <div id="tab-sys-settings" class="tab-panel glass-panel rounded-2xl p-6 space-y-6">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="sliders" class="w-5 h-5 text-slate-700"></i> 系统全局参数设置
-                    </h3>
-                    <div class="space-y-4 text-xs max-w-2xl">
+                <div id="tab-cloud-monitor" class="tab-panel space-y-4">
+                    <div class="glass-panel rounded-2xl p-6 flex items-center justify-between gap-4">
                         <div>
-                            <label class="block font-bold text-slate-700 mb-1">网站系统名称</label>
-                            <input type="text" value="CXPAY 商业级高并发聚合支付平台" class="w-full px-4 py-2 border rounded-xl">
+                            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="cloud-cog" class="w-5 h-5 text-cyan-600"></i> 个人收款码云监控状态
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">采集器超过 120 秒没有通过签名鉴权即显示离线；页面不会读取或显示任何密钥。</p>
                         </div>
-                        <button onclick="alert('保存设置成功')" class="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-md">保存系统配置</button>
+                        <button onclick="loadCloudMonitorStatus()" class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">刷新状态</button>
                     </div>
-                </div>
-
-                <!-- 11. 主题外观 -->
-                <div id="tab-theme-setting" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="palette" class="w-5 h-5 text-purple-600"></i> 主题外观管理
-                    </h3>
-                    <div class="p-4 border-2 border-blue-500 rounded-xl space-y-2">
-                        <div class="font-extrabold text-slate-800 text-xs">旗舰科技风 (当前启用)</div>
+                    <div id="cloud-monitor-warnings" class="hidden p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-700"></div>
+                    <div id="cloud-monitor-list" class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        <div class="glass-panel rounded-2xl p-6 text-center text-xs text-slate-400">正在读取云监控状态...</div>
                     </div>
-                </div>
-
-                <!-- 12. 系统在线更新 -->
-                <div id="tab-sys-update" class="tab-panel glass-panel rounded-2xl overflow-hidden p-0 w-full" style="height: calc(100vh - 110px);">
-                    <iframe id="update-iframe" src="/admin/system_update" class="w-full h-full border-0" style="min-height: 750px; width: 100%;"></iframe>
                 </div>
 
             </div>
         </main>
     </div>
 
+    <div id="merchant-editor" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm items-center justify-center p-4">
+        <form onsubmit="submitMerchant(event)" class="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 id="merchant-editor-title" class="font-extrabold text-slate-800">新增商户</h3>
+                <button type="button" onclick="closeMerchantEditor()" class="text-slate-400 hover:text-slate-700">关闭</button>
+            </div>
+            <input id="merchant-id" type="hidden" value="0">
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <label class="space-y-1"><span class="font-bold">商户名称 *</span><input id="merchant-name" required maxlength="100" class="w-full px-3 py-2 border rounded-xl"></label>
+                <label class="space-y-1"><span class="font-bold">商户 PID</span><input id="merchant-pid" maxlength="32" placeholder="新增时可留空自动生成" class="w-full px-3 py-2 border rounded-xl font-mono"></label>
+                <label class="space-y-1"><span class="font-bold">费率（0～1）*</span><input id="merchant-rate" required type="number" min="0" max="1" step="0.0001" value="0.0200" class="w-full px-3 py-2 border rounded-xl"></label>
+                <label class="space-y-1"><span class="font-bold">状态</span><select id="merchant-status" class="w-full px-3 py-2 border rounded-xl"><option value="1">启用</option><option value="0">停用</option></select></label>
+            </div>
+            <label class="block space-y-1 text-xs"><span class="font-bold">登录密码</span><input id="merchant-password" type="password" minlength="10" maxlength="200" autocomplete="new-password" placeholder="新增留空自动生成；编辑留空保持不变" class="w-full px-3 py-2 border rounded-xl"></label>
+            <label class="block space-y-1 text-xs"><span class="font-bold">API 密钥</span><input id="merchant-api-key" minlength="32" maxlength="64" autocomplete="off" placeholder="新增留空自动生成；编辑填写即轮换" class="w-full px-3 py-2 border rounded-xl font-mono"></label>
+            <label class="block space-y-1 text-xs"><span class="font-bold">API IP 白名单</span><textarea id="merchant-ip-white" rows="2" placeholder="留空不限制；多个地址按逗号或换行分隔" class="w-full px-3 py-2 border rounded-xl font-mono"></textarea></label>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeMerchantEditor()" class="px-4 py-2 border rounded-xl text-xs font-bold">取消</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">保存商户</button>
+            </div>
+        </form>
+    </div>
+
     <script>
+        const merchantRecords = new Map();
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[char]);
+        }
+
+        async function adminFetch(url, options = {}) {
+            const headers = new Headers(options.headers || {});
+            const token = localStorage.getItem('cx_admin_token');
+            if (token) headers.set('Authorization', `Bearer ${token}`);
+            const response = await fetch(url, { ...options, headers });
+            if (response.status === 401) {
+                localStorage.removeItem('cx_admin_token');
+                window.location.href = '/admin_login.html';
+                throw new Error('管理员登录状态已失效');
+            }
+            return response;
+        }
+
         function switchTab(tabId) {
             // Hide all tab panels
             var panels = document.querySelectorAll('.tab-panel');
@@ -442,87 +353,375 @@
 
             // 根据当前切换到的选项卡按需加载真实数据
             if (tabId === 'dashboard') loadDashboard();
+            if (tabId === 'channel-config') loadAdminChannels();
+            if (tabId === 'merchant-mgmt') loadMerchants();
             if (tabId === 'order-list') loadOrders();
+            if (tabId === 'callbill-review') loadCallbillReviews();
             if (tabId === 'plugin-market') loadPluginMarket();
-            if (tabId === 'poll-groups') loadPollGroups();
-            if (tabId === 'sys-update') {
-                const iframe = document.getElementById('update-iframe');
-                if (iframe) iframe.src = '/admin/system_update';
-            }
-        }
-
-        async function checkSystemUpdateBadge() {
-            try {
-                const res = await fetch('/api/admin/system/check_update');
-                const data = await res.json();
-                if (data.code === 1 && data.data) {
-                    const d = data.data;
-                    const verEl = document.getElementById('sidebar-version');
-                    if (verEl && d.local_ver) verEl.innerText = d.local_ver;
-
-                    const badge = document.getElementById('nav-update-badge');
-                    const statusTag = document.getElementById('sidebar-status-tag');
-
-                    if (d.has_update) {
-                        if (badge) badge.classList.remove('hidden');
-                        if (statusTag) {
-                            statusTag.innerHTML = '<span class="text-rose-500 font-bold flex items-center gap-1"><i data-lucide="arrow-up-circle" class="w-3.5 h-3.5 animate-bounce"></i> 有新版本!</span>';
-                        }
-                    } else {
-                        if (badge) badge.classList.add('hidden');
-                        if (statusTag) {
-                            statusTag.innerHTML = '<span class="text-emerald-500 flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 已是最新</span>';
-                        }
-                    }
-                    if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
-                }
-            } catch (e) {}
+            if (tabId === 'cloud-monitor') loadCloudMonitorStatus();
         }
 
         async function loadDashboard() {
             try {
-                const res = await fetch('/api/admin/dashboard');
+                const res = await adminFetch('/api/admin/dashboard');
                 const data = await res.json();
                 if (data.code === 1 && data.data) {
                     const metrics = data.data;
-                    console.log('Dashboard Data loaded:', metrics);
+                    document.getElementById('metric-total-amount').textContent = `¥ ${Number(metrics.total_amount || 0).toFixed(2)}`;
+                    document.getElementById('metric-total-orders').textContent = Number(metrics.total_orders || 0).toLocaleString();
+                    document.getElementById('metric-merchant-count').textContent = Number(metrics.merchant_count || 0).toLocaleString();
+                    document.getElementById('metric-vip-count').textContent = Number(metrics.vip_merchant_count || 0).toLocaleString();
+                    document.getElementById('metric-channel-count').textContent = `${Number(metrics.online_channel_count || 0)} / ${Number(metrics.channel_count || 0)}`;
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error('仪表盘加载失败', e);
+            }
+        }
+
+        async function loadCloudMonitorStatus() {
+            const list = document.getElementById('cloud-monitor-list');
+            const warningBox = document.getElementById('cloud-monitor-warnings');
+            list.innerHTML = '<div class="glass-panel rounded-2xl p-6 text-center text-xs text-slate-400">正在读取云监控状态...</div>';
+            try {
+                const response = await adminFetch('/api/admin/cloud-monitor/status');
+                const payload = await response.json();
+                if (payload.code !== 1 || !payload.data) throw new Error(payload.msg || '云监控状态加载失败');
+                const warnings = Array.isArray(payload.data.warnings) ? payload.data.warnings : [];
+                warningBox.classList.toggle('hidden', warnings.length === 0);
+                warningBox.innerHTML = warnings.map(item => `<div>${escapeHtml(item)}</div>`).join('');
+                const channels = Array.isArray(payload.data.channels) ? payload.data.channels : [];
+                list.innerHTML = channels.length ? channels.map(item => {
+                    const account = item.account || {};
+                    const collector = item.collector || {};
+                    const metrics = item.metrics || {};
+                    const eventMetrics = metrics.events || {};
+                    const outboxMetrics = metrics.outbox || {};
+                    const orderMetrics = metrics.orders || {};
+                    const anomalyCount = Number(eventMetrics.REVIEW_REQUIRED || 0) + Number(eventMetrics.UNMATCHED || 0);
+                    const outboxBacklog = Number(outboxMetrics.PENDING || 0) + Number(outboxMetrics.RETRY || 0)
+                        + Number(outboxMetrics.PROCESSING || 0) + Number(outboxMetrics.FAILED || 0);
+                    const lastSeen = Number(collector.last_seen_at || 0);
+                    const lastSeenText = lastSeen > 0 ? new Date(lastSeen * 1000).toLocaleString() : '从未连接';
+                    const online = collector.online === true;
+                    const capabilityMap = {
+                        RECEIPT_AVAILABLE: '已开通收款单',
+                        RECEIPT_NOT_OPENED: '未开通收款单，仅小账本',
+                        BOOK_AVAILABLE: '小账本可用',
+                        REAUTH_REQUIRED: '需要重新授权',
+                        TEMPORARY_ERROR: '能力探测异常',
+                        UNKNOWN: '能力未知'
+                    };
+                    return `<div class="glass-panel rounded-2xl p-5 space-y-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div><div class="font-extrabold text-slate-800">通道 #${Number(item.channel_id)} · ${item.pay_type === 'alipay' ? '支付宝' : '微信'} · ${escapeHtml(item.remark || '云监控')}</div><div class="font-mono text-[10px] text-slate-400 mt-1">${escapeHtml(item.account_id || '尚未绑定账号')}</div></div>
+                            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${online ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${online ? '采集器在线' : '采集器离线'}</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="rounded-xl bg-slate-50 p-3"><div class="text-[10px] text-slate-400">待支付订单</div><div class="font-extrabold text-slate-800">${Number(orderMetrics.PENDING || 0)}</div></div>
+                            <div class="rounded-xl bg-amber-50 p-3"><div class="text-[10px] text-amber-600">异常账单</div><div class="font-extrabold text-amber-700">${anomalyCount}</div></div>
+                            <div class="rounded-xl ${outboxBacklog ? 'bg-rose-50' : 'bg-emerald-50'} p-3"><div class="text-[10px] ${outboxBacklog ? 'text-rose-600' : 'text-emerald-600'}">回调积压</div><div class="font-extrabold">${outboxBacklog}</div></div>
+                        </div>
+                        <div class="text-xs space-y-1.5 border-t border-slate-100 pt-3">
+                            <div class="flex justify-between"><span class="text-slate-400">账号能力</span><span class="font-bold">${escapeHtml(capabilityMap[account.capability_status] || '账号未连接')}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">采集器 ID</span><span class="font-mono">${escapeHtml(collector.id || '-')}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">最近鉴权</span><span>${escapeHtml(lastSeenText)}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">通道状态</span><span>${item.enabled ? '已启用' : '已停用'}</span></div>
+                        </div>
+                    </div>`;
+                }).join('') : '<div class="glass-panel rounded-2xl p-8 text-center text-slate-400 text-xs">尚未配置微信云监控通道</div>';
+            } catch (error) {
+                list.innerHTML = `<div class="glass-panel rounded-2xl p-6 text-center text-rose-500 text-xs">${escapeHtml(error.message || '云监控状态加载失败')}</div>`;
+            }
         }
 
         async function loadOrders() {
+            const tbody = document.getElementById('order-table-body');
             try {
-                const res = await fetch('/api/admin/order/list');
+                const res = await adminFetch('/api/admin/order/list?page_size=20');
                 const data = await res.json();
-                if (data.code === 1 && data.data) {
-                    console.log('Orders loaded:', data.data);
-                }
-            } catch (e) {}
+                if (data.code !== 1 || !data.data) throw new Error(data.msg || '订单加载失败');
+                const rows = Array.isArray(data.data.data) ? data.data.data : [];
+                const statusMap = {
+                    0: ['待支付', 'bg-slate-100 text-slate-600'],
+                    1: ['已支付', 'bg-emerald-100 text-emerald-700'],
+                    2: ['已关闭/超时', 'bg-amber-100 text-amber-700'],
+                    3: ['已退款', 'bg-rose-100 text-rose-700']
+                };
+                tbody.innerHTML = rows.length ? rows.map(order => {
+                    const state = statusMap[Number(order.status)] || ['未知', 'bg-slate-100 text-slate-600'];
+                    const action = Number(order.status) === 0
+                        ? `<button data-trade-no="${escapeHtml(order.trade_no)}" onclick="manualPay(this.dataset.tradeNo)" class="px-3 py-1 bg-amber-50 text-amber-700 font-bold rounded-lg border border-amber-200">补单核销</button>`
+                        : '';
+                    return `<tr class="hover:bg-slate-50">
+                        <td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(order.trade_no)}</td>
+                        <td class="p-3 font-mono">${escapeHtml(order.merchant_pid || order.merchant_id)}</td>
+                        <td class="p-3 font-bold text-slate-800">¥ ${Number(order.price || order.amount || 0).toFixed(2)}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded-full font-bold ${state[1]}">${state[0]}</span></td>
+                        <td class="p-3 text-right">${action}</td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="5" class="p-6 text-center text-slate-400">暂无订单</td></tr>';
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-500">${escapeHtml(e.message || '订单加载失败')}</td></tr>`;
+            }
+        }
+
+        async function manualPay(tradeNo) {
+            if (!confirm(`确认将订单 ${tradeNo} 按实际金额人工核销？此操作会执行结算并通知商户。`)) return;
+            const body = new URLSearchParams({ trade_no: tradeNo, remark: '管理员后台人工补单' });
+            const response = await adminFetch('/api/admin/order/manual_pay', { method: 'POST', body });
+            const payload = await response.json();
+            alert(payload.msg || (payload.code === 1 ? '补单成功' : '补单失败'));
+            if (payload.code === 1) {
+                await Promise.all([loadOrders(), loadDashboard()]);
+            }
+        }
+
+        async function loadCallbillReviews() {
+            const tbody = document.getElementById('callbill-review-body');
+            try {
+                const response = await adminFetch('/api/admin/callbill/review_list?page_size=50');
+                const payload = await response.json();
+                if (payload.code !== 1 || !payload.data) throw new Error(payload.msg || '账单加载失败');
+                const rows = Array.isArray(payload.data.data) ? payload.data.data : [];
+                const statusMap = {
+                    2: ['无自动匹配', 'bg-slate-100 text-slate-600'],
+                    3: ['等待复核', 'bg-amber-100 text-amber-700'],
+                    4: ['处理中', 'bg-blue-100 text-blue-700'],
+                    UNMATCHED: ['云端未匹配', 'bg-slate-100 text-slate-600'],
+                    REVIEW_REQUIRED: ['云端待复核', 'bg-amber-100 text-amber-700']
+                };
+                tbody.innerHTML = rows.length ? rows.map(bill => {
+                    const state = statusMap[bill.status] || statusMap[Number(bill.status)] || ['未知', 'bg-slate-100 text-slate-600'];
+                    const candidates = Array.isArray(bill.candidates) ? bill.candidates : [];
+                    const suggestedTrade = candidates.length === 1 ? candidates[0].trade_no : '';
+                    const candidateHtml = candidates.length
+                        ? candidates.map(order => `<div class="font-mono text-[11px]">${escapeHtml(order.trade_no)} · ¥${Number(order.price || 0).toFixed(2)}</div>`).join('')
+                        : '<span class="text-rose-500">无安全候选，请核对后手工输入</span>';
+                    const occurred = Number(bill.occurred_at || 0) > 0
+                        ? new Date(Number(bill.occurred_at) * 1000).toLocaleString()
+                        : '-';
+                    const source = bill.source === 'cloud' ? 'cloud' : 'local';
+                    const actions = Number(bill.status) === 4 ? '<span class="text-blue-500">其他管理员处理中</span>' : `
+                        <button data-bill-id="${escapeHtml(String(bill.id))}" data-channel-id="${Number(bill.cloud_channel_id || 0)}" data-source="${source}" data-trade-no="${escapeHtml(suggestedTrade)}" onclick="reviewMatchBill(this.dataset.billId, this.dataset.tradeNo, this.dataset.source, this.dataset.channelId)" class="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-lg border border-emerald-200">匹配订单</button>
+                        <button data-bill-id="${escapeHtml(String(bill.id))}" data-channel-id="${Number(bill.cloud_channel_id || 0)}" data-source="${source}" onclick="ignoreReviewBill(this.dataset.billId, this.dataset.source, this.dataset.channelId)" class="ml-1 px-2.5 py-1 bg-slate-50 text-slate-600 font-bold rounded-lg border border-slate-200">忽略</button>`;
+                    return `<tr class="align-top hover:bg-slate-50">
+                        <td class="p-3"><div class="font-bold">#${escapeHtml(String(bill.id))} · 通道 ${Number(bill.channel_id)}${source === 'cloud' ? ' · 云端' : ''}</div><div class="font-mono text-[10px] text-slate-400 break-all">${escapeHtml(bill.source_bill_id)}</div></td>
+                        <td class="p-3"><div class="font-extrabold text-emerald-600">¥ ${Number(bill.money || 0).toFixed(2)}</div><div>${escapeHtml(occurred)}</div><div class="max-w-xs truncate text-slate-400" title="${escapeHtml(bill.remark)}">${escapeHtml(bill.remark)}</div></td>
+                        <td class="p-3">${candidateHtml}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded-full font-bold ${state[1]}">${state[0]}</span><div class="mt-1 text-[10px] text-slate-400">${escapeHtml(bill.review_note || '')}</div></td>
+                        <td class="p-3 text-right whitespace-nowrap">${actions}</td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="5" class="p-6 text-center text-emerald-600 font-bold">当前没有待复核账单</td></tr>';
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-500">${escapeHtml(error.message || '账单加载失败')}</td></tr>`;
+            }
+        }
+
+        async function reviewMatchBill(billId, suggestedTradeNo, source = 'local', channelId = '0') {
+            const tradeNo = prompt('请输入要匹配的平台订单号。系统仍会校验通道、金额和订单状态：', suggestedTradeNo || '');
+            if (!tradeNo) return;
+            if (!confirm(`确认将账单 #${billId} 匹配到订单 ${tradeNo}？核销后将通知商户。`)) return;
+            const body = new URLSearchParams({ bill_id: billId, event_id: billId, channel_id: channelId, source, trade_no: tradeNo.trim(), note: 'CXPAY 管理后台人工复核' });
+            const response = await adminFetch('/api/admin/callbill/review_match', { method: 'POST', body });
+            const payload = await response.json();
+            alert(payload.msg || (payload.code === 1 ? '匹配成功' : '匹配失败'));
+            await Promise.all([loadCallbillReviews(), loadOrders(), loadDashboard()]);
+        }
+
+        async function ignoreReviewBill(billId, source = 'local', channelId = '0') {
+            const reason = prompt('请输入忽略原因（会写入审计备注）：', '确认不是有效到账');
+            if (!reason) return;
+            if (!confirm(`确认忽略账单 #${billId}？`)) return;
+            const body = new URLSearchParams({ bill_id: billId, event_id: billId, channel_id: channelId, source, reason: reason.trim() });
+            const response = await adminFetch('/api/admin/callbill/review_ignore', { method: 'POST', body });
+            const payload = await response.json();
+            alert(payload.msg || (payload.code === 1 ? '已忽略' : '操作失败'));
+            await loadCallbillReviews();
+        }
+
+        async function loadMerchants() {
+            const tbody = document.getElementById('merchant-table-body');
+            const keyword = document.getElementById('merchant-search').value.trim();
+            try {
+                const response = await adminFetch(`/api/admin/merchant/list?page_size=50&keyword=${encodeURIComponent(keyword)}`);
+                const payload = await response.json();
+                if (payload.code !== 1 || !payload.data) throw new Error(payload.msg || '商户加载失败');
+                const rows = Array.isArray(payload.data.data) ? payload.data.data : [];
+                merchantRecords.clear();
+                rows.forEach(item => merchantRecords.set(Number(item.id), item));
+                tbody.innerHTML = rows.length ? rows.map(item => `<tr class="hover:bg-slate-50">
+                    <td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(item.pid)}</td>
+                    <td class="p-3 font-bold text-slate-800">${escapeHtml(item.name)} ${Number(item.status) === 1 ? '' : '<span class="text-rose-500">（已停用）</span>'}</td>
+                    <td class="p-3 font-bold text-emerald-600">¥ ${Number(item.money || 0).toFixed(2)}</td>
+                    <td class="p-3 text-right"><button onclick="openMerchantEditor(${Number(item.id)})" class="text-blue-600 font-bold hover:underline">编辑</button></td>
+                </tr>`).join('') : '<tr><td colspan="4" class="p-6 text-center text-slate-400">暂无商户</td></tr>';
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-rose-500">${escapeHtml(e.message || '商户加载失败')}</td></tr>`;
+            }
+        }
+
+        function openMerchantEditor(id = 0) {
+            const item = merchantRecords.get(Number(id));
+            document.getElementById('merchant-editor-title').textContent = item ? '编辑商户' : '新增商户';
+            document.getElementById('merchant-id').value = item ? item.id : 0;
+            document.getElementById('merchant-name').value = item ? item.name : '';
+            document.getElementById('merchant-pid').value = item ? item.pid : '';
+            document.getElementById('merchant-pid').disabled = Boolean(item);
+            document.getElementById('merchant-rate').value = item ? item.rate : '0.0200';
+            document.getElementById('merchant-status').value = item ? String(item.status) : '1';
+            document.getElementById('merchant-password').value = '';
+            document.getElementById('merchant-api-key').value = '';
+            document.getElementById('merchant-ip-white').value = item ? (item.ip_white || '') : '';
+            const modal = document.getElementById('merchant-editor');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeMerchantEditor() {
+            const modal = document.getElementById('merchant-editor');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function submitMerchant(event) {
+            event.preventDefault();
+            const id = Number(document.getElementById('merchant-id').value || 0);
+            const values = {
+                id: String(id),
+                name: document.getElementById('merchant-name').value.trim(),
+                pid: id ? '' : document.getElementById('merchant-pid').value.trim(),
+                rate: document.getElementById('merchant-rate').value,
+                status: document.getElementById('merchant-status').value,
+                login_password: document.getElementById('merchant-password').value,
+                key: document.getElementById('merchant-api-key').value.trim(),
+                ip_white: document.getElementById('merchant-ip-white').value.trim()
+            };
+            const response = await adminFetch('/api/admin/merchant/save', { method: 'POST', body: new URLSearchParams(values) });
+            const payload = await response.json();
+            if (payload.code !== 1) {
+                alert(payload.msg || '商户保存失败');
+                return;
+            }
+            closeMerchantEditor();
+            await Promise.all([loadMerchants(), loadDashboard()]);
+            if (payload.data?.initial_password) {
+                alert(`商户创建成功，请立即安全交付并保存以下一次性凭据：\nPID：${payload.data.pid}\n登录密码：${payload.data.initial_password}\nAPI 密钥：${payload.data.api_key}`);
+            } else if (payload.data?.api_key) {
+                alert(`商户保存成功，API 密钥已轮换为：\n${payload.data.api_key}`);
+            } else {
+                alert(payload.msg || '商户保存成功');
+            }
         }
 
         async function loadPluginMarket() {
+            const container = document.getElementById('plugin-driver-list');
             try {
-                const res = await fetch('/api/admin/plugin/market_list');
+                const res = await adminFetch('/api/admin/plugin/market_list');
                 const data = await res.json();
-                if (data.code === 1 && data.data) {
-                    console.log('Plugin Market loaded:', data.data);
-                }
-            } catch (e) {}
+                if (data.code !== 1 || !data.data) throw new Error(data.msg || '驱动列表加载失败');
+                const list = Array.isArray(data.data.list) ? data.data.list : [];
+                container.innerHTML = list.length ? list.map(driver => `<div class="p-4 border border-slate-200 rounded-xl space-y-2">
+                    <div class="flex items-center justify-between gap-3">
+                        <h4 class="font-extrabold text-sm text-slate-800">${escapeHtml(driver.name)}</h4>
+                        <span class="px-2 py-0.5 ${driver.enabled ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'} font-mono text-[11px] font-bold rounded-full">${escapeHtml(driver.version || '内置')} · ${driver.enabled ? '已启用' : '已停用'}</span>
+                    </div>
+                    <code class="text-[11px] text-blue-600">${escapeHtml(driver.c_type)}</code>
+                    <p class="text-xs text-slate-500">${escapeHtml(driver.description || '本地内置支付驱动')}</p>
+                    ${driver.source === 'plugin' ? `<div class="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
+                        <code class="text-[10px] text-slate-400">${escapeHtml(driver.plugin_id)}</code>
+                        <div class="flex gap-1.5">
+                            ${!driver.enabled && Array.isArray(driver.versions) && driver.versions.length > 1 ? `<button onclick='rollbackPlugin(${JSON.stringify(driver.plugin_id)}, ${JSON.stringify(driver.versions)})' class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-700">回滚</button>` : ''}
+                            ${!driver.enabled ? `<button onclick="uninstallPlugin('${escapeHtml(driver.plugin_id)}')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600">卸载</button>` : ''}
+                            <button onclick="setPluginEnabled('${escapeHtml(driver.plugin_id)}', ${driver.enabled ? 0 : 1})" class="px-3 py-1.5 rounded-lg text-xs font-bold ${driver.enabled ? 'bg-rose-50 text-rose-600' : 'bg-emerald-600 text-white'}">${driver.enabled ? '停用' : '启用'}</button>
+                        </div>
+                    </div>` : ''}
+                </div>`).join('') : '<div class="p-5 text-center text-xs text-slate-400">没有发现可用支付驱动</div>';
+            } catch (e) {
+                container.innerHTML = `<div class="p-5 text-center text-xs text-rose-500">${escapeHtml(e.message || '驱动列表加载失败')}</div>`;
+            }
         }
 
-        async function loadPollGroups() {
+        async function installPluginPackage(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            if (!file.name.toLowerCase().endsWith('.cxpay-plugin')) {
+                alert('请选择 .cxpay-plugin 签名安装包');
+                input.value = '';
+                return;
+            }
+            const form = new FormData();
+            form.append('package', file);
             try {
-                const res = await fetch('/api/admin/poll_group/list');
-                const data = await res.json();
-                if (data.code === 1 && data.data) {
-                    console.log('Poll Groups loaded:', data.data);
-                }
-            } catch (e) {}
+                const response = await adminFetch('/api/admin/plugin/install', { method: 'POST', body: form });
+                const payload = await response.json();
+                alert(payload.msg || (payload.code === 1 ? '插件安装成功' : '插件安装失败'));
+                if (payload.code === 1) await loadPluginMarket();
+            } catch (e) {
+                alert(e.message || '插件安装失败');
+            } finally {
+                input.value = '';
+            }
+        }
+
+        async function setPluginEnabled(pluginId, enabled) {
+            const action = enabled ? '启用' : '停用';
+            if (!confirm(`确定要${action}插件 ${pluginId} 吗？`)) return;
+            const response = await adminFetch('/api/admin/plugin/set_enabled', {
+                method: 'POST',
+                body: new URLSearchParams({ plugin_id: pluginId, enabled: String(enabled) })
+            });
+            const payload = await response.json();
+            alert(payload.msg || `${action}操作完成`);
+            if (payload.code === 1) await loadPluginMarket();
+        }
+
+        async function rollbackPlugin(pluginId, versions) {
+            const version = prompt(`可回滚版本：${versions.join(', ')}\n请输入目标版本号`);
+            if (!version) return;
+            const response = await adminFetch('/api/admin/plugin/rollback', {
+                method: 'POST',
+                body: new URLSearchParams({ plugin_id: pluginId, version: version.trim() })
+            });
+            const payload = await response.json();
+            alert(payload.msg || '回滚操作完成');
+            if (payload.code === 1) await loadPluginMarket();
+        }
+
+        async function uninstallPlugin(pluginId) {
+            if (!confirm(`确定卸载插件 ${pluginId} 的全部已安装版本吗？历史订单不会被删除。`)) return;
+            const response = await adminFetch('/api/admin/plugin/uninstall', {
+                method: 'POST',
+                body: new URLSearchParams({ plugin_id: pluginId })
+            });
+            const payload = await response.json();
+            alert(payload.msg || '卸载操作完成');
+            if (payload.code === 1) await loadPluginMarket();
+        }
+
+        async function loadAdminChannels() {
+            const container = document.getElementById('admin-channel-list');
+            try {
+                const response = await adminFetch('/api/admin/channel/list');
+                const payload = await response.json();
+                if (payload.code !== 1 || !Array.isArray(payload.data)) throw new Error(payload.msg || '平台通道加载失败');
+                container.innerHTML = payload.data.length ? payload.data.map(channel => `<div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between gap-4">
+                    <div class="min-w-0">
+                        <div class="font-bold text-slate-800 text-sm truncate">${escapeHtml(channel.title)}</div>
+                        <code class="text-[11px] text-blue-600">${escapeHtml(channel.c_type)}</code>
+                    </div>
+                    <div class="text-right text-xs">
+                        <div class="font-bold ${Number(channel.status) === 1 ? 'text-emerald-600' : 'text-slate-400'}">${Number(channel.status) === 1 ? '已启用' : '已停用'}</div>
+                        <div class="text-slate-400">权重 ${Number(channel.weight || 0)}</div>
+                    </div>
+                </div>`).join('') : '<div class="p-5 text-center text-xs text-slate-400">暂无平台级通道；商户可在自己的控制台添加专属通道</div>';
+            } catch (e) {
+                container.innerHTML = `<div class="p-5 text-center text-xs text-rose-500">${escapeHtml(e.message || '平台通道加载失败')}</div>`;
+            }
         }
 
         async function logoutAdmin() {
             try {
-                await fetch('/api/admin/logout', { method: 'POST' });
+                await adminFetch('/api/admin/logout', { method: 'POST' });
                 localStorage.removeItem('cx_admin_token');
             } catch (e) {}
             window.location.href = '/admin_login.html';
@@ -533,7 +732,6 @@
                 lucide.createIcons();
             }
             loadDashboard();
-            checkSystemUpdateBadge();
         });
     </script>
 </body>

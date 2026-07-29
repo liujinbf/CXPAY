@@ -4,7 +4,7 @@ use Webman\Route;
 
 // 一键安装向导路由 (自动安装检测与已安装防护)
 Route::get('/install', function () {
-    $lockFile = base_path() . '/install.lock';
+    $lockFile = (string)config('app.install_lock', base_path() . '/install.lock');
     if (file_exists($lockFile)) {
         return response('<div style="background:#0f172a;color:#f3f4f6;padding:40px;text-align:center;font-family:sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;">
             <div style="font-size:48px;margin-bottom:16px;">🛡️</div>
@@ -34,28 +34,32 @@ Route::get('/cloud', function () {
 
 // 系统在线更新管理页面（需管理员登录）
 Route::get('/admin/system_update', function () {
-    $content = file_get_contents(base_path() . '/public/admin/system_update.html');
-    return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
+    return response(
+        '<h2>在线更新已禁用</h2><p>请通过受控 CI/CD、备份与回滚流程发布版本。</p>',
+        501,
+        ['Content-Type' => 'text/html; charset=utf-8']
+    );
 })->middleware([app\middleware\AdminAuthMiddleware::class]);
 
 Route::group('/api/cloud', function () {
     Route::get('/site_info', [app\controller\api\CloudLicenseController::class, 'getSiteInfo']);
+    // 尚未接入真实供应商时，这些入口会明确返回“未配置”，不会伪造登录成功。
+    Route::get('/qq_login_qr', [app\controller\api\CloudLicenseController::class, 'getQqLoginQr']);
+    Route::any('/poll_qq_login', [app\controller\api\CloudLicenseController::class, 'pollQqLogin']);
+    Route::post('/send_email_code', [app\controller\api\CloudLicenseController::class, 'sendEmailCode']);
+    Route::post('/bind_qq', [app\controller\api\CloudLicenseController::class, 'bindQq']);
+    Route::get('/wx_login_qr', [app\controller\api\CloudLicenseController::class, 'getWxLoginQr']);
+    Route::any('/poll_wx_login', [app\controller\api\CloudLicenseController::class, 'pollWxLogin']);
+});
+
+// 授权变更、下载和泄漏封禁属于后台管理能力，必须由管理员操作。
+Route::group('/api/cloud', function () {
     Route::post('/renew_module', [app\controller\api\CloudLicenseController::class, 'renewModule']);
     Route::post('/reset_key', [app\controller\api\CloudLicenseController::class, 'resetKey']);
     Route::post('/change_domain', [app\controller\api\CloudLicenseController::class, 'changeDomain']);
     Route::get('/download_package', [app\controller\api\CloudLicenseController::class, 'downloadPackage']);
     Route::post('/trace_leaked', [app\controller\api\CloudLicenseController::class, 'traceLeaked']);
-    
-    // QQ 扫码/快捷登录与邮箱验证码绑定 API
-    Route::get('/qq_login_qr', [app\controller\api\CloudLicenseController::class, 'getQqLoginQr']);
-    Route::any('/poll_qq_login', [app\controller\api\CloudLicenseController::class, 'pollQqLogin']);
-    Route::post('/send_email_code', [app\controller\api\CloudLicenseController::class, 'sendEmailCode']);
-    Route::post('/bind_qq', [app\controller\api\CloudLicenseController::class, 'bindQq']);
-
-    // 微信扫码授权与一键登录 API
-    Route::get('/wx_login_qr', [app\controller\api\CloudLicenseController::class, 'getWxLoginQr']);
-    Route::any('/poll_wx_login', [app\controller\api\CloudLicenseController::class, 'pollWxLogin']);
-});
+})->middleware([app\middleware\AdminAuthMiddleware::class]);
 
 // 动态首页路由控制
 Route::get('/', [app\controller\IndexController::class, 'index']);
@@ -85,20 +89,15 @@ Route::any('/api/qqprotocol/poll_qr', [app\controller\api\QQProtocolAdminControl
 Route::get('/api/qqprotocol/auth_page', [app\controller\api\QQProtocolAdminController::class, 'authPage']);
 Route::any('/api/qqprotocol/confirm_auth', [app\controller\api\QQProtocolAdminController::class, 'confirmAuth']);
 
-// 个人收款码上传自动解码 API
-Route::post('/api/qr/upload', [app\controller\api\QrUploadController::class, 'upload']);
-
-// 支付宝/通道防掉线心跳检测 API
-Route::any('/api/channel/keepalive', [app\controller\api\ChannelKeepAliveController::class, 'keepalive']);
-
 // 订单公开查询 API
 Route::any('/api/order/query', [app\controller\api\OrderController::class, 'query']);
 
 // 挂机助手 OpenAPI 账单上报推送
 Route::any('/api/appasst/push', [app\controller\api\AppasstController::class, 'push']);
 
-// 测试支付通道回调接收 API
-Route::any('/api/test_notify', [app\controller\api\MerchantChannelController::class, 'testNotify']);
+// 授权账单源：采集端写入，PC 监控端按游标拉取
+Route::post('/api/bill-source/ingest', [app\controller\api\BillSourceController::class, 'ingest']);
+Route::get('/api/bill-source/poll', [app\controller\api\BillSourceController::class, 'poll']);
 
 // 商户登录与注销公开 API
 Route::post('/api/merchant/login', [app\controller\api\MerchantApiController::class, 'login']);
@@ -112,14 +111,18 @@ Route::post('/api/admin/logout', [app\controller\admin\AdminController::class, '
 Route::group('/api/merchant', function () {
     Route::get('/profile', [app\controller\api\MerchantApiController::class, 'getProfile']);
     Route::post('/reset_key', [app\controller\api\MerchantApiController::class, 'resetKey']);
+    Route::post('/change_password', [app\controller\api\MerchantApiController::class, 'changePassword']);
     Route::post('/buy_vip', [app\controller\api\MerchantApiController::class, 'buyVip']);
     Route::get('/channel/list', [app\controller\api\MerchantChannelController::class, 'list']);
     Route::post('/channel/save', [app\controller\api\MerchantChannelController::class, 'save']);
     Route::post('/channel/toggle', [app\controller\api\MerchantChannelController::class, 'toggle']);
     Route::post('/channel/delete', [app\controller\api\MerchantChannelController::class, 'delete']);
     Route::get('/channel/drivers', [app\controller\api\MerchantChannelController::class, 'drivers']);
-    Route::any('/channel/create_test', [app\controller\api\MerchantChannelController::class, 'createTest']);
-    Route::any('/channel/mock_pay', [app\controller\api\MerchantChannelController::class, 'mockPay']);
+    Route::post('/channel/capabilities', [app\controller\api\MerchantChannelController::class, 'capabilities']);
+    Route::post('/channel/authorization/start', [app\controller\api\MerchantChannelController::class, 'startAuthorization']);
+    Route::post('/channel/authorization/poll', [app\controller\api\MerchantChannelController::class, 'pollAuthorization']);
+    Route::get('/bill-source/status', [app\controller\api\BillSourceManageController::class, 'merchantStatus']);
+    Route::post('/bill-source/rotate-token', [app\controller\api\BillSourceManageController::class, 'merchantRotate']);
     Route::get('/order/list', [app\controller\api\OrderController::class, 'list']);
     Route::post('/recharge/create', [app\controller\api\MerchantRechargeController::class, 'create']);
 })->middleware([app\middleware\MerchantAuthMiddleware::class]);
@@ -127,9 +130,13 @@ Route::group('/api/merchant', function () {
 // 管理员后台与插件商城 API
 Route::group('/api/admin', function () {
     Route::any('/dashboard', [app\controller\admin\AdminController::class, 'dashboard']);
+    Route::get('/channel/list', [app\controller\admin\AdminController::class, 'listChannels']);
     Route::get('/channel/get', [app\controller\admin\AdminController::class, 'getChannelConfig']);
     Route::get('/channel/inputs', [app\controller\admin\ChannelAdminController::class, 'getConfigInputs']);
     Route::post('/channel/config/save', [app\controller\admin\AdminController::class, 'saveChannelConfig']);
+    Route::get('/bill-source/status', [app\controller\api\BillSourceManageController::class, 'adminStatus']);
+    Route::post('/bill-source/rotate-token', [app\controller\api\BillSourceManageController::class, 'adminRotate']);
+    Route::get('/merchant/list', [app\controller\admin\AdminController::class, 'listMerchants']);
     Route::post('/merchant/save', [app\controller\admin\AdminController::class, 'saveMerchant']);
     Route::post('/order/force_notify', [app\controller\admin\AdminController::class, 'forceNotifyOrder']);
     Route::post('/template/save', [app\controller\admin\AdminController::class, 'saveTemplate']);
@@ -138,10 +145,17 @@ Route::group('/api/admin', function () {
     Route::get('/order/list', [app\controller\admin\OrderAdminController::class, 'list']);
     Route::post('/order/close', [app\controller\admin\OrderAdminController::class, 'close']);
     Route::post('/order/manual_pay', [app\controller\admin\CallbillAdminController::class, 'manualPay']);
+    Route::get('/callbill/review_list', [app\controller\admin\CallbillAdminController::class, 'reviewList']);
+    Route::post('/callbill/review_match', [app\controller\admin\CallbillAdminController::class, 'reviewMatch']);
+    Route::post('/callbill/review_ignore', [app\controller\admin\CallbillAdminController::class, 'reviewIgnore']);
+    Route::get('/cloud-monitor/status', [app\controller\admin\CloudMonitorAdminController::class, 'status']);
 
     // 插件商城 API
     Route::get('/plugin/market_list', [app\controller\admin\PluginMarketController::class, 'getMarketList']);
     Route::post('/plugin/install', [app\controller\admin\PluginMarketController::class, 'installPlugin']);
+    Route::post('/plugin/set_enabled', [app\controller\admin\PluginMarketController::class, 'setEnabled']);
+    Route::post('/plugin/rollback', [app\controller\admin\PluginMarketController::class, 'rollback']);
+    Route::post('/plugin/uninstall', [app\controller\admin\PluginMarketController::class, 'uninstall']);
 
     // 轮询组 API
     Route::get('/poll_group/list', [app\controller\admin\PollGroupController::class, 'list']);
@@ -163,5 +177,5 @@ Route::group('/api/admin', function () {
 
 // 商户开放 API (带签名验证中间件)
 Route::group('/api', function () {
-    Route::any('/order/query', [app\controller\api\OrderController::class, 'query']);
+    Route::any('/order/query_signed', [app\controller\api\OrderController::class, 'query']);
 })->middleware([app\middleware\ApiAuthMiddleware::class]);

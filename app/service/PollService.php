@@ -34,6 +34,10 @@ class PollService
         // 1. 按支付类型前缀筛选启用通道（关键修复：之前未过滤 c_type）
         $channels = Channel::where('status', 1)
             ->where('online_status', 1)
+            ->where(function ($query) use ($merchantId) {
+                $query->where('merchant_id', $merchantId)
+                    ->orWhere('merchant_id', 0);
+            })
             ->where(function ($query) use ($payType) {
                 // c_type 以 payType 开头，例如 alipay_official / alipay_scan_bill 等
                 $query->where('c_type', 'LIKE', $payType . '%')
@@ -79,7 +83,7 @@ class PollService
         $rawConfig       = json_decode($selectedChannel->config, true) ?: [];
         $decryptedConfig = [];
         foreach ($rawConfig as $k => $v) {
-            $decryptedConfig[$k] = is_string($v) ? ($this->authcode->decrypt($v) ?: $v) : $v;
+            $decryptedConfig[$k] = is_string($v) ? $this->authcode->decryptStored($v) : $v;
         }
 
         return [

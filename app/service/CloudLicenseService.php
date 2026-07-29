@@ -111,7 +111,7 @@ class CloudLicenseService
         if (!$license) {
             $license = License::create([
                 'domain'      => $domain,
-                'auth_key'    => 'CX_KEY_' . substr(md5($domain . time()), 0, 16),
+                'auth_key'    => 'CX_KEY_' . bin2hex(random_bytes(16)),
                 'agent_id'    => 1,
                 'modules'     => json_encode([]),
                 'status'      => 1,
@@ -156,7 +156,7 @@ class CloudLicenseService
             throw new Exception('授权站点不存在');
         }
 
-        $newKey = 'CX_KEY_' . substr(md5($domain . microtime()), 0, 16);
+        $newKey = 'CX_KEY_' . bin2hex(random_bytes(16));
         $license->auth_key    = $newKey;
         $license->update_time = time();
         $license->save();

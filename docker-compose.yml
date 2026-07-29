@@ -1,41 +1,64 @@
-version: '3.8'
-
 services:
   cxpay-app:
     build: .
-    container_name: cxpay_app
+    restart: unless-stopped
     ports:
-      - "8787:8787"
+      - "${CXPAY_PORT:-8787}:8787"
     depends_on:
-      - cxpay-mysql
-      - cxpay-redis
+      cxpay-mysql:
+        condition: service_healthy
+      cxpay-redis:
+        condition: service_healthy
     environment:
-      - DB_HOST=cxpay-mysql
-      - DB_PORT=3306
-      - DB_NAME=cxpay
-      - DB_USER=cxpay
-      - DB_PASSWORD=cxpay_secret
-      - REDIS_HOST=cxpay-redis
-      - REDIS_PORT=6379
+      APP_DEBUG: "false"
+      APP_URL: "${APP_URL:-http://127.0.0.1:8787}"
+      APP_KEY: "${APP_KEY:?请在环境文件中设置至少32位随机APP_KEY}"
+      ALLOW_PRIVATE_CALLBACKS: "${ALLOW_PRIVATE_CALLBACKS:-false}"
+      SYSTEM_UPDATE_ENABLED: "false"
+      INSTALL_LOCK_FILE: /app/storage/install.lock
+      DB_HOST: cxpay-mysql
+      DB_PORT: 3306
+      DB_DATABASE: "${DB_DATABASE:-cxpay}"
+      DB_USERNAME: "${DB_USERNAME:-cxpay}"
+      DB_PASSWORD: "${DB_PASSWORD:?请设置数据库密码}"
+      REDIS_HOST: cxpay-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?请设置Redis密码}"
+      REDIS_DB: 0
+    volumes:
+      - app_state:/app/storage
 
   cxpay-mysql:
     image: mysql:8.0
-    container_name: cxpay_mysql
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root_secret
-      MYSQL_DATABASE: cxpay
-      MYSQL_USER: cxpay
-      MYSQL_PASSWORD: cxpay_secret
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?请设置MySQL root密码}"
+      MYSQL_DATABASE: "${DB_DATABASE:-cxpay}"
+      MYSQL_USER: "${DB_USERNAME:-cxpay}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:?请设置数据库密码}"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   cxpay-redis:
     image: redis:7-alpine
-    container_name: cxpay_redis
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?请设置Redis密码}"]
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?请设置Redis密码}"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
 volumes:
+  app_state:
   mysql_data:
+  redis_data:

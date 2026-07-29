@@ -6,6 +6,7 @@ namespace app\payment\Drivers\QqpayEpay;
 
 use app\payment\Contracts\PaymentDriverInterface;
 use support\Sign;
+use support\UrlGuard;
 
 /**
  * QQ 钱包支付驱动插件 (支持 EPay 聚合网关与 QQ 钱包 H5 / Native 链接出码)
@@ -39,15 +40,7 @@ class Driver implements PaymentDriverInterface
         if ($mode === 'mapi' && !empty($apiUrl)) {
             // 2. Mapi 模式：尝试调用 mapi 接口出二维码原生链接
             try {
-                $opts = [
-                    'http' => [
-                        'method'  => 'POST',
-                        'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
-                        'content' => http_build_query($payData),
-                        'timeout' => 5.0,
-                    ]
-                ];
-                $res = @file_get_contents($apiUrl . '/mapi.php', false, stream_context_create($opts));
+                $res = $this->postForm($apiUrl . '/mapi.php', $payData);
                 if ($res) {
                     $json = json_decode($res, true);
                     if (($json['code'] ?? 0) == 1) {
@@ -89,7 +82,7 @@ class Driver implements PaymentDriverInterface
 
     public function query(string $tradeNo, array $config): array
     {
-        return ['paid' => true];
+        return ['paid' => false];
     }
 
     public function getMeta(): array
@@ -98,6 +91,7 @@ class Driver implements PaymentDriverInterface
             'name'        => 'qqpay_epay',
             'title'       => 'QQ 钱包 EPay 聚合网关驱动',
             'description' => '通过彩虹易支付与 QQ 钱包 H5 / Native 协议发起 QQ 钱包收款',
+            'available'   => false,
             'inputs'      => [
                 ['name' => 'api_url', 'title' => 'QQ 钱包易支付网关地址 (http://...)', 'type' => 'string', 'required' => true],
                 ['name' => 'pid', 'title' => '商户 ID (PID)', 'type' => 'string', 'required' => true],
@@ -112,6 +106,46 @@ class Driver implements PaymentDriverInterface
         if (empty($config['api_url']) || empty($config['pid']) || empty($config['key'])) {
             return ['code' => -1, 'msg' => '请配置 QQ 钱包网关 API 地址、PID 及 KEY'];
         }
+        if (!filter_var($config['api_url'], FILTER_VALIDATE_URL)
+            || !in_array(strtolower((string)parse_url($config['api_url'], PHP_URL_SCHEME)), ['http', 'https'], true)) {
+            return ['code' => -1, 'msg' => '易支付网关必须是有效的 HTTP(S) 地址'];
+        }
+        if (!in_array((string)($config['mode'] ?? 'submit'), ['submit', 'mapi'], true)) {
+            return ['code' => -1, 'msg' => '支付模式只允许 submit 或 mapi'];
+        }
         return $config;
+    }
+
+    private function postForm(string $url, array $data): string|false
+    {
+        if (!function_exists('curl_init')) {
+            return false;
+        }
+        $target = UrlGuard::resolve($url);
+        if ($target === null) {
+            return false;
+        }
+
+        $resolvedIp = str_contains($target['ip'], ':') ? '[' . $target['ip'] . ']' : $target['ip'];
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query($data),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT => 5,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_RESOLVE => ["{$target['host']}:{$target['port']}:{$resolvedIp}"],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_errno($ch);
+        curl_close($ch);
+        return $error === 0 && $httpCode >= 200 && $httpCode < 300 && is_string($response)
+            ? $response
+            : false;
     }
 }

@@ -17,12 +17,15 @@ class AdminAuthMiddleware implements MiddlewareInterface
 {
     public function process(Request $request, callable $handler): Response
     {
+        if (!$this->isSameOrigin($request)) {
+            return $this->unauthorized($request, '请求来源校验失败');
+        }
         $session   = $request->session();
         $adminInfo = $session->get('admin_info');
 
         // Session 未登录时，尝试解析 Bearer Token 进行无状态校验
         if (!$adminInfo) {
-            $rawToken = $request->header('authorization') ?? $request->get('token') ?? '';
+            $rawToken = $request->header('authorization') ?? '';
             // 兼容 "Bearer xxx" 格式
             $rawToken = str_ireplace('Bearer ', '', trim((string)$rawToken));
 
@@ -74,7 +77,10 @@ class AdminAuthMiddleware implements MiddlewareInterface
             }
 
             // 取服务端盐并重算签名
-            $tokenSalt   = (string)(DB::table('cx_config')->where('name', 'token_salt')->value('value') ?: 'CX_TOKEN_SALT_DEFAULT');
+            $tokenSalt = (string)DB::table('cx_config')->where('name', 'token_salt')->value('value');
+            if (strlen($tokenSalt) < 32) {
+                return null;
+            }
             $tokenRaw    = $account . '|' . $expireStr;
             $expectedSign = hash_hmac('sha256', $tokenRaw, $tokenSalt);
 
@@ -90,6 +96,20 @@ class AdminAuthMiddleware implements MiddlewareInterface
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function isSameOrigin(Request $request): bool
+    {
+        if (in_array(strtoupper($request->method()), ['GET', 'HEAD', 'OPTIONS'], true)) {
+            return true;
+        }
+        $origin = trim((string)$request->header('origin'));
+        if ($origin === '') {
+            return true;
+        }
+        $originHost = strtolower((string)parse_url($origin, PHP_URL_HOST));
+        $requestHost = strtolower(explode(':', $request->host())[0]);
+        return $originHost !== '' && hash_equals($requestHost, $originHost);
     }
 
     /**

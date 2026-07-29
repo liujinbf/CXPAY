@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .glass-card { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px -2px rgba(0,0,0,0.03); }
@@ -31,7 +32,7 @@
                     <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-extrabold text-base shadow-md">CX</div>
                     <div>
                         <span class="text-base font-extrabold text-slate-800 tracking-tight">CXPAY 控制中心</span>
-                        <span class="block text-[10px] text-emerald-600 font-mono font-bold">PID: 1000</span>
+                        <span id="sidebar-merchant-pid" class="block text-[10px] text-emerald-600 font-mono font-bold">PID: --</span>
                     </div>
                 </div>
 
@@ -83,7 +84,7 @@
             <!-- 底部账户服务费余额 -->
             <div class="pt-3 border-t border-slate-100 text-xs text-slate-400 flex items-center justify-between">
                 <span>服务费余额:</span>
-                <strong class="text-emerald-600 font-extrabold text-sm">¥ 500.00</strong>
+                <strong id="sidebar-merchant-balance" class="text-emerald-600 font-extrabold text-sm">¥ --</strong>
             </div>
         </aside>
 
@@ -93,10 +94,10 @@
             <header class="bg-white border-b border-slate-200 px-8 py-3.5 flex items-center justify-between shadow-sm flex-shrink-0">
                 <div class="text-xs text-slate-400">商户服务中心 / <span id="current-tab-title" class="text-slate-700 font-bold uppercase">首页概览</span></div>
                 <div class="flex items-center gap-4 text-xs">
-                    <span class="text-slate-600 font-bold flex items-center gap-1.5">
-                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i> 极客演示体验商户 (PID: 1000)
+                    <span id="header-merchant-label" class="text-slate-600 font-bold flex items-center gap-1.5">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i> 商户信息加载中
                     </span>
-                    <button onclick="location.href='/merchant_login.html'" class="px-3 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-md transition-colors">退出登录</button>
+                    <button onclick="logoutMerchant()" class="px-3 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-md transition-colors">退出登录</button>
                 </div>
             </header>
 
@@ -150,8 +151,8 @@
                         <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
                             <div>
                                 <div class="text-xs font-bold text-slate-400">服务费余额</div>
-                                <div class="text-2xl font-black text-emerald-600 mt-1">¥ 500.00</div>
-                                <div class="text-[11px] text-slate-400 mt-1">当前套餐扣率 1.5%</div>
+                                <div id="dashboard-merchant-balance" class="text-2xl font-black text-emerald-600 mt-1">¥ --</div>
+                                <div id="dashboard-merchant-rate" class="text-[11px] text-slate-400 mt-1">当前套餐扣率 --</div>
                             </div>
                             <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
                                 <i data-lucide="coins" class="w-6 h-6"></i>
@@ -166,17 +167,18 @@
                     <div class="glass-card rounded-2xl p-6 space-y-4 max-w-2xl">
                         <div>
                             <label class="block text-xs font-bold text-slate-600 mb-1">商户名称</label>
-                            <input type="text" value="极客演示体验商户" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-slate-50" readonly>
+                            <input id="profile-merchant-name" type="text" value="" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-slate-50" readonly>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-600 mb-1">商户对接 PID</label>
-                            <input type="text" value="1000" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50" readonly>
+                            <input id="profile-merchant-pid" type="text" value="" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50" readonly>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-600 mb-1">修改登录密码</label>
-                            <input type="password" placeholder="留空表示不修改" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs">
+                            <input id="profile-current-password" type="password" placeholder="当前登录密码" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs mb-2">
+                            <input id="profile-new-password" type="password" placeholder="新密码（至少10个字符）" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs">
                         </div>
-                        <button class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition-colors">保存修改</button>
+                        <button onclick="changeMerchantPassword()" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition-colors">修改登录密码</button>
                     </div>
                 </div>
 
@@ -391,16 +393,25 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-600 mb-1">商户对接 PID</label>
                             <div class="flex gap-2">
-                                <input type="text" value="1000" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50" readonly>
-                                <button onclick="navigator.clipboard.writeText('1000')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold">复制</button>
+                                <input id="api-merchant-pid" type="text" value="" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50" readonly>
+                                <button onclick="copyInputValue('api-merchant-pid')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold">复制</button>
                             </div>
                         </div>
 
                         <div>
                             <label class="block text-xs font-bold text-slate-600 mb-1">MD5 签名密钥 (Key)</label>
                             <div class="flex gap-2">
-                                <input type="text" value="1234567890abcdef1234567890abcdef" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50" readonly>
-                                <button onclick="navigator.clipboard.writeText('1234567890abcdef1234567890abcdef')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold">复制</button>
+                                <input id="api-merchant-key" type="password" value="" placeholder="密钥已配置，重置后仅在本页显示一次" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50" readonly>
+                                <button onclick="copyInputValue('api-merchant-key')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold">复制</button>
+                            </div>
+                            <p class="mt-1 text-[11px] text-slate-400">为降低泄露风险，现有 API 密钥不会回显。</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">轮换 API 密钥</label>
+                            <div class="flex gap-2">
+                                <input id="api-reset-current-password" type="password" autocomplete="current-password" placeholder="输入当前后台登录密码" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs">
+                                <button onclick="resetMerchantKey()" class="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold whitespace-nowrap">生成新密钥</button>
                             </div>
                         </div>
 
@@ -441,112 +452,12 @@
                     <select id="channel-driver-list" onchange="onDriverChange()" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold">
                         <!-- 动态填充 -->
                     </select>
+                    <div id="driver-config-fields" class="mt-3 space-y-3"></div>
                 </div>
 
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">自定义显示名称</label>
                     <input id="channel-title-input" type="text" placeholder="留空则自动跟随通道类型名称" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold">
-                </div>
-
-                <!-- 📱 微信协议云端 (扫码授权监听小账本与收款单免挂) 面板 -->
-                <div id="wx-protocol-auth-box" class="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3 hidden">
-                    <div class="flex items-center justify-between">
-                        <div class="font-bold text-emerald-900 text-xs flex items-center gap-1.5">
-                            <i data-lucide="qr-code" class="w-4 h-4 text-emerald-600"></i>
-                            微信小账本/收款单 扫码授权免挂
-                        </div>
-                        <button type="button" onclick="startWxProtocolAuth()" class="px-3 py-1 bg-emerald-600 text-white rounded-lg text-[11px] font-bold shadow-sm hover:bg-emerald-700">
-                            📱 点击生成授权二维码
-                        </button>
-                    </div>
-                    <div id="wx-auth-qr-container" class="hidden text-center space-y-2 py-2 bg-white rounded-lg border border-emerald-100 p-3">
-                        <div class="inline-block p-2 bg-white rounded-lg shadow-inner border">
-                            <img id="wx-auth-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https%3A%2F%2Fcxpay.onrender.com%2Fapi%2Fwxprotocol%2Fauth_page" class="w-32 h-32 mx-auto">
-                        </div>
-                        <div id="wx-auth-status-text" class="text-[11px] text-emerald-700 font-bold animate-pulse">
-                            ⏳ 请使用微信扫描上方二维码授权登录店员小账本...
-                        </div>
-                    </div>
-                    <div class="text-[11px] text-emerald-700/80 leading-relaxed">
-                        💡 <strong>免挂原理:</strong> 无需微信常驻设备，微信扫码加入店员小账本授权后，云端即可自动监听小账本与收款单实时入账通知。
-                    </div>
-                </div>
-
-                <!-- 🔷 支付宝官方原生 / 当面付 API 配置面板 -->
-                <div id="alipay-official-config-box" class="p-3.5 bg-blue-50 border border-blue-200 rounded-xl space-y-3 hidden">
-                    <div class="font-bold text-blue-900 text-xs flex items-center gap-1.5 border-b border-blue-100 pb-2">
-                        <i data-lucide="shield-check" class="w-4 h-4 text-blue-600"></i>
-                        支付宝官方当面付 API 参数配置
-                    </div>
-                    <div class="space-y-2">
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1"><span class="text-rose-500">*</span> 开放平台 AppID</label>
-                            <input id="alipay-appid-input" type="text" placeholder="例如: 2021000123456789" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white">
-                        </div>
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1"><span class="text-rose-500">*</span> 应用 RSA2 私钥 (Merchant Private Key)</label>
-                            <textarea id="alipay-private-key-input" rows="2" placeholder="填入以 MIIE 开头的 RSA2 商户私钥" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-[11px] bg-white resize-none"></textarea>
-                        </div>
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1"><span class="text-rose-500">*</span> 支付宝公钥 (Alipay Public Key)</label>
-                            <textarea id="alipay-public-key-input" rows="2" placeholder="填入以 MIIBI 开头的支付宝公钥" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-[11px] bg-white resize-none"></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 🔷 支付宝 AppAuth 扫码授权 (免填私钥直连) 面板 -->
-                <div id="ali-protocol-auth-box" class="p-3.5 bg-sky-50 border border-sky-200 rounded-xl space-y-3 hidden">
-                    <div class="flex items-center justify-between">
-                        <div class="font-bold text-sky-900 text-xs flex items-center gap-1.5">
-                            <i data-lucide="qr-code" class="w-4 h-4 text-sky-600"></i>
-                            支付宝应用代开发 扫码授权免填私钥
-                        </div>
-                        <button type="button" onclick="startAliProtocolAuth()" class="px-3 py-1 bg-sky-600 text-white rounded-lg text-[11px] font-bold shadow-sm hover:bg-sky-700">
-                            📱 点击生成支付宝授权码
-                        </button>
-                    </div>
-                    <div id="ali-auth-qr-container" class="hidden text-center space-y-2 py-2 bg-white rounded-lg border border-sky-100 p-3">
-                        <div class="inline-block p-2 bg-white rounded-lg shadow-inner border">
-                            <img id="ali-auth-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https%3A%2F%2Fcxpay.onrender.com%2Fapi%2Falipay%2Fauth_page" class="w-32 h-32 mx-auto">
-                        </div>
-                        <div id="ali-auth-status-text" class="text-[11px] text-sky-700 font-bold animate-pulse">
-                            ⏳ 请使用支付宝 App 扫描上方二维码授权...
-                        </div>
-                    </div>
-                    <div class="text-[11px] text-sky-700/80 leading-relaxed">
-                        💡 <strong>免私钥原理:</strong> 打开手机支付宝 App 扫码同意应用授权后，系统自动换取官方 `app_auth_token` 与 2088 PID，免去手填公私钥。
-                    </div>
-                </div>
-
-                <!-- 🐧 QQ 钱包 ptlogin 扫码授权免挂 面板 -->
-                <div id="qq-protocol-auth-box" class="p-3.5 bg-purple-50 border border-purple-200 rounded-xl space-y-3 hidden">
-                    <div class="flex items-center justify-between">
-                        <div class="font-bold text-purple-900 text-xs flex items-center gap-1.5">
-                            <i data-lucide="qr-code" class="w-4 h-4 text-purple-600"></i>
-                            QQ 钱包 ptlogin 协议云端扫码授权
-                        </div>
-                        <button type="button" onclick="startQqProtocolAuth()" class="px-3 py-1 bg-purple-600 text-white rounded-lg text-[11px] font-bold shadow-sm hover:bg-purple-700">
-                            🐧 点击生成 QQ 授权二维码
-                        </button>
-                    </div>
-                    <div id="qq-auth-qr-container" class="hidden text-center space-y-2 py-2 bg-white rounded-lg border border-purple-100 p-3">
-                        <div class="inline-block p-2 bg-white rounded-lg shadow-inner border">
-                            <img id="qq-auth-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https%3A%2F%2Fcxpay.onrender.com%2Fapi%2Fqqprotocol%2Fauth_page" class="w-32 h-32 mx-auto">
-                        </div>
-                        <div id="qq-auth-status-text" class="text-[11px] text-purple-700 font-bold animate-pulse">
-                            ⏳ 请使用手机 QQ App 扫描上方二维码授权...
-                        </div>
-                    </div>
-                    <div class="text-[11px] text-purple-700/80 leading-relaxed">
-                        💡 <strong>免挂原理:</strong> 使用手机 QQ 扫码授权后，云端协议自动接管账号通知并秒级匹配到账订单。
-                    </div>
-                </div>
-
-                <!-- 🔷 支付宝 PID 免挂账号配置面板 -->
-                <div id="alipay-pid-config-box" class="p-3.5 bg-sky-50 border border-sky-200 rounded-xl space-y-2 hidden">
-                    <label class="block font-bold text-sky-900 mb-1">支付宝 16 位 PID 账号 (全自动到账匹配)</label>
-                    <input id="alipay-pid-input" type="text" placeholder="例如: 2088123456789012" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white">
-                    <div class="text-[11px] text-sky-700/80">提示: 可在支付宝“商家中心-账号管理”获取 2088 开头的 16 位账号 PID。</div>
                 </div>
 
                 <!-- 📷 上传个人收款码与解码 URL -->
@@ -561,9 +472,8 @@
                             <i data-lucide="upload" class="w-3.5 h-3.5"></i> 上传收款码图片自动识别
                         </button>
                     </div>
-                    <input id="channel-qr-url-input" type="text" placeholder="微信例如: wxp://... 支付宝例如: https://qr.alipay.com/..." class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white focus:ring-2 focus:ring-emerald-400 outline-none">
                     <div id="qr-upload-status" class="text-[11px] text-emerald-900 font-medium leading-relaxed">
-                        💡 <strong>微信通道说明:</strong> 微信原生支持店员小账本与微信收款单云端核销，<strong>无需强制上传收款码</strong>；如需静态直跳可自由上传。
+                        图片仅在浏览器本地解析，识别结果会写入上方驱动配置，图片不会上传服务器。
                     </div>
                 </div>
 
@@ -585,198 +495,98 @@
         </div>
     </div>
 
-    <!-- 🧪 实时通道支付测试 Modal -->
-    <div id="test-pay-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
-        <div class="glass-card bg-white rounded-3xl max-w-sm w-full p-6 space-y-5 text-center shadow-2xl relative">
-            <button onclick="closeTestPayModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
-
-            <div class="flex items-center justify-center gap-2">
-                <span class="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm">🧪</span>
-                <h3 class="text-base font-extrabold text-slate-800" id="test-modal-title">发起通道支付测试</h3>
-            </div>
-
-            <!-- 步骤 1: 创单与设定金额 -->
-            <div id="test-step-setup" class="space-y-4">
-                <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-left space-y-2">
-                    <label class="block text-xs font-bold text-slate-600">测试下单金额 (¥)</label>
-                    <input id="test-amount-input" type="number" step="0.01" value="1.00" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-lg font-mono font-bold text-slate-800 bg-white">
-                    <div class="flex items-center justify-between pt-1">
-                        <span class="text-[11px] text-slate-500">开启微浮动去重 (+¥0.01~0.09)</span>
-                        <input id="test-float-input" type="checkbox" checked class="w-4 h-4 accent-blue-600 cursor-pointer">
-                    </div>
-                </div>
-
-                <button onclick="submitCreateTestOrder()" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs rounded-xl shadow-md hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center gap-2">
-                    <i data-lucide="qr-code" class="w-4 h-4"></i> 生成真实支付订单与收款码
-                </button>
-            </div>
-
-            <!-- 步骤 2: 显示订单二维码与实时轮询监听 -->
-            <div id="test-step-qr" class="hidden space-y-4">
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                    <div id="test-qrcode-box" class="w-44 h-44 mx-auto flex items-center justify-center bg-white p-2 rounded-xl shadow-sm border border-slate-200"></div>
-                    <div class="text-xs space-y-1 text-slate-600 font-mono">
-                        <div>订单编号: <span id="test-order-no" class="font-bold text-slate-800">--</span></div>
-                        <div>测试实付金额: <span id="test-order-price" class="text-lg font-black text-rose-600">¥ 1.00</span></div>
-                    </div>
-                    <div id="test-qr-notice" class="text-[11px] text-slate-500 font-medium pt-1 leading-relaxed border-t border-slate-200/60"></div>
-                </div>
-
-                <div id="test-status-badge" class="px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700 animate-pulse flex items-center justify-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                    <span>⏳ 等待用户扫码付款 (每1.5秒自动轮询核销)...</span>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <button onclick="triggerMockPay()" class="flex-1 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 text-xs font-bold rounded-xl transition-all">
-                        ⚡ 模拟充值到账
-                    </button>
-                    <button onclick="closeTestPayModal()" class="px-4 py-2 border border-slate-200 text-slate-500 text-xs font-bold rounded-xl hover:bg-slate-50">
-                        关闭
-                    </button>
-                </div>
-            </div>
-
-            <!-- 步骤 3: 支付成功大绿勾与核销提示 -->
-            <div id="test-step-success" class="hidden py-4 space-y-4">
-                <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-3xl font-black shadow-lg shadow-emerald-500/20">
-                    ✓
-                </div>
-                <div>
-                    <h4 class="text-lg font-extrabold text-emerald-600">支付核销成功！</h4>
-                    <p class="text-xs text-slate-500 mt-1">系统监控助手已成功接收账单，账户完成入账！</p>
-                </div>
-                <button onclick="closeTestPayModal()" class="w-full py-2.5 bg-slate-800 text-white text-xs font-bold rounded-xl">
-                    完成测试并关闭
-                </button>
-            </div>
-        </div>
-    </div>
-
     <script>
-        let activeTestChannelId = null;
-        let testOrderTradeNo = null;
-        let testPollTimer = null;
-
-        function openTestPayModal(channelId) {
-            activeTestChannelId = channelId;
-            const channel = window.merchantChannelsMap ? window.merchantChannelsMap[channelId] : null;
-            document.getElementById('test-modal-title').innerText = `发起通道支付测试 - ${channel ? channel.title : ''}`;
-            
-            document.getElementById('test-step-setup').classList.remove('hidden');
-            document.getElementById('test-step-qr').classList.add('hidden');
-            document.getElementById('test-step-success').classList.add('hidden');
-
-            document.getElementById('test-pay-modal').classList.remove('hidden');
-            if (window.lucide) lucide.createIcons();
-        }
-
-        function closeTestPayModal() {
-            if (testPollTimer) clearInterval(testPollTimer);
-            document.getElementById('test-pay-modal').classList.add('hidden');
-        }
-
-        async function submitCreateTestOrder() {
-            const amount = document.getElementById('test-amount-input').value || '1.00';
-            const enableFloat = document.getElementById('test-float-input').checked ? 1 : 0;
-            const btn = document.querySelector('#test-step-setup button');
-
-            btn.disabled = true;
-            btn.innerText = '⏳ 正在生成真实测试订单...';
-
-            try {
-                const pid = window.currentMerchantPid || '1000';
-                const res = await fetch('/api/merchant/channel/create_test', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `channel_id=${activeTestChannelId}&money=${amount}&enable_float=${enableFloat}&pid=${pid}`
-                }).then(r => r.json());
-
-                if (res.code === 1 && res.data) {
-                    const d = res.data;
-                    testOrderTradeNo = d.trade_no;
-
-                    document.getElementById('test-order-no').innerText = d.trade_no;
-                    document.getElementById('test-order-price').innerText = `¥ ${d.price}`;
-
-                    // 渲染二维码 (带 CDN 离线降级 API 降级全保护)
-                    const qrBox = document.getElementById('test-qrcode-box');
-                    qrBox.innerHTML = '';
-                    if (typeof QRCode !== 'undefined') {
-                        new QRCode(qrBox, {
-                            text: d.qr_url,
-                            width: 160,
-                            height: 160,
-                            colorDark: '#0f172a',
-                            colorLight: '#ffffff'
-                        });
-                    } else {
-                        const img = document.createElement('img');
-                        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(d.qr_url)}`;
-                        img.className = 'w-40 h-40 mx-auto rounded-lg shadow-sm border border-slate-200';
-                        qrBox.appendChild(img);
-                    }
-
-                    const noticeEl = document.getElementById('test-qr-notice');
-                    if (d.has_real_qr) {
-                        noticeEl.innerHTML = '📷 <strong class="text-emerald-600">已直接调用商户绑定的支付宝/微信收款码</strong>';
-                    } else {
-                        noticeEl.innerHTML = '💡 <strong>提示:</strong> 当前通道尚未在【编辑】中绑定您的个人收款码图片。现生成通用安全收银台供全能扫码测试。如需直出支付宝/微信原生收款码，请在【编辑通道】上传您的收款码图片。';
-                    }
-
-                    document.getElementById('test-step-setup').classList.add('hidden');
-                    document.getElementById('test-step-qr').classList.remove('hidden');
-
-                    // 启动轮询
-                    startTestOrderPolling(d.trade_no);
-                } else {
-                    alert(res.msg || '创建测试订单失败');
-                }
-            } catch (err) {
-                alert('请求异常: ' + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="qr-code" class="w-4 h-4"></i> 生成真实支付订单与收款码';
-                if (window.lucide) lucide.createIcons();
-            }
-        }
-
-        function startTestOrderPolling(tNo) {
-            if (testPollTimer) clearInterval(testPollTimer);
-            testPollTimer = setInterval(() => {
-                fetch(`/api/order/query?trade_no=${tNo}&_t=${Date.now()}`, { cache: 'no-store' })
-                    .then(r => r.json())
-                    .then(res => {
-                        if (res.code === 1 && res.data && (res.data.status == 1 || res.data.status === '1')) {
-                            clearInterval(testPollTimer);
-                            document.getElementById('test-step-qr').classList.add('hidden');
-                            document.getElementById('test-step-success').classList.remove('hidden');
-                            loadMerchantChannels();
-                            loadOrderList();
-                        }
-                    })
-                    .catch(() => {});
-            }, 1000);
-        }
-
-        async function triggerMockPay() {
-            if (!testOrderTradeNo) return;
-            try {
-                await fetch(`/api/merchant/channel/mock_pay?trade_no=${testOrderTradeNo}`);
-            } catch (err) {}
-
-            if (testPollTimer) clearInterval(testPollTimer);
-            document.getElementById('test-step-qr').classList.add('hidden');
-            document.getElementById('test-step-success').classList.remove('hidden');
-            loadMerchantChannels();
-        }
         lucide.createIcons();
 
         // 页面初始化
         document.addEventListener('DOMContentLoaded', () => {
+            loadMerchantProfile();
             onCategoryChange();
             loadMerchantChannels();
         });
+
+        async function loadMerchantProfile() {
+            try {
+                const response = await fetch('/api/merchant/profile');
+                const payload = await response.json();
+                if (payload.code !== 1 || !payload.data) throw new Error(payload.msg || '商户资料加载失败');
+                const merchant = payload.data;
+                window.currentMerchantPid = merchant.pid;
+                document.getElementById('sidebar-merchant-pid').textContent = `PID: ${merchant.pid}`;
+                document.getElementById('header-merchant-label').textContent = `${merchant.name} (PID: ${merchant.pid})`;
+                document.getElementById('profile-merchant-name').value = merchant.name;
+                document.getElementById('profile-merchant-pid').value = merchant.pid;
+                document.getElementById('api-merchant-pid').value = merchant.pid;
+                document.getElementById('api-merchant-key').value = '';
+                document.getElementById('sidebar-merchant-balance').textContent = `¥ ${merchant.money}`;
+                document.getElementById('dashboard-merchant-balance').textContent = `¥ ${merchant.money}`;
+                document.getElementById('dashboard-merchant-rate').textContent = `当前套餐扣率 ${(Number(merchant.rate) * 100).toFixed(2)}%`;
+            } catch (error) {
+                window.location.href = '/merchant_login.html';
+            }
+        }
+
+        async function logoutMerchant() {
+            try {
+                await fetch('/api/merchant/logout', { method: 'POST' });
+            } finally {
+                window.location.href = '/merchant_login.html';
+            }
+        }
+
+        async function changeMerchantPassword() {
+            const currentPassword = document.getElementById('profile-current-password').value;
+            const newPassword = document.getElementById('profile-new-password').value;
+            const body = new URLSearchParams({ current_password: currentPassword, new_password: newPassword });
+            try {
+                const response = await fetch('/api/merchant/change_password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body
+                });
+                const payload = await response.json();
+                alert(payload.msg || '密码修改请求已处理');
+                if (payload.code === 1) {
+                    document.getElementById('profile-current-password').value = '';
+                    document.getElementById('profile-new-password').value = '';
+                }
+            } catch (error) {
+                alert('密码修改失败，请稍后重试');
+            }
+        }
+
+        async function resetMerchantKey() {
+            const currentPassword = document.getElementById('api-reset-current-password').value;
+            if (!currentPassword || !confirm('确认立即废止旧 API 密钥？所有调用方必须同步更换签名密钥。')) return;
+            try {
+                const response = await fetch('/api/merchant/reset_key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ current_password: currentPassword })
+                });
+                const payload = await response.json();
+                if (payload.code !== 1 || !payload.new_key) {
+                    alert(payload.msg || 'API 密钥重置失败');
+                    return;
+                }
+                document.getElementById('api-merchant-key').value = payload.new_key;
+                document.getElementById('api-reset-current-password').value = '';
+                alert(payload.msg);
+            } catch (error) {
+                alert('API 密钥重置请求失败，请稍后重试');
+            }
+        }
+
+        function copyInputValue(id) {
+            const input = document.getElementById(id);
+            if (input) navigator.clipboard.writeText(input.value);
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, character => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[character]);
+        }
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
@@ -820,47 +630,22 @@
 
             let listData = [];
             try {
-                const res = await fetch('/api/merchant/channel/list?pid=1000');
+                const res = await fetch('/api/merchant/channel/list');
                 const json = await res.json();
-                if (json.code === 1 && Array.isArray(json.data) && json.data.length > 0) {
+                if (json.code === 1 && Array.isArray(json.data)) {
                     listData = json.data;
+                } else {
+                    throw new Error(json.msg || '通道列表加载失败');
                 }
             } catch (err) {
-                console.warn('API 加载失败，降级本地演示数据:', err);
+                container.innerHTML = '<div class="glass-card rounded-2xl p-8 text-center text-rose-500 font-bold">通道列表加载失败，请刷新页面重试</div>';
+                return;
             }
 
-            // 若网络未联通或为空，保障 100% 具备默认可见通道
-            if (!Array.isArray(listData) || listData.length === 0) {
-                listData = [
-                    {
-                        id: 1,
-                        merchant_id: 1000,
-                        pay_category: 'alipay',
-                        title: '支付宝应用代开发扫码直连免挂',
-                        c_type: 'alipay_oauth_cloud',
-                        qr_url: 'https://qr.alipay.com/bax09876543210987',
-                        remark: '支付宝官方代开发授权 #PID_20881000',
-                        today_money: 680.00,
-                        today_count: 15,
-                        total_money: 12450.00,
-                        online_status: 1,
-                        status: 1
-                    },
-                    {
-                        id: 2,
-                        merchant_id: 1000,
-                        pay_category: 'wxpay',
-                        title: '微信协议云端-[个人动态码]',
-                        c_type: 'wxpay_protocol_cloud',
-                        qr_url: 'wxp://f2f01234567890abcdef',
-                        remark: '微信店员小账本免挂 #WX678',
-                        today_money: 600.50,
-                        today_count: 27,
-                        total_money: 8920.00,
-                        online_status: 1,
-                        status: 1
-                    }
-                ];
+            if (listData.length === 0) {
+                container.innerHTML = '<div class="glass-card rounded-2xl p-8 text-center text-slate-500">尚未配置支付通道，请点击“添加通道”开始配置。</div>';
+                window.merchantChannelsMap = {};
+                return;
             }
 
             container.innerHTML = '';
@@ -883,7 +668,7 @@
                     <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                         <div class="flex items-center gap-2">
                             <span class="w-7 h-7 rounded-lg ${iconBg} flex items-center justify-center font-bold text-xs">${iconText}</span>
-                            <span class="font-extrabold text-sm text-slate-800">${item.title}</span>
+                            <span class="font-extrabold text-sm text-slate-800">${escapeHtml(item.title)}</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold border border-blue-100">🛡️ 防掉线保活</span>
@@ -899,16 +684,20 @@
                         <div><span class="text-slate-400">今日收款:</span> <span class="font-bold text-slate-800 ml-1">¥ ${(parseFloat(item.today_money) || 0).toFixed(2)} (${item.today_count || 0}笔)</span></div>
                         <div><span class="text-slate-400">累计收款:</span> <span class="font-bold text-slate-800 ml-1">¥ ${(parseFloat(item.total_money) || 0).toFixed(2)}</span></div>
                     </div>
-                    ${qrUrl ? `<div class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded-lg truncate">📷 收款码: ${qrUrl}</div>` : ''}
-                    <div class="text-xs text-slate-400">备注: <span class="font-mono text-slate-600 font-bold">${item.remark || '无备注'}</span></div>
+                    ${qrUrl ? `<div class="text-xs text-slate-500 font-mono bg-slate-50 p-2 rounded-lg truncate">📷 收款码: ${escapeHtml(qrUrl)}</div>` : ''}
+                    <div class="text-xs text-slate-400">备注: <span class="font-mono text-slate-600 font-bold">${escapeHtml(item.remark || '无备注')}</span></div>
 
                     <div class="pt-3 border-t border-slate-100 flex items-center gap-3 text-xs font-bold">
                         <button onclick="toggleChannel('${item.id}', ${isEnabled ? 0 : 1})" class="${isEnabled ? 'text-amber-600' : 'text-emerald-600'} hover:underline">
                             ${isEnabled ? '禁用通道' : '开启通道'}
                         </button>
-                        <button onclick="triggerKeepAlive('${item.id}')" class="text-blue-600 hover:underline">🛡️ 心跳保活测试</button>
-                        <button onclick="openTestPayModal('${item.id}')" class="px-2.5 py-1 text-xs font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-lg transition-all flex items-center gap-1"><i data-lucide="zap" class="w-3.5 h-3.5"></i> 支付测试</button>
                         <button onclick="editChannelById('${item.id}')" class="text-slate-600 hover:underline">编辑</button>
+                        ${(String(item.c_type || '').includes('_app_asst') || item.c_type === 'wxpay_recpt_afk_pc')
+                            ? `<button onclick="configureBillSource('${item.id}')" class="text-blue-600 hover:underline">账单源令牌</button>` : ''}
+                        ${item.supports_account_authorization
+                            ? `<button onclick="startChannelAuthorization('${item.id}')" class="text-blue-600 hover:underline">${escapeHtml(item.authorization_label || '扫码授权')}</button>` : ''}
+                        ${item.supports_account_capability_detection
+                            ? `<button onclick="detectChannelCapabilities('${item.id}')" class="text-violet-600 hover:underline">检测收款能力</button>` : ''}
                         <button onclick="deleteChannel('${item.id}')" class="text-rose-600 hover:underline ml-auto">删除</button>
                     </div>
                 </div>`;
@@ -920,72 +709,111 @@
             }
         }
 
-        // 📷 上传个人收款码图片并自动解码 API 触发
+        // 为采集端和 PC 分别生成一次性展示的独立令牌。
+        async function configureBillSource(id) {
+            try {
+                const statusResponse = await fetch(`/api/merchant/bill-source/status?id=${encodeURIComponent(id)}`);
+                const statusPayload = await statusResponse.json();
+                if (statusPayload.code !== 1 || !statusPayload.data) {
+                    throw new Error(statusPayload.message || '账单源状态读取失败');
+                }
+                const current = statusPayload.data;
+                const collectorId = prompt('请输入授权采集端 ID（例如 ANDROID_PHONE_01）：', current.collector_id || 'ANDROID_PHONE_01');
+                if (collectorId === null) return;
+                const ipWhite = prompt('采集端 IP 白名单（可留空；多个 IP 用逗号分隔）：', current.ingest_ip_white || '');
+                if (ipWhite === null) return;
+                if (!confirm('将同时轮换采集端写入令牌和 PC 拉取令牌，旧令牌会立即失效。是否继续？')) return;
+
+                const rotate = async (scope, extra = {}) => {
+                    const body = new URLSearchParams({ id: String(id), scope, ...extra });
+                    const response = await fetch('/api/merchant/bill-source/rotate-token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body
+                    });
+                    const payload = await response.json();
+                    if (payload.code !== 1 || !payload.data?.token) {
+                        throw new Error(payload.message || `${scope} 令牌生成失败`);
+                    }
+                    return payload.data.token;
+                };
+
+                const ingestToken = await rotate('ingest', {
+                    collector_id: collectorId.trim(),
+                    ingest_ip_white: ipWhite.trim()
+                });
+                const feedToken = await rotate('feed');
+                prompt('采集端写入令牌（仅显示一次，请立即复制）：', ingestToken);
+                prompt('PC 拉取令牌（仅显示一次，请填入 PC 客户端“账单源令牌”）：', feedToken);
+                prompt('PC 客户端“授权账单源 URL”：', `${location.origin}/api/bill-source/poll`);
+            } catch (error) {
+                alert(error.message || '账单源令牌配置失败');
+            }
+        }
+
+        // 在浏览器本地解析二维码，不上传商户收款码图片。
         async function uploadQrImage(input) {
             if (!input.files || !input.files[0]) return;
             const file = input.files[0];
             const statusEl = document.getElementById('qr-upload-status');
-            statusEl.innerText = '⏳ 正在上传并解码收款码图片...';
+            statusEl.innerText = '⏳ 正在本地解析收款码图片...';
             statusEl.className = 'text-[11px] text-blue-600 font-bold';
 
-            const formData = new FormData();
-            formData.append('file', file);
-
             try {
-                const res = await fetch('/api/qr/upload', { method: 'POST', body: formData });
-                const json = await res.json();
-                if (json.code === 1 && json.qr_data) {
-                    document.getElementById('channel-qr-url-input').value = json.qr_data;
-                    statusEl.innerText = '✅ 收款码图片已成功识别并提取 URL 链接！';
-                    statusEl.className = 'text-[11px] text-emerald-600 font-bold';
-                } else {
-                    // 若后台解析服务异常，使用示例解析格式
-                    const fakeUrl = (document.getElementById('channel-c-type').value === 'wxpay') ? 
-                        'wxp://f2f0' + Math.random().toString(36).substring(2, 14) :
-                        'https://qr.alipay.com/bax' + Math.random().toString(36).substring(2, 14);
-                    document.getElementById('channel-qr-url-input').value = fakeUrl;
-                    statusEl.innerText = '✅ 已成功选择收款码图片并自动转换编码 URL！';
-                    statusEl.className = 'text-[11px] text-emerald-600 font-bold';
+                if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
+                    throw new Error('请选择不超过 5MB 的图片');
                 }
-            } catch (err) {
-                const fakeUrl = 'https://qr.alipay.com/bax' + Math.random().toString(36).substring(2, 14);
-                document.getElementById('channel-qr-url-input').value = fakeUrl;
-                statusEl.innerText = '✅ 已读取收款码图片完成链接绑定！';
+                if (typeof jsQR !== 'function') {
+                    throw new Error('二维码解析组件加载失败，请手工填写支付链接');
+                }
+
+                const bitmap = await createImageBitmap(file);
+                const canvas = document.createElement('canvas');
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                const context = canvas.getContext('2d', { willReadFrequently: true });
+                context.drawImage(bitmap, 0, 0);
+                bitmap.close();
+                const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+                const decoded = jsQR(pixels.data, pixels.width, pixels.height, { inversionAttempts: 'attemptBoth' });
+                if (!decoded || !decoded.data) {
+                    throw new Error('未识别到二维码，请使用清晰原图或手工填写链接');
+                }
+
+                const driverQrInput = document.querySelector('[data-driver-config="qr_url"], [data-driver-config="qr_code_url"]');
+                if (!driverQrInput) throw new Error('当前驱动没有二维码地址配置项');
+                driverQrInput.value = decoded.data;
+                statusEl.innerText = '✅ 已在浏览器本地识别，图片未上传服务器';
                 statusEl.className = 'text-[11px] text-emerald-600 font-bold';
+            } catch (err) {
+                statusEl.innerText = err.message || '收款码识别失败，请手工填写支付链接';
+                statusEl.className = 'text-[11px] text-rose-600 font-bold';
+            } finally {
+                input.value = '';
             }
         }
 
-        function openAddChannelModal() {
+        async function openAddChannelModal() {
             document.getElementById('modal-title').innerText = '添加收款通道';
             document.getElementById('channel-id-input').value = '0';
             document.getElementById('channel-title-input').value = '';
-            document.getElementById('channel-qr-url-input').value = '';
             document.getElementById('channel-remark-input').value = '';
-            document.getElementById('alipay-appid-input').value = '';
-            document.getElementById('alipay-private-key-input').value = '';
-            document.getElementById('alipay-public-key-input').value = '';
-            document.getElementById('alipay-pid-input').value = '';
-            document.getElementById('qr-upload-status').innerText = '支持上传微信/支付宝/QQ收款码图片自动识别 URL 填入';
+            document.getElementById('channel-status-input').checked = true;
+            await onCategoryChange();
+            document.getElementById('qr-upload-status').innerText = '图片仅在浏览器本地解析，不会上传服务器';
             document.getElementById('qr-upload-status').className = 'text-[11px] text-slate-400';
             document.getElementById('add-channel-modal').classList.remove('hidden');
         }
 
-        function editChannel(item) {
+        async function editChannel(item) {
             document.getElementById('modal-title').innerText = '编辑收款通道';
             document.getElementById('channel-id-input').value = item.id;
             document.getElementById('channel-c-type').value = item.pay_category || 'wxpay';
-            onCategoryChange();
+            await onCategoryChange();
             document.getElementById('channel-driver-list').value = item.c_type;
-            onDriverChange();
+            onDriverChange(item.config || {}, item.configured || {});
             document.getElementById('channel-title-input').value = item.title;
-            document.getElementById('channel-qr-url-input').value = item.qr_url || (item.config && typeof item.config === 'object' ? item.config.qr_url : '');
             document.getElementById('channel-remark-input').value = item.remark || '';
-
-            const cfg = (item.config && typeof item.config === 'object') ? item.config : {};
-            document.getElementById('alipay-appid-input').value = cfg.app_id || item.app_id || '';
-            document.getElementById('alipay-private-key-input').value = cfg.merchant_private_key || '';
-            document.getElementById('alipay-public-key-input').value = cfg.alipay_public_key || '';
-            document.getElementById('alipay-pid-input').value = cfg.alipay_pid || '';
 
             document.getElementById('channel-status-input').checked = item.status == 1;
             document.getElementById('add-channel-modal').classList.remove('hidden');
@@ -1001,40 +829,31 @@
             const payCategory = document.getElementById('channel-c-type').value;
             const cType = document.getElementById('channel-driver-list').value;
             const titleInput = document.getElementById('channel-title-input').value;
-            const qrUrl = document.getElementById('channel-qr-url-input').value;
             const remark = document.getElementById('channel-remark-input').value;
             const status = document.getElementById('channel-status-input').checked ? 1 : 0;
-
-            const appId = document.getElementById('alipay-appid-input').value;
-            const privateKey = document.getElementById('alipay-private-key-input').value;
-            const publicKey = document.getElementById('alipay-public-key-input').value;
-            const aliPid = document.getElementById('alipay-pid-input').value;
 
             const driverSelect = document.getElementById('channel-driver-list');
             const driverText = driverSelect.options[driverSelect.selectedIndex] ? driverSelect.options[driverSelect.selectedIndex].text : cType;
             const title = titleInput ? titleInput : driverText;
 
-            const isWx = payCategory === 'wxpay' || cType.includes('wx');
-            // 强校验：仅在支付宝通道未配置收款码时做提醒校验，微信支持小账本免挂免强制
-            if (!isWx && (!qrUrl || qrUrl.trim() === '' || qrUrl.includes('bax09876543210987'))) {
-                alert('⚠️ 【支付宝通道强提醒】请上传或填入您的支付宝收款码！\n\n为确保用户扫码后能100%直接进入官方付钱页面（规避第三方重定向警告），支付宝通道建议绑定您的真实收款码。');
-                document.getElementById('channel-qr-url-input').focus();
+            const missingRequired = Array.from(document.querySelectorAll('[data-driver-config][required]'))
+                .find(input => !input.value.trim());
+            if (missingRequired) {
+                alert('请填写所有标记为必填的驱动配置');
+                missingRequired.focus();
                 return;
             }
 
             const body = new URLSearchParams();
-            body.append('pid', '1000');
             body.append('id', id);
             body.append('pay_category', payCategory);
             body.append('c_type', cType);
             body.append('title', title);
-            body.append('qr_url', qrUrl);
             body.append('remark', remark);
             body.append('status', status);
-            body.append('app_id', appId);
-            body.append('merchant_private_key', privateKey);
-            body.append('alipay_public_key', publicKey);
-            body.append('alipay_pid', aliPid);
+            document.querySelectorAll('[data-driver-config]').forEach(input => {
+                body.append(`config[${input.dataset.driverConfig}]`, input.value);
+            });
 
             try {
                 const res = await fetch('/api/merchant/channel/save', {
@@ -1052,10 +871,113 @@
                     if (!isSilent) alert(json.msg || '保存失败');
                 }
             } catch (err) {
-                if (!isSilent) alert('保存成功！');
-                closeAddChannelModal();
-                loadMerchantChannels();
+                if (!isSilent) alert('保存失败，请检查网络后重试');
             }
+        }
+
+        async function detectChannelCapabilities(id) {
+            const channel = window.merchantChannelsMap?.[id] || {};
+            const platformName = channel.pay_category === 'wxpay' ? '微信' : (channel.pay_category === 'alipay' ? '支付宝' : '当前');
+            try {
+                const response = await fetch('/api/merchant/channel/capabilities', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ id: String(id) })
+                });
+                const payload = await response.json();
+                if (payload.code !== 1 || !payload.data) throw new Error(payload.msg || '能力探测失败');
+                const data = payload.data;
+                if (data.status === 'RECEIPT_NOT_OPENED') {
+                    alert(`当前${platformName}账号未开通收款单功能，只能使用小账本。\n${data.message || ''}`);
+                } else if (data.status === 'RECEIPT_AVAILABLE') {
+                    alert(`当前${platformName}账号已开通收款单功能。\n${data.message || ''}`);
+                } else if (data.status === 'BOOK_AVAILABLE') {
+                    alert(`当前账号可使用小账本监控。\n${data.message || ''}`);
+                } else if (data.status === 'REAUTH_REQUIRED') {
+                    alert(`${platformName}授权已失效，请重新扫码授权。\n${data.message || ''}`);
+                } else {
+                    alert(`暂时无法确定账号能力，不会自动降级为小账本。\n${data.message || ''}`);
+                }
+            } catch (error) {
+                alert(error.message || '账号能力探测失败');
+            }
+        }
+
+        async function startChannelAuthorization(id) {
+            const channel = window.merchantChannelsMap?.[id] || {};
+            const platformName = channel.pay_category === 'wxpay' ? '微信' : (channel.pay_category === 'alipay' ? '支付宝' : '账号');
+            try {
+                const startResponse = await fetch('/api/merchant/channel/authorization/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ id: String(id) })
+                });
+                const startPayload = await startResponse.json();
+                if (startPayload.code !== 1 || !startPayload.data?.session_id) {
+                    throw new Error(startPayload.msg || '无法创建授权会话');
+                }
+                const sessionId = startPayload.data.session_id;
+                let qrShown = false;
+                for (let attempt = 0; attempt < 150; attempt++) {
+                    const response = await fetch('/api/merchant/channel/authorization/poll', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ id: String(id), session_id: sessionId })
+                    });
+                    const payload = await response.json();
+                    if (payload.code !== 1 || !payload.data) throw new Error(payload.msg || '授权状态查询失败');
+                    const state = payload.data;
+                    if (state.qr_url && !qrShown) {
+                        showAccountAuthorizationQr(state.qr_url, state.expires_at, platformName);
+                        qrShown = true;
+                    }
+                    if (state.status === 'CONFIRMED') {
+                        closeAccountAuthorizationQr();
+                        alert(`${platformName}账号授权成功，账号标识已安全写入通道配置。请确认监控服务状态后再手动启用通道。`);
+                        await loadMerchantChannels();
+                        return;
+                    }
+                    if (['FAILED', 'EXPIRED'].includes(state.status)) {
+                        closeAccountAuthorizationQr();
+                        throw new Error(state.message || `${platformName}扫码授权失败或已过期`);
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                closeAccountAuthorizationQr();
+                throw new Error('授权等待超时，请重新发起');
+            } catch (error) {
+                closeAccountAuthorizationQr();
+                alert(error.message || `${platformName}扫码授权失败`);
+            }
+        }
+
+        function showAccountAuthorizationQr(qrContent, expiresAt, platformName) {
+            closeAccountAuthorizationQr();
+            const overlay = document.createElement('div');
+            overlay.id = 'account-cloud-auth-overlay';
+            overlay.className = 'fixed inset-0 z-[100] bg-slate-900/60 flex items-center justify-center p-4';
+            const card = document.createElement('div');
+            card.className = 'bg-white rounded-2xl p-6 w-full max-w-sm text-center space-y-4 shadow-2xl';
+            const title = document.createElement('h3');
+            title.className = 'font-extrabold text-slate-800';
+            title.textContent = `请使用${platformName}扫码授权`;
+            const qr = document.createElement('div');
+            qr.className = 'mx-auto w-[220px] min-h-[220px] flex items-center justify-center';
+            const hint = document.createElement('p');
+            hint.className = 'text-xs text-slate-500';
+            hint.textContent = `二维码有效期至 ${new Date(Number(expiresAt || 0) * 1000).toLocaleTimeString()}`;
+            const close = document.createElement('button');
+            close.className = 'px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold';
+            close.textContent = '关闭显示（后台仍继续等待）';
+            close.onclick = closeAccountAuthorizationQr;
+            card.append(title, qr, hint, close);
+            overlay.appendChild(card);
+            document.body.appendChild(overlay);
+            new QRCode(qr, { text: String(qrContent), width: 220, height: 220 });
+        }
+
+        function closeAccountAuthorizationQr() {
+            document.getElementById('account-cloud-auth-overlay')?.remove();
         }
 
         // 切换通道状态
@@ -1076,22 +998,6 @@
                 }
             } catch (err) {
                 alert('修改状态异常');
-            }
-        }
-
-        // 触发支付宝/通道防掉线心跳保活检测
-        async function triggerKeepAlive(id) {
-            try {
-                const res = await fetch('/api/channel/keepalive');
-                const json = await res.json();
-                if (json.code === 1) {
-                    alert('🛡️ 支付宝/通道防掉线心跳保活刷新成功！已锁定设备指纹与 Session 活跃状态。');
-                    loadMerchantChannels();
-                } else {
-                    alert('心跳检测完成');
-                }
-            } catch (err) {
-                alert('🛡️ 心跳保活状态正常！');
             }
         }
 
@@ -1120,7 +1026,9 @@
             }
         }
 
-        function onCategoryChange() {
+        let availableChannelDrivers = null;
+
+        async function onCategoryChange() {
             const cat = document.getElementById('channel-c-type').value;
             const driverList = document.getElementById('channel-driver-list');
             driverList.innerHTML = '';
@@ -1130,40 +1038,31 @@
             const staticQrBox = document.getElementById('static-qr-upload-box');
 
             if (cat === 'wxpay') {
-                if (qrReqSpan) { qrReqSpan.innerText = '(选填/免强制)'; qrReqSpan.className = 'text-emerald-600 font-bold'; }
-                if (qrStatusEl) { qrStatusEl.innerHTML = '💡 <strong>微信通道说明:</strong> 微信原生支持店员小账本与微信收款单云端核销，<strong>无需强制上传收款码</strong>；如需静态直跳可自由上传。'; }
+                if (qrReqSpan) { qrReqSpan.innerText = '(按驱动要求)'; qrReqSpan.className = 'text-emerald-600 font-bold'; }
+                if (qrStatusEl) { qrStatusEl.textContent = '请按照所选驱动的必填项配置；二维码图片仅在浏览器本地解析。'; }
                 if (staticQrBox) { staticQrBox.className = 'p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2.5'; }
             } else {
                 if (qrReqSpan) { qrReqSpan.innerText = '* 必填'; qrReqSpan.className = 'text-rose-500 font-black'; }
-                if (qrStatusEl) { qrStatusEl.innerHTML = '⚠️ <strong>支付宝通道提醒:</strong> 为规避第三方跳转警告并直出官方付款界面，添加/编辑支付宝通道时<strong>建议配置您的真实收款码/PID</strong>。'; }
+                if (qrStatusEl) { qrStatusEl.textContent = '请按照所选驱动的必填项配置；官方 API 驱动不要求收款码。'; }
                 if (staticQrBox) { staticQrBox.className = 'p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2.5'; }
             }
 
-            const drivers = {
-                'wxpay': [
-                    { name: '微信协议云端-[个人动态码]', val: 'wxpay_protocol_cloud' },
-                    { name: 'PC小账本', val: 'wxpay_recpt_afk_pc' },
-                    { name: '安卓APP监控助手', val: 'wxpay_app_asst' },
-                    { name: 'iPad免挂-小账本[个人动态码]', val: 'wxpay_ipad_cloud' },
-                    { name: '易支付-微信网关', val: 'epay_generic_wx' }
-                ],
-                'alipay': [
-                    { name: '支付宝扫码授权-[免填私钥/直连]', val: 'alipay_oauth_cloud' },
-                    { name: '支付宝扫码免挂', val: 'alipay_scan' },
-                    { name: '支付宝APP监控助手', val: 'alipay_app_asst' },
-                    { name: '支付宝官方原生扫码', val: 'alipay_official' },
-                    { name: '易支付-支付宝网关', val: 'epay_generic_ali' }
-                ],
-                'qqpay': [
-                    { name: 'QQ钱包 APP 助手挂机', val: 'qqpay_app_asst' },
-                    { name: 'QQ ptlogin 云端免挂', val: 'qqpay_protocol_cloud' },
-                    { name: '易支付-QQ钱包网关', val: 'epay_generic_qq' }
-                ]
-            };
+            if (!availableChannelDrivers) {
+                try {
+                    const response = await fetch('/api/merchant/channel/drivers');
+                    const payload = await response.json();
+                    if (payload.code !== 1 || !payload.data) throw new Error(payload.msg || '驱动加载失败');
+                    availableChannelDrivers = payload.data;
+                } catch (error) {
+                    driverList.innerHTML = '<option value="">驱动列表加载失败</option>';
+                    document.getElementById('driver-config-fields').innerHTML = '';
+                    return;
+                }
+            }
 
-            (drivers[cat] || []).forEach(d => {
+            (availableChannelDrivers[cat] || []).forEach(d => {
                 const opt = document.createElement('option');
-                opt.value = d.val;
+                opt.value = d.c_type;
                 opt.innerText = d.name;
                 driverList.appendChild(opt);
             });
@@ -1171,178 +1070,70 @@
             onDriverChange();
         }
 
-        function onDriverChange() {
+        function onDriverChange(existingConfig = {}, configured = {}) {
             const cType = document.getElementById('channel-driver-list').value || '';
-            const isWxProtocol = (cType.includes('protocol') || cType.includes('cloud') || cType.includes('ipad')) && cType.includes('wx');
-            const isAliOAuth = cType === 'alipay_oauth_cloud';
-            const isQqProtocol = cType === 'qqpay_protocol_cloud';
-            const isAliOfficial = cType === 'alipay_official';
-            const isAliScan = cType === 'alipay_scan';
-
-            const wxAuthBox = document.getElementById('wx-protocol-auth-box');
-            const aliAuthBox = document.getElementById('ali-protocol-auth-box');
-            const qqAuthBox = document.getElementById('qq-protocol-auth-box');
-            const aliOfficialBox = document.getElementById('alipay-official-config-box');
-            const aliPidBox = document.getElementById('alipay-pid-config-box');
+            renderDriverConfigFields(cType, existingConfig, configured);
             const staticQrBox = document.getElementById('static-qr-upload-box');
 
-            if (wxAuthBox) wxAuthBox.classList.add('hidden');
-            if (aliAuthBox) aliAuthBox.classList.add('hidden');
-            if (qqAuthBox) qqAuthBox.classList.add('hidden');
-            if (aliOfficialBox) aliOfficialBox.classList.add('hidden');
-            if (aliPidBox) aliPidBox.classList.add('hidden');
             if (staticQrBox) staticQrBox.classList.add('hidden');
 
-            const cat = document.getElementById('channel-c-type').value || '';
-            const isWx = cat === 'wxpay' || cType.includes('wx');
-
-            if (isWxProtocol) {
-                if (wxAuthBox) wxAuthBox.classList.remove('hidden');
-                if (staticQrBox) staticQrBox.classList.add('hidden');
-                startWxProtocolAuth();
-            } else if (isAliOAuth) {
-                if (aliAuthBox) aliAuthBox.classList.remove('hidden');
-                if (aliPidBox) aliPidBox.classList.remove('hidden');
-                if (staticQrBox) staticQrBox.classList.remove('hidden');
-                startAliProtocolAuth();
-            } else if (isQqProtocol) {
-                if (qqAuthBox) qqAuthBox.classList.remove('hidden');
-                if (staticQrBox) staticQrBox.classList.remove('hidden');
-                startQqProtocolAuth();
-            } else if (isAliOfficial) {
-                if (aliOfficialBox) aliOfficialBox.classList.remove('hidden');
-            } else if (isAliScan) {
-                if (aliPidBox) aliPidBox.classList.remove('hidden');
-                if (staticQrBox) staticQrBox.classList.remove('hidden');
-            } else {
-                if (!isWx && staticQrBox) staticQrBox.classList.remove('hidden');
-            }
+            const allDrivers = availableChannelDrivers ? Object.values(availableChannelDrivers).flat() : [];
+            const selectedDriver = allDrivers.find(item => item.c_type === cType);
+            const hasQrInput = Array.isArray(selectedDriver?.inputs)
+                && selectedDriver.inputs.some(input => ['qr_url', 'qr_code_url'].includes(input.name));
+            if (hasQrInput && staticQrBox) staticQrBox.classList.remove('hidden');
         }
 
-        let qqAuthPollTimer = null;
-        async function startQqProtocolAuth() {
-            const qrContainer = document.getElementById('qq-auth-qr-container');
-            const statusText = document.getElementById('qq-auth-status-text');
-            const qrImg = document.getElementById('qq-auth-qr-img');
-            qrContainer.classList.remove('hidden');
+        function renderDriverConfigFields(cType, existingConfig = {}, configured = {}) {
+            const container = document.getElementById('driver-config-fields');
+            container.innerHTML = '';
+            if (!availableChannelDrivers) return;
 
-            try {
-                const res = await fetch('/api/qqprotocol/login_qr');
-                const json = await res.json();
-                if (json.code === 1 && json.session_id) {
-                    const sessionId = json.session_id;
-                    if (json.qr_data && qrImg) {
-                        qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(json.qr_data);
-                    }
-                    statusText.innerText = '⏳ 请使用手机 QQ App 扫码，点击“确认授权”...';
-                    
-                    if (qqAuthPollTimer) clearInterval(qqAuthPollTimer);
-                    qqAuthPollTimer = setInterval(async () => {
-                        try {
-                            const pollRes = await fetch('/api/qqprotocol/poll_qr?session_id=' + sessionId);
-                            const pollJson = await pollRes.json();
+            const allDrivers = Object.values(availableChannelDrivers).flat();
+            const driver = allDrivers.find(item => item.c_type === cType);
+            if (!driver || !Array.isArray(driver.inputs)) return;
 
-                            if (pollJson.code === 1 && pollJson.status === 'confirmed') {
-                                clearInterval(qqAuthPollTimer);
-                                const uin = (pollJson.data && pollJson.data.uin) ? pollJson.data.uin : ('' + Math.floor(Math.random()*1000000000));
-                                
-                                statusText.innerText = '✅ QQ 钱包授权成功！已绑定 UIN: ' + uin + '！👉 请在下方上传/确认收款码，然后点击底部的【保存到数据库】';
-                                statusText.className = 'text-[11px] text-purple-700 font-bold';
-                                
-                                document.getElementById('channel-remark-input').value = 'QQ钱包ptlogin授权 #' + uin;
-                            }
-                        } catch (e) {}
-                    }, 1200);
+            driver.inputs.forEach(definition => {
+                if (definition.type === 'notice') {
+                    const notice = document.createElement('div');
+                    const warning = definition.tone === 'warning';
+                    notice.className = warning
+                        ? 'rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950'
+                        : 'rounded-2xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-950';
+                    const title = document.createElement('div');
+                    title.className = 'mb-2 font-black';
+                    title.textContent = definition.title || '配置说明';
+                    const content = document.createElement('div');
+                    content.className = 'whitespace-pre-line leading-6';
+                    content.textContent = definition.content || '';
+                    notice.append(title, content);
+                    container.appendChild(notice);
+                    return;
                 }
-            } catch (err) {
-                statusText.innerText = '✅ 已成功启动 QQ 钱包扫码授权监听！';
-            }
-        }
-
-        let aliAuthPollTimer = null;
-        async function startAliProtocolAuth() {
-            const qrContainer = document.getElementById('ali-auth-qr-container');
-            const statusText = document.getElementById('ali-auth-status-text');
-            const qrImg = document.getElementById('ali-auth-qr-img');
-            qrContainer.classList.remove('hidden');
-
-            let sessionId = 'ALI_SESS_DEMO';
-
-            try {
-                const res = await fetch('/api/alipay/login_qr');
-                const json = await res.json();
-                if (json.code === 1 && json.session_id) {
-                    sessionId = json.session_id;
-                    if (json.qr_data && qrImg) {
-                        qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(json.qr_data);
-                    }
+                const name = definition.name || '';
+                if (!name) return;
+                const wrapper = document.createElement('div');
+                const label = document.createElement('label');
+                label.className = 'block text-xs font-bold text-slate-600 mb-1';
+                label.textContent = `${definition.required ? '* ' : ''}${definition.title || name}`;
+                const input = definition.type === 'textarea'
+                    ? document.createElement('textarea')
+                    : document.createElement('input');
+                input.className = 'w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white';
+                input.dataset.driverConfig = name;
+                input.value = existingConfig[name] ?? definition.default ?? '';
+                const isConfiguredSecret = Boolean(configured[name]);
+                input.required = Boolean(definition.required) && !isConfiguredSecret;
+                if (isConfiguredSecret) {
+                    input.placeholder = '已安全配置，留空保持不变；填写新值将替换';
+                    input.dataset.configuredSecret = '1';
                 }
-            } catch (err) {}
-
-            statusText.innerText = '⏳ 请使用手机支付宝 App 扫码，点击“同意应用授权”...';
-            
-            if (aliAuthPollTimer) clearInterval(aliAuthPollTimer);
-            aliAuthPollTimer = setInterval(async () => {
-                try {
-                    const pollRes = await fetch('/api/alipay/poll_qr?session_id=' + sessionId);
-                    const pollJson = await pollRes.json();
-
-                    if (pollJson.code === 1 && pollJson.status === 'confirmed') {
-                        clearInterval(aliAuthPollTimer);
-                        const pid = (pollJson.data && pollJson.data.alipay_pid) ? pollJson.data.alipay_pid : ('2088' + Math.floor(Math.random()*1000000000000));
-                        
-                        statusText.innerText = '✅ 支付宝扫码授权成功！已提取 PID: ' + pid + '！👉 请在下方上传/确认您的真实收款码，然后点击【保存到数据库】';
-                        statusText.className = 'text-[11px] text-emerald-700 font-bold';
-                        
-                        const pidInput = document.getElementById('alipay-pid-input');
-                        if (pidInput) pidInput.value = pid;
-                        const remarkInput = document.getElementById('channel-remark-input');
-                        if (remarkInput) remarkInput.value = '支付宝应用代开发授权 #' + pid;
-                    }
-                } catch (e) {}
-            }, 1200);
+                if (definition.type !== 'textarea') input.type = /(?:key|secret|token|password|private|cookie|cert)/i.test(name) ? 'password' : 'text';
+                wrapper.append(label, input);
+                container.appendChild(wrapper);
+            });
         }
 
-        let wxAuthPollTimer = null;
-        async function startWxProtocolAuth() {
-            const qrContainer = document.getElementById('wx-auth-qr-container');
-            const statusText = document.getElementById('wx-auth-status-text');
-            const qrImg = document.getElementById('wx-auth-qr-img');
-            qrContainer.classList.remove('hidden');
-
-            try {
-                const res = await fetch('/api/wxprotocol/login_qr');
-                const json = await res.json();
-                if (json.code === 1 && json.session_id) {
-                    const sessionId = json.session_id;
-                    if (json.qr_data && qrImg) {
-                        qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(json.qr_data);
-                    }
-                    statusText.innerText = '⏳ 请使用手机微信扫码，点击“同意授权成为店员”...';
-                    
-                    if (wxAuthPollTimer) clearInterval(wxAuthPollTimer);
-                    wxAuthPollTimer = setInterval(async () => {
-                        try {
-                            const pollRes = await fetch('/api/wxprotocol/poll_qr?session_id=' + sessionId);
-                            const pollJson = await pollRes.json();
-
-                            if (pollJson.code === 1 && pollJson.status === 'confirmed') {
-                                clearInterval(wxAuthPollTimer);
-                                const openid = (pollJson.data && pollJson.data.openid) ? pollJson.data.openid : ('wx_openid_' + sessionId.substring(5, 12));
-                                
-                                statusText.innerText = '🎉 微信扫码授权成功！已绑定小账本 OpenID: ' + openid + '！请点击右下角【保存到数据库】按钮完成配置！';
-                                statusText.className = 'text-[11px] text-emerald-700 font-extrabold bg-emerald-50 p-2 rounded-lg border border-emerald-200 mt-2';
-                                
-                                document.getElementById('channel-qr-url-input').value = '';
-                                document.getElementById('channel-remark-input').value = '微信小账本免挂授权 #' + openid;
-                            }
-                        } catch (e) {}
-                    }, 1200);
-                }
-            } catch (err) {
-                statusText.innerText = '✅ 已成功启动扫码授权监听！';
-            }
-        }
     </script>
 </body>
 </html>

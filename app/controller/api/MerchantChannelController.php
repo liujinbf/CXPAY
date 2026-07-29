@@ -4,472 +4,371 @@ declare(strict_types=1);
 
 namespace app\controller\api;
 
-if (!function_exists('app\controller\api\json')) {
-    function json($data, $options = JSON_UNESCAPED_UNICODE) {
-        $body = is_string($data) ? $data : json_encode($data, $options);
-        return new class($body) {
-            private $body;
-            public function __construct($b) { $this->body = $b; }
-            public function rawBody() { return $this->body; }
-            public function __toString() { return $this->body; }
-            public function withStatus($s) { return $this; }
-        };
-    }
-}
-
 use app\model\Channel;
 use app\model\Merchant;
+use app\payment\PaymentManager;
 use support\Authcode;
-use support\Response;
-use Throwable;
+use support\Request;
 
 /**
- * 商户自助添加、编辑与管理个人收款账号/通道 API 控制器
+ * 商户自助支付通道管理 API。
  */
 class MerchantChannelController
 {
     protected Authcode $authcode;
-    protected string $storageFile;
 
     public function __construct()
     {
-        $this->authcode    = new Authcode();
-        $baseDir           = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
-        $this->storageFile = rtrim($baseDir, '/\\') . '/runtime/merchant_channels.json';
+        $this->authcode = new Authcode();
     }
 
-    /**
-     * 读取离线缓存/持久化存储的通道列表
-     */
-    protected function getStorageData(): array
+    public function list(Request $request)
     {
-        if (file_exists($this->storageFile)) {
-            $json = file_get_contents($this->storageFile);
-            $data = json_decode($json, true);
-            if (is_array($data) && !empty($data)) return $data;
+        $merchant = $this->currentMerchant($request);
+        if (!$merchant) {
+            return json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401);
         }
 
-        $default = [
-            [
-                'id'            => 1,
-                'merchant_id'   => 1000,
-                'pay_category'  => 'alipay',
-                'title'         => '支付宝应用代开发扫码直连免挂',
-                'c_type'        => 'alipay_oauth_cloud',
-                'qr_url'        => 'https://qr.alipay.com/bax09876543210987',
-                'remark'        => '支付宝官方代开发授权 #PID_20881000',
-                'today_money'   => 680.00,
-                'today_count'   => 15,
-                'total_money'   => 12450.00,
-                'online_status' => 1,
-                'status'        => 1,
-            ],
-            [
-                'id'            => 2,
-                'merchant_id'   => 1000,
-                'pay_category'  => 'wxpay',
-                'title'         => '微信协议云端-[个人动态码]',
-                'c_type'        => 'wxpay_protocol_cloud',
-                'qr_url'        => '',
-                'remark'        => '微信店员小账本免挂 #WX678',
-                'today_money'   => 600.50,
-                'today_count'   => 27,
-                'total_money'   => 8920.00,
-                'online_status' => 1,
-                'status'        => 1,
-            ]
-        ];
-
-        $this->saveStorageData($default);
-        return $default;
-    }
-
-    protected function saveStorageData(array $data): void
-    {
-        $dir = dirname($this->storageFile);
-        if (!is_dir($dir)) {
-            @mkdir($dir, 0777, true);
-        }
-        file_put_contents($this->storageFile, json_encode(array_values($data), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-    }
-
-    /**
-     * 商户获取自己绑定的所有收款账号列表
-     */
-    public function list(object $request)
-    {
-        $fileList = $this->getStorageData();
-
-        try {
-            $pid = $request->get('pid') ?? $request->post('pid') ?? '1000';
-            $merchant = Merchant::where('pid', $pid)->first();
-            $merchantId = $merchant ? $merchant->id : 1000;
-
-            $dbChannels = Channel::where('merchant_id', $merchantId)->orderBy('id', 'desc')->get()->toArray();
-            if (!empty($dbChannels)) {
-                // 合并数据库与文件数据，按 ID 倒序
-                $merged = array_merge($dbChannels, $fileList);
-                $unique = [];
-                foreach ($merged as $item) {
-                    $key = $item['id'] ?? (string)mt_rand();
-                    if (!isset($unique[$key])) {
-                        $unique[$key] = $item;
+        $channels = Channel::where('merchant_id', $merchant->id)
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function (Channel $channel): array {
+                $data = $channel->toArray();
+                $config = json_decode((string)$channel->config, true) ?: [];
+                $configured = [];
+                foreach ($config as $key => $value) {
+                    if (is_string($value)) {
+                        if ($this->isSensitiveConfigName((string)$key)) {
+                            $configured[$key] = $value !== '';
+                            $config[$key] = '';
+                        } else {
+                            $config[$key] = $this->authcode->decryptStored($value);
+                        }
                     }
                 }
-                return json(['code' => 1, 'data' => array_values($unique)]);
-            }
-        } catch (Throwable $e) {}
-
-        return json(['code' => 1, 'data' => $fileList]);
-    }
-
-    /**
-     * 商户自助添加 / 编辑保存收款账号/通道 (含二维码 URL 落库)
-     */
-    public function save(object $request)
-    {
-        $params      = $request->post();
-        $pid         = $params['pid'] ?? '1000';
-        $id          = (int)($params['id'] ?? 0);
-        $payCategory = trim((string)($params['pay_category'] ?? 'wxpay'));
-        $cType       = trim((string)($params['c_type'] ?? 'wxpay_protocol_cloud'));
-        $title       = trim((string)($params['title'] ?? ''));
-        $qrUrl       = trim((string)($params['qr_url'] ?? ''));
-        $remark      = trim((string)($params['remark'] ?? ''));
-        $status      = (int)($params['status'] ?? 1);
-        $appId       = trim((string)($params['app_id'] ?? ''));
-        $privateKey  = trim((string)($params['merchant_private_key'] ?? ''));
-        $publicKey   = trim((string)($params['alipay_public_key'] ?? ''));
-        $alipayPid   = trim((string)($params['alipay_pid'] ?? ''));
-
-        if (empty($title)) {
-            $title = $cType;
-        }
-
-        $configData = [
-            'qr_url'               => $qrUrl,
-            'app_id'               => $appId,
-            'merchant_private_key' => $privateKey,
-            'alipay_public_key'    => $publicKey,
-            'alipay_pid'           => $alipayPid,
-        ];
-
-        // 1. 同步文件持久化，保证 100% 写入成功
-        $fileList = $this->getStorageData();
-        $channelId = $id > 0 ? $id : (time() . sprintf('%03d', mt_rand(1, 999)));
-
-        $newItem = [
-            'id'            => $channelId,
-            'merchant_id'   => 1000,
-            'pay_category'  => $payCategory,
-            'title'         => $title,
-            'c_type'        => $cType,
-            'qr_url'        => $qrUrl,
-            'remark'        => $remark,
-            'config'        => $configData,
-            'today_money'   => 0.00,
-            'today_count'   => 0,
-            'total_money'   => 0.00,
-            'online_status' => 1,
-            'status'        => $status,
-        ];
-
-        $updated = false;
-        foreach ($fileList as &$item) {
-            if ($item['id'] == $id && $id > 0) {
-                $item = array_merge($item, $newItem);
-                $updated = true;
-                break;
-            }
-        }
-        if (!$updated) {
-            array_unshift($fileList, $newItem);
-        }
-        $this->saveStorageData($fileList);
-
-        // 2. 尝试写入数据库
-        try {
-            $merchant = Merchant::where('pid', $pid)->first();
-            $merchantId = $merchant ? $merchant->id : 1000;
-
-            $dbData = [
-                'merchant_id'   => $merchantId,
-                'pay_category'  => $payCategory,
-                'title'         => $title,
-                'c_type'        => $cType,
-                'remark'        => $remark,
-                'config'        => json_encode($configData, JSON_UNESCAPED_UNICODE),
-                'status'        => $status,
-                'online_status' => 1,
-            ];
-
-            if ($id > 0) {
-                Channel::where('id', $id)->update($dbData);
-            } else {
-                $dbData['today_money'] = 0.00;
-                $dbData['today_count'] = 0;
-                $dbData['total_money'] = 0.00;
-                Channel::create($dbData);
-            }
-        } catch (Throwable $e) {}
-
-        return json(['code' => 1, 'msg' => ($id > 0 ? '通道修改更新成功！' : '新增收款通道保存成功！'), 'id' => $channelId]);
-    }
-
-    /**
-     * 切换通道状态开关 (开启/禁用)
-     */
-    public function toggle(object $request)
-    {
-        $params = $request->post();
-        $id     = $params['id'] ?? 0;
-        $status = (int)($params['status'] ?? 1);
-
-        $fileList = $this->getStorageData();
-        foreach ($fileList as &$item) {
-            if ($item['id'] == $id) {
-                $item['status'] = $status;
-                break;
-            }
-        }
-        $this->saveStorageData($fileList);
-
-        try {
-            Channel::where('id', $id)->update(['status' => $status]);
-        } catch (Throwable $e) {}
-
-        return json(['code' => 1, 'msg' => '通道状态更新成功！']);
-    }
-
-    /**
-     * 删除指定的收款通道
-     */
-    public function delete(object $request)
-    {
-        $params = $request->post();
-        $id     = $params['id'] ?? 0;
-
-        $fileList = $this->getStorageData();
-        $newList = array_filter($fileList, function ($item) use ($id) {
-            return $item['id'] != $id;
-        });
-        $this->saveStorageData($newList);
-
-        try {
-            Channel::where('id', $id)->delete();
-        } catch (Throwable $e) {}
-
-        return json(['code' => 1, 'msg' => '通道删除成功！']);
-    }
-
-    /**
-     * 获取当前系统可用的支付套餐插件驱动清单
-     */
-    public function drivers(object $request)
-    {
-        return json([
-            'code' => 1,
-            'data' => [
-                'wxpay' => [
-                    ['c_type' => 'wxpay_protocol_cloud', 'name' => '微信协议云端-[个人动态码]', 'status' => 1],
-                    ['c_type' => 'wxpay_recpt_afk_pc', 'name' => 'PC小账本', 'status' => 1],
-                    ['c_type' => 'wxpay_app_asst', 'name' => '安卓APP监控助手', 'status' => 1],
-                    ['c_type' => 'wxpay_ipad_cloud', 'name' => 'iPad免挂-小账本[个人动态码]', 'status' => 1],
-                    ['c_type' => 'epay_generic_wx', 'name' => '易支付-微信网关', 'status' => 1],
-                ],
-                'alipay' => [
-                    ['c_type' => 'alipay_oauth_cloud', 'name' => '支付宝扫码授权-[免填私钥/直连]', 'status' => 1],
-                    ['c_type' => 'alipay_scan', 'name' => '支付宝扫码免挂', 'status' => 1],
-                    ['c_type' => 'alipay_app_asst', 'name' => '支付宝APP监控助手', 'status' => 1],
-                    ['c_type' => 'alipay_official', 'name' => '支付宝官方原生扫码', 'status' => 1],
-                    ['c_type' => 'epay_generic_ali', 'name' => '易支付-支付宝网关', 'status' => 1],
-                ],
-                'qqpay' => [
-                    ['c_type' => 'qqpay_app_asst', 'name' => 'QQ钱包 APP 助手挂机', 'status' => 1],
-                    ['c_type' => 'qqpay_protocol_cloud', 'name' => 'QQ ptlogin 云端免挂', 'status' => 1],
-                    ['c_type' => 'epay_generic_qq', 'name' => '易支付-QQ钱包网关', 'status' => 1],
-                ]
-            ]
-        ]);
-    }
-
-    /**
-     * 发起通道真实测试支付下单
-     */
-    public function createTest(object $request)
-    {
-        $params    = $request->get() + $request->post();
-        $channelId = (int)($params['channel_id'] ?? 1);
-        $money     = (float)($params['money'] ?? 1.00);
-
-        $channels = $this->getStorageData();
-        $targetChannel = null;
-        foreach ($channels as $c) {
-            if ($c['id'] == $channelId) {
-                $targetChannel = $c;
-                break;
-            }
-        }
-
-        if (!$targetChannel) {
-            $targetChannel = $channels[0] ?? [
-                'id' => 1,
-                'title' => '默认测试通道',
-                'pay_category' => 'alipay',
-                'qr_url' => ''
-            ];
-        }
-
-        $tradeNo    = 'CX' . date('YmdHis') . sprintf('%04d', mt_rand(1, 9999));
-        $outTradeNo = 'TEST' . time() . mt_rand(100, 999);
-        $payCategory = $targetChannel['pay_category'] ?? 'alipay';
-
-        // 计算微浮动防重复金额 (如 1.01)
-        $floatMoney = $money;
-        if (!empty($params['enable_float'])) {
-            $floatMoney = round($money + (mt_rand(1, 9) / 100), 2);
-        }
-
-        $host  = $_SERVER['HTTP_HOST'] ?? 'cxpay.onrender.com';
-        $proto = (($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https' : 'http';
-        $baseUrl = "{$proto}://{$host}";
-
-        $rawQr = trim($targetChannel['qr_url'] ?? '');
-        if (!empty($rawQr)) {
-            if (str_starts_with($rawQr, 'bax') || str_starts_with($rawQr, 'fkx')) {
-                $rawQr = "https://qr.alipay.com/" . $rawQr;
-            } elseif (!str_starts_with($rawQr, 'http://') && !str_starts_with($rawQr, 'https://') && !str_starts_with($rawQr, 'wxp://') && !str_starts_with($rawQr, 'alipays://')) {
-                $rawQr = "https://" . ltrim($rawQr, '/');
-            }
-        }
-
-        $cfg   = is_array($targetChannel['config'] ?? null) ? $targetChannel['config'] : json_decode($targetChannel['config'] ?? '{}', true);
-        $alipayPid = $targetChannel['alipay_pid'] ?? ($cfg['alipay_pid'] ?? ($targetChannel['pid'] ?? ($cfg['pid'] ?? '')));
-
-        if ($payCategory === 'wxpay' || str_contains($rawQr, 'wxprotocol') || str_contains($rawQr, 'auth_page')) {
-            $displayQr = "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
-            $hasRealQr = false;
-        } else {
-            $hasRealQr = !empty($rawQr);
-            $displayQr = $hasRealQr ? $rawQr : "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}";
-        }
-
-        try {
-            if (class_exists('Illuminate\Database\Capsule\Manager') && class_exists('app\model\Order')) {
-                \app\model\Order::create([
-                    'merchant_id'  => 1000,
-                    'out_trade_no' => $outTradeNo,
-                    'trade_no'     => $tradeNo,
-                    'channel_id'   => $channelId,
-                    'pay_type'     => $payCategory,
-                    'amount'       => $money,
-                    'price'        => $floatMoney,
-                    'subject'      => "测试 - " . ($targetChannel['title'] ?? '支付通道'),
-                    'notify_url'   => "{$baseUrl}/api/test_notify",
-                    'return_url'   => "{$baseUrl}/merchant_center.html",
-                    'status'       => 0,
-                    'create_time'  => time(),
-                    'expire_time'  => time() + 300,
-                ]);
-            }
-        } catch (\Throwable $e) {}
-
-        // 文件持久化备份，容灾保证 100% 能进行订单查询与到账模拟
-        try {
-            $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
-            $runtimeDir = rtrim($baseDir, '/\\') . '/runtime';
-            if (!is_dir($runtimeDir)) {
-                @mkdir($runtimeDir, 0777, true);
-            }
-            $testOrderFile = $runtimeDir . '/test_orders.json';
-            $testOrders = file_exists($testOrderFile) ? json_decode(@file_get_contents($testOrderFile), true) : [];
-            if (!is_array($testOrders)) $testOrders = [];
-            $testOrders[$tradeNo] = [
-                'trade_no'     => $tradeNo,
-                'out_trade_no' => $outTradeNo,
-                'merchant_id'  => 1000,
-                'money'        => number_format($floatMoney, 2, '.', ''),
-                'price'        => number_format($floatMoney, 2, '.', ''),
-                'pay_type'     => $payCategory,
-                'qr_url'       => $displayQr,
-                'pay_url'      => "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}",
-                'subject'      => "测试 - " . ($targetChannel['title'] ?? '支付通道'),
-                'status'       => 0,
-                'create_time'  => time(),
-            ];
-            @file_put_contents($testOrderFile, json_encode($testOrders, JSON_UNESCAPED_UNICODE));
-        } catch (\Throwable $e) {}
-
-        return json([
-            'code' => 1,
-            'msg'  => '测试订单创建成功',
-            'data' => [
-                'trade_no'     => $tradeNo,
-                'out_trade_no' => $outTradeNo,
-                'money'        => number_format($money, 2, '.', ''),
-                'price'        => number_format($floatMoney, 2, '.', ''),
-                'pay_type'     => $payCategory,
-                'has_real_qr'  => $hasRealQr,
-                'qr_url'       => $displayQr,
-                'pay_url'      => "{$baseUrl}/cashier/index.html?trade_no={$tradeNo}",
-                'channel_title'=> $targetChannel['title'] ?? '测试通道',
-            ]
-        ]);
-    }
-
-    /**
-     * 模拟触发订单支付到账与回调核销
-     */
-    public function mockPay(object $request)
-    {
-        $params  = $request->get() + $request->post();
-        $tradeNo = trim((string)($params['trade_no'] ?? ''));
-
-        if (!empty($tradeNo)) {
-            // 1. 尝试数据库到账更新与触发回调通知
-            if (class_exists('app\model\Order')) {
+                $data['config'] = $config;
+                $data['configured'] = $configured;
+                $data['qr_url'] = (string)($config['qr_url'] ?? $config['qr_code_url'] ?? '');
+                $meta = [];
                 try {
-                    $order = \app\model\Order::where('trade_no', $tradeNo)->first();
-                    if ($order) {
-                        $orderService = new \app\service\OrderService();
-                        $orderService->markAsPaid($order->out_trade_no, $tradeNo, (float)($order->amount ?: 1.00));
+                    if (PaymentManager::has((string)$channel->c_type)) {
+                        $meta = PaymentManager::make((string)$channel->c_type)->getMeta();
                     }
-                } catch (\Throwable $e) {}
-            }
-
-            // 2. 文件缓存强行覆盖持久化到账（确保手机端点击后 100% 同步电脑端）
-            try {
-                $baseDir = function_exists('base_path') ? base_path() : dirname(__DIR__, 3);
-                $runtimeDir = rtrim($baseDir, '/\\') . '/runtime';
-                if (!is_dir($runtimeDir)) {
-                    @mkdir($runtimeDir, 0777, true);
+                } catch (\Throwable) {
+                    // 插件暂时不可用时仍返回通道，方便商户停用或删除。
                 }
-                $testOrderFile = $runtimeDir . '/test_orders.json';
-                $testOrders = file_exists($testOrderFile) ? json_decode(@file_get_contents($testOrderFile), true) : [];
-                if (!is_array($testOrders)) $testOrders = [];
+                $data['supports_account_authorization'] = ($meta['supports_account_authorization'] ?? false) === true;
+                $data['supports_account_capability_detection'] = ($meta['supports_account_capability_detection'] ?? false) === true;
+                $data['authorization_label'] = (string)($meta['authorization_label'] ?? '扫码授权');
+                return $data;
+            })
+            ->all();
 
-                if (!isset($testOrders[$tradeNo])) {
-                    $testOrders[$tradeNo] = [
-                        'trade_no' => $tradeNo,
-                        'merchant_id' => 1000,
-                    ];
-                }
-                $testOrders[$tradeNo]['status']        = 1;
-                $testOrders[$tradeNo]['notify_status'] = 1;
-                $testOrders[$tradeNo]['pay_time']      = time();
-
-                @file_put_contents($testOrderFile, json_encode($testOrders, JSON_UNESCAPED_UNICODE));
-            } catch (\Throwable $e) {}
-        }
-
-        return json(['code' => 1, 'msg' => '已模拟触发该订单支付成功状态，后台自动核销与回调已完成！']);
+        return json(['code' => 1, 'data' => $channels]);
     }
 
-    /**
-     * 测试支付回调接收处理 API (易支付规范要求返回 success)
-     */
-    public function testNotify(object $request)
+    public function save(Request $request)
     {
-        return response('success');
+        $params = $request->post();
+        $merchant = $this->currentMerchant($request);
+        if (!$merchant) {
+            return json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401);
+        }
+
+        $id = (int)($params['id'] ?? 0);
+        $payCategory = trim((string)($params['pay_category'] ?? ''));
+        $cType = trim((string)($params['c_type'] ?? ''));
+        $title = trim((string)($params['title'] ?? ''));
+        $remark = trim((string)($params['remark'] ?? ''));
+        $status = (int)($params['status'] ?? 1) === 1 ? 1 : 0;
+
+        if (!in_array($payCategory, ['wxpay', 'alipay', 'qqpay'], true)) {
+            return json(['code' => -1, 'msg' => '支付分类不合法']);
+        }
+        if (!preg_match('/^[a-z0-9_]{3,50}$/', $cType)
+            || !str_starts_with($cType, $payCategory . '_')
+            || !PaymentManager::has($cType)) {
+            return json(['code' => -1, 'msg' => '支付驱动不存在或与支付分类不匹配']);
+        }
+        if ($title === '' || mb_strlen($title) > 100 || mb_strlen($remark) > 255) {
+            return json(['code' => -1, 'msg' => '通道名称不能为空且名称、备注不能超出长度限制']);
+        }
+
+        $channel = null;
+        if ($id > 0) {
+            $channel = Channel::where('id', $id)
+                ->where('merchant_id', $merchant->id)
+                ->first();
+            if (!$channel) {
+                return json(['code' => -1, 'msg' => '通道不存在或无权修改']);
+            }
+        }
+
+        $driver = PaymentManager::make($cType);
+        $meta = $driver->getMeta();
+        if (!$channel && ($meta['deprecated'] ?? false) === true) {
+            return json(['code' => -1, 'msg' => '该支付驱动已停止新建，请安装并使用推荐替代插件']);
+        }
+        $submittedConfig = is_array($params['config'] ?? null) ? $params['config'] : [];
+        $existingConfig = [];
+        if ($channel) {
+            foreach (json_decode((string)$channel->config, true) ?: [] as $key => $value) {
+                if (is_string($value)) {
+                    $existingConfig[$key] = $this->authcode->decryptStored($value);
+                } else {
+                    $existingConfig[$key] = $value;
+                }
+            }
+        }
+        $legacyConfig = [
+            'qr_url' => trim((string)($params['qr_url'] ?? '')),
+            'qr_code_url' => trim((string)($params['qr_url'] ?? '')),
+            'app_id' => trim((string)($params['app_id'] ?? '')),
+            'merchant_private_key' => trim((string)($params['merchant_private_key'] ?? '')),
+            'alipay_public_key' => trim((string)($params['alipay_public_key'] ?? '')),
+            'alipay_pid' => trim((string)($params['alipay_pid'] ?? '')),
+        ];
+
+        $configData = [];
+        foreach ((array)($meta['inputs'] ?? []) as $input) {
+            $name = trim((string)($input['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $value = $submittedConfig[$name]
+                ?? $params[$name]
+                ?? $legacyConfig[$name]
+                ?? $input['default']
+                ?? '';
+            if ($this->isSensitiveConfigName($name)
+                && (string)$value === ''
+                && isset($existingConfig[$name])
+                && (string)$existingConfig[$name] !== '') {
+                $value = $existingConfig[$name];
+            }
+            if (!is_scalar($value) || strlen((string)$value) > 20000) {
+                return json(['code' => -1, 'msg' => "驱动配置 {$name} 格式或长度不合法"]);
+            }
+            $configData[$name] = trim((string)$value);
+        }
+        if (strlen((string)json_encode($configData, JSON_UNESCAPED_UNICODE)) > 60000) {
+            return json(['code' => -1, 'msg' => '驱动配置总长度超出限制']);
+        }
+
+        $validated = $driver->upchannel([
+            'id' => $id,
+            'merchant_id' => (int)$merchant->id,
+            'pay_category' => $payCategory,
+            'c_type' => $cType,
+            'status' => $status,
+        ], $configData);
+        if (isset($validated['code']) && (int)$validated['code'] !== 1) {
+            return json(['code' => -1, 'msg' => (string)($validated['msg'] ?? '通道配置校验失败')]);
+        }
+
+        $encryptedConfig = [];
+        foreach ($validated as $key => $value) {
+            $encryptedConfig[$key] = is_string($value) && $value !== ''
+                ? $this->authcode->encrypt($value)
+                : $value;
+        }
+
+        $dbData = [
+            'merchant_id' => (int)$merchant->id,
+            'pay_category' => $payCategory,
+            'title' => $title,
+            'c_type' => $cType,
+            'remark' => $remark,
+            'config' => json_encode($encryptedConfig, JSON_UNESCAPED_UNICODE),
+            'status' => $status,
+        ];
+
+        if ($channel) {
+            $channel->fill($dbData);
+            $channel->save();
+            $channelId = (int)$channel->id;
+        } else {
+            $dbData += [
+                'today_money' => 0.00,
+                'today_count' => 0,
+                'total_money' => 0.00,
+                'online_status' => PaymentManager::requiresHeartbeat($cType) ? 0 : 1,
+                'last_heartbeat_time' => 0,
+            ];
+            $channelId = (int)Channel::create($dbData)->id;
+        }
+
+        return json([
+            'code' => 1,
+            'msg' => $id > 0 ? '通道修改成功' : '通道新增成功',
+            'id' => $channelId,
+        ]);
+    }
+
+    public function toggle(Request $request)
+    {
+        $merchant = $this->currentMerchant($request);
+        if (!$merchant) {
+            return json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401);
+        }
+
+        $channel = Channel::where('id', (int)$request->post('id'))
+            ->where('merchant_id', $merchant->id)
+            ->first();
+        if (!$channel) {
+            return json(['code' => -1, 'msg' => '通道不存在或无权修改']);
+        }
+        $channel->status = (int)$request->post('status', 1) === 1 ? 1 : 0;
+        $channel->save();
+
+        return json(['code' => 1, 'msg' => '通道状态更新成功']);
+    }
+
+    public function delete(Request $request)
+    {
+        $merchant = $this->currentMerchant($request);
+        if (!$merchant) {
+            return json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401);
+        }
+
+        $deleted = Channel::where('id', (int)$request->post('id'))
+            ->where('merchant_id', $merchant->id)
+            ->delete();
+        if (!$deleted) {
+            return json(['code' => -1, 'msg' => '通道不存在或无权删除']);
+        }
+
+        return json(['code' => 1, 'msg' => '通道删除成功']);
+    }
+
+    public function drivers(Request $request)
+    {
+        if (!$this->currentMerchant($request)) {
+            return json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401);
+        }
+
+        $grouped = ['wxpay' => [], 'alipay' => [], 'qqpay' => [], 'other' => []];
+        foreach (PaymentManager::getRegisteredDrivers() as $cType => $meta) {
+            $category = str_starts_with($cType, 'wxpay_') ? 'wxpay'
+                : (str_starts_with($cType, 'alipay_') ? 'alipay'
+                    : (str_starts_with($cType, 'qqpay_') ? 'qqpay' : 'other'));
+            $grouped[$category][] = [
+                'c_type' => $cType,
+                'name' => (string)($meta['title'] ?? $cType),
+                'description' => (string)($meta['description'] ?? ''),
+                'inputs' => (array)($meta['inputs'] ?? []),
+                'supports_account_authorization' => ($meta['supports_account_authorization'] ?? false) === true,
+                'supports_account_capability_detection' => ($meta['supports_account_capability_detection'] ?? false) === true,
+                'authorization_label' => (string)($meta['authorization_label'] ?? '扫码授权'),
+                'status' => 1,
+            ];
+        }
+
+        return json(['code' => 1, 'data' => $grouped]);
+    }
+
+    public function capabilities(Request $request)
+    {
+        $merchant = $this->currentMerchant($request);
+        if (!$merchant) {
+            return json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401);
+        }
+        $channel = Channel::where('id', (int)$request->post('id'))
+            ->where('merchant_id', $merchant->id)
+            ->first();
+        if (!$channel || !PaymentManager::has((string)$channel->c_type)) {
+            return json(['code' => -1, 'msg' => '通道不存在或支付插件不可用']);
+        }
+        $config = [];
+        foreach (json_decode((string)$channel->config, true) ?: [] as $key => $value) {
+            $config[$key] = is_string($value) ? $this->authcode->decryptStored($value) : $value;
+        }
+        try {
+            $result = PaymentManager::detectAccountCapabilities((string)$channel->c_type, $config);
+            $status = (string)($result['status'] ?? 'UNKNOWN');
+            $result['receipt_not_opened'] = $status === 'RECEIPT_NOT_OPENED';
+            $result['recommended_mode'] = match ($status) {
+                'RECEIPT_AVAILABLE' => 'receipt',
+                'RECEIPT_NOT_OPENED', 'BOOK_AVAILABLE' => 'book',
+                default => null,
+            };
+            return json(['code' => 1, 'data' => $result]);
+        } catch (\Throwable $e) {
+            return json(['code' => -1, 'msg' => '账号能力探测失败：' . $e->getMessage()]);
+        }
+    }
+
+    public function startAuthorization(Request $request)
+    {
+        [$channel, $config, $error] = $this->authorizationChannel($request);
+        if ($error) {
+            return $error;
+        }
+        try {
+            $config['channel_id'] = (int)$channel->id;
+            $result = PaymentManager::startAccountAuthorization((string)$channel->c_type, $config);
+            return json(['code' => 1, 'data' => $result]);
+        } catch (\Throwable $e) {
+            return json(['code' => -1, 'msg' => '发起扫码授权失败：' . $e->getMessage()]);
+        }
+    }
+
+    public function pollAuthorization(Request $request)
+    {
+        [$channel, $config, $error] = $this->authorizationChannel($request);
+        if ($error) {
+            return $error;
+        }
+        try {
+            $result = PaymentManager::pollAccountAuthorization(
+                (string)$channel->c_type,
+                trim((string)$request->post('session_id')),
+                $config
+            );
+            if (($result['status'] ?? '') === 'CONFIRMED') {
+                $accountId = trim((string)($result['account_id'] ?? ''));
+                if (!preg_match('/^[A-Za-z0-9_-]{16,64}$/', $accountId)) {
+                    throw new \RuntimeException('云服务没有返回合法的账号 ID');
+                }
+                $raw = json_decode((string)$channel->config, true) ?: [];
+                $raw['account_id'] = $this->authcode->encrypt($accountId);
+                $channel->config = json_encode($raw, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                $channel->save();
+            }
+            return json(['code' => 1, 'data' => $result]);
+        } catch (\Throwable $e) {
+            return json(['code' => -1, 'msg' => '查询扫码授权状态失败：' . $e->getMessage()]);
+        }
+    }
+
+    /** @return array{0:?Channel,1:array,2:mixed} */
+    private function authorizationChannel(Request $request): array
+    {
+        $merchant = $this->currentMerchant($request);
+        if (!$merchant) {
+            return [null, [], json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401)];
+        }
+        $channel = Channel::where('id', (int)$request->post('id'))
+            ->where('merchant_id', $merchant->id)
+            ->first();
+        if (!$channel || (int)$channel->status !== 0 || !PaymentManager::has((string)$channel->c_type)) {
+            return [null, [], json(['code' => -1, 'msg' => '请先保存并停用需要授权的支付通道'])];
+        }
+        $config = [];
+        foreach (json_decode((string)$channel->config, true) ?: [] as $key => $value) {
+            $config[$key] = is_string($value) ? $this->authcode->decryptStored($value) : $value;
+        }
+        return [$channel, $config, null];
+    }
+
+    private function currentMerchant(Request $request): ?Merchant
+    {
+        $merchant = $request->context['merchant'] ?? null;
+        return $merchant instanceof Merchant ? $merchant : null;
+    }
+
+    private function isSensitiveConfigName(string $name): bool
+    {
+        return preg_match('/(?:key|secret|token|password|private|cookie|cert)/i', $name) === 1;
     }
 }
