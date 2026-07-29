@@ -18,6 +18,19 @@ Webman 负责动态路由、静态文件、Session、中间件和后台定时进
 5. 验证后执行 `php start.php stop`，再以 `php start.php start -d` 常驻运行。
 6. 配置进程守护（systemd、Supervisor 或容器重启策略）并启用 HTTPS。
 
+## 网页安装器（推荐全新部署使用）
+
+当 Webman 已启动、Nginx 已反向代理到 `127.0.0.1:8787` 后，访问 `https://你的域名/install`。
+
+安装器会自动检查 PHP 版本、必要扩展、Composer 依赖、运行目录权限和 Webman 运行模式；只有所有检查通过才能继续。填写站点公开地址、MySQL 账号和管理员强密码后，安装器会：
+
+- 尝试创建目标数据库，并在导入前确认它是专用空库；发现已有表时会停止，不会覆盖旧数据。
+- 导入 `database/install.sql`、生成随机 `APP_KEY` 与 Token 盐、保存管理员密码哈希。
+- 写入 `.env`，默认将 Webman 绑定至 `127.0.0.1:8787`，防止业务端口直接暴露公网。
+- 创建 `install.lock`，安装完成后关闭安装入口。
+
+网页安装器不会也不应尝试以网站进程权限修改 Nginx、systemd、宝塔防火墙或服务器账户。首次访问前仍需由服务器管理员完成 Webman 服务和 Nginx 反向代理配置；安装完成页面会给出服务重启命令。
+
 已有旧数据库时不要重新执行 `install.sql`。应先完整备份，再按 README 的版本顺序执行尚未应用的 `database/patch_v*.sql`；补丁不可重复执行，执行 `v3` 前必须先清理同一商户下重复的 `out_trade_no`。
 
 ## Nginx 示例
