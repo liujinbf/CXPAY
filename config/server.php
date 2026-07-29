@@ -1,7 +1,8 @@
 <?php
 
 return [
-    'listen'           => 'http://0.0.0.0:' . env('PORT', '8787'),
+    // 默认监听全部网卡以兼容 Docker；生产环境可通过 HOST=127.0.0.1 限制为仅由反向代理访问。
+    'listen'           => 'http://' . env('HOST', '0.0.0.0') . ':' . env('PORT', '8787'),
     'transport'        => 'tcp',
     'context'          => [],
     'name'             => 'CXPAY',
