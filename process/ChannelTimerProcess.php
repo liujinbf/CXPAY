@@ -20,6 +20,13 @@ class ChannelTimerProcess
 
     public function onWorkerStart(): void
     {
+        // 系统未安装时跳过所有定时任务，避免在无 DB/Redis 配置环境下
+        // 实例化服务导致 socket 连接失败，进而触发 Workerman stream 异常崩溃。
+        $lockFile = (string)config('app.install_lock', base_path() . '/install.lock');
+        if (!file_exists($lockFile)) {
+            return;
+        }
+
         $this->monitorService = new ChannelMonitorService();
         $this->notifyService  = new MerchantNotifyService();
         $this->alertService   = new AlertNotificationService();
