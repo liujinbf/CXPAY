@@ -94,12 +94,14 @@ class PollService
     }
 
     /**
-     * 权重加权随机挑选算法
+     * 权重加权随机挑选算法（Weighted Random Sampling）
      *
-     * @param  Channel[] $channels
+     * 供 PollService 自身调用，也供 OrderService 回退路径复用，保持全局调度策略一致。
+     *
+     * @param  Channel[] $channels  候选通道数组（索引连续，权重字段 weight 必须存在）
      * @return Channel
      */
-    protected function weightedRandom(array $channels): Channel
+    public function weightedRandom(array $channels): Channel
     {
         $totalWeight = 0;
         foreach ($channels as $channel) {

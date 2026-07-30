@@ -174,6 +174,9 @@ Route::group('/api/admin', function () {
     Route::post('/plugin/uninstall', [app\controller\admin\PluginMarketController::class, 'uninstall']);
 
     // 轮询组 API
+    // 注意：save / bind 接口目前返回 HTTP 501（轮询组尚未接入通道调度器），
+    //       仅 list 接口可正常使用（返回历史配置记录）。
+    //       待 PollService 接入轮询组后，移除此注释并解除写接口限制。
     Route::get('/poll_group/list', [app\controller\admin\PollGroupController::class, 'list']);
     Route::post('/poll_group/save', [app\controller\admin\PollGroupController::class, 'save']);
     Route::post('/poll_group/bind', [app\controller\admin\PollGroupController::class, 'bindChannel']);

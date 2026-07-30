@@ -531,7 +531,9 @@ class OrderService
         if (!$channel
             || !PaymentManager::has((string)$channel->c_type)
             || !$this->riskGuard->validateRisk($channel, $money)) {
-            $channel = Channel::where(function ($query) use ($merchantId) {
+            // T12：回退选通道改用权重加权随机，与 PollService::weightedRandom 算法一致，
+            // 避免全部流量压向权重最高的单一通道（原 orderBy+first 行为）。
+            $candidates = Channel::where(function ($query) use ($merchantId) {
                     $query->where('merchant_id', $merchantId)->orWhere('merchant_id', 0);
                 })
                 ->where(function ($query) use ($type) {
@@ -539,10 +541,15 @@ class OrderService
                 })
                 ->where('status', 1)
                 ->where('online_status', 1)
-                ->orderBy('weight', 'desc')
                 ->get()
-                ->first(fn(Channel $candidate) => PaymentManager::has((string)$candidate->c_type)
-                    && $this->riskGuard->validateRisk($candidate, $money));
+                ->filter(fn(Channel $candidate) => PaymentManager::has((string)$candidate->c_type)
+                    && $this->riskGuard->validateRisk($candidate, $money))
+                ->values()
+                ->all();
+
+            $channel = !empty($candidates)
+                ? $this->pollService->weightedRandom($candidates)
+                : null;
         }
 
         if (!$channel) {
