@@ -36,7 +36,28 @@ CXPAY 是基于 PHP 8.1、Webman 2、MySQL 和 Redis 的个人收款码监控网
 - Redis 5+
 - Composer 2
 
-### 快速部署（一键命令，推荐）
+### 🚀 国内服务器快速克隆/更新（解决 GitHub 连不上问题）
+
+如果国内 Linux 服务器连接 GitHub 较慢或经常超时，请选择以下任意一种加速方式：
+
+#### 方式 1：使用国内 GHProxy 代理镜像（推荐，免配置）
+```bash
+# 第一次拉取源码（替换为你的域名目录）
+git clone https://mirror.ghproxy.com/https://github.com/liujinbf/CXPAY.git /www/wwwroot/你的域名
+
+# 后续更新代码（如果连不上 GitHub）
+git config remote.origin.url https://mirror.ghproxy.com/https://github.com/liujinbf/CXPAY.git
+git pull
+```
+
+#### 方式 2：使用 Gitee 镜像仓库（极致稳定）
+```bash
+git clone https://gitee.com/liujinbf/CXPAY.git /www/wwwroot/你的域名
+```
+
+---
+
+### ⚡ 启动 Webman（宝塔终端一键命令）
 
 在宝塔终端中直接全选复制运行以下命令：
 
@@ -44,7 +65,7 @@ CXPAY 是基于 PHP 8.1、Webman 2、MySQL 和 Redis 的个人收款码监控网
 cd /www/wwwroot/你的域名 && php start.php stop 2>/dev/null; rm -f runtime/webman.pid && chmod -R 777 runtime/ && php start.php start -d
 ```
 
-然后直接打开浏览器访问 `http://你的域名`（例如 `https://cs.fcwan.cn`），即可进入**图形化安装向导**完成最终数据库配置！
+然后直接打开浏览器访问 `http://你的域名`（例如 `https://cs.fcwan.cn`），即可进入**图形化安装向导**完成数据库与系统配置！
 
 ---
 
