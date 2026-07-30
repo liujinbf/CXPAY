@@ -17,7 +17,7 @@ class IndexController
     {
         $lockFile = (string)config('app.install_lock', base_path() . '/install.lock');
         if (!file_exists($lockFile)) {
-            return redirect('/install');
+            return redirect('/install/index.html');
         }
 
         $tradeNo = trim((string)($request->get('trade_no') ?? $request->get('flowT') ?? ''));

@@ -13,8 +13,7 @@ Route::get('/install', function () {
             <a href="/" style="margin-top:24px;display:inline-block;padding:10px 24px;background:#0284c7;color:#fff;border-radius:12px;text-decoration:none;font-weight:bold;font-size:14px;">&#36820;&#22238;&#32593;&#31449;&#39318;&#39029;</a>
         </div>', 200, ['Content-Type' => 'text/html; charset=utf-8']);
     }
-    $content = file_get_contents(base_path() . '/public/install/index.html');
-    return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
+    return redirect('/install/index.html');
 });
 Route::any('/api/install/check',      [app\controller\api\InstallController::class, 'check']);
 Route::any('/api/install/test_db',    [app\controller\api\InstallController::class, 'testDb']);
