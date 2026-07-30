@@ -36,17 +36,28 @@ CXPAY 是基于 PHP 8.1、Webman 2、MySQL 和 Redis 的个人收款码监控网
 - Redis 5+
 - Composer 2
 
-## 本地运行
+### 宝塔面板部署（小白推荐：全图形化免命令行）
+
+1. **上传代码**：将本项目解压或 `git clone` 到宝塔网站根目录（如 `/www/wwwroot/cs.fcwan.cn`）。
+2. **配置进程守护（守护进程启动）**：
+   - 打开宝塔面板 ➔【软件商店】➔ 搜索并安装 **进程守护进程 (Supervisor)**。
+   - 打开插件 ➔ 点击【添加守护进程】：
+     - **名称**：`CXPAY`
+     - **运行目录**：选择网站根目录（如 `/www/wwwroot/cs.fcwan.cn`）
+     - **启动命令**：`php start.php start`
+   - 点击【确定】，宝塔会自动后台启动程序，并在服务器重启或崩溃时自动关照重启。
+3. **图形化安装向导**：
+   - 浏览器打开 `http://你的域名`（或 `http://127.0.0.1:8787/install`），按照图形化界面填写数据库信息即可完成一键安装！
+
+### 命令行运行（开发者）
 
 ```bash
 composer install
 cp .env.example .env
-php start.php start
+php start.php start -d
 ```
 
-访问 `http://127.0.0.1:8787/install` 完成安装。安装器会生成 `APP_KEY`、管理员密码哈希、Token 盐并创建安装锁。
-
-Webman 是常驻进程框架，不支持把 `public/index.php` 配成 PHP-FPM 单入口。生产环境必须启动 `php start.php start -d`，再由 Nginx 反向代理到 Webman 监听端口。
+Webman 是常驻内存框架，不支持把 `public/index.php` 配成 PHP-FPM 单入口。生产环境必须启动 `php start.php start -d`（或使用宝塔守护进程），再由 Nginx 反向代理到 Webman 监听端口。
 
 ## Docker Compose
 
