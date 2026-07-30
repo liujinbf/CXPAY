@@ -33,9 +33,15 @@ final class OrderFeeReservationTest extends TestCase
     protected function setUp(): void
     {
         $schema = self::$capsule->schema();
-        foreach (['cx_callbill', 'cx_user_money_log', 'cx_pay_channel', 'cx_order', 'cx_merchant'] as $table) {
+        foreach (['cx_config', 'cx_callbill', 'cx_user_money_log', 'cx_pay_channel', 'cx_order', 'cx_merchant'] as $table) {
             $schema->dropIfExists($table);
         }
+
+        $schema->create('cx_config', function (Blueprint $table): void {
+            $table->string('name')->primary();
+            $table->text('value')->nullable();
+            $table->string('title')->default('');
+        });
 
         $schema->create('cx_merchant', function (Blueprint $table): void {
             $table->increments('id');

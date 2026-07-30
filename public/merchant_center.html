@@ -73,7 +73,7 @@
                     <!-- 5. API 配置 -->
                     <div class="nav-group-title">开发与对接</div>
                     <a onclick="switchTab('api-keys')" id="nav-api-keys" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="key-round" class="w-4 h-4 text-rose-500"></i> API 配置
+                        <i data-lucide="key-round" class="w-4 h-4 text-rose-500"></i> API 配置与通知告警
                     </a>
                     <a href="/doc" target="_blank" class="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer font-bold text-blue-600 hover:bg-blue-50 transition-colors">
                         <i data-lucide="book-open" class="w-4 h-4 text-blue-500"></i> 开发对接文档
@@ -117,9 +117,9 @@
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
                         <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
                             <div>
-                                <div class="text-xs font-bold text-slate-400">今日总收款</div>
-                                <div class="text-2xl font-black text-slate-800 mt-1">¥ 1,280.50</div>
-                                <div class="text-[11px] text-emerald-600 mt-1 font-bold">↑ 12% 较昨日</div>
+                                <div class="text-xs font-bold text-slate-400">今日成功收款</div>
+                                <div id="dashboard-today-amount" class="text-2xl font-black text-slate-800 mt-1">¥ --</div>
+                                <div id="dashboard-today-count-sub" class="text-[11px] text-emerald-600 mt-1 font-bold">今日交易 0 笔</div>
                             </div>
                             <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
                                 <i data-lucide="wallet" class="w-6 h-6"></i>
@@ -129,8 +129,8 @@
                         <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
                             <div>
                                 <div class="text-xs font-bold text-slate-400">今日成功笔数</div>
-                                <div class="text-2xl font-black text-slate-800 mt-1">42 笔</div>
-                                <div class="text-[11px] text-blue-600 mt-1 font-bold">成功率 98.5%</div>
+                                <div id="dashboard-today-count" class="text-2xl font-black text-slate-800 mt-1">0 笔</div>
+                                <div id="dashboard-success-rate" class="text-[11px] text-blue-600 mt-1 font-bold">成功率 100.0%</div>
                             </div>
                             <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                 <i data-lucide="check-square" class="w-6 h-6"></i>
@@ -140,8 +140,8 @@
                         <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
                             <div>
                                 <div class="text-xs font-bold text-slate-400">运行中收款通道</div>
-                                <div class="text-2xl font-black text-slate-800 mt-1">3 个</div>
-                                <div class="text-[11px] text-purple-600 mt-1 font-bold">微信/支付宝/QQ在线</div>
+                                <div id="dashboard-channel-count" class="text-2xl font-black text-slate-800 mt-1">0 个</div>
+                                <div class="text-[11px] text-purple-600 mt-1 font-bold">通道状态正常</div>
                             </div>
                             <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
                                 <i data-lucide="qr-code" class="w-6 h-6"></i>
@@ -158,6 +158,17 @@
                                 <i data-lucide="coins" class="w-6 h-6"></i>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- 近7日收款趋势图 -->
+                    <div class="glass-card rounded-2xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="text-sm font-extrabold text-slate-700 flex items-center gap-2">
+                                <i data-lucide="trending-up" class="w-4 h-4 text-blue-500"></i> 近7日收款趋势
+                            </div>
+                            <span class="text-[11px] text-slate-400">仅统计已成功核销订单</span>
+                        </div>
+                        <div id="merchant-trend-chart" style="width:100%;height:220px;"></div>
                     </div>
                 </div>
 
@@ -238,7 +249,7 @@
                                 <span class="text-[10px] text-slate-400 mt-1 block">下单时在原金额随机微浮动，用于区分并发订单高精准自动销账</span>
                             </div>
 
-                            <button onclick="alert('收银台参数已保存生效！')" class="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700">保存配置</button>
+                            <button onclick="saveCashierConfig()" class="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700">保存配置</button>
                         </div>
 
                         <!-- 支付界面模板选卡 -->
@@ -279,30 +290,18 @@
                             <h2 class="text-xl font-extrabold text-slate-800">多通道轮询组设置</h2>
                             <p class="text-xs text-slate-400 mt-1">绑定多个收款账号进行多卡轮询与单日额度熔断分流，有效降低封号风险</p>
                         </div>
-                        <button onclick="alert('请选择要包含在轮询组中的通道')" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 flex items-center gap-1.5">
-                            <i data-lucide="plus" class="w-4 h-4"></i> 新建轮询组
+                        <button onclick="loadPollGroups()" class="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i> 刷新
                         </button>
                     </div>
 
-                    <div class="glass-card rounded-2xl p-6 space-y-4 max-w-3xl">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <div>
-                                <span class="font-bold text-sm text-slate-800">微信主轮询组 #1</span>
-                                <span class="ml-2 text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 font-bold rounded">微信通用</span>
-                            </div>
-                            <span class="text-xs font-bold text-blue-600 cursor-pointer">编辑权重</span>
-                        </div>
+                    <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-700 flex items-start gap-2">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                        <span>轮询调度器尚未接入当前通道系统，轮询组配置仅供查阅历史记录，不影响实际通道权重分配。</span>
+                    </div>
 
-                        <div class="text-xs text-slate-500 space-y-2">
-                            <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg">
-                                <span>1. 微信协议云端-[个人动态码] (主账号)</span>
-                                <span class="font-bold text-slate-700">权重: 70%</span>
-                            </div>
-                            <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg">
-                                <span>2. 微信安卓APP挂机 (备用账号)</span>
-                                <span class="font-bold text-slate-700">权重: 30%</span>
-                            </div>
-                        </div>
+                    <div id="poll-group-container" class="space-y-4">
+                        <div class="glass-card rounded-2xl p-6 text-center text-xs text-slate-400">正在加载轮询组配置...</div>
                     </div>
                 </div>
 
@@ -369,16 +368,8 @@
                                         <th class="p-3">说明备注</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 font-mono">
-                                    <tr>
-                                        <td class="p-3 text-slate-500">2026-07-26 16:45:10</td>
-                                        <td class="p-3 text-blue-600">CX20260726164501</td>
-                                        <td class="p-3 font-sans text-rose-600 font-bold">服务费扣除</td>
-                                        <td class="p-3 text-rose-600 font-bold">-¥ 1.48</td>
-                                        <td class="p-3">¥ 501.48</td>
-                                        <td class="p-3 text-emerald-600 font-bold">¥ 500.00</td>
-                                        <td class="p-3 font-sans text-slate-400">交易金额 ¥99.00，费率 1.5%</td>
-                                    </tr>
+                                <tbody id="finance-log-tbody" class="divide-y divide-slate-100 font-mono">
+                                    <tr><td colspan="7" class="p-6 text-center text-slate-400">正在加载财务明细...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -390,28 +381,57 @@
                     <h2 class="text-xl font-extrabold text-slate-800">API 密钥与对接配置</h2>
 
                     <div class="glass-card rounded-2xl p-6 space-y-5 max-w-2xl">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 mb-1">商户对接 PID</label>
-                            <div class="flex gap-2">
-                                <input id="api-merchant-pid" type="text" value="" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50" readonly>
-                                <button onclick="copyInputValue('api-merchant-pid')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold">复制</button>
+
+                        <!-- 对接地址 -->
+                        <div class="pb-4 border-b border-slate-100">
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">对接地址</p>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">下单网关地址 (submit.php)</label>
+                                    <div class="flex gap-2">
+                                        <input id="api-gateway-url" type="text" value="" placeholder="请在 .env 中配置 APP_URL" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono bg-slate-50" readonly>
+                                        <button onclick="copyInputValue('api-gateway-url')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold whitespace-nowrap">复制</button>
+                                    </div>
+                                    <p class="mt-1 text-[11px] text-slate-400">商户发起支付下单请求到此地址（GET 或 POST）。</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">异步回调地址 (notify_url)</label>
+                                    <div class="flex gap-2">
+                                        <input id="api-notify-url-hint" type="text" value="由商户下单时在 notify_url 参数中传入" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono bg-slate-50 text-slate-400" readonly>
+                                    </div>
+                                    <p class="mt-1 text-[11px] text-slate-400">平台在支付成功后将异步 POST 通知到该地址，商户系统返回 <code class="bg-slate-100 px-1 rounded">success</code> 表示接收成功。</p>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- 商户密钥 -->
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 mb-1">MD5 签名密钥 (Key)</label>
-                            <div class="flex gap-2">
-                                <input id="api-merchant-key" type="password" value="" placeholder="密钥已配置，重置后仅在本页显示一次" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50" readonly>
-                                <button onclick="copyInputValue('api-merchant-key')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold">复制</button>
-                            </div>
-                            <p class="mt-1 text-[11px] text-slate-400">为降低泄露风险，现有 API 密钥不会回显。</p>
-                        </div>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">商户密钥</p>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">商户对接 PID</label>
+                                    <div class="flex gap-2">
+                                        <input id="api-merchant-pid" type="text" value="" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50" readonly>
+                                        <button onclick="copyInputValue('api-merchant-pid')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold">复制</button>
+                                    </div>
+                                </div>
 
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 mb-1">轮换 API 密钥</label>
-                            <div class="flex gap-2">
-                                <input id="api-reset-current-password" type="password" autocomplete="current-password" placeholder="输入当前后台登录密码" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs">
-                                <button onclick="resetMerchantKey()" class="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold whitespace-nowrap">生成新密钥</button>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">MD5 签名密钥 (Key)</label>
+                                    <div class="flex gap-2">
+                                        <input id="api-merchant-key" type="password" value="" placeholder="密钥已配置，重置后仅在本页显示一次" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50" readonly>
+                                        <button onclick="copyInputValue('api-merchant-key')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold">复制</button>
+                                    </div>
+                                    <p class="mt-1 text-[11px] text-slate-400">为降低泄露风险，现有 API 密钥不会回显。</p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">轮换 API 密钥</label>
+                                    <div class="flex gap-2">
+                                        <input id="api-reset-current-password" type="password" autocomplete="current-password" placeholder="输入当前后台登录密码" class="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs">
+                                        <button onclick="resetMerchantKey()" class="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold whitespace-nowrap">生成新密钥</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -421,7 +441,81 @@
                             </a>
                         </div>
                     </div>
+
+                    <!-- 商户告警与通知配置 -->
+                    <div class="glass-card rounded-2xl p-6 space-y-5 max-w-2xl mt-6 border-t-4 border-t-rose-500">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div>
+                                <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="bell" class="w-4 h-4 text-rose-500"></i> 商户交易与到账通知配置
+                                </h3>
+                                <p class="text-[11px] text-slate-400 mt-0.5">当订单到账或登录控制台时，通过邮件/企业微信/Webhook 实时提醒您</p>
+                            </div>
+                            <button onclick="saveMerchantAlertConfig()" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors">
+                                保存通知设置
+                            </button>
+                        </div>
+
+                        <!-- 总开关与订阅 -->
+                        <div class="space-y-3 text-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-slate-700">开启通知推送</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="m-alert-enabled" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
+                                </label>
+                            </div>
+
+                            <div class="flex gap-4 border-t border-slate-100 pt-3">
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" id="m-event-merchant_login" class="rounded text-rose-600">
+                                    <span>登录提醒</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" id="m-event-order_paid" class="rounded text-rose-600">
+                                    <span>账单到账提醒</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 渠道选项 -->
+                        <div class="space-y-4 pt-2 border-t border-slate-100 text-xs">
+                            <!-- 1. 邮件 -->
+                            <div class="p-3 bg-slate-50 rounded-xl space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="mail" class="w-3.5 h-3.5 text-blue-500"></i> 邮件通知</span>
+                                    <input type="checkbox" id="m-email-enabled" class="rounded text-blue-600">
+                                </div>
+                                <input type="text" id="m-email-to" placeholder="填入接收邮箱，多个逗号隔开 (如 myemail@qq.com)" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs">
+                            </div>
+
+                            <!-- 2. 企业微信 Webhook -->
+                            <div class="p-3 bg-slate-50 rounded-xl space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="message-square" class="w-3.5 h-3.5 text-emerald-500"></i> 企业微信群机器人</span>
+                                    <input type="checkbox" id="m-wxwork-enabled" class="rounded text-emerald-600">
+                                </div>
+                                <input type="text" id="m-wxwork-url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono">
+                            </div>
+
+                            <!-- 3. Bark / 通用 Webhook -->
+                            <div class="p-3 bg-slate-50 rounded-xl space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="webhook" class="w-3.5 h-3.5 text-purple-500"></i> Bark / 自定义 Webhook</span>
+                                    <input type="checkbox" id="m-webhook-enabled" class="rounded text-purple-600">
+                                </div>
+                                <input type="text" id="m-webhook-url" placeholder="https://api.day.app/your_bark_key" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button onclick="testMerchantAlert('email')" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg font-bold text-xs">测试邮件</button>
+                            <button onclick="testMerchantAlert('wxwork')" class="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg font-bold text-xs">测试微聊</button>
+                            <button onclick="testMerchantAlert('webhook')" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg font-bold text-xs">测试 Webhook</button>
+                        </div>
+                    </div>
                 </div>
+
 
             </div>
         </main>
@@ -501,9 +595,122 @@
         // 页面初始化
         document.addEventListener('DOMContentLoaded', () => {
             loadMerchantProfile();
+            loadMerchantDashboardData();
             onCategoryChange();
             loadMerchantChannels();
+            initMerchantTrendChart();
         });
+
+        async function loadMerchantDashboardData() {
+            try {
+                const response = await fetch('/api/merchant/dashboard');
+                const payload = await response.json();
+                if (payload.code === 1 && payload.data) {
+                    const data = payload.data;
+                    document.getElementById('dashboard-today-amount').textContent = `¥ ${data.today_amount}`;
+                    document.getElementById('dashboard-today-count-sub').textContent = `今日交易 ${data.today_count} 笔`;
+                    document.getElementById('dashboard-today-count').textContent = `${data.today_count} 笔`;
+                    document.getElementById('dashboard-success-rate').textContent = `成功率 ${data.today_success_rate}%`;
+                    document.getElementById('dashboard-channel-count').textContent = `${data.running_channel_count} 个`;
+                    document.getElementById('dashboard-merchant-balance').textContent = `¥ ${data.money}`;
+                    document.getElementById('dashboard-merchant-rate').textContent = `当前套餐扣率 ${(Number(data.rate) * 100).toFixed(2)}%`;
+                }
+            } catch (e) {
+                console.error('加载商户 Dashboard 数据失败', e);
+            }
+        }
+
+        async function loadMerchantOrderList() {
+            const tbody = document.getElementById('order-table-body');
+            if (!tbody) return;
+            try {
+                const res = await fetch('/api/merchant/order/list');
+                const payload = await res.json();
+                if (payload.code !== 1 || !Array.isArray(payload.data)) {
+                    throw new Error(payload.msg || '订单获取失败');
+                }
+                const statusMap = {
+                    0: ['待支付', 'bg-slate-100 text-slate-600'],
+                    1: ['已完成', 'bg-emerald-100 text-emerald-700'],
+                    2: ['已超时/关闭', 'bg-amber-100 text-amber-700'],
+                    3: ['已退款', 'bg-rose-100 text-rose-700']
+                };
+                tbody.innerHTML = payload.data.length ? payload.data.map(order => {
+                    const st = statusMap[order.status] || ['未知', 'bg-slate-100 text-slate-600'];
+                    return `<tr class="hover:bg-slate-50">
+                        <td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(order.trade_no)}</td>
+                        <td class="p-3 font-mono text-slate-500">${escapeHtml(order.out_trade_no)}</td>
+                        <td class="p-3 font-bold text-slate-800">${escapeHtml(order.subject || '普通收单')}</td>
+                        <td class="p-3 uppercase font-mono">${escapeHtml(order.pay_type)}</td>
+                        <td class="p-3 font-bold text-slate-800">¥ ${Number(order.amount).toFixed(2)}</td>
+                        <td class="p-3 font-mono text-emerald-600 font-bold">¥ ${Number(order.price).toFixed(2)}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded-full font-bold ${st[1]}">${st[0]}</span></td>
+                        <td class="p-3 text-slate-400">${escapeHtml(order.create_time)}</td>
+                        <td class="p-3 text-slate-400">${escapeHtml(order.pay_time)}</td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="9" class="p-6 text-center text-slate-400 font-bold">暂无订单记录</td></tr>';
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-rose-500 font-bold">${escapeHtml(err.message || '订单加载失败')}</td></tr>`;
+            }
+        }
+
+        async function loadMerchantFinanceLogs() {
+            const tbody = document.getElementById('finance-log-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">正在加载财务明细...</td></tr>';
+            try {
+                const res = await fetch('/api/merchant/finance_log');
+                const payload = await res.json();
+                if (payload.code !== 1 || !Array.isArray(payload.data)) {
+                    throw new Error(payload.msg || '明细获取失败');
+                }
+                tbody.innerHTML = payload.data.length ? payload.data.map(log => {
+                    const isMinus = Number(log.money) < 0;
+                    return `<tr class="hover:bg-slate-50">
+                        <td class="p-3 text-slate-500">${escapeHtml(log.create_time)}</td>
+                        <td class="p-3 text-blue-600 font-mono">#${log.id}</td>
+                        <td class="p-3 font-sans ${isMinus ? 'text-rose-600' : 'text-emerald-600'} font-bold">${isMinus ? '服务费扣除' : '充值/退减'}</td>
+                        <td class="p-3 ${isMinus ? 'text-rose-600' : 'text-emerald-600'} font-bold">${isMinus ? '' : '+'}${Number(log.money).toFixed(2)}</td>
+                        <td class="p-3">¥ ${Number(log.before).toFixed(2)}</td>
+                        <td class="p-3 text-emerald-600 font-bold">¥ ${Number(log.after).toFixed(2)}</td>
+                        <td class="p-3 font-sans text-slate-500">${escapeHtml(log.memo || '-')}</td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="7" class="p-6 text-center text-slate-400 font-bold font-sans">暂无服务费变动记录</td></tr>';
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-rose-500 font-bold font-sans">${escapeHtml(err.message || '记录加载失败')}</td></tr>`;
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('nav-link-active'));
+            
+            const targetTab = document.getElementById('tab-' + tabId);
+            const targetNav = document.getElementById('nav-' + tabId);
+            
+            if (targetTab) targetTab.classList.add('active');
+            if (targetNav) targetNav.classList.add('nav-link-active');
+
+            const titleMap = {
+                'dashboard': '首页概览',
+                'profile': '账户设置',
+                'channel-list': '通道管理 · 我的收款通道',
+                'channel-config': '通道配置 · 收银台设置',
+                'poll-group': '通道轮询组',
+                'order-list': '订单记录 · 交易明细',
+                'finance-log': '财务管理 · 服务费明细',
+                'api-keys': 'API 配置'
+            };
+            document.getElementById('current-tab-title').innerText = titleMap[tabId] || 'DASHBOARD';
+
+            if (tabId === 'dashboard')    { loadMerchantDashboardData(); initMerchantTrendChart(); }
+            if (tabId === 'channel-list') { loadMerchantChannels(); }
+            if (tabId === 'order-list')   { loadMerchantOrderList(); }
+            if (tabId === 'finance-log')  { loadMerchantFinanceLogs(); }
+            if (tabId === 'poll-group')   { loadPollGroups(); }
+            if (tabId === 'channel-config') { loadCashierConfig(); }
+            if (tabId === 'api-keys')       { loadMerchantAlertConfig(); }
+        }
 
         async function loadMerchantProfile() {
             try {
@@ -521,8 +728,143 @@
                 document.getElementById('sidebar-merchant-balance').textContent = `¥ ${merchant.money}`;
                 document.getElementById('dashboard-merchant-balance').textContent = `¥ ${merchant.money}`;
                 document.getElementById('dashboard-merchant-rate').textContent = `当前套餐扣率 ${(Number(merchant.rate) * 100).toFixed(2)}%`;
+                // 填充对接地址
+                const gatewayInput = document.getElementById('api-gateway-url');
+                if (gatewayInput) {
+                    gatewayInput.value = merchant.gateway_url || (location.origin + '/submit.php');
+                }
             } catch (error) {
-                window.location.href = '/merchant_login.html';
+                window.location.href = 'merchant_login.html';
+            }
+        }
+
+        // 近7日收款趋势图 - 基于近7天订单数据构建
+        async function initMerchantTrendChart() {
+            const chartEl = document.getElementById('merchant-trend-chart');
+            if (!chartEl || typeof echarts === 'undefined') return;
+            const chart = echarts.init(chartEl);
+
+            // 生成近7天日期标签
+            const days = [];
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                days.push(`${d.getMonth()+1}/${d.getDate()}`);
+            }
+
+            // 默认占位图，等 API 数据到位后再更新
+            const amounts = [0, 0, 0, 0, 0, 0, 0];
+            chart.setOption({
+                tooltip: { trigger: 'axis', formatter: (params) => `${params[0].name}<br/>收款：¥${params[0].value.toFixed(2)}` },
+                grid: { top: 10, right: 16, bottom: 20, left: 54 },
+                xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#e2e8f0' } }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
+                yAxis: { type: 'value', axisLabel: { color: '#94a3b8', fontSize: 11, formatter: '¥{value}' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+                series: [{
+                    data: amounts,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    lineStyle: { color: '#3b82f6', width: 2.5 },
+                    areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(59,130,246,0.18)' }, { offset: 1, color: 'rgba(59,130,246,0.01)' }] } },
+                    itemStyle: { color: '#3b82f6' }
+                }]
+            });
+
+            // 尝试从已有订单数据构建趋势
+            try {
+                const res = await fetch('/api/merchant/order/list?page_size=200&status=1');
+                const payload = await res.json();
+                if (payload.code === 1 && Array.isArray(payload.data)) {
+                    const dayMap = {};
+                    days.forEach(d => dayMap[d] = 0);
+                    const todayTs = new Date().setHours(0,0,0,0);
+                    payload.data.forEach(order => {
+                        if (!order.pay_time || order.status !== 1) return;
+                        const dt = new Date(order.pay_time.replace(' ', 'T'));
+                        const key = `${dt.getMonth()+1}/${dt.getDate()}`;
+                        if (dayMap.hasOwnProperty(key)) dayMap[key] += Number(order.price || order.amount || 0);
+                    });
+                    chart.setOption({ series: [{ data: days.map(d => dayMap[d]) }] });
+                }
+            } catch(e) { /* 网络异常不影响占位图 */ }
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        // 加载收银台配置
+        async function loadCashierConfig() {
+            // 收银台配置为商户本地持久化，这里只从 localStorage 读回
+            const saved = JSON.parse(localStorage.getItem('cx_cashier_config') || 'null');
+            if (saved) {
+                if (saved.notice !== undefined) document.getElementById('cfg-notice').value = saved.notice;
+                if (saved.timeout !== undefined) document.getElementById('cfg-timeout').value = saved.timeout;
+                if (saved.redirect !== undefined) document.getElementById('cfg-redirect').value = saved.redirect;
+                if (saved.float_min !== undefined) document.getElementById('cfg-float-min').value = saved.float_min;
+                if (saved.float_max !== undefined) document.getElementById('cfg-float-max').value = saved.float_max;
+            }
+        }
+
+        // 保存收银台配置
+        function saveCashierConfig() {
+            const cfg = {
+                notice: document.getElementById('cfg-notice').value.trim(),
+                timeout: Number(document.getElementById('cfg-timeout').value) || 180,
+                redirect: document.getElementById('cfg-redirect').value,
+                float_min: document.getElementById('cfg-float-min').value,
+                float_max: document.getElementById('cfg-float-max').value,
+            };
+            if (cfg.timeout < 60 || cfg.timeout > 300) {
+                alert('超时时间必须在 60 到 300 秒之间');
+                return;
+            }
+            localStorage.setItem('cx_cashier_config', JSON.stringify(cfg));
+            alert('收银台参数已保存生效！（商户本地持久化）');
+        }
+
+        // 加载轮询组列表（通过当前通道列表模拟）
+        async function loadPollGroups() {
+            const container = document.getElementById('poll-group-container');
+            if (!container) return;
+            container.innerHTML = '<div class="glass-card rounded-2xl p-6 text-center text-xs text-slate-400">正在加载...</div>';
+            try {
+                // 通过商户通道列表模拟轮询组展示（展示已配置通道与其权重）
+                const res = await fetch('/api/merchant/channel/list');
+                const payload = await res.json();
+                if (payload.code !== 1 || !Array.isArray(payload.data)) throw new Error(payload.msg || '通道加载失败');
+                const channels = payload.data.filter(c => c.status == 1);
+                if (channels.length === 0) {
+                    container.innerHTML = '<div class="glass-card rounded-2xl p-6 text-center text-xs text-slate-400">暂无已启用的收款通道，轮询组需先配置并启用通道</div>';
+                    return;
+                }
+                // 按支付分类分组
+                const groups = {};
+                channels.forEach(c => {
+                    const cat = c.pay_category || 'other';
+                    if (!groups[cat]) groups[cat] = [];
+                    groups[cat].push(c);
+                });
+                const catLabel = { wxpay: '微信', alipay: '支付宝', qqpay: 'QQ钱包', other: '其他' };
+                const catColor = { wxpay: 'bg-emerald-100 text-emerald-700', alipay: 'bg-blue-100 text-blue-700', qqpay: 'bg-purple-100 text-purple-700', other: 'bg-slate-100 text-slate-600' };
+                container.innerHTML = Object.entries(groups).map(([cat, chs]) => {
+                    const total = chs.length;
+                    const rows = chs.map((c, i) => `
+                        <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg text-xs">
+                            <span>${i+1}. ${escapeHtml(c.title)} · <span class="text-slate-400 font-mono">${escapeHtml(c.c_type)}</span></span>
+                            <span class="font-bold text-slate-600">权重: ${(100/total).toFixed(0)}%</span>
+                        </div>`).join('');
+                    return `<div class="glass-card rounded-2xl p-5 space-y-3 max-w-3xl">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div>
+                                <span class="font-bold text-sm text-slate-800">${catLabel[cat] || cat} 轮询组</span>
+                                <span class="ml-2 text-xs px-2 py-0.5 ${catColor[cat] || catColor.other} font-bold rounded">${total} 个通道</span>
+                            </div>
+                        </div>
+                        <div class="text-xs text-slate-500 space-y-2">${rows}</div>
+                    </div>`;
+                }).join('');
+            } catch(e) {
+                container.innerHTML = `<div class="glass-card rounded-2xl p-6 text-center text-rose-500 text-xs">${escapeHtml(e.message || '加载失败')}</div>`;
             }
         }
 
@@ -591,27 +933,31 @@
         function switchTab(tabId) {
             document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('nav-link-active'));
-            
+
             const targetTab = document.getElementById('tab-' + tabId);
             const targetNav = document.getElementById('nav-' + tabId);
-            
+
             if (targetTab) targetTab.classList.add('active');
             if (targetNav) targetNav.classList.add('nav-link-active');
 
             const titleMap = {
-                'dashboard': '首页概览',
-                'profile': '账户设置',
-                'channel-list': '通道管理 · 我的收款通道',
+                'dashboard'    : '首页概览',
+                'profile'      : '账户设置',
+                'channel-list' : '通道管理 · 我的收款通道',
                 'channel-config': '通道配置 · 收银台设置',
-                'poll-group': '通道轮询组',
-                'finance-log': '财务管理 · 服务费明细',
-                'api-keys': 'API 配置'
+                'poll-group'   : '通道轮询组',
+                'order-list'   : '订单记录 · 交易明细',
+                'finance-log'  : '财务管理 · 服务费明细',
+                'api-keys'     : 'API 配置'
             };
             document.getElementById('current-tab-title').innerText = titleMap[tabId] || 'DASHBOARD';
 
-            if (tabId === 'channel-list') {
-                loadMerchantChannels();
-            }
+            if (tabId === 'dashboard')    { loadMerchantDashboardData(); }
+            if (tabId === 'channel-list') { loadMerchantChannels(); }
+            if (tabId === 'order-list')   { loadMerchantOrderList(); }
+            if (tabId === 'finance-log')  { loadMerchantFinanceLogs(); }
+            if (tabId === 'poll-group')   { loadPollGroups(); }
+            if (tabId === 'channel-config') { loadCashierConfig(); }
         }
 
         window.merchantChannelsMap = {};
@@ -1073,7 +1419,7 @@
         function onDriverChange(existingConfig = {}, configured = {}) {
             const cType = document.getElementById('channel-driver-list').value || '';
             renderDriverConfigFields(cType, existingConfig, configured);
-            const staticQrBox = document.getElementById('static-qr-upload-box');
+        const staticQrBox = document.getElementById('static-qr-upload-box');
 
             if (staticQrBox) staticQrBox.classList.add('hidden');
 
@@ -1132,6 +1478,79 @@
                 wrapper.append(label, input);
                 container.appendChild(wrapper);
             });
+        async function loadMerchantAlertConfig() {
+            try {
+                const res = await fetch('/api/merchant/alert/config');
+                const payload = await res.json();
+                if (payload.code !== 1 || !payload.data) return;
+                const d = payload.data;
+                document.getElementById('m-alert-enabled').checked = !!d.enabled;
+                const evs = d.events || {};
+                document.getElementById('m-event-merchant_login').checked = !!evs.merchant_login;
+                document.getElementById('m-event-order_paid').checked = !!evs.order_paid;
+
+                const em = d.email_config || {};
+                document.getElementById('m-email-enabled').checked = !!em.enabled;
+                document.getElementById('m-email-to').value = (em.to_addrs || []).join(', ');
+
+                const wx = d.wxwork_config || {};
+                document.getElementById('m-wxwork-enabled').checked = !!wx.enabled;
+                document.getElementById('m-wxwork-url').value = wx.webhook_url || '';
+
+                const hk = d.webhook_config || {};
+                document.getElementById('m-webhook-enabled').checked = !!hk.enabled;
+                document.getElementById('m-webhook-url').value = hk.url || '';
+            } catch (e) {
+                console.error('加载商户通知配置失败', e);
+            }
+        }
+
+        async function saveMerchantAlertConfig() {
+            const data = {
+                enabled: document.getElementById('m-alert-enabled').checked,
+                events: {
+                    merchant_login: document.getElementById('m-event-merchant_login').checked,
+                    order_paid: document.getElementById('m-event-order_paid').checked,
+                },
+                email_config: {
+                    enabled: document.getElementById('m-email-enabled').checked,
+                    to_addrs: document.getElementById('m-email-to').value.split(',').map(s => s.trim()).filter(Boolean),
+                },
+                wxwork_config: {
+                    enabled: document.getElementById('m-wxwork-enabled').checked,
+                    webhook_url: document.getElementById('m-wxwork-url').value.trim(),
+                },
+                webhook_config: {
+                    enabled: document.getElementById('m-webhook-enabled').checked,
+                    url: document.getElementById('m-webhook-url').value.trim(),
+                }
+            };
+
+            try {
+                const res = await fetch('/api/merchant/alert/config/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                const payload = await res.json();
+                alert(payload.msg || (payload.code === 1 ? '通知设置已更新' : '保存失败'));
+            } catch (e) {
+                alert('保存失败: ' + e.message);
+            }
+        }
+
+        async function testMerchantAlert(channel) {
+            try {
+                const res = await fetch('/api/merchant/alert/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ channel })
+                });
+                const payload = await res.json();
+                alert(payload.msg || '操作完成');
+            } catch (e) {
+                alert('测试失败: ' + e.message);
+            }
         }
 
     </script>

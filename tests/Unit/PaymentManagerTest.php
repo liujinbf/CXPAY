@@ -28,6 +28,19 @@ final class PaymentManagerTest extends TestCase
         self::assertArrayNotHasKey($driverName, PaymentManager::getRegisteredDrivers());
     }
 
+    #[DataProvider('epayDriverProvider')]
+    public function testEpayDriverIsAvailableAndHasRequiredInputs(string $driverName): void
+    {
+        self::assertTrue(PaymentManager::has($driverName), "易支付驱动 [{$driverName}] 应已启用");
+        $meta = PaymentManager::make($driverName)->getMeta();
+        self::assertSame($driverName, $meta['name']);
+        self::assertTrue($meta['available'] ?? false, "驱动 available 应为 true");
+        $inputNames = array_column($meta['inputs'] ?? [], 'name');
+        foreach (['api_url', 'pid', 'key'] as $required) {
+            self::assertContains($required, $inputNames, "驱动 [{$driverName}] 缺少必填配置项 [{$required}]");
+        }
+    }
+
     public function testUnknownDriverFailsClosed(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -119,11 +132,18 @@ final class PaymentManagerTest extends TestCase
 
     public static function merchantDriverProvider(): array
     {
+        // 官方商户驱动需要外部 SDK 初始化，保持 available=false 不可直接选中
         return [
             '支付宝官方商户支付' => ['alipay_official'],
             '微信官方商户支付' => ['wxpay_official'],
-            '通用易支付上游' => ['epay_generic'],
-            'QQ易支付上游' => ['qqpay_epay'],
+        ];
+    }
+
+    public static function epayDriverProvider(): array
+    {
+        return [
+            '通用易支付 MD5 驱动' => ['epay_generic'],
+            'QQ 钱包易支付驱动'   => ['qqpay_epay'],
         ];
     }
 }

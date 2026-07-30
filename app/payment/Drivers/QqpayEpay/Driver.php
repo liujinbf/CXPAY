@@ -91,7 +91,7 @@ class Driver implements PaymentDriverInterface
             'name'        => 'qqpay_epay',
             'title'       => 'QQ 钱包 EPay 聚合网关驱动',
             'description' => '通过彩虹易支付与 QQ 钱包 H5 / Native 协议发起 QQ 钱包收款',
-            'available'   => false,
+            'available'   => true,
             'inputs'      => [
                 ['name' => 'api_url', 'title' => 'QQ 钱包易支付网关地址 (http://...)', 'type' => 'string', 'required' => true],
                 ['name' => 'pid', 'title' => '商户 ID (PID)', 'type' => 'string', 'required' => true],

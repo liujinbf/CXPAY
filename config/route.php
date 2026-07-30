@@ -7,25 +7,26 @@ Route::get('/install', function () {
     $lockFile = (string)config('app.install_lock', base_path() . '/install.lock');
     if (file_exists($lockFile)) {
         return response('<div style="background:#0f172a;color:#f3f4f6;padding:40px;text-align:center;font-family:sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-            <div style="font-size:48px;margin-bottom:16px;">🛡️</div>
-            <h2 style="font-size:24px;font-weight:bold;margin-bottom:8px;">系统已被安全锁定</h2>
-            <p style="color:#94a3b8;font-size:14px;max-width:480px;line-height:1.6;">当前系统已安装完成并生成了 <code>install.lock</code> 安全锁文件。如需重新安装，请在服务器中删除根目录下的 <code>install.lock</code> 锁文件。</p>
-            <a href="/" style="margin-top:24px;display:inline-block;padding:10px 24px;background:#0284c7;color:#fff;border-radius:12px;text-decoration:none;font-weight:bold;font-size:14px;">返回网站首页</a>
+            <div style="font-size:48px;margin-bottom:16px;">&#128737;&#65039;</div>
+            <h2 style="font-size:24px;font-weight:bold;margin-bottom:8px;">&#31995;&#32479;&#24050;&#34987;&#23433;&#20840;&#38145;&#23450;</h2>
+            <p style="color:#94a3b8;font-size:14px;max-width:480px;line-height:1.6;">&#24403;&#21069;&#31995;&#32479;&#24050;&#23433;&#35013;&#23436;&#25104;&#24182;&#29983;&#25104;&#20102; <code>install.lock</code> &#23433;&#20840;&#38145;&#25991;&#20214;&#12290;&#22914;&#38656;&#37325;&#26032;&#23433;&#35013;&#65292;&#35831;&#22312;&#26381;&#21153;&#22120;&#20013;&#21024;&#38500;&#26681;&#30446;&#24405;&#19979;&#30340; <code>install.lock</code> &#38145;&#25991;&#20214;&#12290;</p>
+            <a href="/" style="margin-top:24px;display:inline-block;padding:10px 24px;background:#0284c7;color:#fff;border-radius:12px;text-decoration:none;font-weight:bold;font-size:14px;">&#36820;&#22238;&#32593;&#31449;&#39318;&#39029;</a>
         </div>', 200, ['Content-Type' => 'text/html; charset=utf-8']);
     }
     $content = file_get_contents(base_path() . '/public/install/index.html');
     return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
 });
-Route::any('/api/install/check', [app\controller\api\InstallController::class, 'check']);
-Route::any('/api/install/test_db', [app\controller\api\InstallController::class, 'testDb']);
-Route::any('/api/install/execute', [app\controller\api\InstallController::class, 'execute']);
+Route::any('/api/install/check',      [app\controller\api\InstallController::class, 'check']);
+Route::any('/api/install/test_db',    [app\controller\api\InstallController::class, 'testDb']);
+Route::any('/api/install/test_redis', [app\controller\api\InstallController::class, 'testRedis']);
+Route::any('/api/install/env_info',   [app\controller\api\InstallController::class, 'environmentInfo']);
+Route::any('/api/install/execute',    [app\controller\api\InstallController::class, 'execute']);
 
 // 商户开放 API 开发对接文档
 Route::get('/doc', function () {
     $content = file_get_contents(base_path() . '/public/doc.html');
     return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
 });
-
 // 云端·授权中心 专属路由与 API
 Route::get('/cloud', function () {
     $content = file_get_contents(base_path() . '/public/cloud_auth.html');
@@ -109,6 +110,8 @@ Route::post('/api/admin/logout', [app\controller\admin\AdminController::class, '
 
 // 商户侧控制台 API
 Route::group('/api/merchant', function () {
+    Route::get('/dashboard', [app\controller\api\MerchantApiController::class, 'getDashboardData']);
+    Route::get('/finance_log', [app\controller\api\MerchantApiController::class, 'getFinanceLogs']);
     Route::get('/profile', [app\controller\api\MerchantApiController::class, 'getProfile']);
     Route::post('/reset_key', [app\controller\api\MerchantApiController::class, 'resetKey']);
     Route::post('/change_password', [app\controller\api\MerchantApiController::class, 'changePassword']);
@@ -125,6 +128,9 @@ Route::group('/api/merchant', function () {
     Route::post('/bill-source/rotate-token', [app\controller\api\BillSourceManageController::class, 'merchantRotate']);
     Route::get('/order/list', [app\controller\api\OrderController::class, 'list']);
     Route::post('/recharge/create', [app\controller\api\MerchantRechargeController::class, 'create']);
+    Route::get('/alert/config', [app\controller\api\MerchantApiController::class, 'getAlertConfig']);
+    Route::post('/alert/config/save', [app\controller\api\MerchantApiController::class, 'saveAlertConfig']);
+    Route::post('/alert/test', [app\controller\api\MerchantApiController::class, 'testAlert']);
 })->middleware([app\middleware\MerchantAuthMiddleware::class]);
 
 // 管理员后台与插件商城 API
@@ -162,6 +168,11 @@ Route::group('/api/admin', function () {
     Route::post('/poll_group/save', [app\controller\admin\PollGroupController::class, 'save']);
     Route::post('/poll_group/bind', [app\controller\admin\PollGroupController::class, 'bindChannel']);
 
+    // 轮询组 API
+    Route::get('/poll_group/list', [app\controller\admin\PollGroupController::class, 'list']);
+    Route::post('/poll_group/save', [app\controller\admin\PollGroupController::class, 'save']);
+    Route::post('/poll_group/bind', [app\controller\admin\PollGroupController::class, 'bindChannel']);
+
     // VIP 套餐 API
     Route::get('/packvip/list', [app\controller\admin\PackvipAdminController::class, 'list']);
     Route::post('/packvip/save', [app\controller\admin\PackvipAdminController::class, 'save']);
@@ -173,6 +184,11 @@ Route::group('/api/admin', function () {
     Route::get('/system/update_log',     [app\controller\admin\SystemUpdateController::class, 'getUpdateLog']);
     Route::get('/system/version_history',[app\controller\admin\SystemUpdateController::class, 'versionHistory']);
     Route::post('/system/do_rollback',   [app\controller\admin\SystemUpdateController::class, 'doRollback']);
+
+    // 告警通知配置 API
+    Route::get('/alert/config', [app\controller\admin\AlertConfigController::class, 'getConfig']);
+    Route::post('/alert/config/save', [app\controller\admin\AlertConfigController::class, 'saveConfig']);
+    Route::post('/alert/test', [app\controller\admin\AlertConfigController::class, 'sendTest']);
 })->middleware([app\middleware\AdminAuthMiddleware::class]);
 
 // 商户开放 API (带签名验证中间件)

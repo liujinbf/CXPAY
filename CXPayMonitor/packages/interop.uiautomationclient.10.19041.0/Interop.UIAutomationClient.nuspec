@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>Interop.UIAutomationClient</id>
+    <version>10.19041.0</version>
+    <title>Interop.UIAutomationClient</title>
+    <authors>Roemer</authors>
+    <owners>Roemer</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="file">LICENSE.txt</license>
+    <licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>
+    <projectUrl>https://github.com/Roemer/UIAutomation-Interop</projectUrl>
+    <description>The UI Automation COM-to-.NET adapter makes it possible to use the new Windows Automation API 3.0 COM interfaces, with their improved reliability and performance, while still using the same System.Windows.Automation classes as in earlier versions of UI Automation</description>
+    <copyright>Copyright (c) 2020</copyright>
+    <tags>UIAutomationClient UIAutomation Windows Automation Accessibility System.Windows.Automation</tags>
+  </metadata>
+</package>

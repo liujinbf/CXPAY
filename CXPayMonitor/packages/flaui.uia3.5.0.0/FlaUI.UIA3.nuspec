@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>FlaUI.UIA3</id>
+    <version>5.0.0</version>
+    <authors>Roemer</authors>
+    <license type="file">LICENSE.txt</license>
+    <licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>
+    <icon>FlaUI.png</icon>
+    <projectUrl>https://github.com/FlaUI/FlaUI</projectUrl>
+    <description>Library to use FlaUI with UIA3.</description>
+    <copyright>Copyright (c) 2016-2024</copyright>
+    <tags>UI Automation UIA2 UIA3 UIA System.Windows.Automation</tags>
+    <repository type="git" url="https://github.com/FlaUI/FlaUI" commit="c5e7eb7af081e68534cb6b6890a38aa791ce4168" />
+    <dependencies>
+      <group targetFramework=".NETFramework4.8">
+        <dependency id="FlaUI.Core" version="5.0.0" exclude="Build,Analyzers" />
+        <dependency id="Interop.UIAutomationClient" version="10.19041.0" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework="net6.0-windows7.0">
+        <dependency id="FlaUI.Core" version="5.0.0" exclude="Build,Analyzers" />
+        <dependency id="Interop.UIAutomationClient" version="10.19041.0" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework="net8.0-windows7.0">
+        <dependency id="FlaUI.Core" version="5.0.0" exclude="Build,Analyzers" />
+        <dependency id="Interop.UIAutomationClient" version="10.19041.0" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="Accessibility" targetFramework=".NETFramework4.8" />
+      <frameworkAssembly assemblyName="WindowsBase" targetFramework=".NETFramework4.8" />
+    </frameworkAssemblies>
+  </metadata>
+</package>

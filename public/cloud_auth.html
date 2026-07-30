@@ -31,7 +31,7 @@
                 </nav>
             </div>
             <div class="flex items-center gap-3 text-xs">
-                <span class="text-slate-500">已绑定买家 QQ: <strong class="text-blue-600 font-mono font-bold">1008611</strong></span>
+                <span class="text-slate-500">已绑定买家 QQ: <strong id="header-qq-display" class="text-blue-600 font-mono font-bold">加载中...</strong></span>
                 <button @click="showQqModal = true" class="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold rounded-lg transition-colors flex items-center gap-1">
                     🐧 QQ 扫码/快捷登录绑定
                 </button>
@@ -48,7 +48,7 @@
                 <div class="glass-card rounded-2xl p-6 space-y-2">
                     <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">我的授权站点</div>
                     <div class="flex items-center justify-between">
-                        <div class="text-lg font-extrabold text-blue-600">m.fcwan.cn <span class="text-xs text-slate-400 font-normal ml-2">上级联系：CXPAY</span></div>
+                        <div class="text-lg font-extrabold text-blue-600">{{ siteInfo.domain || '加载中...' }} <span class="text-xs text-slate-400 font-normal ml-2">上级联系：CXPAY</span></div>
                     </div>
                 </div>
 
@@ -58,7 +58,7 @@
                     <div class="flex items-center justify-between border-b border-slate-100 pb-4">
                         <div>
                             <div class="text-xs text-slate-400">授权域名</div>
-                            <div class="text-sm font-bold text-slate-700 mt-1">m.fcwan.cn</div>
+                            <div class="text-sm font-bold text-slate-700 mt-1">{{ siteInfo.domain || '--' }}</div>
                         </div>
                         <button class="px-4 py-1.5 border border-blue-500 text-blue-600 hover:bg-blue-50 rounded-full text-xs font-bold">更换域名</button>
                     </div>
@@ -66,7 +66,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-xs text-slate-400">授权密钥</div>
-                            <div class="text-sm font-mono font-bold text-slate-700 mt-1">a61463******2893 <span class="text-xs text-blue-500 cursor-pointer ml-1">复制</span></div>
+                            <div class="text-sm font-mono font-bold text-slate-700 mt-1">{{ siteInfo.key_masked || '••••••••' }} <span class="text-xs text-blue-500 cursor-pointer ml-1" @click="copyKey">复制</span></div>
                         </div>
                         <button class="px-4 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-full text-xs font-bold">重置密钥</button>
                     </div>
@@ -185,16 +185,47 @@
             setup() {
                 const activeTab = ref('my-license');
 
-                const moduleList = ref([
-                    { name: '云端会员', status: '已到期' },
-                    { name: '官方 iPad 云端', status: '已到期' },
-                    { name: '微信 PC 挂机', status: '已到期' },
-                    { name: '安卓 APP 挂机', status: '已到期' },
-                    { name: '官方微信协议云端', status: '剩余 27 天' },
-                    { name: 'iOS 挂机', status: '已到期' },
-                    { name: 'Win 白挂监控', status: '已到期' },
-                    { name: '微信代挂终端', status: '已到期' },
-                ]);
+                const moduleList = ref([]);
+                const siteInfo = ref({ domain: '', key_masked: '' });
+
+                // 从 API 加载真实站点信息和授权模块
+                fetch('/api/cloud/site_info')
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.code === 1 && res.data) {
+                            siteInfo.value = res.data;
+                            const qqEl = document.getElementById('header-qq-display');
+                            if (qqEl && res.data.qq) qqEl.textContent = res.data.qq;
+                            if (Array.isArray(res.data.modules)) {
+                                moduleList.value = res.data.modules;
+                            } else {
+                                // 若 API 暂未实现，用默认展示
+                                moduleList.value = [
+                                    { name: '云端会员', status: res.data.vip ? '授权有效' : '已到期' },
+                                    { name: '官方 iPad 云端', status: '已到期' },
+                                    { name: '微信 PC 挂机', status: '已到期' },
+                                    { name: '安卓 APP 挂机', status: '已到期' },
+                                    { name: '官方微信协议云端', status: '已到期' },
+                                    { name: 'iOS 挂机', status: '已到期' },
+                                    { name: 'Win 白挂监控', status: '已到期' },
+                                    { name: '微信代挂终端', status: '已到期' },
+                                ];
+                            }
+                        }
+                    })
+                    .catch(() => {
+                        // API 不存在时回退到静态展示
+                        moduleList.value = [
+                            { name: '云端会员', status: '未知' },
+                            { name: '官方 iPad 云端', status: '未知' },
+                            { name: '微信 PC 挂机', status: '未知' },
+                            { name: '安卓 APP 挂机', status: '未知' },
+                            { name: '官方微信协议云端', status: '未知' },
+                            { name: 'iOS 挂机', status: '未知' },
+                            { name: 'Win 白挂监控', status: '未知' },
+                            { name: '微信代挂终端', status: '未知' },
+                        ];
+                    });
 
                 const pricingPackages = ref([
                     {
@@ -244,7 +275,17 @@
                     });
                 }
 
-                return { activeTab, showQqModal, qrImg, bindEmail, bindCode, sendEmailCode, submitBind, moduleList, pricingPackages };
+                function copyKey() {
+                    const key = siteInfo.value.key_full || siteInfo.value.key_masked || '';
+                    if (key && navigator.clipboard) {
+                        navigator.clipboard.writeText(key).then(() => alert('授权密钥已复制到剪贴板'));
+                    } else {
+                        alert('密钥未加载或浏览器不支持复制');
+                    }
+                }
+
+                return { activeTab, showQqModal, qrImg, bindEmail, bindCode, sendEmailCode, submitBind, moduleList, pricingPackages, siteInfo, copyKey };
+
             }
         }).mount('#app');
     </script>

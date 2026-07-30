@@ -9,8 +9,11 @@ use app\payment\Contracts\PaymentDriverInterface;
 use app\payment\Contracts\ServerPollingDriverInterface;
 
 require_once __DIR__ . '/AccountLogClient.php';
+require_once __DIR__ . '/AutoConfigHelper.php';
 
-final class Driver implements PaymentDriverInterface, MonitorableDriverInterface, ServerPollingDriverInterface
+use app\payment\Contracts\AccountAuthorizationInterface;
+
+final class Driver implements PaymentDriverInterface, MonitorableDriverInterface, ServerPollingDriverInterface, AccountAuthorizationInterface
 {
     public function monitorMode(): string
     {
@@ -24,11 +27,11 @@ final class Driver implements PaymentDriverInterface, MonitorableDriverInterface
             throw new \RuntimeException('支付宝收款码未配置');
         }
         return [
-            'type' => 'qrcode',
-            'trade_no' => (string)($params['trade_no'] ?? ''),
+            'type'         => 'qrcode',
+            'trade_no'     => (string)($params['trade_no'] ?? ''),
             'out_trade_no' => (string)($params['out_trade_no'] ?? ''),
-            'amount' => number_format((float)($params['money'] ?? 0), 2, '.', ''),
-            'pay_url' => $qrUrl,
+            'amount'       => number_format((float)($params['money'] ?? 0), 2, '.', ''),
+            'pay_url'      => $qrUrl,
         ];
     }
 
@@ -57,21 +60,20 @@ final class Driver implements PaymentDriverInterface, MonitorableDriverInterface
     {
         return [
             'name' => 'alipay_accountlog_monitor',
-            'title' => '支付宝商家账单（手动配置）',
-            'description' => '可选插件：固定收款码 + 支付宝开放平台账单查询；不创建官方支付订单，不支持自动申请应用',
+            'title' => '支付宝商家账单（免 CK 自动配置 / 手动配置）',
+            'description' => '支持「自动配置」（扫码登录自动申请应用与设密钥）与「手动配置」；使用官方公开账单接口，不存在漏单',
+            'supports_account_authorization' => true,
+            'authorization_label' => '扫码登录自动完成配置',
             'pay_category' => 'alipay',
             'collection_mode' => 'personal_qr',
             'monitor_mode' => $this->monitorMode(),
             'inputs' => [
                 [
                     'type' => 'notice',
-                    'title' => '手动配置流程',
-                    'content' => "1. 登录支付宝开放平台（open.alipay.com），使用具备相应资质的主体创建应用。\n"
-                        . "2. 在应用中配置 RSA2 密钥，保存应用 AppID、应用私钥，并复制支付宝公钥。\n"
-                        . "3. 为应用申请并开通 alipay.data.bill.accountlog.query（商家账单查询）权限，按平台要求完成签约和发布。\n"
-                        . "4. 填写下方四项配置并保存；启用通道后，查询成功会显示在线，权限或密钥错误会显示离线并后台重试。\n"
-                        . "注意：这里不需要支付宝登录密码、Cookie 或 PID；应用私钥只保存在 CXPAY 加密配置中。",
-                    'tone' => 'warning',
+                    'title' => '配置说明',
+                    'content' => "推荐使用「自动配置」：点击【扫码登录自动完成配置】，手机支付宝扫码后将自动为您申请应用并设置 RSA2 密钥。\n"
+                        . "如需手动配置：请前往 open.alipay.com 填入 AppID 与应用私钥、支付宝公钥。",
+                    'tone' => 'info',
                 ],
                 ['name' => 'qr_url', 'title' => '支付宝收款码内容', 'type' => 'string', 'required' => true],
                 ['name' => 'app_id', 'title' => '支付宝开放平台 AppID', 'type' => 'string', 'required' => true],
@@ -79,6 +81,16 @@ final class Driver implements PaymentDriverInterface, MonitorableDriverInterface
                 ['name' => 'alipay_public_key', 'title' => '支付宝公钥（用于响应验签）', 'type' => 'textarea', 'required' => true],
             ],
         ];
+    }
+
+    public function startAccountAuthorization(array $config): array
+    {
+        return (new AutoConfigHelper())->createAutoAuthSession();
+    }
+
+    public function pollAccountAuthorization(string $sessionId, array $config): array
+    {
+        return (new AutoConfigHelper())->pollAutoAuthSession($sessionId);
     }
 
     public function upchannel(array $channelRow, array $config): array

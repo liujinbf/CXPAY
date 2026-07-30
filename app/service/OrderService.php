@@ -9,6 +9,7 @@ use app\model\Merchant;
 use app\model\Order;
 use app\model\UserMoneyLog;
 use app\payment\PaymentManager;
+use app\service\AlertNotificationService;
 use Illuminate\Database\Capsule\Manager as DB;
 use RuntimeException;
 use support\Authcode;
@@ -75,9 +76,13 @@ class OrderService
         if ($outTradeNo === '' || strlen($outTradeNo) > 64 || !preg_match('/^[A-Za-z0-9_.:-]+$/', $outTradeNo)) {
             throw new RuntimeException('out_trade_no 格式不合法');
         }
-        if (!in_array($type, ['alipay', 'wxpay', 'qqpay'], true)) {
-            throw new RuntimeException('不支持的支付类型');
+        // type 为易支付协议标准字段，表示收款钱包分类，不是驱动标识（c_type）。
+        // 通道选取时会按 pay_category 或 c_type 前缀匹配，此处仅校验合法范围。
+        $allowedTypes = ['alipay', 'wxpay', 'qqpay'];
+        if (!in_array($type, $allowedTypes, true)) {
+            throw new RuntimeException('不支持的支付类型（type），允许值：' . implode('/', $allowedTypes));
         }
+
         if (bccomp($money, '0.00', 2) <= 0) {
             throw new RuntimeException('支付金额必须大于 0');
         }
@@ -357,6 +362,24 @@ class OrderService
                 $this->notifyService->notifyMerchant($result['order']);
             } catch (Throwable $e) {
                 error_log('[OrderService] 商户通知启动失败 trade_no=' . $orderNo . ' error=' . $e->getMessage());
+            }
+
+            // 派发系统/商户告警通知
+            try {
+                $alertSvc = new AlertNotificationService();
+                $m = Merchant::find($result['order']->merchant_id);
+                $pid = $m ? (string)$m->pid : '';
+                $alertPayload = [
+                    'trade_no' => $result['order']->trade_no,
+                    'amount'   => number_format((float)$result['order']->price, 2, '.', ''),
+                    'pid'      => $pid,
+                ];
+                $alertSvc->dispatchAdmin('order_paid', $alertPayload);
+                if ($pid !== '') {
+                    $alertSvc->dispatchMerchant($pid, 'order_paid', $alertPayload);
+                }
+            } catch (Throwable $e) {
+                error_log('[OrderService] 告警通知派发失败 trade_no=' . $orderNo . ' error=' . $e->getMessage());
             }
         }
         return true;

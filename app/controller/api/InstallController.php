@@ -13,10 +13,19 @@ use Throwable;
  *
  * 安装器只服务于全新、专用的空数据库：它负责检测环境、创建数据库、导入表结构、
  * 生成随机密钥并写入安装锁；不会尝试覆盖已有站点或已有数据。
+ *
+ * v2 新增能力：
+ *  - testRedis()：通过 Socket 直连测试 Redis 服务可用性与密码正确性
+ *  - environmentInfo()：检测宿主环境类型（systemd / 宝塔 / Docker / 手动）
+ *  - execute() 现接受前端传入的 Redis 配置并写入 .env
  */
 class InstallController
 {
     private const REQUIRED_EXTENSIONS = ['pdo_mysql', 'redis', 'bcmath', 'mbstring', 'openssl', 'curl'];
+
+    // -------------------------------------------------------------------------
+    // 公开接口
+    // -------------------------------------------------------------------------
 
     public function check(\support\Request $request)
     {
@@ -44,9 +53,9 @@ class InstallController
             && $extensions['pcntl'];
         $permissions = [
             'runtime_writable' => is_writable($runtimeDir),
-            'logs_writable' => is_writable($logDir),
-            'env_writable' => file_exists($envFile) ? is_writable($envFile) : is_writable($baseDir),
-            'lock_writable' => is_writable(dirname($lockFile)),
+            'logs_writable'    => is_writable($logDir),
+            'env_writable'     => file_exists($envFile) ? is_writable($envFile) : is_writable($baseDir),
+            'lock_writable'    => is_writable(dirname($lockFile)),
         ];
         $permissions['all_perms_ok'] = !in_array(false, $permissions, true);
         $installed = file_exists($lockFile);
@@ -56,18 +65,156 @@ class InstallController
         return json([
             'code' => 1,
             'data' => [
-                'php_version' => PHP_VERSION,
-                'php_ok' => $phpOk,
-                'os' => PHP_OS,
-                'extensions' => $extensions,
-                'all_exts_ok' => $extensionsOk,
-                'permissions' => $permissions,
-                'all_perms_ok' => $permissions['all_perms_ok'],
+                'php_version'    => PHP_VERSION,
+                'php_ok'         => $phpOk,
+                'os'             => PHP_OS,
+                'extensions'     => $extensions,
+                'all_exts_ok'    => $extensionsOk,
+                'permissions'    => $permissions,
+                'all_perms_ok'   => $permissions['all_perms_ok'],
                 'autoload_ready' => $autoloadReady,
                 'webman_process' => $webmanProcess,
-                'installed' => $installed,
-                'can_install' => $phpOk && $extensionsOk && $permissions['all_perms_ok'] && $autoloadReady && $webmanProcess && !$installed,
-                'fix_hints' => $this->fixHints($extensions, $permissions, $autoloadReady, $webmanProcess),
+                'installed'      => $installed,
+                'can_install'    => $phpOk && $extensionsOk && $permissions['all_perms_ok'] && $autoloadReady && $webmanProcess && !$installed,
+                'fix_hints'      => $this->fixHints($extensions, $permissions, $autoloadReady, $webmanProcess),
+            ],
+        ]);
+    }
+
+    /**
+     * 通过原生 Socket 测试 Redis 连通性与密码正确性。
+     * 不依赖 PHP redis 扩展（扩展已在 check 中验证）。
+     */
+    public function testRedis(\support\Request $request)
+    {
+        if ($this->isInstalled()) {
+            return json(['code' => -1, 'msg' => '系统已安装，Redis 测试接口已关闭'])->withStatus(403);
+        }
+
+        $params = $this->requestParams($request);
+        $host   = trim((string)($params['redis_host']     ?? '127.0.0.1'));
+        $port   = (int)($params['redis_port']             ?? 6379);
+        $pass   = (string)($params['redis_password']      ?? '');
+        $db     = (int)($params['redis_db']               ?? 0);
+
+        if ($host === '') {
+            return json(['code' => -1, 'msg' => 'Redis 主机不能为空']);
+        }
+        if ($port < 1 || $port > 65535) {
+            return json(['code' => -1, 'msg' => 'Redis 端口范围 1–65535']);
+        }
+
+        $errno  = 0;
+        $errstr = '';
+        $socket = @fsockopen($host, $port, $errno, $errstr, 3.0);
+        if ($socket === false) {
+            return json([
+                'code' => -1,
+                'msg'  => sprintf('无法连接 Redis %s:%d — %s（错误码 %d）。请检查主机地址、端口与防火墙。', $host, $port, $errstr, $errno),
+            ]);
+        }
+
+        try {
+            stream_set_timeout($socket, 3);
+
+            // 若设置了密码，先发 AUTH
+            if ($pass !== '') {
+                fwrite($socket, sprintf("*2\r\n\$4\r\nAUTH\r\n\$%d\r\n%s\r\n", strlen($pass), $pass));
+                $authReply = fgets($socket, 256);
+                if ($authReply === false || !str_starts_with(trim($authReply), '+OK')) {
+                    $hint = str_contains((string)$authReply, 'WRONGPASS') ? '密码错误，请确认 Redis requirepass 配置。' : '密码验证失败，服务器回应：' . trim((string)$authReply);
+                    return json(['code' => -1, 'msg' => $hint]);
+                }
+            }
+
+            // SELECT db
+            if ($db !== 0) {
+                fwrite($socket, sprintf("*2\r\n\$6\r\nSELECT\r\n\$%d\r\n%d\r\n", strlen((string)$db), $db));
+                $selectReply = fgets($socket, 256);
+                if ($selectReply === false || !str_starts_with(trim($selectReply), '+OK')) {
+                    return json(['code' => -1, 'msg' => 'Redis DB 切换失败：' . trim((string)$selectReply)]);
+                }
+            }
+
+            // PING
+            fwrite($socket, "*1\r\n\$4\r\nPING\r\n");
+            $pong = fgets($socket, 256);
+            if ($pong === false || !str_starts_with(trim($pong), '+PONG')) {
+                return json(['code' => -1, 'msg' => 'Redis PING 未收到 PONG，服务器回应：' . trim((string)$pong)]);
+            }
+
+            // INFO server — 取版本
+            fwrite($socket, "*2\r\n\$4\r\nINFO\r\n\$6\r\nserver\r\n");
+            $infoLen = fgets($socket, 64);   // $NNNN
+            $version = '未知';
+            if ($infoLen !== false && str_starts_with($infoLen, '$')) {
+                $length = (int)ltrim($infoLen, '$');
+                $info   = '';
+                while (strlen($info) < $length + 2) {
+                    $chunk = fread($socket, $length + 2 - strlen($info));
+                    if ($chunk === false) {
+                        break;
+                    }
+                    $info .= $chunk;
+                }
+                if (preg_match('/redis_version:(\S+)/', $info, $m)) {
+                    $version = $m[1];
+                }
+            }
+
+            return json([
+                'code' => 1,
+                'msg'  => sprintf('Redis %s 连接成功（%s:%d / DB%d）%s。', $version, $host, $port, $db, $pass !== '' ? '，密码验证通过' : '，无需密码'),
+                'data' => ['version' => $version],
+            ]);
+        } finally {
+            fclose($socket);
+        }
+    }
+
+    /**
+     * 检测宿主环境类型，辅助前端在安装完成页显示正确的重启命令。
+     */
+    public function environmentInfo(\support\Request $request)
+    {
+        if ($this->isInstalled()) {
+            return json(['code' => -1, 'msg' => '系统已安装'])->withStatus(403);
+        }
+
+        $type   = 'manual';       // manual | systemd | pagoda | docker
+        $detail = [];
+
+        // Docker 环境
+        if (file_exists('/.dockerenv') || getenv('container') === 'docker') {
+            $type           = 'docker';
+            $detail['note'] = '检测到 Docker 环境';
+        }
+        // 宝塔面板
+        elseif (is_dir('/www/server/panel') || is_dir('/bt/panel')) {
+            $type           = 'pagoda';
+            $detail['note'] = '检测到宝塔面板';
+        }
+        // systemd + 自定义服务
+        elseif (is_file('/etc/systemd/system/cxpay-webman.service') || is_file('/lib/systemd/system/cxpay-webman.service')) {
+            $type           = 'systemd';
+            $detail['note'] = '检测到 systemd cxpay-webman 服务';
+        }
+        // 通用 systemd（没有预置服务文件，但系统支持 systemd）
+        elseif (is_dir('/etc/systemd')) {
+            $type           = 'systemd_generic';
+            $detail['note'] = '检测到 systemd，但尚未为 CXPAY 创建 service 文件';
+        }
+
+        // 检测 Supervisor
+        $hasSupervisor = is_file('/usr/bin/supervisorctl') || is_file('/usr/local/bin/supervisorctl');
+
+        return json([
+            'code' => 1,
+            'data' => [
+                'env_type'      => $type,
+                'has_supervisor'=> $hasSupervisor,
+                'os'            => PHP_OS,
+                'detail'        => $detail,
             ],
         ]);
     }
@@ -82,8 +229,8 @@ class InstallController
         }
 
         try {
-            $params = $this->databaseParams($this->requestParams($request));
-            $pdo = $this->connectDatabase($params, false);
+            $params  = $this->databaseParams($this->requestParams($request));
+            $pdo     = $this->connectDatabase($params, false);
             $pdo->exec(sprintf(
                 'CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
                 $params['name']
@@ -93,14 +240,14 @@ class InstallController
             if (!$summary['is_empty']) {
                 return json([
                     'code' => -1,
-                    'msg' => '数据库连接成功，但目标库不是空库。为防止覆盖数据，安装器已停止；请创建一个全新的专用数据库。',
+                    'msg'  => '数据库连接成功，但目标库不是空库。为防止覆盖数据，安装器已停止；请创建一个全新的专用数据库。',
                     'data' => $summary,
                 ]);
             }
 
             return json([
                 'code' => 1,
-                'msg' => sprintf('数据库连接成功（MySQL %s），目标数据库为空，可以安全安装。', $pdo->getAttribute(PDO::ATTR_SERVER_VERSION)),
+                'msg'  => sprintf('数据库连接成功（MySQL %s），目标数据库为空，可以安全安装。', $pdo->getAttribute(PDO::ATTR_SERVER_VERSION)),
                 'data' => $summary,
             ]);
         } catch (Throwable $e) {
@@ -110,6 +257,7 @@ class InstallController
 
     /**
      * 导入全新数据库、写入配置与安装锁。已有库一律拒绝执行。
+     * v2：现接受 redis_host/redis_port/redis_password/redis_db 参数并写入 .env。
      */
     public function execute(\support\Request $request)
     {
@@ -123,17 +271,18 @@ class InstallController
         }
 
         $guardFile = $this->lockFile($this->baseDir()) . '.installing';
-        $guard = @fopen($guardFile, 'x');
+        $guard     = @fopen($guardFile, 'x');
         if ($guard === false) {
             return json(['code' => -1, 'msg' => '已有安装任务正在执行，请不要重复提交；如任务已异常中断，请联系管理员检查安装状态。']);
         }
 
         try {
-            $params = $this->requestParams($request);
-            $database = $this->databaseParams($params);
+            $params    = $this->requestParams($request);
+            $database  = $this->databaseParams($params);
+            $redis     = $this->redisParams($params);
             $adminUser = trim((string)($params['admin_user'] ?? 'admin'));
             $adminPass = (string)($params['admin_pass'] ?? '');
-            $appUrl = $this->applicationUrl((string)($params['app_url'] ?? ''));
+            $appUrl    = $this->applicationUrl((string)($params['app_url'] ?? ''));
 
             if (!preg_match('/^[A-Za-z0-9_.@-]{3,64}$/', $adminUser)) {
                 throw new RuntimeException('管理员用户名仅允许 3 至 64 位字母、数字及 _ . @ -');
@@ -164,12 +313,12 @@ class InstallController
                  ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)'
             );
             $statement->execute([
-                ':account' => $adminUser,
+                ':account'  => $adminUser,
                 ':password' => password_hash($adminPass, PASSWORD_BCRYPT, ['cost' => 12]),
-                ':salt' => bin2hex(random_bytes(16)),
+                ':salt'     => bin2hex(random_bytes(16)),
             ]);
 
-            $this->writeEnvironment($database, $appUrl);
+            $this->writeEnvironment($database, $redis, $appUrl);
             $this->writeInstallLock();
             if (function_exists('opcache_reset')) {
                 @opcache_reset();
@@ -177,9 +326,9 @@ class InstallController
 
             return json([
                 'code' => 1,
-                'msg' => '安装成功。数据库、随机密钥和安装锁已写入。请按页面指引重启 CXPAY 服务后登录后台。',
+                'msg'  => '安装成功。数据库、随机密钥和安装锁已写入。请按页面指引重启 CXPAY 服务后登录后台。',
                 'data' => [
-                    'admin_url' => $appUrl . '/admin_login.html',
+                    'admin_url'       => $appUrl . '/admin_login.html',
                     'service_command' => 'systemctl restart cxpay-webman',
                 ],
             ]);
@@ -191,10 +340,14 @@ class InstallController
         }
     }
 
+    // -------------------------------------------------------------------------
+    // 私有辅助方法
+    // -------------------------------------------------------------------------
+
     private function preflight(): array
     {
         $baseDir = $this->baseDir();
-        $errors = [];
+        $errors  = [];
         if (version_compare(PHP_VERSION, '8.1.0', '<')) {
             $errors[] = 'PHP 版本必须为 8.1 或更高';
         }
@@ -230,10 +383,10 @@ class InstallController
     private function databaseParams(array $params): array
     {
         $database = [
-            'host' => trim((string)($params['db_host'] ?? '127.0.0.1')),
-            'port' => trim((string)($params['db_port'] ?? '3306')),
-            'name' => trim((string)($params['db_name'] ?? 'cxpay')),
-            'user' => trim((string)($params['db_user'] ?? 'root')),
+            'host'     => trim((string)($params['db_host'] ?? '127.0.0.1')),
+            'port'     => trim((string)($params['db_port'] ?? '3306')),
+            'name'     => trim((string)($params['db_name'] ?? 'cxpay')),
+            'user'     => trim((string)($params['db_user'] ?? 'root')),
             'password' => (string)($params['db_pass'] ?? ''),
         ];
         if ($database['host'] === '' || $database['name'] === '' || $database['user'] === '') {
@@ -248,6 +401,22 @@ class InstallController
             throw new RuntimeException('数据库主机、名称或端口格式不合法');
         }
         return $database;
+    }
+
+    private function redisParams(array $params): array
+    {
+        $host = trim((string)($params['redis_host'] ?? '127.0.0.1'));
+        $port = (int)($params['redis_port']         ?? 6379);
+        $pass = (string)($params['redis_password']  ?? '');
+        $db   = (int)($params['redis_db']           ?? 0);
+
+        if ($host === '') {
+            $host = '127.0.0.1';
+        }
+        if ($port < 1 || $port > 65535) {
+            $port = 6379;
+        }
+        return ['host' => $host, 'port' => $port, 'password' => $pass, 'db' => $db];
     }
 
     private function connectDatabase(array $database, bool $selectDatabase): PDO
@@ -294,9 +463,9 @@ class InstallController
         }
     }
 
-    private function writeEnvironment(array $database, string $appUrl): void
+    private function writeEnvironment(array $database, array $redis, string $appUrl): void
     {
-        $quote = static fn(string $value): string => '"' . addcslashes($value, "\\\"\r\n") . '"';
+        $quote   = static fn(string $value): string => '"' . addcslashes($value, "\\\"\r\n") . '"';
         $content = 'APP_DEBUG=false' . "\n"
             . 'APP_URL=' . $quote($appUrl) . "\n"
             . 'APP_KEY=' . $quote(bin2hex(random_bytes(32))) . "\n"
@@ -310,11 +479,11 @@ class InstallController
             . 'DB_DATABASE=' . $quote($database['name']) . "\n"
             . 'DB_USERNAME=' . $quote($database['user']) . "\n"
             . 'DB_PASSWORD=' . $quote($database['password']) . "\n\n"
-            . 'REDIS_HOST=' . $quote((string)env('REDIS_HOST', '127.0.0.1')) . "\n"
-            . 'REDIS_PORT=' . $quote((string)env('REDIS_PORT', '6379')) . "\n"
-            . 'REDIS_PASSWORD=' . $quote((string)env('REDIS_PASSWORD', '')) . "\n"
-            . 'REDIS_DB=' . $quote((string)env('REDIS_DB', '0')) . "\n";
-        $envFile = $this->baseDir() . '/.env';
+            . 'REDIS_HOST=' . $quote($redis['host']) . "\n"
+            . 'REDIS_PORT=' . $quote((string)$redis['port']) . "\n"
+            . 'REDIS_PASSWORD=' . $quote($redis['password']) . "\n"
+            . 'REDIS_DB=' . $quote((string)$redis['db']) . "\n";
+        $envFile   = $this->baseDir() . '/.env';
         $temporary = $envFile . '.installing';
         if (file_put_contents($temporary, $content, LOCK_EX) === false || !@rename($temporary, $envFile)) {
             @unlink($temporary);
@@ -332,7 +501,7 @@ class InstallController
 
     private function applicationUrl(string $url): string
     {
-        $url = rtrim(trim($url), '/');
+        $url   = rtrim(trim($url), '/');
         $parts = parse_url($url);
         if ($url === '' || $parts === false || !in_array($parts['scheme'] ?? '', ['http', 'https'], true) || empty($parts['host'])
             || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
@@ -379,9 +548,9 @@ class InstallController
             return '无法连接数据库：请检查主机、端口、MySQL 服务状态和防火墙。';
         }
         if (str_contains($message, 'CREATE command denied')) {
-            return '数据库账号没有建库权限：请先在宝塔或数据库面板创建一个空数据库，再重新测试。';
+            return '数据库账号没有建库权限：请先在宝塔或数据库面板手动创建一个空数据库，并将该账号的所有权限授予新库，然后再重新测试。';
         }
-        return '数据库检测失败，请检查数据库配置与权限。';
+        return '数据库检测失败：' . $e->getMessage();
     }
 
     private function installErrorMessage(Throwable $e): string
@@ -400,7 +569,7 @@ class InstallController
         }
         foreach ($extensions as $name => $loaded) {
             if (!$loaded) {
-                $hints[] = '缺少 PHP 扩展：' . $name . '，请在宝塔“软件商店 → PHP 设置 → 安装扩展”中启用。';
+                $hints[] = '缺少 PHP 扩展：' . $name . '，请在宝塔"软件商店 → PHP 设置 → 安装扩展"中启用。';
             }
         }
         if (!$permissions['all_perms_ok']) {

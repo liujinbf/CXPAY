@@ -129,6 +129,14 @@ final class Driver implements PaymentDriverInterface, MonitorableDriverInterface
             'collection_mode' => 'personal_qr',
             'monitor_mode' => $this->monitorMode(),
             'inputs' => [
+                [
+                    'type' => 'notice',
+                    'title' => '扫码免挂说明',
+                    'content' => "通过【支付宝扫码登录】自动获取支付宝网页版 Cookie，自动检测金额账单并触发回调。\n"
+                        . "也可以手动粘贴 Base64 编码的 Cookie。密文在云端 AES-256 加密保存。",
+                    'tone' => 'info',
+                ],
+                ['name' => 'cookie_base64', 'title' => 'Cookie (Base64 编码，扫码自动获取或手动粘贴)', 'type' => 'textarea', 'required' => false],
                 ['name' => 'qr_url', 'title' => '支付宝个人收款码内容', 'type' => 'string', 'required' => true],
                 ['name' => 'monitor_base_url', 'title' => '支付宝云账单服务地址', 'type' => 'string', 'required' => true],
                 ['name' => 'account_id', 'title' => '云账单账号 ID（扫码成功后自动写入）', 'type' => 'string', 'required' => false],

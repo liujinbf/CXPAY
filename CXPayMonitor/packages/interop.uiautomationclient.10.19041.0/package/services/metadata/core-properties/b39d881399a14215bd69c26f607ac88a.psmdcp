@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<coreProperties xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.openxmlformats.org/package/2006/metadata/core-properties">
+  <dc:creator>Roemer</dc:creator>
+  <dc:description>The UI Automation COM-to-.NET adapter makes it possible to use the new Windows Automation API 3.0 COM interfaces, with their improved reliability and performance, while still using the same System.Windows.Automation classes as in earlier versions of UI Automation</dc:description>
+  <dc:identifier>Interop.UIAutomationClient</dc:identifier>
+  <version>10.19041.0</version>
+  <keywords>UIAutomationClient UIAutomation Windows Automation Accessibility System.Windows.Automation</keywords>
+  <lastModifiedBy>NuGet, Version=5.2.0.3, Culture=neutral, PublicKeyToken=31bf3856ad364e35;Microsoft Windows NT 6.2.9200.0;.NET Framework 4.7.2</lastModifiedBy>
+</coreProperties>

@@ -17,10 +17,11 @@
   "capabilities": {
     "dynamic_qr": false,
     "server_monitor": true,
+    "account_authorization": true,
     "stable_bill_id": true,
     "official_bill_api": true,
     "creates_official_payment_order": false,
-    "automatic_application": false
+    "automatic_application": true
   },
   "permissions": {
     "outbound_domains": ["openapi.alipay.com"],

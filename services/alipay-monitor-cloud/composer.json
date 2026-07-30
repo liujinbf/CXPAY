@@ -1,0 +1,19 @@
+{
+  "name": "cxpay/alipay-monitor-cloud",
+  "description": "CXPAY 支付宝个人/商家云监控协调服务，管理授权会话、能力检测、订单登记与签名回调",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": ">=8.1.0",
+    "ext-json": "*",
+    "ext-openssl": "*",
+    "ext-pdo": "*",
+    "guzzlehttp/guzzle": "^7.8",
+    "workerman/workerman": "^4.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "AlipayMonitorCloud\\": "src/"
+    }
+  }
+}

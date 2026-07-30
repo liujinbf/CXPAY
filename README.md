@@ -10,6 +10,8 @@ CXPAY 是基于 PHP 8.1、Webman 2、MySQL 和 Redis 的个人收款码监控网
 - 商户隔离的通道管理、订单查询、余额充值单和后台人工补单。
 - 支付宝、微信、QQ 钱包个人固定收款码，以及安卓/PC 监控端安全账单上报。
 - 支付宝、微信、QQ 外部账单服务回调型个人码驱动；外部服务必须配置共享鉴权凭据。
+- 授权账单源（BillSource）双端架构：采集端通过 `POST /api/bill-source/ingest` 写入账单，PC 监控端通过 `GET /api/bill-source/poll` 按单调游标拉取，两端密钥相互隔离并支持在线轮换。
+- 插件商城与动态驱动注册：管理员可通过后台安装、启停和卸载支付驱动插件，插件驱动在运行时动态注册到 PaymentManager。
 - 订单幂等、手续费预占/核销/释放、支付出码并发认领、通道金额校验、回调重试和 SSRF 防护。
 - 管理员与商户 Session 登录、登录限流、同源写操作校验。
 - 商户后台登录密码与支付 API 密钥相互独立；管理员创建商户时只返回一次初始凭据。
@@ -86,11 +88,15 @@ version|channel_id|device_id|event|pay_type|money(两位小数)|source_bill_id|o
 
 使用通道的 `notify_secret` 计算 HMAC-SHA256，该密钥必须为 32～128 位。`device_id` 必须与通道绑定设备完全一致，`pay_type` 必须与通道分类一致；`timestamp` 允许误差 300 秒，`nonce` 为 16～128 位随机字符串且不可重复。服务端以 `(channel_id, source_bill_id)` 做数据库级幂等校验。助手类通道超过 60 秒没有心跳会被标记离线，但不会改变人工启停状态。
 
+授权账单源（BillSource）通道使用三套独立密钥：`ingest_secret`（采集端写入鉴权）、`pull_secret`（PC 监控端拉取鉴权）和上报至助手接口时使用的通道 HMAC 密钥，三者严格隔离，任何接口均不会返回已存储密钥的明文。
+
 ## 数据库升级
 
 全新安装使用 `database/install.sql`。旧数据库升级前请先完整备份并核对已执行版本；未执行过补丁的旧库应按 `patch_v1.sql`、`patch_v2.sql`、`patch_v3.sql`、`patch_v4.sql`、`patch_v5.sql` 的顺序逐个执行，已经执行过的版本必须跳过，所有补丁都不可重复执行。`v3` 会增加手续费状态、支付出码认领状态和商户订单唯一索引，`v4` 会增加助手账单幂等字段，`v5` 会增加 PC 授权账单源暂存队列。如果历史数据存在重复的 `(merchant_id, out_trade_no)`，需先清理重复记录才能执行 `v3`。
 
 升级后，旧订单仍在支付成功时扣除手续费，新订单则在创建时预占手续费并在超时或人工关闭时原路释放。旧商户可以暂时用原 API 密钥完成首次后台登录，系统会立即生成独立密码哈希；建议随后修改登录密码并轮换 API 密钥。
+
+执行 `v5` 后可通过 `SHOW TABLES LIKE 'cx_bill_source_event'` 确认 `cx_bill_source_event` 表已成功创建。
 
 ## 验证命令
 

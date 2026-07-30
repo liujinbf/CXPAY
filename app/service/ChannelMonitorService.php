@@ -9,6 +9,7 @@ use app\payment\Contracts\MonitorableDriverInterface;
 use app\payment\Contracts\ServerPollingDriverInterface;
 use app\payment\PaymentManager;
 use support\Authcode;
+use app\service\AlertNotificationService;
 
 /**
  * 自动化通道巡检与订单超时自动关闭服务 (后台 Worker 定时调度)
@@ -85,6 +86,16 @@ class ChannelMonitorService
                     $channel->save();
                     $offlineCount++;
                     $autoOfflined++;
+
+                    // 派发通道掉线告警
+                    try {
+                        (new AlertNotificationService())->dispatchAdmin('channel_offline', [
+                            'channel_title' => $channel->title,
+                            'c_type'        => $cType,
+                        ]);
+                    } catch (\Throwable $e) {
+                        error_log('[ChannelMonitorService] 掉线告警派发失败: ' . $e->getMessage());
+                    }
                 } else {
                     if ((int)$channel->online_status !== 1) {
                         $channel->online_status = 1;

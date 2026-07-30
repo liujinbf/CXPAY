@@ -18,12 +18,12 @@ class Driver extends AbstractPersonalQrDriver
 
     protected function title(): string
     {
-        return '微信个人收款码（PC监控）';
+        return '微信个人收款码 / 赞赏码（PC监控）';
     }
 
     protected function description(): string
     {
-        return '展示微信个人收款码，由Windows监控端只读识别官方微信收款单/小账本可见记录并安全上报；使用前须在客户端检测页面可读性';
+        return '展示微信个人收款码或赞赏码，由 Windows 监控端自动抓取到账记录并安全上报；支持微信收款单、赞赏码和小账本记录识别';
     }
 
     protected function qrField(): string
@@ -33,7 +33,7 @@ class Driver extends AbstractPersonalQrDriver
 
     protected function qrTitle(): string
     {
-        return '微信个人收款码内容';
+        return '微信个人收款码/赞赏码内容';
     }
 
     protected function platform(): string

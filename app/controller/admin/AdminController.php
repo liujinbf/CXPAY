@@ -9,6 +9,7 @@ use app\model\Order;
 use app\model\Channel;
 use app\service\MonitorService;
 use app\service\OrderService;
+use app\service\AlertNotificationService;
 use app\payment\PaymentManager;
 use support\Authcode;
 use Illuminate\Database\Capsule\Manager as DB;
@@ -101,6 +102,14 @@ class AdminController
         ]);
         $request->sessionRegenerateId(true);
         LoginRateLimiter::clear('admin', $rateLimitId);
+
+        // 异步派发管理员登录通知
+        try {
+            (new AlertNotificationService())->dispatchAdmin('admin_login', [
+                'ip' => $request->getRemoteIp(),
+            ]);
+        } catch (\Throwable) {
+        }
 
         return json_encode([
             'code' => 1,

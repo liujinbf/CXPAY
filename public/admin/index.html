@@ -7,6 +7,7 @@
     <title>CXPAY - 商业级聚合支付管理控制台</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .glass-panel { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px -2px rgba(0,0,0,0.03); }
@@ -65,6 +66,12 @@
                     </a>
                     <a onclick="switchTab('callbill-review')" id="nav-callbill-review" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="scan-search" class="w-4 h-4 text-amber-500"></i> 到账账单复核
+                    </a>
+
+                    <!-- 5. 系统设置与通知 -->
+                    <div class="nav-group-title">系统配置</div>
+                    <a onclick="switchTab('alert-config')" id="nav-alert-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                        <i data-lucide="bell" class="w-4 h-4 text-rose-500"></i> 系统告警与通知
                     </a>
                 </nav>
             </div>
@@ -155,6 +162,42 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- 近7日收款趋势与单一通道指标 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="glass-panel md:col-span-2 rounded-2xl p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                    <i data-lucide="trending-up" class="w-4 h-4 text-blue-500"></i> 近7日全平台流水
+                                </div>
+                                <span class="text-[11px] text-slate-400">仅统计已成功支付订单</span>
+                            </div>
+                            <div id="admin-trend-chart" style="width:100%;height:200px;"></div>
+                        </div>
+                        <div class="glass-panel rounded-2xl p-5 space-y-3">
+                            <div class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                <i data-lucide="activity" class="w-4 h-4 text-emerald-500"></i> 实时指标
+                            </div>
+                            <div class="space-y-2.5 text-xs">
+                                <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-500">成功支付率</span>
+                                    <span id="admin-metric-success-rate" class="font-extrabold text-emerald-600">--</span>
+                                </div>
+                                <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-500">已支付订单</span>
+                                    <span id="admin-metric-paid-orders" class="font-extrabold text-slate-800">--</span>
+                                </div>
+                                <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-500">已启用商户</span>
+                                    <span id="admin-metric-active-merchants" class="font-extrabold text-slate-800">--</span>
+                                </div>
+                                <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-500">全部通道</span>
+                                    <span id="admin-metric-all-channels" class="font-extrabold text-slate-800">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 2. 收款通道配置 -->
@@ -199,26 +242,45 @@
                             <button onclick="openMerchantEditor()" class="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">新增商户</button>
                         </div>
                     </div>
+                    <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs text-slate-600">
                         <thead class="bg-slate-50 uppercase font-semibold border-b">
                             <tr>
                                 <th class="p-3">商户 PID</th>
                                 <th class="p-3">商户名称</th>
-                                <th class="p-3">余额</th>
+                                <th class="p-3">服务费余额</th>
+                                <th class="p-3">费率</th>
+                                <th class="p-3">状态</th>
+                                <th class="p-3">注册时间</th>
                                 <th class="p-3 text-right">操作</th>
                             </tr>
                         </thead>
                         <tbody id="merchant-table-body" class="divide-y divide-slate-100">
-                            <tr><td colspan="4" class="p-6 text-center text-slate-400">正在加载商户数据...</td></tr>
+                            <tr><td colspan="7" class="p-6 text-center text-slate-400">正在加载商户数据...</td></tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 <!-- 6. 订单检索与补单 -->
                 <div id="tab-order-list" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
-                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="receipt" class="w-5 h-5 text-sky-600"></i> 交易订单检索与补单重发
-                    </h3>
+                    <div class="flex items-center justify-between gap-4">
+                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="receipt" class="w-5 h-5 text-sky-600"></i> 交易订单检索与补单重发
+                        </h3>
+                        <div class="flex gap-2 text-xs">
+                            <input id="admin-order-search" type="search" placeholder="搜索平台单号/商户单号" class="px-3 py-2 border border-slate-200 rounded-xl" onkeydown="if(event.key==='Enter')loadOrders()">
+                            <select id="admin-order-status" class="px-3 py-2 border border-slate-200 rounded-xl" onchange="loadOrders()">
+                                <option value="">全部状态</option>
+                                <option value="0">待支付</option>
+                                <option value="1">已支付</option>
+                                <option value="2">已关闭/超时</option>
+                                <option value="3">已退款</option>
+                            </select>
+                            <button onclick="loadOrders()" class="px-3 py-2 bg-blue-600 text-white rounded-xl font-bold">检索</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs text-slate-600">
                         <thead class="bg-slate-50 uppercase font-semibold border-b">
                             <tr>
@@ -226,13 +288,16 @@
                                 <th class="p-3">商户 PID</th>
                                 <th class="p-3">金额</th>
                                 <th class="p-3">状态</th>
+                                <th class="p-3">创建时间</th>
+                                <th class="p-3">支付时间</th>
                                 <th class="p-3 text-right">操作</th>
                             </tr>
                         </thead>
                         <tbody id="order-table-body" class="divide-y divide-slate-100">
-                            <tr><td colspan="5" class="p-6 text-center text-slate-400">正在加载订单数据...</td></tr>
+                            <tr><td colspan="7" class="p-6 text-center text-slate-400">正在加载订单数据...</td></tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 <div id="tab-callbill-review" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
@@ -276,6 +341,172 @@
                     <div id="cloud-monitor-warnings" class="hidden p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-700"></div>
                     <div id="cloud-monitor-list" class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                         <div class="glass-panel rounded-2xl p-6 text-center text-xs text-slate-400">正在读取云监控状态...</div>
+                    </div>
+                </div>
+
+                <!-- 6. 告警通知配置 -->
+                <div id="tab-alert-config" class="tab-panel space-y-6">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="bell" class="w-6 h-6 text-rose-500"></i> 系统告警与通知配置
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-1">配置管理员接收系统登录、账单到账、通道掉线等消息的渠道</p>
+                        </div>
+                        <button onclick="saveAdminAlertConfig()" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md transition-all">
+                            保存配置
+                        </button>
+                    </div>
+
+                    <!-- 全局开关与事件订阅 -->
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-extrabold text-slate-800">通知全局总开关</h3>
+                                <p class="text-xs text-slate-400">关闭后将停止所有消息分发</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="alert-admin-enabled" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+                            </label>
+                        </div>
+
+                        <div class="border-t border-slate-100 pt-4">
+                            <h4 class="text-xs font-bold text-slate-600 mb-3">事件订阅（触发时机）</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                <label class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                                    <input type="checkbox" id="alert-event-admin_login" class="rounded text-rose-600">
+                                    <div>
+                                        <div class="font-bold text-slate-700">管理员登录</div>
+                                        <div class="text-[10px] text-slate-400">管理员账号成功登录</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                                    <input type="checkbox" id="alert-event-merchant_login" class="rounded text-rose-600">
+                                    <div>
+                                        <div class="font-bold text-slate-700">商户登录</div>
+                                        <div class="text-[10px] text-slate-400">任意商户登录控制台</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                                    <input type="checkbox" id="alert-event-order_paid" class="rounded text-rose-600">
+                                    <div>
+                                        <div class="font-bold text-slate-700">账单到账</div>
+                                        <div class="text-[10px] text-slate-400">订单成功支付核销</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                                    <input type="checkbox" id="alert-event-channel_offline" class="rounded text-rose-600">
+                                    <div>
+                                        <div class="font-bold text-slate-700">通道掉线 ⚠️</div>
+                                        <div class="text-[10px] text-slate-400">收款通道心跳超时</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 渠道配置：三列 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                        <!-- 1. SMTP 邮件通知 -->
+                        <div class="glass-panel p-5 rounded-2xl space-y-4 border-t-4 border-t-blue-500">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="mail" class="w-4 h-4 text-blue-500"></i> SMTP 邮件通知
+                                </h3>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="alert-email-enabled" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <label class="block font-bold text-slate-600 mb-1">SMTP 服务器</label>
+                                    <input type="text" id="alert-email-host" placeholder="smtp.qq.com" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block font-bold text-slate-600 mb-1">端口</label>
+                                        <input type="number" id="alert-email-port" value="465" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                    </div>
+                                    <div>
+                                        <label class="block font-bold text-slate-600 mb-1">加密方式</label>
+                                        <select id="alert-email-encryption" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                            <option value="ssl">SSL (465)</option>
+                                            <option value="tls">STARTTLS (587)</option>
+                                            <option value="">明文 (25)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-slate-600 mb-1">SMTP 账号</label>
+                                    <input type="text" id="alert-email-username" placeholder="your@email.com" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-slate-600 mb-1">SMTP 授权码 / 密码</label>
+                                    <input type="password" id="alert-email-password" placeholder="未修改留空" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-slate-600 mb-1">接收邮箱（多邮箱逗号隔开）</label>
+                                    <input type="text" id="alert-email-to" placeholder="admin@example.com" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                </div>
+                                <button onclick="testAlertChannel('email')" class="w-full py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold text-xs">
+                                    发送测试邮件
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 2. 企业微信 Webhook -->
+                        <div class="glass-panel p-5 rounded-2xl space-y-4 border-t-4 border-t-emerald-500">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="message-square" class="w-4 h-4 text-emerald-500"></i> 企业微信机器人
+                                </h3>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="alert-wxwork-enabled" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                                </label>
+                            </div>
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <label class="block font-bold text-slate-600 mb-1">Webhook URL</label>
+                                    <textarea id="alert-wxwork-url" rows="4" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                                    <p class="text-[10px] text-slate-400 mt-1">企业微信群内部机器人提供的 Webhook 地址</p>
+                                </div>
+                                <button onclick="testAlertChannel('wxwork')" class="w-full py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl font-bold text-xs">
+                                    发送测试微聊
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 3. 通用 Webhook -->
+                        <div class="glass-panel p-5 rounded-2xl space-y-4 border-t-4 border-t-purple-500">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="webhook" class="w-4 h-4 text-purple-500"></i> 通用 HTTP Webhook
+                                </h3>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="alert-webhook-enabled" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                                </label>
+                            </div>
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <label class="block font-bold text-slate-600 mb-1">Webhook URL</label>
+                                    <input type="text" id="alert-webhook-url" placeholder="https://api.day.app/your_bark_key" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs">
+                                    <p class="text-[10px] text-slate-400 mt-1">支持 Bark、飞书、钉钉等第三方 Webhook</p>
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-slate-600 mb-1">额外 Headers (每行一个)</label>
+                                    <textarea id="alert-webhook-headers" rows="2" placeholder="Authorization: Bearer xxx" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs"></textarea>
+                                </div>
+                                <button onclick="testAlertChannel('webhook')" class="w-full py-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl font-bold text-xs">
+                                    发送测试 Webhook
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -345,7 +576,16 @@
             if (targetBtn) { targetBtn.classList.add('nav-link-active'); }
 
             var titleEl = document.getElementById('current-tab-title');
-            if (titleEl) { titleEl.innerText = tabId.toUpperCase(); }
+            const tabTitles = {
+                'dashboard': '仪表盘',
+                'channel-config': '收款通道配置',
+                'plugin-market': '支付驱动插件',
+                'cloud-monitor': '云监控运维',
+                'merchant-mgmt': '商户账号管理',
+                'order-list': '交易订单检索',
+                'callbill-review': '到账账单复核',
+            };
+            if (titleEl) { titleEl.innerText = tabTitles[tabId] || tabId.toUpperCase(); }
 
             if (window.lucide && typeof lucide.createIcons === 'function') {
                 lucide.createIcons();
@@ -372,10 +612,65 @@
                     document.getElementById('metric-merchant-count').textContent = Number(metrics.merchant_count || 0).toLocaleString();
                     document.getElementById('metric-vip-count').textContent = Number(metrics.vip_merchant_count || 0).toLocaleString();
                     document.getElementById('metric-channel-count').textContent = `${Number(metrics.online_channel_count || 0)} / ${Number(metrics.channel_count || 0)}`;
+                    // 更新追加的实时指标
+                    const srEl = document.getElementById('admin-metric-success-rate');
+                    if (srEl) srEl.textContent = metrics.success_rate || '--';
+                    const poEl = document.getElementById('admin-metric-paid-orders');
+                    if (poEl) poEl.textContent = Number(metrics.paid_orders || 0).toLocaleString() + ' 笔';
+                    const amEl = document.getElementById('admin-metric-active-merchants');
+                    if (amEl) amEl.textContent = Number(metrics.active_merchant_count || 0).toLocaleString() + ' 个';
+                    const acEl = document.getElementById('admin-metric-all-channels');
+                    if (acEl) acEl.textContent = Number(metrics.channel_count || 0).toLocaleString() + ' 个';
                 }
             } catch (e) {
-                console.error('仪表盘加载失败', e);
+                console.error('仓表盘加载失败', e);
             }
+            initAdminTrendChart();
+        }
+
+        // 管理后台 - 近7日全平台流水趋势图
+        async function initAdminTrendChart() {
+            const chartEl = document.getElementById('admin-trend-chart');
+            if (!chartEl || typeof echarts === 'undefined') return;
+            const chart = echarts.getInstanceByDom(chartEl) || echarts.init(chartEl);
+            const days = [];
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                days.push(`${d.getMonth()+1}/${d.getDate()}`);
+            }
+            const amounts = [0, 0, 0, 0, 0, 0, 0];
+            chart.setOption({
+                tooltip: { trigger: 'axis', formatter: (params) => `${params[0].name}<br/>流水：¥${params[0].value.toFixed(2)}` },
+                grid: { top: 10, right: 16, bottom: 20, left: 60 },
+                xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#e2e8f0' } }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
+                yAxis: { type: 'value', axisLabel: { color: '#94a3b8', fontSize: 11, formatter: '¥{value}' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+                series: [{
+                    data: amounts,
+                    type: 'bar',
+                    barMaxWidth: 36,
+                    itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#818cf8' }] }, borderRadius: [4, 4, 0, 0] }
+                }]
+            });
+            try {
+                const res = await adminFetch('/api/admin/order/list?page_size=300&status=1');
+                const payload = await res.json();
+                if (payload.code === 1 && payload.data && Array.isArray(payload.data.data)) {
+                    const dayMap = {};
+                    days.forEach(d => dayMap[d] = 0);
+                    payload.data.data.forEach(order => {
+                        if (Number(order.status) !== 1) return;
+                        const payTime = order.pay_time || order.paid_at || '';
+                        if (!payTime) return;
+                        const dt = new Date(payTime.replace(' ', 'T'));
+                        const key = `${dt.getMonth()+1}/${dt.getDate()}`;
+                        if (dayMap.hasOwnProperty(key)) dayMap[key] += Number(order.price || order.amount || 0);
+                    });
+                    chart.setOption({ series: [{ data: days.map(d => dayMap[d]) }] });
+                }
+            } catch(e) { /* 不影响占位图 */ }
+            window.addEventListener('resize', () => chart.resize());
         }
 
         async function loadCloudMonitorStatus() {
@@ -436,8 +731,14 @@
 
         async function loadOrders() {
             const tbody = document.getElementById('order-table-body');
+            const searchEl = document.getElementById('admin-order-search');
+            const statusEl = document.getElementById('admin-order-status');
+            const tradeNo = searchEl ? searchEl.value.trim() : '';
+            const status = statusEl ? statusEl.value : '';
+
             try {
-                const res = await adminFetch('/api/admin/order/list?page_size=20');
+                const url = `/api/admin/order/list?page_size=20&trade_no=${encodeURIComponent(tradeNo)}&status=${encodeURIComponent(status)}`;
+                const res = await adminFetch(url);
                 const data = await res.json();
                 if (data.code !== 1 || !data.data) throw new Error(data.msg || '订单加载失败');
                 const rows = Array.isArray(data.data.data) ? data.data.data : [];
@@ -449,19 +750,25 @@
                 };
                 tbody.innerHTML = rows.length ? rows.map(order => {
                     const state = statusMap[Number(order.status)] || ['未知', 'bg-slate-100 text-slate-600'];
-                    const action = Number(order.status) === 0
-                        ? `<button data-trade-no="${escapeHtml(order.trade_no)}" onclick="manualPay(this.dataset.tradeNo)" class="px-3 py-1 bg-amber-50 text-amber-700 font-bold rounded-lg border border-amber-200">补单核销</button>`
+                    const tradeNo = order.trade_no || '';
+                    const btns = Number(order.status) === 0
+                        ? `<button data-trade-no="${escapeHtml(tradeNo)}" onclick="manualPay(this.dataset.tradeNo)" class="px-2.5 py-1 bg-amber-50 text-amber-700 font-bold rounded-lg border border-amber-200 mr-1">补单核销</button>
+                           <button data-trade-no="${escapeHtml(tradeNo)}" onclick="closeOrder(this.dataset.tradeNo)" class="px-2.5 py-1 bg-rose-50 text-rose-600 font-bold rounded-lg border border-rose-200">关闭订单</button>`
                         : '';
+                    const ct = order.create_time ? new Date(Number(order.create_time) * 1000).toLocaleString() : (order.created_at || '-');
+                    const pt = (Number(order.status) === 1 && order.pay_time) ? new Date(Number(order.pay_time) * 1000).toLocaleString() : '-';
                     return `<tr class="hover:bg-slate-50">
-                        <td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(order.trade_no)}</td>
-                        <td class="p-3 font-mono">${escapeHtml(order.merchant_pid || order.merchant_id)}</td>
-                        <td class="p-3 font-bold text-slate-800">¥ ${Number(order.price || order.amount || 0).toFixed(2)}</td>
+                        <td class="p-3 font-mono font-bold text-blue-600 text-[11px]">${escapeHtml(tradeNo)}</td>
+                        <td class="p-3 font-mono">${escapeHtml(order.merchant_pid || order.merchant_id || '-')}</td>
+                        <td class="p-3 font-bold text-slate-800">&#165; ${Number(order.price || order.amount || 0).toFixed(2)}</td>
                         <td class="p-3"><span class="px-2 py-0.5 rounded-full font-bold ${state[1]}">${state[0]}</span></td>
-                        <td class="p-3 text-right">${action}</td>
+                        <td class="p-3 text-slate-400 text-[11px] whitespace-nowrap">${ct}</td>
+                        <td class="p-3 text-slate-400 text-[11px] whitespace-nowrap">${pt}</td>
+                        <td class="p-3 text-right whitespace-nowrap">${btns}</td>
                     </tr>`;
-                }).join('') : '<tr><td colspan="5" class="p-6 text-center text-slate-400">暂无订单</td></tr>';
+                }).join('') : '<tr><td colspan="7" class="p-6 text-center text-slate-400">暂无符合条件的订单</td></tr>';
             } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-500">${escapeHtml(e.message || '订单加载失败')}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-rose-500">${escapeHtml(e.message || '订单加载失败')}</td></tr>`;
             }
         }
 
@@ -475,6 +782,15 @@
                 await Promise.all([loadOrders(), loadDashboard()]);
             }
         }
+
+        async function closeOrder(tradeNo) {
+            if (!confirm(`确认关闭/作废订单 ${tradeNo}？关闭后买家无法继续支付。`)) return;
+            const response = await adminFetch('/api/admin/order/close', { method: 'POST', body: new URLSearchParams({ trade_no: tradeNo }) });
+            const payload = await response.json();
+            alert(payload.msg || (payload.code === 1 ? '订单已关闭' : '关闭失败'));
+            if (payload.code === 1) { await loadOrders(); }
+        }
+
 
         async function loadCallbillReviews() {
             const tbody = document.getElementById('callbill-review-body');
@@ -549,14 +865,23 @@
                 const rows = Array.isArray(payload.data.data) ? payload.data.data : [];
                 merchantRecords.clear();
                 rows.forEach(item => merchantRecords.set(Number(item.id), item));
-                tbody.innerHTML = rows.length ? rows.map(item => `<tr class="hover:bg-slate-50">
-                    <td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(item.pid)}</td>
-                    <td class="p-3 font-bold text-slate-800">${escapeHtml(item.name)} ${Number(item.status) === 1 ? '' : '<span class="text-rose-500">（已停用）</span>'}</td>
-                    <td class="p-3 font-bold text-emerald-600">¥ ${Number(item.money || 0).toFixed(2)}</td>
-                    <td class="p-3 text-right"><button onclick="openMerchantEditor(${Number(item.id)})" class="text-blue-600 font-bold hover:underline">编辑</button></td>
-                </tr>`).join('') : '<tr><td colspan="4" class="p-6 text-center text-slate-400">暂无商户</td></tr>';
+                tbody.innerHTML = rows.length ? rows.map(item => {
+                    const statusLabel = Number(item.status) === 1
+                        ? '<span class="text-emerald-600 font-bold">启用</span>'
+                        : '<span class="text-rose-500 font-bold">停用</span>';
+                    const regTime = item.create_time ? new Date(Number(item.create_time) * 1000).toLocaleDateString() : '-';
+                    return `<tr class="hover:bg-slate-50">
+                        <td class="p-3 font-mono font-bold text-blue-600">${escapeHtml(item.pid)}</td>
+                        <td class="p-3 font-bold text-slate-800">${escapeHtml(item.name)}</td>
+                        <td class="p-3 font-bold text-emerald-600">&#165; ${Number(item.money || 0).toFixed(2)}</td>
+                        <td class="p-3 text-slate-600">${(Number(item.rate || 0) * 100).toFixed(2)}%</td>
+                        <td class="p-3">${statusLabel}</td>
+                        <td class="p-3 text-slate-400 text-[11px]">${regTime}</td>
+                        <td class="p-3 text-right"><button onclick="openMerchantEditor(${Number(item.id)})" class="text-blue-600 font-bold hover:underline">编辑</button></td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="7" class="p-6 text-center text-slate-400">暂无商户</td></tr>';
             } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-rose-500">${escapeHtml(e.message || '商户加载失败')}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-rose-500">${escapeHtml(e.message || '商户加载失败')}</td></tr>`;
             }
         }
 
@@ -716,6 +1041,98 @@
                 </div>`).join('') : '<div class="p-5 text-center text-xs text-slate-400">暂无平台级通道；商户可在自己的控制台添加专属通道</div>';
             } catch (e) {
                 container.innerHTML = `<div class="p-5 text-center text-xs text-rose-500">${escapeHtml(e.message || '平台通道加载失败')}</div>`;
+            }
+        }
+
+        async function loadAdminAlertConfig() {
+            try {
+                const res = await adminFetch('/api/admin/alert/config');
+                const payload = await res.json();
+                if (payload.code !== 1 || !payload.data) return;
+                const d = payload.data;
+                document.getElementById('alert-admin-enabled').checked = !!d.enabled;
+                const evs = d.events || {};
+                ['admin_login', 'merchant_login', 'order_paid', 'channel_offline'].forEach(ev => {
+                    const el = document.getElementById('alert-event-' + ev);
+                    if (el) el.checked = !!evs[ev];
+                });
+
+                // Email
+                const em = d.email_config || {};
+                document.getElementById('alert-email-enabled').checked = !!em.enabled;
+                document.getElementById('alert-email-host').value = em.host || '';
+                document.getElementById('alert-email-port').value = em.port || 465;
+                document.getElementById('alert-email-encryption').value = em.encryption || 'ssl';
+                document.getElementById('alert-email-username').value = em.username || '';
+                document.getElementById('alert-email-to').value = (em.to_addrs || []).join(', ');
+
+                // WxWork
+                const wx = d.wxwork_config || {};
+                document.getElementById('alert-wxwork-enabled').checked = !!wx.enabled;
+                document.getElementById('alert-wxwork-url').value = wx.webhook_url || '';
+
+                // Webhook
+                const hk = d.webhook_config || {};
+                document.getElementById('alert-webhook-enabled').checked = !!hk.enabled;
+                document.getElementById('alert-webhook-url').value = hk.url || '';
+                document.getElementById('alert-webhook-headers').value = hk.headers || '';
+            } catch (e) {
+                console.error('加载告警配置失败', e);
+            }
+        }
+
+        async function saveAdminAlertConfig() {
+            const data = {
+                enabled: document.getElementById('alert-admin-enabled').checked,
+                events: {
+                    admin_login: document.getElementById('alert-event-admin_login').checked,
+                    merchant_login: document.getElementById('alert-event-merchant_login').checked,
+                    order_paid: document.getElementById('alert-event-order_paid').checked,
+                    channel_offline: document.getElementById('alert-event-channel_offline').checked,
+                },
+                email_config: {
+                    enabled: document.getElementById('alert-email-enabled').checked,
+                    host: document.getElementById('alert-email-host').value.trim(),
+                    port: parseInt(document.getElementById('alert-email-port').value) || 465,
+                    encryption: document.getElementById('alert-email-encryption').value,
+                    username: document.getElementById('alert-email-username').value.trim(),
+                    password: document.getElementById('alert-email-password').value,
+                    to_addrs: document.getElementById('alert-email-to').value.split(',').map(s => s.trim()).filter(Boolean),
+                },
+                wxwork_config: {
+                    enabled: document.getElementById('alert-wxwork-enabled').checked,
+                    webhook_url: document.getElementById('alert-wxwork-url').value.trim(),
+                },
+                webhook_config: {
+                    enabled: document.getElementById('alert-webhook-enabled').checked,
+                    url: document.getElementById('alert-webhook-url').value.trim(),
+                    headers: document.getElementById('alert-webhook-headers').value.trim(),
+                }
+            };
+
+            try {
+                const res = await adminFetch('/api/admin/alert/config/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                const payload = await res.json();
+                alert(payload.msg || (payload.code === 1 ? '保存成功' : '保存失败'));
+            } catch (e) {
+                alert('保存失败: ' + e.message);
+            }
+        }
+
+        async function testAlertChannel(channel) {
+            try {
+                const res = await adminFetch('/api/admin/alert/test', {
+                    method: 'POST',
+                    body: new URLSearchParams({ channel })
+                });
+                const payload = await res.json();
+                alert(payload.msg || '操作完成');
+            } catch (e) {
+                alert('测试失败: ' + e.message);
             }
         }
 

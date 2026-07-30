@@ -3,187 +3,1118 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CXPAY 安装向导</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>CXPAY 智能安装向导</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"></script>
     <style>
-        body { background: #07111f; color: #e5edf7; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-        .panel { background: rgba(15, 29, 50, .94); border: 1px solid #203958; box-shadow: 0 24px 70px rgba(0, 0, 0, .35); }
-        .input { width: 100%; border: 1px solid #38536f; background: #0a192b; border-radius: .65rem; padding: .75rem; color: #fff; outline: none; }
-        .input:focus { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56, 189, 248, .15); }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #060d1a;
+            --surface: rgba(10, 22, 42, 0.97);
+            --surface2: rgba(15, 30, 55, 0.8);
+            --border: rgba(56, 100, 160, 0.35);
+            --border-bright: rgba(56, 189, 248, 0.5);
+            --sky: #38bdf8;
+            --sky-dim: rgba(56, 189, 248, 0.12);
+            --emerald: #34d399;
+            --emerald-dim: rgba(52, 211, 153, 0.1);
+            --rose: #fb7185;
+            --rose-dim: rgba(251, 113, 133, 0.1);
+            --amber: #fbbf24;
+            --amber-dim: rgba(251, 191, 36, 0.1);
+            --text: #e2eaf5;
+            --text-muted: #64748b;
+            --text-secondary: #94a3b8;
+            --radius: 14px;
+            --radius-sm: 8px;
+        }
+
+        body {
+            background: var(--bg);
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(14, 165, 233, 0.08) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 40% at 80% 80%, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            padding: 24px 16px 60px;
+            line-height: 1.6;
+        }
+
+        /* ─── Layout ─── */
+        .wrap { max-width: 780px; margin: 0 auto; }
+
+        .logo-row {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 32px;
+        }
+        .logo-badge {
+            width: 44px; height: 44px; border-radius: 12px;
+            background: linear-gradient(135deg, #0ea5e9, #6366f1);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; box-shadow: 0 0 24px rgba(14,165,233,0.3);
+        }
+        .logo-title { font-size: 20px; font-weight: 800; letter-spacing: -.5px; }
+        .logo-sub { font-size: 13px; color: var(--text-muted); margin-top: 1px; }
+
+        /* ─── Card ─── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset;
+        }
+
+        /* ─── Progress ─── */
+        .progress-bar {
+            padding: 28px 32px 24px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(14,165,233,0.04) 0%, transparent 100%);
+        }
+        .step-meta {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        .step-label { font-size: 12px; font-weight: 700; letter-spacing: .15em; color: var(--sky); text-transform: uppercase; margin-bottom: 6px; }
+        .step-title { font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+        .step-desc { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+        .step-badge {
+            flex-shrink: 0;
+            background: var(--sky-dim); border: 1px solid rgba(56,189,248,.25);
+            color: var(--sky); font-size: 12px; font-weight: 700;
+            padding: 4px 12px; border-radius: 999px; white-space: nowrap;
+        }
+
+        .steps-track { display: flex; gap: 8px; }
+        .steps-track .seg {
+            flex: 1; height: 3px; border-radius: 3px;
+            background: rgba(255,255,255,0.08);
+            transition: background .4s ease;
+        }
+        .steps-track .seg.done { background: var(--sky); }
+        .steps-track .seg.active {
+            background: linear-gradient(90deg, var(--sky), rgba(56,189,248,.4));
+        }
+
+        /* ─── Body ─── */
+        .card-body { padding: 32px; }
+
+        /* ─── Section headings ─── */
+        .section-heading {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 15px; font-weight: 700; margin-bottom: 16px;
+        }
+        .section-heading .icon {
+            width: 30px; height: 30px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+        }
+        .section-heading .icon.blue { background: rgba(14,165,233,0.15); }
+        .section-heading .icon.green { background: rgba(52,211,153,0.15); }
+        .section-heading .icon.purple { background: rgba(139,92,246,0.15); }
+        .section-heading .icon.amber { background: rgba(251,191,36,0.15); }
+
+        /* ─── Check Cards (environment) ─── */
+        .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        @media (max-width: 540px) { .check-grid { grid-template-columns: 1fr; } }
+
+        .check-card {
+            padding: 14px 16px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            transition: border-color .2s, background .2s;
+        }
+        .check-card.ok { border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.06); }
+        .check-card.bad { border-color: rgba(251,113,133,0.35); background: rgba(251,113,133,0.06); }
+        .check-card.neutral { border-color: var(--border); }
+        .check-card-label { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .check-card-label .status-dot {
+            width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot { 0%, 100% { opacity:1; } 50% { opacity:.5; } }
+        .dot-ok { background: var(--emerald); box-shadow: 0 0 6px var(--emerald); }
+        .dot-bad { background: var(--rose); box-shadow: 0 0 6px var(--rose); }
+        .dot-neutral { background: var(--text-muted); animation: none; }
+        .check-card-sub { font-size: 11.5px; color: var(--text-secondary); margin-top: 4px; padding-left: 15px; }
+
+        /* Extensions chips */
+        .ext-wrap {
+            padding: 16px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border); background: var(--surface2);
+            margin-bottom: 14px;
+        }
+        .ext-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .chip {
+            font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+            letter-spacing: .02em;
+        }
+        .chip.ok { background: rgba(52,211,153,0.12); color: var(--emerald); border: 1px solid rgba(52,211,153,0.25); }
+        .chip.bad { background: rgba(251,113,133,0.12); color: var(--rose); border: 1px solid rgba(251,113,133,0.25); }
+
+        /* ─── Alert boxes ─── */
+        .alert {
+            padding: 14px 16px; border-radius: var(--radius-sm);
+            border: 1px solid; font-size: 13px; margin-bottom: 14px;
+        }
+        .alert.warn { border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.06); color: #fde68a; }
+        .alert.danger { border-color: rgba(251,113,133,.3); background: rgba(251,113,133,.06); color: #fecdd3; }
+        .alert.success { border-color: rgba(52,211,153,.3); background: rgba(52,211,153,.06); color: #a7f3d0; }
+        .alert.info { border-color: rgba(56,189,248,.25); background: rgba(56,189,248,.06); color: #bae6fd; }
+        .alert-title { font-weight: 700; margin-bottom: 4px; }
+        .alert ul { padding-left: 18px; margin-top: 6px; line-height: 1.8; }
+
+        /* ─── Form ─── */
+        .field-group { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 540px) { .field-row { grid-template-columns: 1fr; } }
+
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 13px; font-weight: 600; color: #cbd5e1; }
+        .field .hint { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+
+        input[type="text"], input[type="password"], input[type="number"] {
+            width: 100%; padding: 10px 14px;
+            background: rgba(5, 15, 30, 0.8);
+            border: 1px solid rgba(51, 82, 118, 0.7);
+            border-radius: var(--radius-sm); color: #fff;
+            font-size: 14px; font-family: inherit;
+            outline: none; transition: border-color .2s, box-shadow .2s;
+        }
+        input:focus {
+            border-color: var(--sky);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+        }
+        input::placeholder { color: var(--text-muted); }
+        input.error { border-color: var(--rose); }
+
+        /* ─── Divider ─── */
+        .divider {
+            border: none; border-top: 1px solid var(--border);
+            margin: 24px 0;
+        }
+
+        /* ─── Buttons ─── */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 11px 22px; border-radius: var(--radius-sm);
+            font-size: 14px; font-weight: 700; font-family: inherit;
+            border: none; cursor: pointer;
+            transition: all .2s ease; text-decoration: none;
+        }
+        .btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            color: #fff;
+            box-shadow: 0 4px 18px rgba(14,165,233,0.3);
+        }
+        .btn-primary:hover { background: linear-gradient(135deg, #38bdf8, #0ea5e9); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(14,165,233,0.4); }
+
+        .btn-success {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #fff;
+            box-shadow: 0 4px 18px rgba(5,150,105,0.3);
+        }
+        .btn-success:hover { background: linear-gradient(135deg, #34d399, #059669); transform: translateY(-1px); }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .btn-ghost:hover { border-color: var(--text-secondary); color: var(--text); }
+
+        .btn-outline-sky {
+            background: var(--sky-dim);
+            border: 1px solid rgba(56,189,248,.3);
+            color: var(--sky);
+        }
+        .btn-outline-sky:hover { background: rgba(56,189,248,.2); border-color: var(--sky); }
+
+        .btn-full { width: 100%; }
+        .btn-row { display: flex; gap: 10px; margin-top: 24px; }
+        .btn-row .btn-ghost { flex: 0 0 120px; }
+        .btn-row .main-btn { flex: 1; }
+
+        /* ─── Spinner ─── */
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,.2);
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ─── Code block ─── */
+        .code-block {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(56,189,248,.2);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 12.5px; color: #93c5fd;
+            position: relative; overflow-x: auto;
+            white-space: pre;
+            margin-bottom: 12px;
+        }
+        .copy-btn {
+            position: absolute; top: 10px; right: 10px;
+            background: rgba(56,189,248,.15); border: 1px solid rgba(56,189,248,.25);
+            color: var(--sky); font-size: 11px; font-weight: 600; padding: 3px 10px;
+            border-radius: 6px; cursor: pointer; font-family: inherit;
+            transition: background .2s;
+        }
+        .copy-btn:hover { background: rgba(56,189,248,.3); }
+
+        /* ─── Redis test panel ─── */
+        .redis-panel {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 18px;
+            background: var(--surface2);
+            margin-bottom: 14px;
+        }
+
+        /* ─── Nginx preview ─── */
+        .nginx-preview {
+            border: 1px solid rgba(99,102,241,.3);
+            border-radius: var(--radius-sm);
+            overflow: hidden; margin-bottom: 14px;
+        }
+        .nginx-header {
+            padding: 10px 16px;
+            background: rgba(99,102,241,.1);
+            border-bottom: 1px solid rgba(99,102,241,.2);
+            font-size: 12px; font-weight: 700; color: #a5b4fc;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        /* ─── Checkbox ─── */
+        .checkbox-label {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 14px 16px; border-radius: var(--radius-sm);
+            border: 1px solid rgba(251,191,36,.25);
+            background: rgba(251,191,36,.05);
+            cursor: pointer; font-size: 13px; color: #fde68a;
+            transition: background .2s;
+        }
+        .checkbox-label:hover { background: rgba(251,191,36,.08); }
+        .checkbox-label input[type="checkbox"] {
+            width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px;
+            accent-color: var(--amber); cursor: pointer;
+        }
+
+        /* ─── Success page ─── */
+        .success-icon {
+            width: 72px; height: 72px; margin: 0 auto 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, rgba(52,211,153,0.3), rgba(52,211,153,0.05));
+            border: 2px solid rgba(52,211,153,.3);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px;
+            animation: success-pop .5s cubic-bezier(.34,1.56,.64,1) both;
+        }
+        @keyframes success-pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .cmd-card {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            margin-bottom: 10px;
+        }
+        .cmd-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px; color: #93c5fd;
+        }
+
+        .env-tag {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+            letter-spacing: .05em;
+        }
+        .env-tag.systemd { background: rgba(99,102,241,.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,.3); }
+        .env-tag.pagoda { background: rgba(14,165,233,.15); color: var(--sky); border: 1px solid rgba(14,165,233,.3); }
+        .env-tag.docker { background: rgba(6,182,212,.15); color: #67e8f9; border: 1px solid rgba(6,182,212,.3); }
+        .env-tag.manual { background: rgba(100,116,139,.15); color: #94a3b8; border: 1px solid rgba(100,116,139,.3); }
+
+        /* ─── Loading skeleton ─── */
+        .skeleton-box {
+            background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 6px;
+        }
+        @keyframes shimmer { to { background-position: -200% 0; } }
+
+        /* ─── Fade transition ─── */
+        .fade-enter-active, .fade-leave-active { transition: opacity .25s, transform .25s; }
+        .fade-enter-from { opacity: 0; transform: translateY(6px); }
+        .fade-leave-to { opacity: 0; transform: translateY(-6px); }
+
+        /* ─── Protocol toggle ─── */
+        .proto-warning {
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(251,191,36,.3);
+            background: rgba(251,191,36,.06);
+            font-size: 12.5px; color: #fde68a;
+            display: flex; gap: 8px; align-items: flex-start;
+            margin-top: 8px;
+        }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-10">
-<main id="app" class="mx-auto max-w-3xl">
-    <section class="panel rounded-2xl overflow-hidden">
-        <header class="border-b border-slate-700 p-6 md:p-8">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <p class="text-xs font-bold tracking-[.2em] text-sky-400">CXPAY SETUP</p>
-                    <h1 class="mt-2 text-2xl font-bold text-white">新手友好安装向导</h1>
-                    <p class="mt-2 text-sm leading-6 text-slate-400">只需确认服务器环境、填写数据库和管理员信息。安装器会自动生成安全密钥、初始化数据表并锁定安装入口。</p>
-                </div>
-                <span class="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-300">第 {{ step }} / 3 步</span>
-            </div>
-            <div class="mt-6 flex gap-2">
-                <div v-for="number in 3" :key="number" class="h-1 flex-1 rounded" :class="number <= step ? 'bg-sky-400' : 'bg-slate-700'"></div>
-            </div>
-        </header>
+<body>
+<div class="wrap" id="app">
 
-        <div class="p-6 md:p-8">
-            <template v-if="step === 1">
-                <div class="flex items-center justify-between gap-3">
-                    <div>
-                        <h2 class="text-lg font-bold text-white">1. 自动检查服务器</h2>
-                        <p class="mt-1 text-sm text-slate-400">必须全部通过才会允许安装，避免安装到一半失败。</p>
-                    </div>
-                    <button @click="checkEnvironment" :disabled="checking" class="rounded-lg border border-sky-500/50 px-3 py-2 text-sm text-sky-300 disabled:opacity-50">{{ checking ? '检测中…' : '重新检测' }}</button>
-                </div>
-
-                <div v-if="checkError" class="mt-5 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">{{ checkError }}</div>
-                <div v-else-if="checking" class="py-12 text-center text-slate-400">正在检测 PHP、扩展、依赖、目录权限与运行模式…</div>
-                <template v-else>
-                    <div class="mt-6 grid gap-3 md:grid-cols-2">
-                        <div class="rounded-xl border p-4" :class="env.php_ok ? okClass : badClass">
-                            <p class="font-semibold">PHP {{ env.php_version || '未检测到' }}</p>
-                            <p class="mt-1 text-xs opacity-80">要求 PHP 8.1 或更高</p>
-                        </div>
-                        <div class="rounded-xl border p-4" :class="env.autoload_ready ? okClass : badClass">
-                            <p class="font-semibold">Composer 依赖</p>
-                            <p class="mt-1 text-xs opacity-80">{{ env.autoload_ready ? 'vendor 依赖已就绪' : '未检测到 vendor/autoload.php' }}</p>
-                        </div>
-                        <div class="rounded-xl border p-4" :class="env.all_perms_ok ? okClass : badClass">
-                            <p class="font-semibold">文件写入权限</p>
-                            <p class="mt-1 text-xs opacity-80">.env、runtime、runtime/logs、安装锁目录</p>
-                        </div>
-                        <div class="rounded-xl border p-4" :class="env.webman_process ? okClass : badClass">
-                            <p class="font-semibold">Webman 常驻进程</p>
-                            <p class="mt-1 text-xs opacity-80">{{ env.webman_process ? '当前由 Webman 处理请求' : '检测到 PHP-FPM；请改为 Nginx 反向代理' }}</p>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 rounded-xl border border-slate-700 bg-slate-950/40 p-4">
-                        <p class="text-sm font-semibold text-white">PHP 扩展</p>
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <span v-for="(loaded, name) in env.extensions" :key="name" class="rounded-full px-2.5 py-1 text-xs" :class="loaded ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'">{{ loaded ? '✓' : '×' }} {{ name }}</span>
-                        </div>
-                    </div>
-
-                    <div v-if="env.installed" class="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
-                        此站点已有安装锁。网页安装器只允许用于全新空库；升级旧站请使用部署文档中的数据库补丁流程。
-                    </div>
-                    <div v-if="env.fix_hints && env.fix_hints.length" class="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
-                        <p class="font-semibold">需要处理后再继续：</p>
-                        <ul class="mt-2 list-disc space-y-1 pl-5"><li v-for="hint in env.fix_hints" :key="hint">{{ hint }}</li></ul>
-                    </div>
-
-                    <button @click="step = 2" :disabled="!env.can_install" class="mt-6 w-full rounded-xl bg-sky-500 px-5 py-3.5 font-bold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">环境通过，继续配置数据库</button>
-                </template>
-            </template>
-
-            <template v-else-if="step === 2">
-                <div>
-                    <h2 class="text-lg font-bold text-white">2. 填写站点与数据库信息</h2>
-                    <p class="mt-1 text-sm text-slate-400">数据库必须是专用的空数据库。安装器会先检测，发现已有表会立即停止，绝不覆盖数据。</p>
-                </div>
-
-                <div class="mt-6 space-y-5">
-                    <label class="block text-sm font-semibold text-slate-200">站点公开访问地址
-                        <input v-model.trim="form.app_url" class="input mt-2" placeholder="https://pay.example.com">
-                        <span class="mt-1 block text-xs font-normal text-slate-500">用于生成支付通知地址；请填写最终已绑定 HTTPS 的域名。</span>
-                    </label>
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <label class="block text-sm font-semibold text-slate-200">数据库主机<input v-model.trim="form.db_host" @input="invalidateDbTest" class="input mt-2" placeholder="127.0.0.1"></label>
-                        <label class="block text-sm font-semibold text-slate-200">数据库端口<input v-model.trim="form.db_port" @input="invalidateDbTest" class="input mt-2" placeholder="3306"></label>
-                    </div>
-                    <label class="block text-sm font-semibold text-slate-200">数据库名称<input v-model.trim="form.db_name" @input="invalidateDbTest" class="input mt-2" placeholder="cxpay"></label>
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <label class="block text-sm font-semibold text-slate-200">数据库用户名<input v-model.trim="form.db_user" @input="invalidateDbTest" class="input mt-2" placeholder="cxpay_user"></label>
-                        <label class="block text-sm font-semibold text-slate-200">数据库密码<input v-model="form.db_pass" @input="invalidateDbTest" type="password" class="input mt-2" autocomplete="new-password"></label>
-                    </div>
-
-                    <button @click="testDatabase" :disabled="testingDb" class="w-full rounded-xl border border-sky-500/50 bg-sky-500/10 px-5 py-3 font-semibold text-sky-200 disabled:opacity-50">{{ testingDb ? '正在检测数据库…' : '先检测数据库连接和空库状态' }}</button>
-                    <div v-if="dbMessage" class="rounded-xl border p-4 text-sm" :class="dbTestOk ? okClass : badClass">{{ dbMessage }}</div>
-
-                    <div class="border-t border-slate-700 pt-5">
-                        <p class="text-sm font-bold text-white">设置管理员账号</p>
-                        <p class="mt-1 text-xs text-slate-500">密码不会回显或保存到浏览器。请使用至少 12 位、含三类字符的强密码。</p>
-                        <div class="mt-3 grid gap-4 md:grid-cols-2">
-                            <label class="block text-sm font-semibold text-slate-200">管理员用户名<input v-model.trim="form.admin_user" class="input mt-2" autocomplete="username"></label>
-                            <label class="block text-sm font-semibold text-slate-200">管理员密码<input v-model="form.admin_pass" type="password" class="input mt-2" autocomplete="new-password"></label>
-                        </div>
-                    </div>
-
-                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
-                        <input v-model="confirmFresh" type="checkbox" class="mt-1 h-4 w-4">
-                        <span>我确认这是一个新站点，所选数据库为专用空库；我了解安装完成后将生成安装锁，不能用于覆盖旧系统。</span>
-                    </label>
-                </div>
-
-                <div class="mt-7 flex gap-3">
-                    <button @click="step = 1" class="w-1/3 rounded-xl border border-slate-600 px-4 py-3 font-semibold text-slate-200">返回</button>
-                    <button @click="installSystem" :disabled="installing || !dbTestOk || !confirmFresh" class="w-2/3 rounded-xl bg-emerald-500 px-4 py-3 font-bold text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">{{ installing ? '正在安全初始化，请勿关闭页面…' : '确认并开始安装' }}</button>
-                </div>
-            </template>
-
-            <template v-else>
-                <div class="text-center">
-                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-3xl text-emerald-300">✓</div>
-                    <h2 class="mt-5 text-2xl font-bold text-white">安装完成</h2>
-                    <p class="mt-2 text-sm leading-6 text-slate-400">安全密钥、管理员密码哈希、数据库表与安装锁均已创建。最后重启服务即可加载新配置。</p>
-                </div>
-                <div class="mt-6 space-y-3 rounded-xl border border-slate-700 bg-slate-950/40 p-5 text-sm">
-                    <p><span class="text-slate-400">1. 在服务器终端执行：</span><code class="ml-2 rounded bg-slate-800 px-2 py-1 text-sky-300">systemctl restart cxpay-webman</code></p>
-                    <p><span class="text-slate-400">2. 确认服务状态：</span><code class="ml-2 rounded bg-slate-800 px-2 py-1 text-sky-300">systemctl status cxpay-webman</code></p>
-                    <p><span class="text-slate-400">3. 登录后台：</span><a :href="result.admin_url" class="ml-2 break-all text-sky-300 underline">{{ result.admin_url }}</a></p>
-                </div>
-                <p class="mt-5 text-center text-xs leading-5 text-amber-200">请妥善保存管理员密码；不要删除 install.lock，不要开放 8787 端口到公网。</p>
-            </template>
+    <!-- Logo row -->
+    <div class="logo-row">
+        <div class="logo-badge">💳</div>
+        <div>
+            <div class="logo-title">CXPAY</div>
+            <div class="logo-sub">聚合支付网关 · 智能安装向导</div>
         </div>
-    </section>
-</main>
+    </div>
+
+    <!-- Main card -->
+    <div class="card">
+
+        <!-- Progress header -->
+        <div class="progress-bar">
+            <div class="step-meta">
+                <div>
+                    <div class="step-label">SETUP · 第 {{ step }} / {{ totalSteps }} 步</div>
+                    <div class="step-title">{{ stepTitles[step - 1] }}</div>
+                    <div class="step-desc">{{ stepDescs[step - 1] }}</div>
+                </div>
+                <div class="step-badge">{{ step }} / {{ totalSteps }}</div>
+            </div>
+            <div class="steps-track">
+                <div v-for="i in totalSteps" :key="i" class="seg"
+                    :class="i < step ? 'done' : i === step ? 'active' : ''"></div>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="card-body">
+
+            <!-- ================================================================
+                 STEP 1: Environment check
+                 ================================================================ -->
+            <template v-if="step === 1">
+                <div class="section-heading">
+                    <div class="icon blue">🖥️</div>
+                    <span>服务器基础环境</span>
+                    <button @click="runEnvCheck" :disabled="envChecking" style="margin-left:auto"
+                        class="btn btn-ghost" style="padding:6px 14px;font-size:12px;">
+                        <div class="spinner" v-if="envChecking"></div>
+                        <span>{{ envChecking ? '检测中…' : '重新检测' }}</span>
+                    </button>
+                </div>
+
+                <!-- Loading skeleton -->
+                <template v-if="envChecking && !env.php_version">
+                    <div class="check-grid">
+                        <div class="check-card neutral" v-for="i in 4" :key="i">
+                            <div class="skeleton-box" style="height:14px;width:70%;"></div>
+                            <div class="skeleton-box" style="height:10px;width:45%;margin-top:8px;"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-box" style="height:80px;border-radius:8px;margin-bottom:14px;"></div>
+                </template>
+
+                <template v-else-if="envError">
+                    <div class="alert danger">
+                        <div class="alert-title">⚠️ 环境检测失败</div>
+                        {{ envError }}
+                    </div>
+                </template>
+
+                <template v-else-if="env.php_version">
+                    <div class="check-grid">
+                        <div class="check-card" :class="env.php_ok ? 'ok' : 'bad'">
+                            <div class="check-card-label">
+                                <div class="status-dot" :class="env.php_ok ? 'dot-ok' : 'dot-bad'"></div>
+                                PHP {{ env.php_version }}
+                            </div>
+                            <div class="check-card-sub">{{ env.php_ok ? '✓ 满足 8.1+ 要求' : '✗ 需要 PHP 8.1 或更高' }}</div>
+                        </div>
+                        <div class="check-card" :class="env.autoload_ready ? 'ok' : 'bad'">
+                            <div class="check-card-label">
+                                <div class="status-dot" :class="env.autoload_ready ? 'dot-ok' : 'dot-bad'"></div>
+                                Composer 依赖
+                            </div>
+                            <div class="check-card-sub">{{ env.autoload_ready ? '✓ vendor/ 已就绪' : '✗ 请执行 composer install' }}</div>
+                        </div>
+                        <div class="check-card" :class="env.all_perms_ok ? 'ok' : 'bad'">
+                            <div class="check-card-label">
+                                <div class="status-dot" :class="env.all_perms_ok ? 'dot-ok' : 'dot-bad'"></div>
+                                文件写入权限
+                            </div>
+                            <div class="check-card-sub">{{ env.all_perms_ok ? '✓ runtime & .env 可写' : '✗ 目录权限不足' }}</div>
+                        </div>
+                        <div class="check-card" :class="env.webman_process ? 'ok' : 'bad'">
+                            <div class="check-card-label">
+                                <div class="status-dot" :class="env.webman_process ? 'dot-ok' : 'dot-bad'"></div>
+                                Webman 常驻进程
+                            </div>
+                            <div class="check-card-sub">{{ env.webman_process ? '✓ Webman 正在处理请求' : '✗ 检测到 PHP-FPM，请改用 Nginx 反代' }}</div>
+                        </div>
+                    </div>
+
+                    <div class="ext-wrap">
+                        <div class="section-heading" style="margin-bottom:0;font-size:13px;">
+                            <div class="icon blue" style="width:24px;height:24px;font-size:12px;">🔌</div>
+                            PHP 扩展
+                        </div>
+                        <div class="ext-chips">
+                            <span v-for="(loaded, name) in env.extensions" :key="name"
+                                class="chip" :class="loaded ? 'ok' : 'bad'">
+                                {{ loaded ? '✓' : '✗' }} {{ name }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div v-if="env.fix_hints && env.fix_hints.length" class="alert warn">
+                        <div class="alert-title">⚙️ 需要处理后才能继续</div>
+                        <ul>
+                            <li v-for="hint in env.fix_hints" :key="hint">{{ hint }}</li>
+                        </ul>
+                    </div>
+
+                    <!-- setup.sh 引导卡片 -->
+                    <div v-if="!env.autoload_ready || !env.all_exts_ok"
+                        style="border:1px solid rgba(99,102,241,.35);background:rgba(99,102,241,.07);border-radius:8px;padding:14px 16px;margin-bottom:14px;font-size:13px;">
+                        <div style="font-weight:700;margin-bottom:8px;color:#a5b4fc;">🚀 一键前置初始化（宝塔专用）</div>
+                        <div style="color:#c7d2fe;margin-bottom:10px;line-height:1.7;">
+                            在宝塔终端进入项目目录，执行以下命令可自动完成：<br>
+                            Composer 安装 + 依赖安装 + 目录权限配置 + Supervisor 配置生成
+                        </div>
+                        <div style="background:rgba(0,0,0,.4);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12.5px;color:#93c5fd;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                            <span>bash setup.sh</span>
+                            <button class="copy-btn" style="position:static;" @click="copy('bash setup.sh')">&#10112; 复制</button>
+                        </div>
+                        <div style="color:#94a3b8;font-size:11.5px;margin-top:8px;">脚本位于项目根目录，会自动检测缺失扩展并给出宝塔面板操作路径。完成后点击左上角「重新检测」刷新状态。</div>
+                    </div>
+
+                    <div v-if="env.installed" class="alert warn">
+                        <div class="alert-title">🔒 已检测到安装锁</div>
+                        当前站点已有 install.lock。安装向导仅用于全新空库；升级旧版请按 DEPLOYMENT.md 执行数据库补丁。
+                    </div>
+                </template>
+
+                <hr class="divider">
+
+                <!-- Redis test sub-section -->
+                <div class="section-heading">
+                    <div class="icon" style="background:rgba(234,179,8,.15);">⚡</div>
+                    <span>Redis 服务连通测试</span>
+                    <span style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:4px;">（可先填好配置，安装时自动写入 .env）</span>
+                </div>
+
+                <div class="redis-panel">
+                    <div class="field-row" style="margin-bottom:12px;">
+                        <div class="field">
+                            <label>Redis 主机</label>
+                            <input type="text" v-model.trim="redis.host" placeholder="127.0.0.1" @input="redisTestResult=null">
+                        </div>
+                        <div class="field">
+                            <label>Redis 端口</label>
+                            <input type="number" v-model.number="redis.port" placeholder="6379" @input="redisTestResult=null">
+                        </div>
+                    </div>
+                    <div class="field-row" style="margin-bottom:14px;">
+                        <div class="field">
+                            <label>Redis 密码 <span style="font-weight:400;color:var(--text-muted);">（无密码留空）</span></label>
+                            <input type="password" v-model="redis.password" autocomplete="new-password" @input="redisTestResult=null">
+                        </div>
+                        <div class="field">
+                            <label>Redis DB 编号</label>
+                            <input type="number" v-model.number="redis.db" placeholder="0" min="0" max="15" @input="redisTestResult=null">
+                        </div>
+                    </div>
+                    <button class="btn btn-outline-sky" @click="testRedis" :disabled="redisTesting" style="width:100%;">
+                        <div class="spinner" v-if="redisTesting"></div>
+                        <span>{{ redisTesting ? '正在连接 Redis…' : '测试 Redis 连接' }}</span>
+                    </button>
+                    <div v-if="redisTestResult" class="alert" :class="redisTestOk ? 'success' : 'danger'" style="margin-top:10px;margin-bottom:0;">
+                        {{ redisTestResult }}
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary btn-full main-btn"
+                        :disabled="!env.can_install"
+                        @click="step = 2">
+                        环境通过，继续配置站点地址
+                        <span>→</span>
+                    </button>
+                </div>
+            </template>
+
+            <!-- ================================================================
+                 STEP 2: Site URL + Nginx preview
+                 ================================================================ -->
+            <template v-else-if="step === 2">
+                <div class="section-heading">
+                    <div class="icon blue">🌐</div>
+                    <span>站点公开地址</span>
+                </div>
+
+                <div class="field" style="margin-bottom:8px;">
+                    <label>站点 URL <span style="color:var(--rose);font-weight:400;">*</span></label>
+                    <input type="text" v-model.trim="form.app_url" placeholder="https://pay.example.com" @input="onUrlChange">
+                    <div class="hint">填写最终绑定 HTTPS 的完整域名，支付回调地址将基于此生成。</div>
+                </div>
+                <div v-if="urlIsHttp" class="proto-warning">
+                    <span>⚠️</span>
+                    <span>当前填写的是 <strong>HTTP</strong> 地址。强烈建议配置 HTTPS，否则支付回调安全性无法保障；生产环境请使用 https://。</span>
+                </div>
+
+                <hr class="divider">
+
+                <!-- Nginx preview -->
+                <div class="section-heading">
+                    <div class="icon purple">📋</div>
+                    <span>Nginx 反向代理配置预览</span>
+                </div>
+                <div class="alert info" style="margin-bottom:12px;">
+                    安装完成后，你需要将此配置粘贴到 Nginx 的 server 块文件中，并执行 <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:4px;">nginx -s reload</code> 生效。
+                </div>
+
+                <div class="nginx-preview">
+                    <div class="nginx-header">
+                        <span>🔧 Nginx 配置 · {{ nginxDomain || 'pay.example.com' }}</span>
+                        <div style="display:flex;gap:6px;">
+                            <button class="copy-btn" @click="copyNginx">{{ nginxCopied ? '✓ 已复制' : '复制' }}</button>
+                            <button class="copy-btn" @click="downloadNginx" style="background:rgba(99,102,241,.2);border-color:rgba(99,102,241,.4);color:#a5b4fc;">&#8659; 下载</button>
+                        </div>
+                    </div>
+                    <div class="code-block" style="border-radius:0;border:none;margin-bottom:0;">{{ nginxConfig }}</div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-ghost" @click="step = 1">← 返回</button>
+                    <button class="btn btn-primary main-btn" :disabled="!form.app_url" @click="step = 3">
+                        确认地址，填写数据库 →
+                    </button>
+                </div>
+            </template>
+
+            <!-- ================================================================
+                 STEP 3: Database + Admin
+                 ================================================================ -->
+            <template v-else-if="step === 3">
+                <div class="section-heading">
+                    <div class="icon green">🗄️</div>
+                    <span>数据库连接</span>
+                </div>
+
+                <div class="field-group">
+                    <div class="field-row">
+                        <div class="field">
+                            <label>数据库主机</label>
+                            <input type="text" v-model.trim="form.db_host" placeholder="127.0.0.1" @input="invalidateDbTest">
+                        </div>
+                        <div class="field">
+                            <label>端口</label>
+                            <input type="number" v-model.trim="form.db_port" placeholder="3306" @input="invalidateDbTest">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>数据库名称 <span style="font-size:11px;color:var(--text-muted);">（不存在会自动创建）</span></label>
+                        <input type="text" v-model.trim="form.db_name" placeholder="cxpay" @input="invalidateDbTest">
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label>数据库用户名</label>
+                            <input type="text" v-model.trim="form.db_user" placeholder="cxpay_user" @input="invalidateDbTest">
+                        </div>
+                        <div class="field">
+                            <label>数据库密码</label>
+                            <input type="password" v-model="form.db_pass" autocomplete="new-password" @input="invalidateDbTest">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-outline-sky btn-full" @click="testDb" :disabled="dbTesting">
+                    <div class="spinner" v-if="dbTesting"></div>
+                    <span>{{ dbTesting ? '正在检测数据库…' : '检测数据库连接与空库状态' }}</span>
+                </button>
+                <div v-if="dbMsg" class="alert" :class="dbTestOk ? 'success' : 'danger'" style="margin-top:10px;">
+                    {{ dbMsg }}
+                </div>
+
+                <hr class="divider">
+
+                <div class="section-heading">
+                    <div class="icon blue">👤</div>
+                    <span>管理员账号</span>
+                </div>
+
+                <div class="field-group">
+                    <div class="field-row">
+                        <div class="field">
+                            <label>管理员用户名</label>
+                            <input type="text" v-model.trim="form.admin_user" autocomplete="username" placeholder="admin">
+                        </div>
+                        <div class="field">
+                            <label>管理员密码 <span style="font-size:11px;color:var(--text-muted);">（≥12位，含大小写+数字+符号）</span></label>
+                            <input type="password" v-model="form.admin_pass" autocomplete="new-password" :class="form.admin_pass && !passStrong ? 'error' : ''">
+                            <div class="hint" v-if="form.admin_pass && !passStrong" style="color:var(--rose);">密码强度不足，请同时包含大写、小写、数字和符号中的至少三类。</div>
+                        </div>
+                    </div>
+                    <div v-if="form.admin_pass && passStrong" class="alert success" style="margin-bottom:0;">
+                        ✓ 密码强度符合要求
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <!-- No-build permission notice -->
+                <div v-if="dbMsg && dbMsg.includes('建库权限')" class="alert warn" style="margin-bottom:16px;">
+                    <div class="alert-title">💡 没有建库权限？</div>
+                    请先在宝塔面板 → 数据库 → 添加数据库，填写数据库名 <code>{{ form.db_name }}</code>，并将"用户名"绑定该数据库，再回来点击检测。
+                </div>
+
+                <label class="checkbox-label" style="margin-bottom:16px;">
+                    <input type="checkbox" v-model="form.confirmFresh">
+                    <span>我确认这是全新站点，所选数据库为专用空库；我了解安装完成后将锁定安装入口，不可覆盖旧系统。</span>
+                </label>
+
+                <div class="btn-row">
+                    <button class="btn btn-ghost" @click="step = 2">← 返回</button>
+                    <button class="btn btn-success main-btn"
+                        :disabled="!dbTestOk || !form.confirmFresh || !passStrong || installing"
+                        @click="doInstall">
+                        <div class="spinner" v-if="installing"></div>
+                        <span>{{ installing ? '正在安全初始化，请勿关闭…' : '✓ 确认并开始安装' }}</span>
+                    </button>
+                </div>
+            </template>
+
+            <!-- ================================================================
+                 STEP 4: Success
+                 ================================================================ -->
+            <template v-else-if="step === 4">
+                <div style="text-align:center;">
+                    <div class="success-icon">✅</div>
+                    <div style="font-size:24px;font-weight:800;margin-bottom:8px;">安装成功！</div>
+                    <div style="color:var(--text-secondary);font-size:14px;max-width:480px;margin:0 auto;">
+                        数据库、随机密钥、管理员账号和安装锁均已写入。按以下步骤完成最后配置后即可登录后台。
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <!-- Env detection result -->
+                <div class="section-heading">
+                    <div class="icon green">🔄</div>
+                    <span>重启 Webman 服务</span>
+                    <span class="env-tag" :class="envInfo.env_type" style="margin-left:auto;">
+                        {{ envLabels[envInfo.env_type] || '手动模式' }}
+                    </span>
+                </div>
+
+                <div class="alert info" style="margin-bottom:16px;">
+                    <strong>.env 配置已更新</strong>，Webman 常驻进程必须重启才能加载新配置。
+                </div>
+
+                <!-- systemd -->
+                <template v-if="envInfo.env_type === 'systemd'">
+                    <div class="cmd-card">
+                        <code class="cmd-text">systemctl restart cxpay-webman</code>
+                        <button class="copy-btn" style="position:static;" @click="copy('systemctl restart cxpay-webman')">复制</button>
+                    </div>
+                    <div class="cmd-card">
+                        <code class="cmd-text">systemctl status cxpay-webman</code>
+                        <button class="copy-btn" style="position:static;" @click="copy('systemctl status cxpay-webman')">复制</button>
+                    </div>
+                </template>
+
+                <!-- systemd_generic -->
+                <template v-else-if="envInfo.env_type === 'systemd_generic'">
+                    <div class="alert warn" style="margin-bottom:12px;">
+                        <div class="alert-title">📋 建议创建 systemd 服务</div>
+                        执行以下命令进行手动重启（也可参考 DEPLOYMENT.md 配置 systemd 开机自启）：
+                    </div>
+                    <div class="cmd-card">
+                        <code class="cmd-text">php start.php stop && php start.php start -d</code>
+                        <button class="copy-btn" style="position:static;" @click="copy('php start.php stop && php start.php start -d')">复制</button>
+                    </div>
+                </template>
+
+                <!-- pagoda -->
+                <template v-else-if="envInfo.env_type === 'pagoda'">
+                    <div class="alert info" style="margin-bottom:12px;">
+                        <div class="alert-title">🔧 宝塔面板重启</div>
+                        在宝塔面板 → 网站 → CXPAY 项目 → PHP 进程管理，点击"重启"；或在终端中执行：
+                    </div>
+                    <div class="cmd-card">
+                        <code class="cmd-text">php start.php stop && php start.php start -d</code>
+                        <button class="copy-btn" style="position:static;" @click="copy('php start.php stop && php start.php start -d')">复制</button>
+                    </div>
+                </template>
+
+                <!-- docker -->
+                <template v-else-if="envInfo.env_type === 'docker'">
+                    <div class="cmd-card">
+                        <code class="cmd-text">docker compose restart cxpay-app</code>
+                        <button class="copy-btn" style="position:static;" @click="copy('docker compose restart cxpay-app')">复制</button>
+                    </div>
+                </template>
+
+                <!-- manual -->
+                <template v-else>
+                    <div class="cmd-card">
+                        <code class="cmd-text">php start.php stop && php start.php start -d</code>
+                        <button class="copy-btn" style="position:static;" @click="copy('php start.php stop && php start.php start -d')">复制</button>
+                    </div>
+                </template>
+
+                <!-- Supervisor hint -->
+                <div v-if="envInfo.has_supervisor" class="alert info" style="margin-bottom:16px;">
+                    💡 检测到 Supervisor，也可用 <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:4px;">supervisorctl restart cxpay-webman</code> 重启。
+                </div>
+
+                <hr class="divider">
+
+                <!-- Nginx config reminder -->
+                <div class="section-heading">
+                    <div class="icon purple">📋</div>
+                    <span>Nginx 反向代理（若尚未配置）</span>
+                </div>
+                <div class="alert info" style="margin-bottom:10px;font-size:12.5px;">
+                    宝塔面板：网站 → 目标网站 → 配置文件，将下方内容全部替换粘贴后保存，再点击“重启 Nginx”。或下载 .conf 文件直接上传。
+                </div>
+                <div class="nginx-preview">
+                    <div class="nginx-header">
+                        <span>🔧 Nginx 配置 · {{ nginxDomain }}</span>
+                        <div style="display:flex;gap:6px;">
+                            <button class="copy-btn" @click="copyNginx">{{ nginxCopied ? '✓ 已复制' : '复制' }}</button>
+                            <button class="copy-btn" @click="downloadNginx" style="background:rgba(99,102,241,.2);border-color:rgba(99,102,241,.4);color:#a5b4fc;">⬇ 下载 .conf</button>
+                        </div>
+                    </div>
+                    <div class="code-block" style="border-radius:0;border:none;margin-bottom:0;">{{ nginxConfig }}</div>
+                </div>
+
+                <hr class="divider">
+
+                <!-- Admin link -->
+                <div class="section-heading">
+                    <div class="icon amber">🔐</div>
+                    <span>登录管理后台</span>
+                </div>
+                <a :href="installResult.admin_url" target="_blank" rel="noopener"
+                    class="btn btn-primary btn-full" style="font-size:15px;padding:13px;">
+                    前往管理后台 →
+                </a>
+                <div class="alert warn" style="margin-top:16px;">
+                    <strong>⚠️ 安全提醒</strong>：请妥善保存管理员密码；不要删除 install.lock；不要将 8787 端口直接暴露到公网。
+                </div>
+            </template>
+
+        </div><!-- /card-body -->
+    </div><!-- /card -->
+</div>
 
 <script>
-const { createApp, ref } = Vue;
+const { createApp, ref, computed } = Vue;
+
 createApp({
     setup() {
-        const step = ref(1), checking = ref(true), checkError = ref(''), testingDb = ref(false), installing = ref(false);
-        const dbTestOk = ref(false), dbMessage = ref(''), confirmFresh = ref(false);
-        const okClass = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200';
-        const badClass = 'border-rose-500/40 bg-rose-500/10 text-rose-200';
-        const env = ref({ extensions: {}, permissions: {}, fix_hints: [], can_install: false });
-        const form = ref({ app_url: window.location.origin, db_host: '127.0.0.1', db_port: '3306', db_name: 'cxpay', db_user: 'root', db_pass: '', admin_user: 'admin', admin_pass: '' });
-        const result = ref({ admin_url: window.location.origin + '/admin_login.html' });
+        const step       = ref(1);
+        const totalSteps = 4;
 
-        async function request(url, body) {
-            const response = await fetch(url, body ? { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body) } : undefined);
-            const text = await response.text();
-            try { return JSON.parse(text); } catch (_) { throw new Error('服务器返回异常，请查看 Webman 运行日志。'); }
+        const stepTitles = [
+            '服务器环境自动检测',
+            '站点地址与 Nginx 配置',
+            '数据库连接与管理员设置',
+            '安装完成',
+        ];
+        const stepDescs = [
+            '自动检测 PHP 版本、必要扩展、目录权限、Webman 进程，并测试 Redis 连通性。',
+            '填写站点公开地址，预览 Nginx 反向代理配置。',
+            '配置数据库连接、管理员账号，确认后开始安装。',
+            '按提示重启服务并配置 Nginx，即可访问后台。',
+        ];
+        const envLabels = {
+            systemd: '⚙️ systemd',
+            systemd_generic: '⚙️ systemd',
+            pagoda: '🌲 宝塔面板',
+            docker: '🐳 Docker',
+            manual: '📦 手动管理',
+        };
+
+        // ── Environment state ──
+        const env         = ref({ extensions: {}, permissions: {}, fix_hints: [], can_install: false });
+        const envError    = ref('');
+        const envChecking = ref(true);
+
+        // ── Redis state ──
+        const redis         = ref({ host: '127.0.0.1', port: 6379, password: '', db: 0 });
+        const redisTesting  = ref(false);
+        const redisTestOk   = ref(false);
+        const redisTestResult = ref(null);
+
+        // ── DB state ──
+        const dbTesting = ref(false);
+        const dbTestOk  = ref(false);
+        const dbMsg     = ref('');
+
+        // ── Install state ──
+        const installing   = ref(false);
+        const installResult = ref({ admin_url: window.location.origin + '/admin_login.html' });
+
+        // ── Env info (for success page) ──
+        const envInfo = ref({ env_type: 'manual', has_supervisor: false });
+
+        // ── Form ──
+        const form = ref({
+            app_url:      window.location.origin,
+            db_host:      '127.0.0.1',
+            db_port:      '3306',
+            db_name:      'cxpay',
+            db_user:      'root',
+            db_pass:      '',
+            admin_user:   'admin',
+            admin_pass:   '',
+            confirmFresh: false,
+        });
+
+        // ── Nginx ──
+        const nginxCopied = ref(false);
+        const nginxDomain = computed(() => {
+            try {
+                const url = new URL(form.value.app_url || 'http://pay.example.com');
+                return url.hostname;
+            } catch { return 'pay.example.com'; }
+        });
+        const urlIsHttp = computed(() => {
+            return form.value.app_url && form.value.app_url.startsWith('http://');
+        });
+        const nginxConfig = computed(() => {
+            const domain = nginxDomain.value || 'pay.example.com';
+            const isHttps = !urlIsHttp.value;
+            if (isHttps) {
+                return `server {
+    listen 80;
+    server_name ${domain};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ${domain};
+
+    ssl_certificate     /etc/letsencrypt/live/${domain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${domain}/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    client_max_body_size 6m;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8787;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto https;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+    }
+}`;
+            } else {
+                return `server {
+    listen 80;
+    server_name ${domain};
+
+    client_max_body_size 6m;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8787;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto http;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+    }
+}`;
+            }
+        });
+
+        // ── Password strength ──
+        const passStrong = computed(() => {
+            const p = form.value.admin_pass;
+            if (p.length < 12 || p.length > 200) return false;
+            let classes = 0;
+            if (/[a-z]/.test(p)) classes++;
+            if (/[A-Z]/.test(p)) classes++;
+            if (/\d/.test(p)) classes++;
+            if (/[^a-zA-Z\d]/.test(p)) classes++;
+            return classes >= 3;
+        });
+
+        // ── HTTP helpers ──
+        async function apiPost(url, body) {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(body),
+            });
+            const text = await resp.text();
+            try { return JSON.parse(text); }
+            catch (_) { throw new Error('服务器返回格式异常，请查看 Webman 运行日志。'); }
         }
-        async function checkEnvironment() {
-            checking.value = true; checkError.value = '';
-            try { const data = await request('/api/install/check'); if (data.code !== 1) throw new Error(data.msg || '环境检测失败'); env.value = data.data; }
-            catch (error) { env.value = { extensions: {}, permissions: {}, fix_hints: [], can_install: false }; checkError.value = error.message; }
-            finally { checking.value = false; }
+        async function apiGet(url) {
+            const resp = await fetch(url);
+            const text = await resp.text();
+            try { return JSON.parse(text); }
+            catch (_) { throw new Error('服务器返回格式异常'); }
         }
-        function invalidateDbTest() { dbTestOk.value = false; dbMessage.value = ''; }
-        async function testDatabase() {
-            testingDb.value = true; dbTestOk.value = false; dbMessage.value = '';
-            try { const data = await request('/api/install/test_db', form.value); dbTestOk.value = data.code === 1; dbMessage.value = data.msg || (dbTestOk.value ? '检测通过' : '检测失败'); }
-            catch (error) { dbMessage.value = error.message; }
-            finally { testingDb.value = false; }
+
+        // ── Env check ──
+        async function runEnvCheck() {
+            envChecking.value = true;
+            envError.value = '';
+            try {
+                const data = await apiGet('/api/install/check');
+                if (data.code !== 1) throw new Error(data.msg || '检测失败');
+                env.value = data.data;
+            } catch (e) {
+                envError.value = e.message;
+                env.value = { extensions: {}, permissions: {}, fix_hints: [], can_install: false };
+            } finally {
+                envChecking.value = false;
+            }
         }
-        async function installSystem() {
+
+        // ── Redis test ──
+        async function testRedis() {
+            redisTesting.value = true;
+            redisTestResult.value = null;
+            try {
+                const data = await apiPost('/api/install/test_redis', {
+                    redis_host: redis.value.host,
+                    redis_port: redis.value.port,
+                    redis_password: redis.value.password,
+                    redis_db: redis.value.db,
+                });
+                redisTestOk.value = data.code === 1;
+                redisTestResult.value = data.msg || (redisTestOk.value ? '连接成功' : '连接失败');
+            } catch (e) {
+                redisTestOk.value = false;
+                redisTestResult.value = e.message;
+            } finally {
+                redisTesting.value = false;
+            }
+        }
+
+        // ── DB invalidate ──
+        function invalidateDbTest() {
+            dbTestOk.value = false;
+            dbMsg.value = '';
+        }
+
+        // ── DB test ──
+        async function testDb() {
+            dbTesting.value = true;
+            dbTestOk.value = false;
+            dbMsg.value = '';
+            try {
+                const data = await apiPost('/api/install/test_db', {
+                    db_host: form.value.db_host,
+                    db_port: form.value.db_port,
+                    db_name: form.value.db_name,
+                    db_user: form.value.db_user,
+                    db_pass: form.value.db_pass,
+                });
+                dbTestOk.value = data.code === 1;
+                dbMsg.value = data.msg || (dbTestOk.value ? '检测通过' : '检测失败');
+            } catch (e) {
+                dbMsg.value = e.message;
+            } finally {
+                dbTesting.value = false;
+            }
+        }
+
+        // ── Install ──
+        async function doInstall() {
             installing.value = true;
             try {
-                const data = await request('/api/install/execute', form.value);
+                const payload = {
+                    ...form.value,
+                    redis_host: redis.value.host,
+                    redis_port: redis.value.port,
+                    redis_password: redis.value.password,
+                    redis_db: redis.value.db,
+                };
+                const data = await apiPost('/api/install/execute', payload);
                 if (data.code !== 1) throw new Error(data.msg || '安装失败');
-                result.value = data.data || result.value; step.value = 3;
-            } catch (error) { alert('安装未完成：' + error.message); }
-            finally { installing.value = false; }
+                if (data.data) installResult.value = { ...installResult.value, ...data.data };
+
+                // Fetch env info for success page
+                try {
+                    const ei = await apiGet('/api/install/env_info');
+                    if (ei.code === 1) envInfo.value = ei.data;
+                } catch (_) {}
+
+                step.value = 4;
+            } catch (e) {
+                alert('安装未完成：' + e.message);
+            } finally {
+                installing.value = false;
+            }
         }
-        checkEnvironment();
-        return { step, checking, checkError, testingDb, installing, dbTestOk, dbMessage, confirmFresh, env, form, result, okClass, badClass, checkEnvironment, invalidateDbTest, testDatabase, installSystem };
+
+        // ── URL change ──
+        function onUrlChange() { nginxCopied.value = false; }
+
+        // ── Copy ──
+        function copy(text) {
+            navigator.clipboard.writeText(text).catch(() => {});
+        }
+        function copyNginx() {
+            navigator.clipboard.writeText(nginxConfig.value).then(() => {
+                nginxCopied.value = true;
+                setTimeout(() => { nginxCopied.value = false; }, 2000);
+            }).catch(() => {});
+        }
+        function downloadNginx() {
+            const domain = nginxDomain.value || 'cxpay';
+            const filename = 'cxpay-' + domain + '.conf';
+            const blob = new Blob([nginxConfig.value], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+        }
+
+        // Init
+        runEnvCheck();
+
+        return {
+            step, totalSteps, stepTitles, stepDescs, envLabels,
+            env, envError, envChecking,
+            redis, redisTesting, redisTestOk, redisTestResult,
+            dbTesting, dbTestOk, dbMsg,
+            installing, installResult,
+            envInfo,
+            form, passStrong,
+            nginxCopied, nginxDomain, urlIsHttp, nginxConfig,
+            runEnvCheck, testRedis, invalidateDbTest, testDb, doInstall,
+            onUrlChange, copy, copyNginx, downloadNginx,
+        };
     }
 }).mount('#app');
 </script>
