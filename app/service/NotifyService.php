@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace app\service;
 
 /**
- * 系统报警通知服务
- * 修复：原版 sendWxPusher / sendDingTalk 均为空实现（直接 return true）
- * 现已实现真实 HTTP 推送逻辑，支持 WxPusher 和 钉钉 Webhook 两个渠道
+ * 系统报警通知服务（已废弃）
+ *
+ * @deprecated 本类已被 AlertNotificationService 完全取代，不再使用。
+ *             AlertNotificationService 从数据库（cx_config）读取配置，支持邮件/企微/Webhook 三渠道，
+ *             并提供 Redis 异步队列与指数退避重试，功能更完善。
+ *             本类保留仅为避免外部代码引用时产生类未定义错误，后续可在确认无引用后安全删除。
+ *
+ * @see AlertNotificationService
  */
 class NotifyService
 {

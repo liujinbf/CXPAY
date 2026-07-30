@@ -106,6 +106,23 @@ class NotifyController
             return false;
         }
 
+        // 防御：对来源 IP 限速，每分钟最多 10 次加密回调解析，防止构造假 resource 的 DoS 放大攻击。
+        $remoteIp = request()?->getRemoteIp() ?? 'unknown';
+        $rateLimitKey = 'cx:enc_notify_rl:' . md5($cType . $remoteIp);
+        try {
+            $redis = \Webman\Redis\Client::connection();
+            $hits  = (int)$redis->incr($rateLimitKey);
+            if ($hits === 1) {
+                $redis->expire($rateLimitKey, 60);
+            }
+            if ($hits > 10) {
+                error_log('[NotifyController] 加密回调限速触发 cType=' . $cType . ' ip=' . $remoteIp);
+                return false;
+            }
+        } catch (\Throwable) {
+            // Redis 不可用时降级放行，保证正常业务不受影响
+        }
+
         $channels = Channel::where('c_type', $cType)
             ->where('status', 1)
             ->limit(100)

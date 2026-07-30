@@ -12,6 +12,7 @@ use app\service\OrderService;
 use app\service\AlertNotificationService;
 use app\payment\PaymentManager;
 use support\Authcode;
+use support\AuditLog;
 use Illuminate\Database\Capsule\Manager as DB;
 use Exception;
 use support\LoginRateLimiter;
@@ -134,39 +135,98 @@ class AdminController
 
     /**
      * 获取全网统计概览数据与系统实时性能监控指标
+     * 统计数据使用 Redis 缓存 30 秒，避免大数据量下频繁全表扫描。
      */
     public function dashboard(\support\Request $request): string
     {
-        $totalOrders = Order::count();
-        $paidOrders  = Order::where('status', 1)->count();
-        $totalAmount = Order::where('status', 1)->sum('amount');
-        $merchantCount = Merchant::count();
-        $activeMerchantCount = Merchant::where('status', 1)->count();
-        $vipMerchantCount = Merchant::where('packvip_id', '>', 0)
-            ->where('packvip_time', '>', time())
-            ->count();
-        $channelCount = Channel::where('status', 1)->count();
-        $onlineChannelCount = Channel::where('status', 1)->where('online_status', 1)->count();
+        $stats = $this->getDashboardStats();
 
-        // 采集硬件与运行进程指标
+        // 采集硬件与运行进程指标（实时，不缓存）
         $systemMetrics = $this->monitorService->getMetrics();
 
         return json_encode([
             'code' => 1,
-            'data' => [
-                'total_amount'   => number_format((float)$totalAmount, 2, '.', ''),
-                'total_orders'   => $totalOrders,
-                'paid_orders'    => $paidOrders,
-                'merchant_count' => $merchantCount,
-                'active_merchant_count' => $activeMerchantCount,
-                'vip_merchant_count' => $vipMerchantCount,
-                'channel_count' => $channelCount,
-                'online_channel_count' => $onlineChannelCount,
-                'success_rate'   => $totalOrders > 0 ? sprintf('%.2f%%', ($paidOrders / $totalOrders) * 100) : '100.00%',
-                'metrics'        => $systemMetrics,
-            ]
+            'data' => array_merge($stats, ['metrics' => $systemMetrics]),
         ], JSON_UNESCAPED_UNICODE);
     }
+
+    /**
+     * 读取/刷新 Dashboard 统计缓存。
+     * 写操作（补单/关单等）应主动调用此方法令缓存失效。
+     */
+    private function getDashboardStats(): array
+    {
+        $cacheKey = 'cx:dashboard_stats';
+        $cacheTtl = 30;
+
+        try {
+            $redis = \Webman\Redis\Client::connection();
+            $cached = $redis->get($cacheKey);
+            if ($cached) {
+                $decoded = json_decode($cached, true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+            }
+        } catch (\Throwable) {
+            $redis = null;
+        }
+
+        // 合并聚合查询减少数据库往返
+        $orderStats = DB::table('cx_order')
+            ->selectRaw('
+                COUNT(*) as total_orders,
+                SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as paid_orders,
+                SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as closed_orders,
+                SUM(CASE WHEN status = 1 THEN amount ELSE 0 END) as total_amount
+            ')
+            ->first();
+
+        $merchantStats = DB::table('cx_merchant')
+            ->selectRaw('
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as active,
+                SUM(CASE WHEN packvip_id > 0 AND packvip_time > ? THEN 1 ELSE 0 END) as vip
+            ', [time()])
+            ->first();
+
+        $channelStats = DB::table('cx_channel')
+            ->selectRaw('
+                SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as enabled,
+                SUM(CASE WHEN status = 1 AND online_status = 1 THEN 1 ELSE 0 END) as online
+            ')
+            ->first();
+
+        $paidOrders   = (int)($orderStats->paid_orders ?? 0);
+        $closedOrders = (int)($orderStats->closed_orders ?? 0);
+        // 成功率 = 已支付 / (已支付 + 已关闭)，剔除仍处于待支付中的订单干扰。
+        $settledOrders = $paidOrders + $closedOrders;
+        $successRate   = $settledOrders > 0
+            ? sprintf('%.2f%%', ($paidOrders / $settledOrders) * 100)
+            : '100.00%';
+
+        $result = [
+            'total_amount'          => number_format((float)($orderStats->total_amount ?? 0), 2, '.', ''),
+            'total_orders'          => (int)($orderStats->total_orders ?? 0),
+            'paid_orders'           => $paidOrders,
+            'merchant_count'        => (int)($merchantStats->total ?? 0),
+            'active_merchant_count' => (int)($merchantStats->active ?? 0),
+            'vip_merchant_count'    => (int)($merchantStats->vip ?? 0),
+            'channel_count'         => (int)($channelStats->enabled ?? 0),
+            'online_channel_count'  => (int)($channelStats->online ?? 0),
+            'success_rate'          => $successRate,
+        ];
+
+        try {
+            if (isset($redis)) {
+                $redis->setex($cacheKey, $cacheTtl, json_encode($result, JSON_UNESCAPED_UNICODE));
+            }
+        } catch (\Throwable) {
+        }
+
+        return $result;
+    }
+
 
     /**
      * 分页获取商户列表，敏感登录哈希与 API 密钥永不下发。
@@ -481,15 +541,19 @@ class AdminController
      */
     public function forceNotifyOrder(\support\Request $request): string
     {
-        $params  = $request->post();
-        $tradeNo = $params['trade_no'] ?? '';
+        $params   = $request->post();
+        $tradeNo  = $params['trade_no'] ?? '';
+        $operator = AuditLog::currentOperator();
+        $ip       = AuditLog::currentIp();
 
         $order = Order::where('trade_no', $tradeNo)->first();
         if (!$order) {
+            AuditLog::record($operator, 'force_pay', ['trade_no' => $tradeNo, 'reason' => '订单不存在'], 'fail', $ip);
             return json_encode(['code' => -1, 'msg' => '订单不存在'], JSON_UNESCAPED_UNICODE);
         }
 
         if ((int)$order->status === 1) {
+            AuditLog::record($operator, 'resend_notify', ['trade_no' => $tradeNo], 'success', $ip);
             return json_encode($this->orderService->resendNotify((string)$order->trade_no), JSON_UNESCAPED_UNICODE);
         }
 
@@ -500,6 +564,13 @@ class AdminController
             (int)$order->channel_id,
             false
         );
+
+        AuditLog::record($operator, 'force_pay', [
+            'trade_no'   => $tradeNo,
+            'amount'     => (string)$order->price,
+            'channel_id' => (int)$order->channel_id,
+        ], $success ? 'success' : 'fail', $ip);
+
         if (!$success) {
             return json_encode(['code' => -1, 'msg' => '补单失败，订单状态不允许核销'], JSON_UNESCAPED_UNICODE);
         }
@@ -522,7 +593,7 @@ class AdminController
             return json_encode(['code' => -1, 'msg' => '主页模板不存在或名称不合法'], JSON_UNESCAPED_UNICODE);
         }
 
-        \illuminate\database\capsule\manager::table('cx_config')
+        DB::table('cx_config')
             ->updateOrInsert(
                 ['name' => 'active_home_template'],
                 ['value' => $templateName]

@@ -40,7 +40,13 @@ class ChannelMonitorService
      */
     public function checkChannelHeartbeats(): array
     {
-        $channels = Channel::all();
+        // 只加载启用/停用通道（排除已物理删除或不相关记录），并限制字段减少内存占用。
+        $channels = Channel::whereIn('status', [0, 1])
+            ->select([
+                'id', 'title', 'c_type', 'pay_category', 'status',
+                'online_status', 'last_heartbeat_time', 'merchant_id',
+            ])
+            ->get();
         $now = time();
         $timeoutThreshold = 60; // 60秒无心跳判为离线
 
@@ -129,7 +135,10 @@ class ChannelMonitorService
         // 十分钟重叠窗口可覆盖短时网络故障或 Worker 重启；账单稳定流水号负责去重。
         $since = $until - 600;
 
-        foreach (Channel::where('status', 1)->get() as $channel) {
+        // 只加载轮询所需字段，避免把加密 config 大字段也拉进内存（config 在循环内按需解密）
+        foreach (Channel::where('status', 1)
+            ->select(['id', 'c_type', 'config', 'online_status'])
+            ->get() as $channel) {
             $cType = (string)$channel->c_type;
             try {
                 if (!PaymentManager::has($cType)
@@ -185,20 +194,25 @@ class ChannelMonitorService
         return $stats;
     }
     /**
-     * 每日凌晨重置通道当日统计（today_money / today_count）
+     * 跨日自动重置通道当日统计（today_money / today_count）
      *
-     * 修复：today_money 无自动重置机制，导致日限额检查在跨日后永久失效
-     * （通道被 PollService 永久过滤，新流量无法进入）
+     * T11 修复：原纯定时任务方案在 Worker 重启或宕机期间会漏跑，导致日限额跨日后永久失效，
+     * 新方案改为按 stats_date 字段做增量判断：只对「上次重置日期 < 今日」的通道执行 UPDATE，
+     * 既可作为定时任务主动调用，也可在心跳巡检等低频逻辑中伴随调用作为兜底自愈手段。
      *
-     * 调用方式：在 config/process.php 中配置 WorkerMan Timer，每日 00:00 调用
+     * stats_date 格式：YYYYMMDD 整数（如 20260731），由 patch_v6.sql 加字段。
      *
-     * @return int 重置的通道数量
+     * @return int 实际重置的通道数量（0 表示今日已重置，无需操作）
      */
     public function resetDailyStats(): int
     {
-        return Channel::query()->update([
-            'today_money' => 0,
-            'today_count' => 0,
-        ]);
+        $today = (int)date('Ymd');
+        return Channel::query()
+            ->where('stats_date', '<', $today)
+            ->update([
+                'today_money' => 0,
+                'today_count' => 0,
+                'stats_date'  => $today,
+            ]);
     }
 }

@@ -45,10 +45,27 @@ class RiskGuardService
 
     /**
      * 智能计算随机上浮金额 (在 pay_float_min ~ pay_float_max 区间内生成随机小数点)
+     *
+     * @param  float  $baseAmount 原始金额（元）
+     * @param  float  $minFloat   最小浮动（元），默认 0.01
+     * @param  float  $maxFloat   最大浮动（元），默认 0.09
+     * @return string 两位小数字符串，使用 bcmath 保证精度
      */
-    public function generateSmartFloatMoney(float $baseAmount, float $minFloat = 0.01, float $maxFloat = 0.09): float
+    public function generateSmartFloatMoney(float $baseAmount, float $minFloat = 0.01, float $maxFloat = 0.09): string
     {
-        $randomCents = mt_rand((int)($minFloat * 100), (int)($maxFloat * 100)) / 100;
-        return round($baseAmount + $randomCents, 2);
+        $minCents = (int)round($minFloat * 100);
+        $maxCents = (int)round($maxFloat * 100);
+
+        // 边界保护：范围为 0 时退化为最小浮动 1 分，确保识别金额有差异化意义
+        if ($minCents <= 0) {
+            $minCents = 1;
+        }
+        if ($maxCents < $minCents) {
+            $maxCents = $minCents;
+        }
+
+        $randomCents = mt_rand($minCents, $maxCents);
+        // 用 bcadd 避免浮点累积误差，保证两位小数精度
+        return bcadd(number_format($baseAmount, 2, '.', ''), number_format($randomCents / 100, 2, '.', ''), 2);
     }
 }

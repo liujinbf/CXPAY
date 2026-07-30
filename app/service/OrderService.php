@@ -115,11 +115,17 @@ class OrderService
         $this->assertChannelReady($selectedChannel);
         $basePrice = $money;
         if (bccomp((string)($merchant->pay_float_max ?? '0.00'), '0.00', 2) > 0) {
-            $basePrice = $this->normalizeMoney($this->riskGuard->generateSmartFloatMoney(
+            $floated = $this->riskGuard->generateSmartFloatMoney(
                 (float)$money,
                 max(0.01, (float)($merchant->pay_float_min ?? 0.01)),
                 max(0.01, (float)($merchant->pay_float_max ?? 0.09))
-            ));
+            );
+            // 浮动后若超出通道单笔上限或低于单笔下限，则回退为原始金额，避免突破通道风控边界。
+            $singleMin = (float)($selectedChannel->single_min ?? 0);
+            $singleMax = (float)($selectedChannel->single_max ?? 0);
+            $floatExceedsMax = $singleMax > 0 && bccomp($floated, number_format($singleMax, 2, '.', ''), 2) > 0;
+            $floatBelowMin  = $singleMin > 0 && bccomp($floated, number_format($singleMin, 2, '.', ''), 2) < 0;
+            $basePrice = ($floatExceedsMax || $floatBelowMin) ? $money : $floated;
         }
 
         $now = time();
