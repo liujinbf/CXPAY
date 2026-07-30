@@ -36,18 +36,23 @@ CXPAY 是基于 PHP 8.1、Webman 2、MySQL 和 Redis 的个人收款码监控网
 - Redis 5+
 - Composer 2
 
-### 宝塔面板部署（小白推荐：全图形化免命令行）
+### 快速部署（一键命令，推荐）
 
-1. **上传代码**：将本项目解压或 `git clone` 到宝塔网站根目录（如 `/www/wwwroot/cs.fcwan.cn`）。
-2. **配置进程守护（守护进程启动）**：
-   - 打开宝塔面板 ➔【软件商店】➔ 搜索并安装 **进程守护进程 (Supervisor)**。
-   - 打开插件 ➔ 点击【添加守护进程】：
-     - **名称**：`CXPAY`
-     - **运行目录**：选择网站根目录（如 `/www/wwwroot/cs.fcwan.cn`）
-     - **启动命令**：`php start.php start`
-   - 点击【确定】，宝塔会自动后台启动程序，并在服务器重启或崩溃时自动关照重启。
-3. **图形化安装向导**：
-   - 浏览器打开 `http://你的域名`（或 `http://127.0.0.1:8787/install`），按照图形化界面填写数据库信息即可完成一键安装！
+在宝塔终端中直接全选复制运行以下命令：
+
+```bash
+cd /www/wwwroot/你的域名 && php start.php stop 2>/dev/null; rm -f runtime/webman.pid && chmod -R 777 runtime/ && php start.php start -d
+```
+
+然后直接打开浏览器访问 `http://你的域名`（例如 `https://cs.fcwan.cn`），即可进入**图形化安装向导**完成最终数据库配置！
+
+---
+
+### 宝塔进程守护配置（可选：适合需要开机自启）
+
+如果希望服务器重启后自动恢复运行，可以在宝塔【软件商店】安装 **进程守护进程 (Supervisor)**，添加守护：
+- **运行目录**：`/www/wwwroot/你的域名`
+- **启动命令**：`php start.php start`
 
 ### 命令行运行（开发者）
 
