@@ -6,11 +6,10 @@ namespace app\controller\api;
 
 use app\model\Merchant;
 use app\model\Order;
-use support\Authcode;
-use support\Sign;
 use support\LoginRateLimiter;
+use support\Authcode;
 use app\service\AlertNotificationService;
-use Exception;
+use app\service\OrderService;
 
 /**
  * 商户后台与商户 API 接口控制器 (包含商户资料、密钥重置、充值与自测下单)
@@ -80,6 +79,9 @@ class MerchantApiController
                     ]
                 ], JSON_UNESCAPED_UNICODE);
             }
+        } else {
+            // 账号不存在或已停用：执行 dummy bcrypt 验证统一响应时间，防止时序旁路枚举账号
+            password_verify($password, '$2y$12$dummyhashfortimingnormalization00000000000000000000000');
         }
 
         return json_encode(['code' => -1, 'msg' => '商户 PID 或登录密码错误'], JSON_UNESCAPED_UNICODE);
@@ -225,38 +227,71 @@ class MerchantApiController
             return json_encode(['code' => 401, 'msg' => '未找到商户信息'], JSON_UNESCAPED_UNICODE);
         }
 
+        $merchantId = (int)$merchant->id;
+        $cacheKey   = 'cx:merchant_dashboard:' . $merchantId;
+        $cacheTtl   = 10; // 10秒缓存，平衡实时性与性能
+
+        // 尝试从 Redis 读取缓存
+        try {
+            $redis  = \Webman\Redis\Client::connection();
+            $cached = $redis->get($cacheKey);
+            if ($cached) {
+                $decoded = json_decode($cached, true);
+                if (is_array($decoded)) {
+                    // 余额实时读取，不走缓存（避免余额显示滞后）
+                    $decoded['money'] = number_format((float)($merchant->money ?? 0), 2, '.', '');
+                    return json_encode(['code' => 1, 'data' => $decoded], JSON_UNESCAPED_UNICODE);
+                }
+            }
+        } catch (\Throwable) {
+            $redis = null;
+        }
+
         $todayStart = strtotime(date('Y-m-d 00:00:00'));
 
-        // 今日总成功收款金额和成功笔数
-        $todaySuccessOrders = Order::where('merchant_id', $merchant->id)
+        // 使用 selectRaw 聚合，避免全量对象加载到 PHP 内存
+        $todayStats = \Illuminate\Database\Capsule\Manager::table('cx_order')
+            ->selectRaw(
+                'SUM(CASE WHEN status = 1 AND pay_time >= ? THEN price ELSE 0 END) as today_amount,
+                 SUM(CASE WHEN status = 1 AND pay_time >= ? THEN 1 ELSE 0 END) as today_count,
+                 SUM(CASE WHEN create_time >= ? THEN 1 ELSE 0 END) as today_total',
+                [$todayStart, $todayStart, $todayStart]
+            )
+            ->where('merchant_id', $merchantId)
+            ->first();
+
+        $todayAmount = (float)($todayStats->today_amount ?? 0);
+        $todayCount  = (int)($todayStats->today_count ?? 0);
+        $todayTotal  = (int)($todayStats->today_total ?? 0);
+        $successRate = $todayTotal > 0
+            ? number_format(($todayCount / $todayTotal) * 100, 1)
+            : '100.0';
+
+        // 运行中通道数量（已启用）
+        $runningChannelsCount = \app\model\Channel::where('merchant_id', $merchantId)
             ->where('status', 1)
-            ->where('pay_time', '>=', $todayStart)
-            ->get();
-        $todayAmount = (float)$todaySuccessOrders->sum('price');
-        $todayCount  = $todaySuccessOrders->count();
-
-        // 今日总订单数 (含未支付与关闭) 计算成功率
-        $todayTotalOrdersCount = Order::where('merchant_id', $merchant->id)
-            ->where('create_time', '>=', $todayStart)
-            ->count();
-        $successRate = $todayTotalOrdersCount > 0 ? number_format(($todayCount / $todayTotalOrdersCount) * 100, 1) : '100.0';
-
-        // 运行中（已启用且在线）的通道数量
-        $runningChannelsCount = \app\model\Channel::where('merchant_id', $merchant->id)
-            ->where('status', 1)
             ->count();
 
-        return json_encode([
-            'code' => 1,
-            'data' => [
-                'today_amount'           => number_format($todayAmount, 2, '.', ''),
-                'today_count'            => $todayCount,
-                'today_success_rate'     => $successRate,
-                'running_channel_count' => $runningChannelsCount,
-                'money'                  => number_format((float)($merchant->money ?? 0), 2, '.', ''),
-                'rate'                   => (float)($merchant->rate ?? 0.02),
-            ]
-        ], JSON_UNESCAPED_UNICODE);
+        $data = [
+            'today_amount'          => number_format($todayAmount, 2, '.', ''),
+            'today_count'           => $todayCount,
+            'today_success_rate'    => $successRate,
+            'running_channel_count' => $runningChannelsCount,
+            'money'                 => number_format((float)($merchant->money ?? 0), 2, '.', ''),
+            'rate'                  => (float)($merchant->rate ?? 0.02),
+        ];
+
+        // 写入缓存（余额字段不缓存，每次实时读取）
+        try {
+            if (isset($redis)) {
+                $cacheData = $data;
+                unset($cacheData['money']); // 余额实时，不缓存
+                $redis->setex($cacheKey, $cacheTtl, json_encode($cacheData, JSON_UNESCAPED_UNICODE));
+            }
+        } catch (\Throwable) {
+        }
+
+        return json_encode(['code' => 1, 'data' => $data], JSON_UNESCAPED_UNICODE);
     }
 
     /**
@@ -347,4 +382,60 @@ class MerchantApiController
             'msg'  => $ok ? '测试通知已发送，请检查接收端' : '发送失败，请检查配置是否正确',
         ], JSON_UNESCAPED_UNICODE);
     }
+    /**
+     * 商户主动重发已支付订单的异步通知
+     *
+     * POST /api/merchant/order/resend_notify
+     * Body: { trade_no: "CXxxxxxxxxxx" }
+     *
+     * 安全策略：
+     *   - 订单必须属于当前登录商户
+     *   - 订单状态必须为已支付（status=1）
+     *   - 同一订单每小时最多重发 3 次（Redis 限频）
+     */
+    public function resendOrderNotify(\support\Request $request): string
+    {
+        $merchant = $this->currentMerchant($request);
+        if (!$merchant) {
+            return json_encode(['code' => 401, 'msg' => '未登录'], JSON_UNESCAPED_UNICODE);
+        }
+
+        $tradeNo = trim((string)($request->post('trade_no') ?? ''));
+        if ($tradeNo === '' || !preg_match('/^[A-Za-z0-9_-]{1,64}$/', $tradeNo)) {
+            return json_encode(['code' => -1, 'msg' => 'trade_no 格式不合法'], JSON_UNESCAPED_UNICODE);
+        }
+
+        // 验证订单属于当前商户
+        $order = Order::where('trade_no', $tradeNo)
+            ->where('merchant_id', $merchant->id)
+            ->first();
+        if (!$order) {
+            return json_encode(['code' => -1, 'msg' => '订单不存在或无权操作'], JSON_UNESCAPED_UNICODE);
+        }
+        if ((int)$order->status !== 1) {
+            return json_encode(['code' => -1, 'msg' => '仅已支付订单可重发通知'], JSON_UNESCAPED_UNICODE);
+        }
+
+        // Redis 限频：单订单每小时最多 3 次
+        try {
+            $redis    = \Webman\Redis\Client::connection();
+            $limitKey = 'cx:resend_limit:' . $tradeNo;
+            $count    = (int)$redis->get($limitKey);
+            if ($count >= 3) {
+                return json_encode([
+                    'code' => -1,
+                    'msg'  => '该订单本小时内已重发 3 次，请下一小时后再试',
+                ], JSON_UNESCAPED_UNICODE);
+            }
+            $redis->incr($limitKey);
+            $redis->expire($limitKey, 3600); // 1 小时过期
+        } catch (\Throwable $e) {
+            // Redis 不可用时不限制重发（fail-open）
+            error_log('[MerchantApiController] 重发限频 Redis 不可用: ' . $e->getMessage());
+        }
+
+        $result = (new OrderService())->resendNotify($tradeNo);
+        return json_encode($result, JSON_UNESCAPED_UNICODE);
+    }
 }
+

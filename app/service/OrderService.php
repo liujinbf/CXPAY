@@ -63,6 +63,9 @@ class OrderService
             throw new RuntimeException('签名校验失败，请检查对接密钥');
         }
 
+        // ── 商户级下单限频（滑动窗口：60s / 30次）────────────────────
+        $this->enforceOrderRateLimit((int)$merchant->id);
+
         $outTradeNo = trim((string)($params['out_trade_no'] ?? ''));
         $notifyUrl = trim((string)($params['notify_url'] ?? ''));
         $returnUrl = trim((string)($params['return_url'] ?? ''));
@@ -171,6 +174,17 @@ class OrderService
                 throw new RuntimeException('支付通道状态已变化，请重新下单');
             }
 
+            // 事务内用最新数据（已加排他锁）做日限额二次校验，消除并发超限竞态
+            if ((float)($lockedChannel->day_max ?? 0) > 0
+                && bccomp(
+                    bcadd((string)($lockedChannel->today_money ?? '0'), $money, 2),
+                    number_format((float)$lockedChannel->day_max, 2, '.', ''),
+                    2
+                ) > 0) {
+                throw new RuntimeException('当前通道今日收款额度已满，请稍后重试或更换通道');
+            }
+
+
             $finalPrice = $basePrice;
             $priceAvailable = false;
             for ($attempt = 0; $attempt < 100; $attempt++) {
@@ -192,7 +206,12 @@ class OrderService
             $fee = '0.00';
             $feeStatus = 0;
             if ($businessType === 'payment') {
-                $fee = bcmul($money, (string)($lockedMerchant->rate ?? '0.02'), 2);
+                // 差异化费率：优先按支付类型从 rate_config 取费率，不存在则回退全局 rate
+                $rateConfig = json_decode((string)($lockedMerchant->rate_config ?? ''), true);
+                $effectiveRate = (is_array($rateConfig) && isset($rateConfig[$type]))
+                    ? (string)$rateConfig[$type]
+                    : (string)($lockedMerchant->rate ?? '0.02');
+                $fee = bcmul($money, $effectiveRate, 2);
                 $before = $this->normalizeMoney($lockedMerchant->money);
                 if (bccomp($before, $fee, 2) < 0) {
                     throw new RuntimeException("商户余额不足（需手续费 ¥{$fee}），请先充值");
@@ -318,7 +337,13 @@ class OrderService
                     } else {
                         // 兼容迁移前创建的旧订单：没有预占记录时在核销阶段扣费。
                         if (bccomp($fee, '0.00', 2) === 0) {
-                            $fee = bcmul((string)$order->amount, (string)($merchant->rate ?? '0.02'), 2);
+                            // 差异化费率：优先读取 rate_config，与建单逻辑保持一致
+                            $rateConfigLegacy = json_decode((string)($merchant->rate_config ?? ''), true);
+                            $payType = (string)($order->pay_type ?? '');
+                            $effectiveRateLegacy = (is_array($rateConfigLegacy) && isset($rateConfigLegacy[$payType]))
+                                ? (string)$rateConfigLegacy[$payType]
+                                : (string)($merchant->rate ?? '0.02');
+                            $fee = bcmul((string)$order->amount, $effectiveRateLegacy, 2);
                         }
                         $change = bccomp($fee, '0.00', 2) > 0 ? '-' . $fee : '0.00';
                         $after = bcsub($before, $fee, 2);
@@ -528,28 +553,46 @@ class OrderService
             $channel = null;
         }
 
+        // 主通道不可用时，尝试 fallback_channel_id（主备通道自动故障转移）
         if (!$channel
             || !PaymentManager::has((string)$channel->c_type)
             || !$this->riskGuard->validateRisk($channel, $money)) {
-            // T12：回退选通道改用权重加权随机，与 PollService::weightedRandom 算法一致，
-            // 避免全部流量压向权重最高的单一通道（原 orderBy+first 行为）。
-            $candidates = Channel::where(function ($query) use ($merchantId) {
-                    $query->where('merchant_id', $merchantId)->orWhere('merchant_id', 0);
-                })
-                ->where(function ($query) use ($type) {
-                    $query->where('c_type', 'LIKE', $type . '%')->orWhere('pay_category', $type);
-                })
-                ->where('status', 1)
-                ->where('online_status', 1)
-                ->get()
-                ->filter(fn(Channel $candidate) => PaymentManager::has((string)$candidate->c_type)
-                    && $this->riskGuard->validateRisk($candidate, $money))
-                ->values()
-                ->all();
 
-            $channel = !empty($candidates)
-                ? $this->pollService->weightedRandom($candidates)
-                : null;
+            $fallback = null;
+            if ($channel && (int)($channel->fallback_channel_id ?? 0) > 0) {
+                $fallbackCandidate = Channel::find((int)$channel->fallback_channel_id);
+                if ($fallbackCandidate
+                    && (int)$fallbackCandidate->status === 1
+                    && (int)$fallbackCandidate->online_status === 1
+                    && PaymentManager::has((string)$fallbackCandidate->c_type)
+                    && $this->riskGuard->validateRisk($fallbackCandidate, $money)) {
+                    $fallback = $fallbackCandidate;
+                }
+            }
+
+            if ($fallback) {
+                $channel = $fallback;
+            } else {
+                // T12：兜底改用权重加权随机，与 PollService::weightedRandom 算法一致，
+                // 避免全部流量压向权重最高的单一通道（原 orderBy+first 行为）。
+                $candidates = Channel::where(function ($query) use ($merchantId) {
+                        $query->where('merchant_id', $merchantId)->orWhere('merchant_id', 0);
+                    })
+                    ->where(function ($query) use ($type) {
+                        $query->where('c_type', 'LIKE', $type . '%')->orWhere('pay_category', $type);
+                    })
+                    ->where('status', 1)
+                    ->where('online_status', 1)
+                    ->get()
+                    ->filter(fn(Channel $candidate) => PaymentManager::has((string)$candidate->c_type)
+                        && $this->riskGuard->validateRisk($candidate, $money))
+                    ->values()
+                    ->all();
+
+                $channel = !empty($candidates)
+                    ? $this->pollService->weightedRandom($candidates)
+                    : null;
+            }
         }
 
         if (!$channel) {
@@ -675,6 +718,45 @@ class OrderService
             } catch (Throwable) {
             }
             throw $e;
+        }
+    }
+
+    /**
+     * 商户级下单限频（Redis 滑动窗口：60秒内最多 30 次）。
+     * Redis 不可用时 fail-open 降级放行，避免缓存故障影响正常支付。
+     *
+     * @throws RuntimeException 超出限频时抛出
+     */
+    private function enforceOrderRateLimit(int $merchantId): void
+    {
+        /** 窗口时长（秒） */
+        $windowSeconds = 60;
+        /** 窗口内最大下单次数 */
+        $maxRequests = 30;
+
+        try {
+            $redis = \Webman\Redis\Client::connection();
+            $now   = (int)(microtime(true) * 1000); // 毫秒时间戳
+            $key   = 'cx:rate_limit:order:' . $merchantId;
+            $windowStart = $now - $windowSeconds * 1000;
+
+            // 移除窗口外的旧成员，加入当前时间戳，统计窗口内请求数
+            $redis->zRemRangeByScore($key, '-inf', (string)$windowStart);
+            $redis->zAdd($key, $now, $now . '_' . random_int(0, 9999));
+            $redis->expire($key, $windowSeconds * 2);
+            $count = $redis->zCard($key);
+
+            if ($count > $maxRequests) {
+                throw new RuntimeException(
+                    "下单频率超限，请稍后再试（单商户每分钟最多 {$maxRequests} 次）"
+                );
+            }
+        } catch (RuntimeException $e) {
+            // 限频异常直接向上抛出
+            throw $e;
+        } catch (\Throwable) {
+            // Redis 故障：fail-open，允许请求继续
+            error_log('[OrderService] 限频 Redis 不可用，降级放行 merchant_id=' . $merchantId);
         }
     }
 

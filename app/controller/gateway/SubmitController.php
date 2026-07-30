@@ -51,8 +51,13 @@ class SubmitController
             // 3. 页面跳转至 H5/PC 自适应收银台
             $cashierUrl = "/cashier/index.html?trade_no={$orderResult['trade_no']}";
             return response("<script>location.href='{$cashierUrl}';</script>");
-        } catch (Throwable $e) {
+        } catch (\RuntimeException $e) {
+            // RuntimeException 为业务主动抛出（验签失败、余额不足等），可安全返回给商户
             return json(['code' => -1, 'msg' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            // 系统级异常（数据库、配置、驱动等）只记录日志，不向外部暴露内部信息
+            error_log('[SubmitController] 系统异常: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            return json(['code' => -1, 'msg' => '支付服务暂时不可用，请稍后重试']);
         }
     }
 

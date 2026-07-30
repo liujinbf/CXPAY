@@ -25,7 +25,10 @@ final class UrlGuard
 
         $scheme = strtolower((string)$parts['scheme']);
         $port = (int)($parts['port'] ?? ($scheme === 'https' ? 443 : 80));
-        if (!in_array($port, [80, 443], true)) {
+
+        // 生产模式仅允许标准 HTTP/HTTPS 端口（80/443），防止 SSRF 探测内部服务。
+        // 开启 allow_private_callbacks 时（通常用于内网/staging 环境）不限制端口。
+        if (!$allowPrivate && !in_array($port, [80, 443], true)) {
             return null;
         }
 

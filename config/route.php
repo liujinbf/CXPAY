@@ -115,8 +115,9 @@ Route::post('/api/merchant/login', [app\controller\api\MerchantApiController::cl
 Route::post('/api/merchant/logout', [app\controller\api\MerchantApiController::class, 'logout']);
 
 // 管理员登录与注销公开 API
-Route::post('/api/admin/login', [app\controller\admin\AdminController::class, 'login']);
-Route::post('/api/admin/logout', [app\controller\admin\AdminController::class, 'logout']);
+Route::post('/api/admin/login',        [app\controller\admin\AdminController::class, 'login']);
+Route::post('/api/admin/login/verify', [app\controller\admin\AdminController::class, 'verifyLoginCode']);
+Route::post('/api/admin/logout',       [app\controller\admin\AdminController::class, 'logout']);
 
 // 商户侧控制台 API
 Route::group('/api/merchant', function () {
@@ -141,7 +142,13 @@ Route::group('/api/merchant', function () {
     Route::get('/alert/config', [app\controller\api\MerchantApiController::class, 'getAlertConfig']);
     Route::post('/alert/config/save', [app\controller\api\MerchantApiController::class, 'saveAlertConfig']);
     Route::post('/alert/test', [app\controller\api\MerchantApiController::class, 'testAlert']);
+    Route::post('/order/resend_notify', [app\controller\api\MerchantApiController::class, 'resendOrderNotify']);
+    // 商户端报表 API
+    Route::get('/report/trend',         [app\controller\api\MerchantReportController::class, 'trend']);
+    Route::get('/report/pay_type_dist', [app\controller\api\MerchantReportController::class, 'payTypeDist']);
+    Route::get('/report/export_csv',    [app\controller\api\MerchantReportController::class, 'exportCsv']);
 })->middleware([app\middleware\MerchantAuthMiddleware::class]);
+
 
 // 管理员后台与插件商城 API
 Route::group('/api/admin', function () {
@@ -196,12 +203,27 @@ Route::group('/api/admin', function () {
     Route::post('/system/do_rollback',   [app\controller\admin\SystemUpdateController::class, 'doRollback']);
 
     // 告警通知配置 API
-    Route::get('/alert/config', [app\controller\admin\AlertConfigController::class, 'getConfig']);
-    Route::post('/alert/config/save', [app\controller\admin\AlertConfigController::class, 'saveConfig']);
-    Route::post('/alert/test', [app\controller\admin\AlertConfigController::class, 'sendTest']);
+    Route::get('/alert/config',        [app\controller\admin\AlertConfigController::class, 'getConfig']);
+    Route::post('/alert/config/save',  [app\controller\admin\AlertConfigController::class, 'saveConfig']);
+    Route::post('/alert/test',         [app\controller\admin\AlertConfigController::class, 'sendTest']);
+
+    // 管理员安全设置 API（二次验证码配置）
+    Route::get('/security/config',       [app\controller\admin\AdminController::class, 'getSecurityConfig']);
+    Route::post('/security/config/save', [app\controller\admin\AdminController::class, 'saveSecurityConfig']);
+    // 管理员报表 API
+    Route::get('/report/trend',        [app\controller\admin\ReportController::class, 'trend']);
+    Route::get('/report/channel_dist', [app\controller\admin\ReportController::class, 'channelDist']);
+    Route::get('/report/merchant_rank',[app\controller\admin\ReportController::class, 'merchantRank']);
+    Route::get('/report/export_csv',   [app\controller\admin\ReportController::class, 'exportCsv']);
 })->middleware([app\middleware\AdminAuthMiddleware::class]);
 
 // 商户开放 API (带签名验证中间件)
 Route::group('/api', function () {
     Route::any('/order/query_signed', [app\controller\api\OrderController::class, 'query']);
 })->middleware([app\middleware\ApiAuthMiddleware::class]);
+
+// 沙箱测试端点（内部用 sandbox_secret 密钥保护，无需登录态）
+Route::group('/api/sandbox', function () {
+    Route::get('/pay',      [app\controller\api\SandboxController::class, 'payPage']);
+    Route::post('/complete',[app\controller\api\SandboxController::class, 'complete']);
+});

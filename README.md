@@ -129,11 +129,9 @@ version|channel_id|device_id|event|pay_type|money(两位小数)|source_bill_id|o
 
 ## 数据库升级
 
-全新安装使用 `database/install.sql`。旧数据库升级前请先完整备份并核对已执行版本；未执行过补丁的旧库应按 `patch_v1.sql`、`patch_v2.sql`、`patch_v3.sql`、`patch_v4.sql`、`patch_v5.sql` 的顺序逐个执行，已经执行过的版本必须跳过，所有补丁都不可重复执行。`v3` 会增加手续费状态、支付出码认领状态和商户订单唯一索引，`v4` 会增加助手账单幂等字段，`v5` 会增加 PC 授权账单源暂存队列。如果历史数据存在重复的 `(merchant_id, out_trade_no)`，需先清理重复记录才能执行 `v3`。
+全新安装使用 `database/install.sql`。旧数据库升级前请先完整备份并核对已执行版本；未执行过补丁的旧库应按 `patch_v1.sql`、`patch_v2.sql`、`patch_v3.sql`、`patch_v4.sql`、`patch_v5.sql`、`patch_v6.sql` 的顺序逐个执行，已经执行过的版本必须跳过，所有补丁都不可重复执行。`v3` 会增加手续费状态、支付出码认领状态和商户订单唯一索引，`v4` 会增加助手账单幂等字段，`v5` 会增加 PC 授权账单源暂存队列，`v6` 会在 `cx_channel` 表中增加 `stats_date` 字段用于跨日统计重置幂等（与 `ChannelMonitorService::resetDailyStats()` 配合使用，防止宕机后日限额永久失效）。如果历史数据存在重复的 `(merchant_id, out_trade_no)`，需先清理重复记录才能执行 `v3`。
 
-升级后，旧订单仍在支付成功时扣除手续费，新订单则在创建时预占手续费并在超时或人工关闭时原路释放。旧商户可以暂时用原 API 密钥完成首次后台登录，系统会立即生成独立密码哈希；建议随后修改登录密码并轮换 API 密钥。
-
-执行 `v5` 后可通过 `SHOW TABLES LIKE 'cx_bill_source_event'` 确认 `cx_bill_source_event` 表已成功创建。
+执行 `v5` 后可通过 `SHOW TABLES LIKE 'cx_bill_source_event'` 确认 `cx_bill_source_event` 表已成功创建。执行 `v6` 后可通过 `SHOW COLUMNS FROM cx_channel LIKE 'stats_date'` 确认 `stats_date` 字段已成功添加。
 
 ## 验证命令
 

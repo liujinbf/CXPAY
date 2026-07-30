@@ -188,31 +188,41 @@ class CallbillService
             return ['success' => false, 'msg' => '账单不存在或已被其他操作处理'];
         }
         $originalStatus = (int)$bill->status;
+
+        // 原子认领：将 status 从 2/3 改为 4（处理中），防止并发复核
         $claimed = Callbill::where('id', $billId)
             ->whereIn('status', [2, 3])
             ->update([
-                'status' => 4,
+                'status'      => 4,
                 'review_note' => mb_substr("{$operator} 正在复核", 0, 255),
             ]);
         if ($claimed !== 1) {
             return ['success' => false, 'msg' => '账单已被其他管理员处理，请刷新列表'];
         }
 
+        // $success = true 时直接 return，不再经过失败回滚路径
+        $result = null;
         try {
-            $bill = Callbill::find($billId);
+            $bill  = Callbill::find($billId);
             $order = Order::where('trade_no', $tradeNo)->first();
             if (!$order || (int)$order->status !== 0) {
-                return ['success' => false, 'msg' => '目标订单不存在或已不是待支付状态'];
-            }
-            if ((int)$order->channel_id !== (int)$bill->channel_id) {
-                return ['success' => false, 'msg' => '账单来源通道与目标订单不一致'];
-            }
-            if (bccomp((string)$order->price, (string)$bill->money, 2) !== 0) {
-                return ['success' => false, 'msg' => '账单金额与目标订单实付金额不一致'];
-            }
-            if ((int)$order->create_time > (int)$bill->occurred_at + 10
+                $result = ['success' => false, 'msg' => '目标订单不存在或已不是待支付状态'];
+            } elseif ((int)$order->channel_id !== (int)$bill->channel_id) {
+                $result = ['success' => false, 'msg' => '账单来源通道与目标订单不一致'];
+            } elseif (bccomp((string)$order->price, (string)$bill->money, 2) !== 0) {
+                $result = ['success' => false, 'msg' => '账单金额与目标订单实付金额不一致'];
+            } elseif ((int)$order->create_time > (int)$bill->occurred_at + 10
                 || (int)$order->expire_time < (int)$bill->occurred_at) {
-                return ['success' => false, 'msg' => '账单发生时间不在目标订单的有效支付窗口内'];
+                $result = ['success' => false, 'msg' => '账单发生时间不在目标订单的有效支付窗口内'];
+            }
+
+            if ($result !== null) {
+                // 前置校验失败，释放认领锁后返回
+                Callbill::where('id', $billId)->where('status', 4)->update([
+                    'status'      => $originalStatus,
+                    'review_note' => mb_substr("{$operator} 复核校验未通过：{$result['msg']}", 0, 255),
+                ]);
+                return $result;
             }
 
             $reviewTradeNo = 'REVIEW_' . $billId;
@@ -224,28 +234,44 @@ class CallbillService
                 true
             );
             if (!$paid) {
+                Callbill::where('id', $billId)->where('status', 4)->update([
+                    'status'      => $originalStatus,
+                    'review_note' => mb_substr("{$operator} 核销失败，订单状态已变化", 0, 255),
+                ]);
                 return ['success' => false, 'msg' => '订单状态已变化或核销失败'];
             }
+
+            // 再次确认本次操作是赢家（防止 markAsPaid 内部并发竞争）
             $settledOrder = Order::find($order->id);
             if (!$settledOrder || !hash_equals($reviewTradeNo, (string)$settledOrder->channel_trade_no)) {
+                // 订单被其他事件抢先核销，将账单状态恢复，不能让此账单凭空消耗掉
+                Callbill::where('id', $billId)->where('status', 4)->update([
+                    'status'      => $originalStatus,
+                    'review_note' => mb_substr("{$operator} 订单已被其他事件抢先核销", 0, 255),
+                ]);
                 return ['success' => false, 'msg' => '订单已由其他到账事件抢先核销，请重新选择订单'];
             }
 
+            // 成功：将账单状态最终写为 1（已匹配）
             Callbill::where('id', $billId)->where('status', 4)->update([
-                'order_id' => (int)$order->id,
-                'trade_no' => (string)$order->trade_no,
-                'status' => 1,
+                'order_id'    => (int)$order->id,
+                'trade_no'    => (string)$order->trade_no,
+                'status'      => 1,
                 'review_note' => mb_substr("{$operator} 人工匹配订单 {$order->trade_no}", 0, 255),
             ]);
             return ['success' => true, 'msg' => '账单人工匹配并核销成功'];
-        } finally {
-            // 失败路径释放处理认领；成功后状态已经变为1，不会被此更新覆盖。
+
+        } catch (Throwable $e) {
+            // 意外异常：释放认领锁，保持账单可重试
+            error_log('[CallbillService] reviewMatch 异常 bill_id=' . $billId . ' ' . $e->getMessage());
             Callbill::where('id', $billId)->where('status', 4)->update([
-                'status' => $originalStatus,
-                'review_note' => mb_substr("{$operator} 复核未完成", 0, 255),
+                'status'      => $originalStatus,
+                'review_note' => mb_substr("{$operator} 复核异常，已自动释放", 0, 255),
             ]);
+            return ['success' => false, 'msg' => '复核处理异常，账单已释放，请重试'];
         }
     }
+
 
     public function ignoreReview(int $billId, string $operator, string $reason): array
     {
