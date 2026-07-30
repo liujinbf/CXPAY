@@ -3,6 +3,8 @@
 use Webman\Route;
 
 // 一键安装向导路由 (自动安装检测与已安装防护)
+// 注意：直接用 file_get_contents 输出 HTML，与 /doc 路由保持一致，
+// 避免 redirect 到静态文件路径因服务器配置差异导致 PageNotFoundException。
 Route::get('/install', function () {
     $lockFile = (string)config('app.install_lock', base_path() . '/install.lock');
     if (file_exists($lockFile)) {
@@ -13,10 +15,16 @@ Route::get('/install', function () {
             <a href="/" style="margin-top:24px;display:inline-block;padding:10px 24px;background:#0284c7;color:#fff;border-radius:12px;text-decoration:none;font-weight:bold;font-size:14px;">&#36820;&#22238;&#32593;&#31449;&#39318;&#39029;</a>
         </div>', 200, ['Content-Type' => 'text/html; charset=utf-8']);
     }
-    return redirect('/install/index.html');
+    $installHtml = base_path() . '/public/install/index.html';
+    $content = file_exists($installHtml) ? file_get_contents($installHtml) : '安装文件缺失，请重新上传。';
+    return response($content, file_exists($installHtml) ? 200 : 500, ['Content-Type' => 'text/html; charset=utf-8']);
 });
+// /install/ 与 /install/index.html 统一收归到 /install 路由，避免静态文件路由 404
 Route::get('/install/', function () {
-    return redirect('/install/index.html');
+    return redirect('/install');
+});
+Route::get('/install/index.html', function () {
+    return redirect('/install');
 });
 Route::any('/api/install/check',      [app\controller\api\InstallController::class, 'check']);
 Route::any('/api/install/test_db',    [app\controller\api\InstallController::class, 'testDb']);

@@ -17,7 +17,9 @@ class IndexController
     {
         $lockFile = (string)config('app.install_lock', base_path() . '/install.lock');
         if (!file_exists($lockFile)) {
-            return redirect('/install/index.html');
+            // 跳转到路由 /install（而非静态文件 /install/index.html），
+            // 防止因服务器配置差异导致 PageNotFoundException 404。
+            return redirect('/install');
         }
 
         $tradeNo = trim((string)($request->get('trade_no') ?? $request->get('flowT') ?? ''));
