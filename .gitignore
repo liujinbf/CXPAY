@@ -1,5 +1,4 @@
-# PHP 依赖与运行时
-/vendor/
+# PHP 运行时
 /runtime/
 /.phpunit.cache/
 
