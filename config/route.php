@@ -15,6 +15,9 @@ Route::get('/install', function () {
     }
     return redirect('/install/index.html');
 });
+Route::get('/install/', function () {
+    return redirect('/install/index.html');
+});
 Route::any('/api/install/check',      [app\controller\api\InstallController::class, 'check']);
 Route::any('/api/install/test_db',    [app\controller\api\InstallController::class, 'testDb']);
 Route::any('/api/install/test_redis', [app\controller\api\InstallController::class, 'testRedis']);
