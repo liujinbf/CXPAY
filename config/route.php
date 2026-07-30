@@ -178,10 +178,7 @@ Route::group('/api/admin', function () {
     Route::post('/poll_group/save', [app\controller\admin\PollGroupController::class, 'save']);
     Route::post('/poll_group/bind', [app\controller\admin\PollGroupController::class, 'bindChannel']);
 
-    // 轮询组 API
-    Route::get('/poll_group/list', [app\controller\admin\PollGroupController::class, 'list']);
-    Route::post('/poll_group/save', [app\controller\admin\PollGroupController::class, 'save']);
-    Route::post('/poll_group/bind', [app\controller\admin\PollGroupController::class, 'bindChannel']);
+
 
     // VIP 套餐 API
     Route::get('/packvip/list', [app\controller\admin\PackvipAdminController::class, 'list']);
