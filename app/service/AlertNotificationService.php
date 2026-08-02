@@ -185,71 +185,64 @@ class AlertNotificationService
         return $sent;
     }
 
-    /** 将事件 + 上下文翻译为可读标题和正文 */
+    /** 将事件 + 上下文翻译为可读标题和正文 (支持自定义模板与变量替换) */
     private function buildMessage(string $event, array $extra): array
     {
         $siteName = $this->getSiteName();
         $now      = date('Y-m-d H:i:s');
 
-        switch ($event) {
-            case 'admin_login':
-                return [
-                    "【{$siteName}】管理员登录通知",
-                    "管理员账号已成功登录。\n\nIP 地址：" . ($extra['ip'] ?? '未知') .
-                    "\n时间：{$now}",
-                ];
-            case 'merchant_login':
-                return [
-                    "【{$siteName}】商户登录通知",
-                    "商户 PID：" . ($extra['pid'] ?? '未知') . " 已登录控制台。\n\n" .
-                    "IP 地址：" . ($extra['ip'] ?? '未知') .
-                    "\n时间：{$now}",
-                ];
-            case 'order_paid':
-                $amount  = $extra['amount'] ?? '0.00';
-                $tradeNo = $extra['trade_no'] ?? '-';
-                $pid     = $extra['pid'] ?? '';
-                $pidLine = $pid ? "\n商户 PID：{$pid}" : '';
-                return [
-                    "【{$siteName}】账单到账通知 ¥{$amount}",
-                    "订单已成功核销到账！\n\n" .
-                    "平台流水号：{$tradeNo}{$pidLine}\n" .
-                    "到账金额：¥{$amount}\n" .
-                    "时间：{$now}",
-                ];
-            case 'channel_offline':
-                return [
-                    "【{$siteName}】⚠️ 通道掉线告警",
-                    "检测到支付通道已掉线，请及时处理！\n\n" .
-                    "通道名称：" . ($extra['channel_title'] ?? '未知') . "\n" .
-                    "通道类型：" . ($extra['c_type'] ?? '未知') . "\n" .
-                    "时间：{$now}",
-                ];
-            case 'order_timeout':
-                return [
-                    "【{$siteName}】订单超时关闭通知",
-                    "订单超时未支付已自动关闭。\n\n" .
-                    "平台流水号：" . ($extra['trade_no'] ?? '-') . "\n" .
-                    "金额：¥" . ($extra['amount'] ?? '0.00') . "\n" .
-                    "时间：{$now}",
-                ];
-            case 'low_balance':
-                $balance   = $extra['balance'] ?? '0.00';
-                $threshold = $extra['threshold'] ?? '0.00';
-                return [
-                    "【{$siteName}】⚠️ 服务费余额不足预警",
-                    "您的商户服务费余额已低于预警阈值！\n\n" .
-                    "当前服务费余额：¥{$balance}\n" .
-                    "预警触发线：¥{$threshold}\n" .
-                    "请及时充值，以免影响订单轮询与正常收款。\n" .
-                    "时间：{$now}",
-                ];
-            default:
-                return [
-                    "【{$siteName}】系统通知",
-                    "事件：{$event}\n时间：{$now}",
-                ];
-        }
+        // 默认预设消息结构
+        $defaults = [
+            'admin_login' => [
+                'title' => "【{$siteName}】管理员登录通知",
+                'body'  => "管理员账号已成功登录。\n\nIP 地址：" . ($extra['ip'] ?? '未知') . "\n时间：{$now}",
+            ],
+            'merchant_login' => [
+                'title' => "【{$siteName}】商户登录通知",
+                'body'  => "商户 PID：" . ($extra['pid'] ?? '未知') . " 已登录控制台。\n\nIP 地址：" . ($extra['ip'] ?? '未知') . "\n时间：{$now}",
+            ],
+            'order_paid' => [
+                'title' => "【{$siteName}】账单到账通知 ¥" . ($extra['amount'] ?? '0.00'),
+                'body'  => "订单已成功核销到账！\n\n平台流水号：" . ($extra['trade_no'] ?? '-') . ($extra['pid'] ?? '' ? "\n商户 PID：" . $extra['pid'] : '') . "\n到账金额：¥" . ($extra['amount'] ?? '0.00') . "\n时间：{$now}",
+            ],
+            'channel_offline' => [
+                'title' => "【{$siteName}】⚠️ 通道掉线告警",
+                'body'  => "检测到支付通道已掉线，请及时处理！\n\n通道名称：" . ($extra['channel_title'] ?? '未知') . "\n通道类型：" . ($extra['c_type'] ?? '未知') . "\n时间：{$now}",
+            ],
+            'order_timeout' => [
+                'title' => "【{$siteName}】订单超时关闭通知",
+                'body'  => "订单超时未支付已自动关闭。\n\n平台流水号：" . ($extra['trade_no'] ?? '-') . "\n金额：¥" . ($extra['amount'] ?? '0.00') . "\n时间：{$now}",
+            ],
+            'low_balance' => [
+                'title' => "【{$siteName}】⚠️ 服务费余额不足预警",
+                'body'  => "您的商户服务费余额已低于预警阈值！\n\n当前服务费余额：¥" . ($extra['balance'] ?? '0.00') . "\n预警触发线：¥" . ($extra['threshold'] ?? '0.00') . "\n请及时充值，以免影响订单轮询与正常收款。\n时间：{$now}",
+            ],
+        ];
+
+        // 尝试读取全局自定义模板
+        $customTmpls = $this->readConfig('admin')['custom_templates'] ?? [];
+        $tmpl = $customTmpls[$event] ?? null;
+
+        $titleTmpl = !empty($tmpl['title']) ? $tmpl['title'] : ($defaults[$event]['title'] ?? "【{$siteName}】系统通知");
+        $bodyTmpl  = !empty($tmpl['body'])  ? $tmpl['body']  : ($defaults[$event]['body']  ?? "事件：{$event}\n时间：{$now}");
+
+        // 变量映射表
+        $vars = [
+            '{site_name}'     => $siteName,
+            '{time}'          => $now,
+            '{ip}'            => (string)($extra['ip'] ?? '127.0.0.1'),
+            '{pid}'           => (string)($extra['pid'] ?? '-'),
+            '{trade_no}'      => (string)($extra['trade_no'] ?? '-'),
+            '{amount}'        => (string)($extra['amount'] ?? '0.00'),
+            '{channel_title}' => (string)($extra['channel_title'] ?? $extra['channel_name'] ?? '未知通道'),
+            '{balance}'       => (string)($extra['balance'] ?? '0.00'),
+            '{threshold}'     => (string)($extra['threshold'] ?? '0.00'),
+        ];
+
+        $title = strtr($titleTmpl, $vars);
+        $body  = strtr($bodyTmpl, $vars);
+
+        return [$title, $body];
     }
 
     // ─────────────────────────── 配置读取工具 ───────────────────────────────
@@ -408,7 +401,12 @@ class AlertNotificationService
             $this->upsertConfig($scope . '_webhook_config', json_encode($hookCfg, JSON_UNESCAPED_UNICODE), '通用 Webhook 通知配置');
         }
 
-        return ['code' => 1, 'msg' => '通知配置已保存'];
+        // 自定义消息模板配置
+        if (array_key_exists('custom_templates', $data) && is_array($data['custom_templates'])) {
+            $this->upsertConfig($scope . '_custom_templates', json_encode($data['custom_templates'], JSON_UNESCAPED_UNICODE), '自定义消息模板配置');
+        }
+
+        return ['code' => 1, 'msg' => '通知与模板配置已成功保存！'];
     }
 
     private function readConfig(string $scope): array
@@ -426,6 +424,7 @@ class AlertNotificationService
             'email_config'          => [],
             'wxwork_config'         => [],
             'webhook_config'        => [],
+            'custom_templates'      => json_decode((string)($rows[$prefix . 'custom_templates'] ?? '{}'), true) ?? [],
         ];
 
         // 邮件配置脱敏返回（不回显密码）

@@ -724,6 +724,21 @@ $ git pull 2>&1
                             </div>
                             <div class="space-y-3 text-xs">
                                 <div>
+                                    <label class="block font-bold text-slate-600 mb-1 flex items-center justify-between">
+                                        <span>快捷选择国内服务商</span>
+                                        <span class="text-[10px] text-blue-600 font-normal">自动填充端口配置</span>
+                                    </label>
+                                    <select onchange="applySmtpPreset(this.value)" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-blue-50/50 font-bold text-blue-900 cursor-pointer">
+                                        <option value="">-- 手动自定义 / 请选择常用邮箱 --</option>
+                                        <option value="qq">QQ 邮箱 (smtp.qq.com - SSL 465)</option>
+                                        <option value="163">163 网易邮箱 (smtp.163.com - SSL 465)</option>
+                                        <option value="126">126 网易邮箱 (smtp.126.com - SSL 465)</option>
+                                        <option value="tencent_biz">腾讯企业邮 / 微信企业邮 (smtp.exmail.qq.com - SSL 465)</option>
+                                        <option value="ali_biz">阿里企业邮 (smtp.mxhichina.com - SSL 465)</option>
+                                        <option value="163_biz">网易企业邮 (smtp.qiye.163.com - SSL 465)</option>
+                                    </select>
+                                </div>
+                                <div>
                                     <label class="block font-bold text-slate-600 mb-1">SMTP 服务器</label>
                                     <input type="text" id="alert-email-host" placeholder="smtp.qq.com" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
                                 </div>
@@ -810,8 +825,128 @@ $ git pull 2>&1
                         </div>
 
                     </div>
-                </div>
 
+                    <!-- 📢 自定义通知消息模板面板 -->
+                    <div class="glass-panel p-6 rounded-2xl space-y-5 border-t-4 border-t-indigo-600 bg-white">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div>
+                                <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="message-square-code" class="w-4.5 h-4.5 text-indigo-600"></i> 📢 自定义通知消息模板配置
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-1">支持为所有系统及商户告警事件配置个性化通知标题与正文模版（留空则恢复全局默认模版）</p>
+                            </div>
+                            <button type="button" onclick="resetAlertTemplatesToDefault()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer">
+                                恢复默认模版
+                            </button>
+                        </div>
+
+                        <!-- 动态通用变量指示提示 -->
+                        <div class="p-3.5 bg-indigo-50/60 rounded-xl border border-indigo-100 text-xs text-indigo-900 space-y-1">
+                            <div class="font-bold flex items-center gap-1"><i data-lucide="info" class="w-4 h-4 text-indigo-600"></i> 可用模板通用占位符变量：</div>
+                            <div class="text-[11px] text-indigo-700 font-mono flex flex-wrap gap-x-3 gap-y-1 pt-1">
+                                <span>{site_name} 站点名称</span>
+                                <span>{time} 事件产生时间</span>
+                                <span>{ip} 客户端IP</span>
+                                <span>{pid} 商户PID</span>
+                                <span>{trade_no} 平台流水号</span>
+                                <span>{amount} 到账金额</span>
+                                <span>{channel_title} 掉线通道</span>
+                                <span>{balance} 账户余额</span>
+                                <span>{threshold} 预警阈值</span>
+                            </div>
+                        </div>
+
+                        <!-- 5 大核心事件模板配置项 -->
+                        <div class="space-y-6 pt-2">
+                            <!-- 1. 通道掉线告警 -->
+                            <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+                                <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-rose-500"></span> 1. 通道掉线告警模版 (channel_offline)
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                                    <div>
+                                        <label class="block font-bold text-slate-600 mb-1">通知标题</label>
+                                        <input type="text" id="template-title-channel_offline" placeholder="【{site_name}】⚠️ 通道掉线告警" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block font-bold text-slate-600 mb-1">通知正文内容</label>
+                                        <textarea id="template-body-channel_offline" rows="3" placeholder="检测到支付通道已掉线，请及时处理！&#10;&#10;通道名称：{channel_title}&#10;时间：{time}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. 账单成功到账 -->
+                            <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+                                <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 2. 账单/订单成功到账模版 (order_paid)
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                                    <div>
+                                        <label class="block font-bold text-slate-600 mb-1">通知标题</label>
+                                        <input type="text" id="template-title-order_paid" placeholder="【{site_name}】账单到账通知 ¥{amount}" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block font-bold text-slate-600 mb-1">通知正文内容</label>
+                                        <textarea id="template-body-order_paid" rows="3" placeholder="订单已成功核销到账！&#10;&#10;平台流水号：{trade_no}&#10;商户 PID：{pid}&#10;到账金额：¥{amount}&#10;时间：{time}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 3. 管理员登录通知 -->
+                            <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+                                <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> 3. 管理员登录安全通知模版 (admin_login)
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                                    <div>
+                                        <label class="block font-bold text-slate-600 mb-1">通知标题</label>
+                                        <input type="text" id="template-title-admin_login" placeholder="【{site_name}】管理员登录通知" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block font-bold text-slate-600 mb-1">通知正文内容</label>
+                                        <textarea id="template-body-admin_login" rows="2" placeholder="管理员账号已成功登录。&#10;&#10;IP 地址：{ip}&#10;时间：{time}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 4. 商户登录通知 -->
+                            <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+                                <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-purple-500"></span> 4. 商户控制台登录模版 (merchant_login)
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                                    <div>
+                                        <label class="block font-bold text-slate-600 mb-1">通知标题</label>
+                                        <input type="text" id="template-title-merchant_login" placeholder="【{site_name}】商户登录通知" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block font-bold text-slate-600 mb-1">通知正文内容</label>
+                                        <textarea id="template-body-merchant_login" rows="2" placeholder="商户 PID：{pid} 已登录控制台。&#10;&#10;IP 地址：{ip}&#10;时间：{time}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 5. 余额不足预警 -->
+                            <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+                                <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-amber-500"></span> 5. 服务费余额不足预警模版 (low_balance)
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                                    <div>
+                                        <label class="block font-bold text-slate-600 mb-1">通知标题</label>
+                                        <input type="text" id="template-title-low_balance" placeholder="【{site_name}】⚠️ 服务费余额不足预警" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block font-bold text-slate-600 mb-1">通知正文内容</label>
+                                        <textarea id="template-body-low_balance" rows="3" placeholder="您的商户服务费余额已低于预警阈值！&#10;&#10;当前服务费余额：¥{balance}&#10;预警触发线：¥{threshold}&#10;请及时充值，以免影响订单轮询与正常收款。&#10;时间：{time}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </main>
     </div>
@@ -2189,13 +2324,59 @@ $ git pull 2>&1
                 const hk = d.webhook_config || {};
                 document.getElementById('alert-webhook-enabled').checked = !!hk.enabled;
                 document.getElementById('alert-webhook-url').value = hk.url || '';
-                document.getElementById('alert-webhook-headers').value = hk.headers || '';
+                // 模板填充
+                const tmpl = d.custom_templates || {};
+                ['channel_offline', 'order_paid', 'admin_login', 'merchant_login', 'low_balance'].forEach(ev => {
+                    const tEl = document.getElementById('template-title-' + ev);
+                    const bEl = document.getElementById('template-body-' + ev);
+                    if (tEl) tEl.value = (tmpl[ev] && tmpl[ev].title) ? tmpl[ev].title : '';
+                    if (bEl) bEl.value = (tmpl[ev] && tmpl[ev].body) ? tmpl[ev].body : '';
+                });
             } catch (e) {
                 console.error('加载告警配置失败', e);
             }
         }
 
+        // 常用国内 SMTP 预设快捷套用
+        function applySmtpPreset(type) {
+            if (!type) return;
+            const presets = {
+                'qq':           { host: 'smtp.qq.com', port: 465, enc: 'ssl' },
+                '163':          { host: 'smtp.163.com', port: 465, enc: 'ssl' },
+                '126':          { host: 'smtp.126.com', port: 465, enc: 'ssl' },
+                'tencent_biz':  { host: 'smtp.exmail.qq.com', port: 465, enc: 'ssl' },
+                'ali_biz':      { host: 'smtp.mxhichina.com', port: 465, enc: 'ssl' },
+                '163_biz':      { host: 'smtp.qiye.163.com', port: 465, enc: 'ssl' },
+            };
+            const p = presets[type];
+            if (p) {
+                document.getElementById('alert-email-host').value = p.host;
+                document.getElementById('alert-email-port').value = p.port;
+                document.getElementById('alert-email-encryption').value = p.enc;
+                showToast(`已成功自动填充 ${type.toUpperCase()} 邮箱服务器及 SSL 465 端口！`);
+            }
+        }
+
+        function resetAlertTemplatesToDefault() {
+            ['channel_offline', 'order_paid', 'admin_login', 'merchant_login', 'low_balance'].forEach(ev => {
+                const tEl = document.getElementById('template-title-' + ev);
+                const bEl = document.getElementById('template-body-' + ev);
+                if (tEl) tEl.value = '';
+                if (bEl) bEl.value = '';
+            });
+            showToast('已清空自定义模版文本，系统将自动复用预设规范模版！');
+        }
+
         async function saveAdminAlertConfig() {
+            const customTemplates = {};
+            ['channel_offline', 'order_paid', 'admin_login', 'merchant_login', 'low_balance'].forEach(ev => {
+                const title = document.getElementById('template-title-' + ev)?.value.trim() || '';
+                const body = document.getElementById('template-body-' + ev)?.value.trim() || '';
+                if (title || body) {
+                    customTemplates[ev] = { title, body };
+                }
+            });
+
             const data = {
                 enabled: document.getElementById('alert-admin-enabled').checked,
                 events: {
@@ -2221,7 +2402,8 @@ $ git pull 2>&1
                     enabled: document.getElementById('alert-webhook-enabled').checked,
                     url: document.getElementById('alert-webhook-url').value.trim(),
                     headers: document.getElementById('alert-webhook-headers').value.trim(),
-                }
+                },
+                custom_templates: customTemplates
             };
 
             try {
@@ -2231,9 +2413,13 @@ $ git pull 2>&1
                     body: JSON.stringify(data),
                 });
                 const payload = await res.json();
-                alert(payload.msg || (payload.code === 1 ? '保存成功' : '保存失败'));
+                if (payload.code === 1) {
+                    showToast(payload.msg || '通知与模版配置保存成功！');
+                } else {
+                    showToast('保存失败: ' + (payload.msg || '未知错误'), 'error');
+                }
             } catch (e) {
-                alert('保存失败: ' + e.message);
+                showToast('保存失败: ' + e.message, 'error');
             }
         }
 
