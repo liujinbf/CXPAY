@@ -112,63 +112,101 @@
                             </h2>
                             <p class="text-xs text-slate-400 mt-1">资金实时直达您的个人账号，平台自动为您完成微浮动去重与自动销账</p>
                         </div>
+                        <button onclick="loadDashboard()" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-600 flex items-center gap-1.5 shadow-sm transition-all">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-500"></i> 刷新数据
+                        </button>
                     </div>
 
+                    <!-- 4组高质感指示卡片 -->
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                        <div class="glass-card p-5 rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-blue-50/30 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                             <div>
                                 <div class="text-xs font-bold text-slate-400">今日成功收款</div>
                                 <div id="dashboard-today-amount" class="text-2xl font-black text-slate-800 mt-1">¥ --</div>
-                                <div id="dashboard-today-count-sub" class="text-[11px] text-emerald-600 mt-1 font-bold">今日交易 0 笔</div>
+                                <div id="dashboard-today-count-sub" class="text-[11px] text-blue-600 mt-1 font-bold">今日交易 0 笔</div>
                             </div>
-                            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
                                 <i data-lucide="wallet" class="w-6 h-6"></i>
                             </div>
                         </div>
 
-                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                        <div class="glass-card p-5 rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-emerald-50/30 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                             <div>
                                 <div class="text-xs font-bold text-slate-400">今日成功笔数</div>
                                 <div id="dashboard-today-count" class="text-2xl font-black text-slate-800 mt-1">0 笔</div>
-                                <div id="dashboard-success-rate" class="text-[11px] text-blue-600 mt-1 font-bold">成功率 100.0%</div>
+                                <div id="dashboard-success-rate" class="text-[11px] text-emerald-600 mt-1 font-bold">成功率 100.0%</div>
                             </div>
-                            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
                                 <i data-lucide="check-square" class="w-6 h-6"></i>
                             </div>
                         </div>
 
-                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                        <div class="glass-card p-5 rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-purple-50/30 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                             <div>
                                 <div class="text-xs font-bold text-slate-400">运行中收款通道</div>
                                 <div id="dashboard-channel-count" class="text-2xl font-black text-slate-800 mt-1">0 个</div>
                                 <div class="text-[11px] text-purple-600 mt-1 font-bold">通道状态正常</div>
                             </div>
-                            <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 text-white flex items-center justify-center shadow-md shadow-purple-500/20">
                                 <i data-lucide="qr-code" class="w-6 h-6"></i>
                             </div>
                         </div>
 
-                        <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                        <div class="glass-card p-5 rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-amber-50/30 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                             <div>
                                 <div class="text-xs font-bold text-slate-400">服务费余额</div>
-                                <div id="dashboard-merchant-balance" class="text-2xl font-black text-emerald-600 mt-1">¥ --</div>
+                                <div id="dashboard-merchant-balance" class="text-2xl font-black text-amber-600 mt-1">¥ --</div>
                                 <div id="dashboard-merchant-rate" class="text-[11px] text-slate-400 mt-1">当前套餐扣率 --</div>
                             </div>
-                            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
                                 <i data-lucide="coins" class="w-6 h-6"></i>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 近7日收款趋势图 -->
-                    <div class="glass-card rounded-2xl p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="text-sm font-extrabold text-slate-700 flex items-center gap-2">
-                                <i data-lucide="trending-up" class="w-4 h-4 text-blue-500"></i> 近7日收款趋势
+                    <!-- 中层：近7日趋势与快速接入指引 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div class="glass-card md:col-span-2 p-5 rounded-2xl border border-slate-200/80">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="trending-up" class="w-4.5 h-4.5 text-blue-600"></i> 近7日收款金额趋势
+                                </div>
+                                <span class="text-[11px] text-slate-400">仅统计已成功支付订单</span>
                             </div>
-                            <span class="text-[11px] text-slate-400">仅统计已成功核销订单</span>
+                            <div id="chart-7days-trend" style="width:100%;height:220px;"></div>
                         </div>
-                        <div id="merchant-trend-chart" style="width:100%;height:220px;"></div>
+
+                        <div class="glass-card p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-4">
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                        <i data-lucide="terminal" class="w-4.5 h-4.5 text-indigo-600"></i> 商户对接接入凭据
+                                    </div>
+                                    <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">API 就绪</span>
+                                </div>
+
+                                <div class="space-y-2.5 text-xs">
+                                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div class="text-[10px] text-slate-400">商户 PID (pid)</div>
+                                        <div id="quick-merchant-pid" class="font-mono font-bold text-blue-600 text-sm mt-0.5">--</div>
+                                    </div>
+
+                                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div class="text-[10px] text-slate-400">统一发起支付网关 (submit.php)</div>
+                                        <div id="quick-submit-url" class="font-mono text-[11px] text-slate-700 truncate mt-0.5">/submit.php</div>
+                                    </div>
+
+                                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div class="text-[10px] text-slate-400">易支付兼容 MAPI</div>
+                                        <div class="font-mono text-[11px] text-slate-700 truncate mt-0.5">/mapi.php</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <a href="/doc" target="_blank" class="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-center text-xs transition-colors flex items-center justify-center gap-1.5">
+                                <i data-lucide="file-text" class="w-4 h-4"></i> 查看商户 API 开发对接文档
+                            </a>
+                        </div>
                     </div>
                 </div>
 
@@ -733,6 +771,10 @@
                 if (gatewayInput) {
                     gatewayInput.value = merchant.gateway_url || (location.origin + '/submit.php');
                 }
+                const qPid = document.getElementById('quick-merchant-pid');
+                if (qPid) qPid.textContent = merchant.pid;
+                const qSub = document.getElementById('quick-submit-url');
+                if (qSub) qSub.textContent = location.origin + '/submit.php';
             } catch (error) {
                 window.location.href = 'merchant_login.html';
             }
