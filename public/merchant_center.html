@@ -790,35 +790,27 @@
                 if (payload.code !== 1 || !payload.data) throw new Error(payload.msg || '商户资料加载失败');
                 const merchant = payload.data;
                 window.currentMerchantPid = merchant.pid;
-                document.getElementById('sidebar-merchant-pid').textContent = `PID: ${merchant.pid}`;
-                document.getElementById('header-merchant-label').textContent = `${merchant.name} (PID: ${merchant.pid})`;
-                document.getElementById('profile-merchant-name').value = merchant.name;
-                document.getElementById('profile-merchant-pid').value = merchant.pid;
-                document.getElementById('api-merchant-pid').value = merchant.pid;
-                document.getElementById('api-merchant-key').value = '';
-                document.getElementById('sidebar-merchant-balance').textContent = `¥ ${merchant.money}`;
-                document.getElementById('dashboard-merchant-balance').textContent = `¥ ${merchant.money}`;
-                document.getElementById('dashboard-merchant-rate').textContent = `当前套餐扣率 ${(Number(merchant.rate) * 100).toFixed(2)}%`;
-                // 填充对接地址
-                const gatewayInput = document.getElementById('api-gateway-url');
-                if (gatewayInput) {
-                    gatewayInput.value = merchant.gateway_url || (location.origin + '/submit.php');
-                }
-                // 同步填充易支付对接凭据卡片
+
+                const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+                const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+
+                setTxt('sidebar-merchant-pid', `PID: ${merchant.pid}`);
+                setTxt('header-merchant-label', `${merchant.name} (PID: ${merchant.pid})`);
+                setVal('profile-merchant-name', merchant.name || '');
+                setVal('profile-merchant-pid', merchant.pid || '');
+                setTxt('sidebar-merchant-balance', `¥ ${merchant.money || '0.00'}`);
+                setTxt('dashboard-merchant-balance', `¥ ${merchant.money || '0.00'}`);
+                setTxt('dashboard-merchant-rate', `当前套餐扣率 ${(Number(merchant.rate || 0.02) * 100).toFixed(2)}%`);
+
                 const epayApiUrl = merchant.gateway_url || (location.origin + '/submit.php');
                 const epaySiteUrl = merchant.site_url || (location.origin + '/merchant_login.html');
-                const epayApiEl = document.getElementById('epay-api-url');
-                const epaySiteEl = document.getElementById('epay-site-url');
-                const epayPidEl = document.getElementById('epay-pid');
-                if (epayApiEl)  epayApiEl.value  = epayApiUrl;
-                if (epaySiteEl) epaySiteEl.value = epaySiteUrl;
-                if (epayPidEl)  epayPidEl.value  = String(merchant.pid);
-                const epayKeyEl = document.getElementById('epay-key');
-                if (epayKeyEl)  epayKeyEl.value  = merchant.key || '';
-                const qPid = document.getElementById('quick-merchant-pid');
-                if (qPid) qPid.textContent = merchant.pid;
-                const qSub = document.getElementById('quick-submit-url');
-                if (qSub) qSub.textContent = location.origin + '/submit.php';
+                setVal('api-gateway-url', epayApiUrl);
+                setVal('epay-api-url', epayApiUrl);
+                setVal('epay-site-url', epaySiteUrl);
+                setVal('epay-pid', String(merchant.pid || ''));
+                setVal('epay-key', merchant.key || '');
+                setTxt('quick-merchant-pid', merchant.pid || '');
+                setTxt('quick-submit-url', location.origin + '/submit.php');
             } catch (error) {
                 window.location.href = 'merchant_login.html';
             }
