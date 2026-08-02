@@ -979,11 +979,12 @@ $ git pull 2>&1
                     loadGitVersionHistory();
                 } else {
                     term.innerText += `\n[ERROR] ${payload.msg || '更新失败'}`;
-                    alert(payload.msg || '代码拉取失败');
+                    if (!payload.msg || !payload.msg.includes('在线更新已禁用')) {
+                        alert(payload.msg || '代码拉取失败');
+                    }
                 }
             } catch (e) {
                 term.innerText += `\n[ERROR] 网络请求失败: ${e.message}`;
-                alert('系统拉取失败，请检查服务器网络');
             }
         }
 
