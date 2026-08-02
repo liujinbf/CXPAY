@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>商户独立登录中心 - CXPAY</title>
+    <title>商户独立服务中心 - CXPAY Merchant Portal</title>
 
     <!-- TailwindCSS & Lucide & Vue3 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -34,15 +34,15 @@
             height: 450px;
             border-radius: 50%;
             filter: blur(120px);
-            opacity: 0.2;
+            opacity: 0.25;
             pointer-events: none;
         }
 
         .glass-login {
-            background: rgba(15, 23, 42, 0.7);
+            background: rgba(15, 23, 42, 0.75);
             backdrop-filter: blur(24px);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7);
         }
         html.light .glass-login {
             background: rgba(255, 255, 255, 0.85);
@@ -60,7 +60,9 @@
         <!-- Day/Night Switch -->
         <button @click="toggleTheme()" class="absolute top-6 right-6 w-9 h-9 rounded-full flex items-center justify-center bg-slate-800/20 text-slate-400 hover:text-slate-200 transition-all cursor-pointer">
             <i :data-lucide="isDark ? 'sun' : 'moon'" class="w-4 h-4"></i>
-             <!-- Brand Header -->
+        </button>
+
+        <!-- Brand Header -->
         <div class="text-center mb-6">
             <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 mb-3 shadow-lg shadow-sky-500/20">
                 <i data-lucide="store" class="w-6 h-6 text-white"></i>
@@ -129,12 +131,16 @@
                 const password = ref('');
                 const isDark = ref(true);
 
-                onMounted(() => lucide.createIcons());
+                onMounted(() => {
+                    if (window.lucide) lucide.createIcons();
+                });
 
                 function toggleTheme() {
                     isDark.value = !isDark.value;
                     document.getElementById('html-root').className = isDark.value ? 'dark' : 'light';
-                    setTimeout(() => lucide.createIcons(), 50);
+                    setTimeout(() => {
+                        if (window.lucide) lucide.createIcons();
+                    }, 50);
                 }
 
                 async function handleSubmit() {
