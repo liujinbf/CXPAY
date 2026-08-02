@@ -26,6 +26,70 @@ class MerchantApiController
     /**
      * 商户登录接口
      */
+    /**
+     * 商户自主在线注册
+     */
+    public function register(\support\Request $request): string
+    {
+        $params   = $request->post();
+        $name     = trim((string)($params['name'] ?? ''));
+        $password = (string)($params['password'] ?? '');
+
+        if (empty($name) || mb_strlen($name) > 100) {
+            return json_encode(['code' => -1, 'msg' => '商户名称不能为空且不得超过100个字符'], JSON_UNESCAPED_UNICODE);
+        }
+        if (strlen($password) < 6 || strlen($password) > 200) {
+            return json_encode(['code' => -1, 'msg' => '登录密码长度至少为 6 个字符'], JSON_UNESCAPED_UNICODE);
+        }
+
+        // 检查商户名称是否重复
+        if (Merchant::where('name', $name)->exists()) {
+            return json_encode(['code' => -1, 'msg' => '该商户名称已被注册，请更换其他名称'], JSON_UNESCAPED_UNICODE);
+        }
+
+        $rateLimitId = $request->getRemoteIp();
+        if (LoginRateLimiter::tooManyAttempts('merchant_register', $rateLimitId, 3, 600)) {
+            return json_encode(['code' => -1, 'msg' => '注册频繁，请10分钟后再试'], JSON_UNESCAPED_UNICODE);
+        }
+
+        try {
+            // 自动生成唯一 PID (1000 + 自增 / 或 16 进制串)
+            $lastId = (int)Merchant::max('id') ?: 0;
+            $pid = (string)(1000 + $lastId + 1);
+            while (Merchant::where('pid', $pid)->exists()) {
+                $pid = (string)((int)$pid + 1);
+            }
+
+            $apiKey = bin2hex(random_bytes(16));
+            $passHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+
+            $merchant = new Merchant();
+            $merchant->name = $name;
+            $merchant->pid = $pid;
+            $merchant->key = $apiKey;
+            $merchant->password_hash = $passHash;
+            $merchant->rate = 0.0200; // 默认标准套餐扣率 2%
+            $merchant->status = 1;
+            $merchant->save();
+
+            // 注册成功自动完成 Session 登录
+            $session = $request->session();
+            $session->set('merchant_id', $merchant->id);
+            $request->sessionRegenerateId(true);
+
+            return json_encode([
+                'code' => 1,
+                'msg'  => '注册成功！系统已为您自动分配 PID，正在进入控制台...',
+                'data' => [
+                    'pid'     => $pid,
+                    'api_key' => $apiKey,
+                ]
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            return json_encode(['code' => -1, 'msg' => '商户注册失败: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+    }
+
     public function login(\support\Request $request): string
     {
         $params   = $request->post();

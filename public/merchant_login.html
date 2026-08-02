@@ -60,20 +60,28 @@
         <!-- Day/Night Switch -->
         <button @click="toggleTheme()" class="absolute top-6 right-6 w-9 h-9 rounded-full flex items-center justify-center bg-slate-800/20 text-slate-400 hover:text-slate-200 transition-all cursor-pointer">
             <i :data-lucide="isDark ? 'sun' : 'moon'" class="w-4 h-4"></i>
-        </button>
-
-        <!-- Brand Header -->
-        <div class="text-center mb-8">
+             <!-- Brand Header -->
+        <div class="text-center mb-6">
             <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 mb-3 shadow-lg shadow-sky-500/20">
                 <i data-lucide="store" class="w-6 h-6 text-white"></i>
             </div>
             <h2 class="text-2xl font-extrabold tracking-tight text-white">CXPAY 商户服务中心</h2>
-            <p class="text-xs text-slate-400 mt-1">使用商户 PID 与后台登录密码登录</p>
+            <p class="text-xs text-slate-400 mt-1">{{ isRegister ? '三秒完成商户注册，即刻接入全自动聚合支付' : '使用商户名称/PID 与后台密码登录' }}</p>
         </div>
 
-        <!-- Login Form -->
-        <form @submit.prevent="handleLogin" class="space-y-4">
-            <div>
+        <!-- 登录 / 注册 Mode Switch -->
+        <div class="grid grid-cols-2 p-1 bg-slate-900/60 rounded-xl mb-6 text-xs font-bold text-slate-400 border border-slate-800">
+            <button @click="isRegister = false" :class="!isRegister ? 'bg-sky-600 text-white shadow-md' : 'hover:text-slate-200'" class="py-2 rounded-lg transition-all text-center">
+                商户登录
+            </button>
+            <button @click="isRegister = true" :class="isRegister ? 'bg-sky-600 text-white shadow-md' : 'hover:text-slate-200'" class="py-2 rounded-lg transition-all text-center">
+                在线注册
+            </button>
+        </div>
+
+        <!-- Login / Register Form -->
+        <form @submit.prevent="handleSubmit" class="space-y-4">
+            <div v-if="!isRegister">
                 <label class="block text-xs font-bold text-slate-400 mb-1.5">商户名称 / PID</label>
                 <div class="relative">
                     <i data-lucide="user" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
@@ -81,15 +89,23 @@
                 </div>
             </div>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-400 mb-1.5">商户后台登录密码</label>
+            <div v-if="isRegister">
+                <label class="block text-xs font-bold text-slate-400 mb-1.5">自定义商户名称 *</label>
                 <div class="relative">
-                    <i data-lucide="key" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
-                    <input v-model="password" type="password" required placeholder="请输入后台登录密码" class="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all">
+                    <i data-lucide="building" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+                    <input v-model="regName" type="text" required placeholder="例如：极客小店 / MyShop" class="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all">
                 </div>
             </div>
 
-            <div class="flex items-center justify-between text-xs text-slate-400 pt-1">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5">{{ isRegister ? '设置登录密码 (≥6位) *' : '商户后台登录密码' }}</label>
+                <div class="relative">
+                    <i data-lucide="key" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+                    <input v-model="password" type="password" required minlength="6" placeholder="请输入后台登录密码" class="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all">
+                </div>
+            </div>
+
+            <div v-if="!isRegister" class="flex items-center justify-between text-xs text-slate-400 pt-1">
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" disabled class="rounded bg-slate-800 border-slate-700 text-sky-500 focus:ring-0"> 使用安全会话
                 </label>
@@ -97,7 +113,7 @@
             </div>
 
             <button type="submit" class="w-full py-3.5 mt-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-sky-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                <span>进入商户控制中心</span>
+                <span>{{ isRegister ? '立即注册并获取 PID' : '进入商户控制中心' }}</span>
                 <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </button>
         </form>
@@ -107,7 +123,9 @@
         const { createApp, ref, onMounted } = Vue;
         createApp({
             setup() {
+                const isRegister = ref(false);
                 const account = ref('');
+                const regName = ref('');
                 const password = ref('');
                 const isDark = ref(true);
 
@@ -117,6 +135,37 @@
                     isDark.value = !isDark.value;
                     document.getElementById('html-root').className = isDark.value ? 'dark' : 'light';
                     setTimeout(() => lucide.createIcons(), 50);
+                }
+
+                async function handleSubmit() {
+                    if (isRegister.value) {
+                        await handleRegister();
+                    } else {
+                        await handleLogin();
+                    }
+                }
+
+                async function handleRegister() {
+                    try {
+                        const formData = new FormData();
+                        formData.append('name', regName.value);
+                        formData.append('password', password.value);
+
+                        const res = await fetch('/api/merchant/register', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await res.json();
+                        if (data.code === 1) {
+                            alert(`🎉 恭喜注册成功！\n系统为您自动分配的商户 PID 为：${data.data?.pid || ''}\nAPI 密钥：${data.data?.api_key || ''}\n请妥善保管！即将进入控制台。`);
+                            localStorage.removeItem('cx_merchant_key');
+                            window.location.href = '/merchant_center.html';
+                        } else {
+                            alert(data.msg || '注册失败，请更换商户名称后重试');
+                        }
+                    } catch (e) {
+                        alert('注册请求失败，请检查网络后重试');
+                    }
                 }
 
                 async function handleLogin() {
@@ -134,14 +183,14 @@
                             localStorage.removeItem('cx_merchant_key');
                             window.location.href = '/merchant_center.html';
                         } else {
-                            alert(data.msg || '商户登录失败，请检查 PID 与登录密码');
+                            alert(data.msg || '商户登录失败，请检查 PID/商户名 与登录密码');
                         }
                     } catch (e) {
                         alert('登录请求失败，请检查网络后重试');
                     }
                 }
 
-                return { account, password, isDark, toggleTheme, handleLogin }
+                return { isRegister, account, regName, password, isDark, toggleTheme, handleSubmit }
             }
         }).mount('#app');
     </script>

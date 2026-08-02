@@ -111,7 +111,8 @@ Route::any('/api/appasst/push', [app\controller\api\AppasstController::class, 'p
 Route::post('/api/bill-source/ingest', [app\controller\api\BillSourceController::class, 'ingest']);
 Route::get('/api/bill-source/poll', [app\controller\api\BillSourceController::class, 'poll']);
 
-// 商户登录与注销公开 API
+// 商户注册、登录与注销公开 API
+Route::post('/api/merchant/register', [app\controller\api\MerchantApiController::class, 'register']);
 Route::post('/api/merchant/login', [app\controller\api\MerchantApiController::class, 'login']);
 Route::post('/api/merchant/logout', [app\controller\api\MerchantApiController::class, 'logout']);
 
