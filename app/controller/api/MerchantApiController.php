@@ -182,8 +182,8 @@ class MerchantApiController
 
         $currentPassword = (string)($request->post('current_password') ?? '');
         $newPassword = (string)($request->post('new_password') ?? '');
-        if (strlen($newPassword) < 10 || strlen($newPassword) > 200) {
-            return json_encode(['code' => -1, 'msg' => '新密码长度必须为10至200个字符'], JSON_UNESCAPED_UNICODE);
+        if (strlen($newPassword) < 6 || strlen($newPassword) > 200) {
+            return json_encode(['code' => -1, 'msg' => '新密码长度至少为6个字符'], JSON_UNESCAPED_UNICODE);
         }
 
         $rateLimitId = $request->getRemoteIp() . '|' . (string)$merchant->id;

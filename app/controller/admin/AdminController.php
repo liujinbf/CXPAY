@@ -588,8 +588,8 @@ class AdminController
         if ($submittedKey !== '' && (strlen($submittedKey) < 32 || strlen($submittedKey) > 64)) {
             return json_encode(['code' => -1, 'msg' => 'API 密钥长度必须为32至64个字符'], JSON_UNESCAPED_UNICODE);
         }
-        if ($loginPassword !== '' && (strlen($loginPassword) < 10 || strlen($loginPassword) > 200)) {
-            return json_encode(['code' => -1, 'msg' => '商户登录密码长度必须为10至200个字符'], JSON_UNESCAPED_UNICODE);
+        if ($loginPassword !== '' && (strlen($loginPassword) < 6 || strlen($loginPassword) > 200)) {
+            return json_encode(['code' => -1, 'msg' => '商户登录密码长度至少为6个字符'], JSON_UNESCAPED_UNICODE);
         }
         $ipWhitelist = IpWhitelist::normalize((string)($params['ip_white'] ?? ''));
         if ($ipWhitelist === null) {
@@ -779,8 +779,8 @@ class AdminController
         $newPassword     = (string)($params['new_password'] ?? '');
         $currentPassword = (string)($params['current_password'] ?? '');
         if ($newPassword !== '') {
-            if (strlen($newPassword) < 10 || strlen($newPassword) > 200) {
-                return json_encode(['code' => -1, 'msg' => '新密码长度须在10至200个字符之间'], JSON_UNESCAPED_UNICODE);
+            if (strlen($newPassword) < 6 || strlen($newPassword) > 200) {
+                return json_encode(['code' => -1, 'msg' => '新密码长度至少为6个字符'], JSON_UNESCAPED_UNICODE);
             }
             if ($currentPassword === '') {
                 return json_encode(['code' => -1, 'msg' => '修改密码时必须提供当前密码'], JSON_UNESCAPED_UNICODE);
