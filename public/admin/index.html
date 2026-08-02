@@ -1839,7 +1839,11 @@ $ git pull 2>&1
             if (window.lucide && typeof lucide.createIcons === 'function') {
                 lucide.createIcons();
             }
-            const currentTab = (location.hash || '').replace('#', '').trim() || 'dashboard';
+            let rawHash = (location.hash || '').replace('#', '').trim();
+            if (rawHash.includes('?')) {
+                rawHash = rawHash.split('?')[0];
+            }
+            const currentTab = rawHash || 'dashboard';
             switchTab(currentTab);
         });
     </script>
