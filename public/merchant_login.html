@@ -74,10 +74,10 @@
         <!-- Login Form -->
         <form @submit.prevent="handleLogin" class="space-y-4">
             <div>
-                <label class="block text-xs font-bold text-slate-400 mb-1.5">商户 AppID / PID</label>
+                <label class="block text-xs font-bold text-slate-400 mb-1.5">商户名称 / PID</label>
                 <div class="relative">
                     <i data-lucide="user" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
-                    <input v-model="account" type="text" required placeholder="请输入商户 AppID" class="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all">
+                    <input v-model="account" type="text" required placeholder="请输入商户名称或 PID 编号" class="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all">
                 </div>
             </div>
 

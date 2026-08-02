@@ -42,7 +42,7 @@ class MerchantApiController
         }
 
         $merchant = Merchant::where(function($q) use ($account) {
-            $q->where('pid', $account)->orWhere('id', $account);
+            $q->where('pid', $account)->orWhere('id', $account)->orWhere('name', $account);
         })->first();
 
         if ($merchant && (int)$merchant->status === 1) {
