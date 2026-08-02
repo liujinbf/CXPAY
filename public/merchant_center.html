@@ -453,18 +453,16 @@
                             </div>
 
                             <!-- 密钥重置操作 -->
-                            <div class="pt-3 border-t border-slate-100">
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <span class="font-bold text-slate-700">重置签名密钥</span>
-                                    <span class="text-[11px] text-rose-500 font-medium">重置后需要在所有对接网站同步更新</span>
+                            <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                <div>
+                                    <span class="font-bold text-slate-700 block">重置签名密钥</span>
+                                    <span class="text-[11px] text-slate-400">若密钥泄露可随时重新生成；重置后需要在所有对接网站同步更新</span>
                                 </div>
-                                <div class="flex gap-2">
-                                    <input id="api-reset-current-password" type="password" autocomplete="current-password"
-                                        placeholder="输入当前后台登录密码以确认身份"
-                                        class="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-white">
-                                    <button onclick="resetMerchantKey()"
-                                        class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold whitespace-nowrap shadow-sm transition-colors">重置密钥</button>
-                                </div>
+                                <button onclick="resetMerchantKey()"
+                                    class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold whitespace-nowrap shadow-sm transition-colors cursor-pointer text-xs flex items-center gap-1.5">
+                                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                                    重新生成密钥
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -998,27 +996,28 @@
         }
 
         async function resetMerchantKey() {
-            const currentPassword = document.getElementById('api-reset-current-password').value;
-            if (!currentPassword || !confirm('确认立即废止旧 API 密钥？所有调用方必须同步更换签名密钥。')) return;
+            if (!confirm('确认立即废弃旧密钥并生成新的 API 对接密钥？\n\n注意：重置后所有已对接网站需同步更新新密钥才能正常交易！')) {
+                return;
+            }
             try {
                 const response = await fetch('/api/merchant/reset_key', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ current_password: currentPassword })
+                    method: 'POST'
                 });
                 const payload = await response.json();
                 if (payload.code !== 1 || !payload.new_key) {
                     alert(payload.msg || 'API 密钥重置失败');
                     return;
                 }
-                document.getElementById('api-merchant-key').value = payload.new_key;
-                document.getElementById('api-reset-current-password').value = '';
-                // 同步更新易支付凭据卡片中的 KEY
-                const epayKeyEl = document.getElementById('epay-key');
-                if (epayKeyEl) epayKeyEl.value = payload.new_key;
-                alert(payload.msg);
+                const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+                const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+                // 同步更新页面所有展示 KEY 的位置
+                setVal('epay-key', payload.new_key);
+                setTxt('quick-merchant-key', payload.new_key);
+
+                alert(payload.msg || '密钥已成功重新生成！');
             } catch (error) {
-                alert('API 密钥重置请求失败，请稍后重试');
+                alert('网络请求失败，请稍后重试');
             }
         }
 

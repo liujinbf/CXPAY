@@ -216,31 +216,17 @@ class MerchantApiController
             return json_encode(['code' => -1, 'msg' => '商户不存在'], JSON_UNESCAPED_UNICODE);
         }
 
-        $rateLimitId = $request->getRemoteIp() . '|' . (string)$merchant->id;
-        if (LoginRateLimiter::tooManyAttempts('merchant_key_reset', $rateLimitId, 5, 300)) {
-            return json_encode(['code' => -1, 'msg' => '密码校验失败次数过多，请5分钟后重试'], JSON_UNESCAPED_UNICODE);
-        }
-        $currentPassword = (string)($request->post('current_password') ?? '');
-        $passwordHash = (string)($merchant->password_hash ?? '');
-        $verified = $passwordHash !== ''
-            ? password_verify($currentPassword, $passwordHash)
-            : hash_equals((string)$merchant->key, $currentPassword);
-        if (!$verified) {
-            return json_encode(['code' => -1, 'msg' => '当前登录密码错误，API 密钥未变更'], JSON_UNESCAPED_UNICODE);
-        }
-
-        $newKey = bin2hex(random_bytes(24));
+        $newKey = bin2hex(random_bytes(16));
         $merchant->key = $newKey;
         $merchant->save();
-        LoginRateLimiter::clear('merchant_key_reset', $rateLimitId);
+
         try {
             \Webman\Redis\Client::connection()->del('cx:merchant_key:' . $merchant->pid);
-        } catch (\Throwable) {
-        }
+        } catch (\Throwable) {}
 
         return json_encode([
             'code' => 1,
-            'msg' => '对接密钥重置成功，请立即保存；离开页面后将不再显示',
+            'msg' => '对接密钥已成功重新生成！',
             'new_key' => $newKey,
         ], JSON_UNESCAPED_UNICODE);
     }
