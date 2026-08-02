@@ -421,101 +421,116 @@
 
                 <!-- 5. API 配置 Api Keys -->
                 <div id="tab-api-keys" class="tab-panel space-y-6">
-                    <h2 class="text-xl font-extrabold text-slate-800">开放 API 对接与凭据配置</h2>
-
-                    <!-- 统一易支付 / 开放 API 对接凭据卡片 -->
-                    <div class="glass-card rounded-2xl p-6 space-y-5 max-w-2xl border-l-4 border-l-blue-600 shadow-sm">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <div>
-                                <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-                                    <i data-lucide="plug-zap" class="w-4 h-4 text-blue-600"></i>
-                                    商户 API 对接凭据 (易支付协议兼容)
-                                </h3>
-                                <p class="text-[11px] text-slate-400 mt-0.5">将本平台接入您的发卡网、网站系统或第三方易支付聚合平台时，按需复制以下参数即可</p>
-                            </div>
+                    <!-- 顶部标题与 PID 标识 -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-800">API 配置 · 对接信息</h2>
+                            <p class="text-xs text-slate-400 mt-1">开放 API 接口凭据与易支付协议对接参数</p>
                         </div>
+                        <div class="px-3.5 py-1.5 bg-slate-100 border border-slate-200/80 rounded-xl text-xs font-mono font-bold text-slate-600 flex items-center gap-1.5 shadow-sm">
+                            <span class="text-slate-400 font-sans font-normal">商户 PID:</span>
+                            <span id="api-card-pid" class="text-blue-600 font-extrabold text-sm">--</span>
+                        </div>
+                    </div>
 
-                        <div class="space-y-4">
-                            <!-- 1. API 网关地址 -->
+                    <!-- 板块 1: 对接密钥 (KEY) -->
+                    <div class="glass-card rounded-2xl p-6 space-y-4 max-w-3xl border border-slate-200/80 shadow-sm">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">对接密钥</h3>
+
+                        <div class="space-y-4 text-xs">
+                            <!-- 签名密钥 KEY -->
                             <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="text-xs font-bold text-slate-700">① API 网关地址 (submit.php)</label>
-                                    <span class="text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded">必填</span>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="font-bold text-slate-700">对接密钥 (KEY)</span>
+                                    <span class="text-[11px] text-slate-400">用于下单及回调 MD5 签名，请妥善保管；重置后旧密钥立即失效</span>
                                 </div>
                                 <div class="flex gap-2">
-                                    <input id="epay-api-url" type="text" readonly value=""
-                                        placeholder="自动加载中..."
-                                        class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-mono bg-slate-50 text-slate-800">
-                                    <button onclick="copyInputValue('epay-api-url')"
-                                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold whitespace-nowrap shadow-sm">复制</button>
-                                </div>
-                                <p class="mt-1 text-[11px] text-slate-400">对应第三方系统的「API地址」或「网关地址」。商户发起支付请求即送到此 URL。</p>
-                            </div>
-
-                            <!-- 2. 商户 PID -->
-                            <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="text-xs font-bold text-slate-700">② 商户对接 ID (PID)</label>
-                                    <span class="text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded">必填</span>
-                                </div>
-                                <div class="flex gap-2">
-                                    <input id="epay-pid" type="text" readonly value=""
-                                        placeholder="自动加载中..."
-                                        class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50 text-slate-800">
-                                    <button onclick="copyInputValue('epay-pid')"
-                                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold whitespace-nowrap shadow-sm">复制</button>
-                                </div>
-                                <p class="mt-1 text-[11px] text-slate-400">对应第三方系统的「商户ID / PID」。您在本平台的唯一商户标识号。</p>
-                            </div>
-
-                            <!-- 3. 商户签名密钥 KEY -->
-                            <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="text-xs font-bold text-slate-700">③ 商户签名密钥 (KEY)</label>
-                                    <span class="text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded">必填</span>
-                                </div>
-                                <div class="flex gap-2">
-                                    <input id="epay-key" type="text" readonly value=""
-                                        placeholder="自动生成中..."
-                                        class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50 text-slate-800">
+                                    <input id="epay-key" type="text" readonly value="" placeholder="加载中..."
+                                        class="w-full px-3.5 py-2 border border-slate-200 rounded-xl font-mono font-bold bg-slate-50 text-slate-800">
                                     <button onclick="copyInputValue('epay-key')"
-                                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold whitespace-nowrap shadow-sm">复制</button>
+                                        class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl font-bold whitespace-nowrap border border-blue-200 transition-colors">复制</button>
                                 </div>
-                                <p class="mt-1 text-[11px] text-slate-400">对应第三方系统的「商户密钥 / KEY」。用于接口 MD5 签名校验，请严防泄露。</p>
                             </div>
 
-                            <!-- 4. 平台注册导流地址 (可选) -->
-                            <div class="pt-2 border-t border-slate-100">
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="text-xs font-bold text-slate-700">④ 平台注册入口地址 (可选导流链接)</label>
-                                    <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">可选</span>
-                                </div>
-                                <div class="flex gap-2">
-                                    <input id="epay-site-url" type="text" readonly value=""
-                                        placeholder="自动加载中..."
-                                        class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-mono bg-slate-50 text-slate-600">
-                                    <button onclick="copyInputValue('epay-site-url')"
-                                        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold whitespace-nowrap">复制</button>
-                                </div>
-                                <p class="mt-1 text-[11px] text-slate-400">某些系统配置界面包含「注册地址」选项，用于向您的客户展示“无账号？点此注册”。填写此链接可引导客户直接来本平台开户。</p>
-                            </div>
-
-                            <!-- 密钥重置区 -->
+                            <!-- 密钥重置操作 -->
                             <div class="pt-3 border-t border-slate-100">
-                                <label class="block text-xs font-bold text-slate-700 mb-1.5">重置 API 签名密钥</label>
-                                <div class="flex gap-2">
-                                    <input id="api-reset-current-password" type="password" autocomplete="current-password" placeholder="请输入当前后台登录密码确认身份" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs">
-                                    <button onclick="resetMerchantKey()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold whitespace-nowrap shadow-sm">生成新密钥</button>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="font-bold text-slate-700">重置签名密钥</span>
+                                    <span class="text-[11px] text-rose-500 font-medium">重置后需要在所有对接网站同步更新</span>
                                 </div>
-                                <p class="mt-1 text-[11px] text-rose-500">警告：重置密钥后旧密钥将立即失效，需要在所有对接网站同步更新新密钥。</p>
+                                <div class="flex gap-2">
+                                    <input id="api-reset-current-password" type="password" autocomplete="current-password"
+                                        placeholder="输入当前后台登录密码以确认身份"
+                                        class="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-white">
+                                    <button onclick="resetMerchantKey()"
+                                        class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold whitespace-nowrap shadow-sm transition-colors">重置密钥</button>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- 底部文档链接 -->
-                        <div class="pt-2 border-t border-slate-100 flex justify-between items-center">
-                            <span class="text-[11px] text-slate-400">需要自定义开发或使用完整 API？</span>
-                            <a href="/doc" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors">
-                                <i data-lucide="book-open" class="w-3.5 h-3.5 text-blue-600"></i> 查看 API 对接文档
+                    <!-- 板块 2: 接口地址 -->
+                    <div class="glass-card rounded-2xl p-6 space-y-4 max-w-3xl border border-slate-200/80 shadow-sm">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">接口地址</h3>
+
+                        <div class="space-y-4 text-xs">
+                            <!-- 1. API 接口网址 (首选/推荐) -->
+                            <div class="p-4 bg-blue-50/60 rounded-2xl border border-blue-100 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+                                        <i data-lucide="globe" class="w-4 h-4 text-blue-600"></i>
+                                        API 接口网址 (网站)
+                                    </span>
+                                    <span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md">第三方系统对接首选</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input id="epay-site-url" type="text" readonly value="" placeholder="加载中..."
+                                        class="w-full px-3.5 py-2 border border-blue-200/80 rounded-xl font-mono font-bold bg-white text-blue-700">
+                                    <button onclick="copyInputValue('epay-site-url')"
+                                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold whitespace-nowrap shadow-sm transition-colors">复制</button>
+                                </div>
+                                <p class="text-[11px] text-slate-500">推荐填写：标准易支付插件系统只需填写此网址，系统会自动拼接 /submit.php 或 /mapi.php。</p>
+                            </div>
+
+                            <!-- 2. 页面跳转支付 (submit.php) -->
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-bold text-slate-700">页面跳转支付 (submit.php)</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input id="epay-api-url" type="text" readonly value="" placeholder="加载中..."
+                                        class="w-full px-3.5 py-2 border border-slate-200 rounded-xl font-mono bg-slate-50 text-slate-700">
+                                    <button onclick="copyInputValue('epay-api-url')"
+                                        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold whitespace-nowrap transition-colors">复制</button>
+                                </div>
+                            </div>
+
+                            <!-- 3. API 接口支付 (mapi.php) -->
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-bold text-slate-700">API 接口支付 (mapi.php)</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input id="epay-mapi-url" type="text" readonly value="" placeholder="加载中..."
+                                        class="w-full px-3.5 py-2 border border-slate-200 rounded-xl font-mono bg-slate-50 text-slate-700">
+                                    <button onclick="copyInputValue('epay-mapi-url')"
+                                        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold whitespace-nowrap transition-colors">复制</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 板块 3: 签名与回调说明 -->
+                    <div class="glass-card rounded-2xl p-6 space-y-3 max-w-3xl border border-slate-200/80 shadow-sm text-xs">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">签名与回调说明</h3>
+                        <div class="space-y-2 text-slate-600 leading-relaxed font-sans bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <p><strong class="text-slate-800">签名方式：</strong> MD5。待签名参数按键名 <code class="bg-white px-1 rounded border border-slate-200">ksort</code> 升序，拼成 <code class="bg-white px-1 rounded border border-slate-200">k=v&k=v</code>（去除 sign/sign_type 及空值），末尾拼接商户密钥 KEY，再 <code class="bg-white px-1 rounded border border-slate-200">md5()</code> 得 <code class="bg-white px-1 rounded border border-slate-200">sign</code>。</p>
+                            <p><strong class="text-slate-800">下单参数：</strong> pid (商户PID)、type (alipay/wxpay/qqpay)、out_trade_no (商户订单号)、name (商品名)、money (金额元)、notify_url (异步回调)、return_url (同步跳转)、sign。</p>
+                            <p><strong class="text-slate-800">异步通知：</strong> 支付成功后系统以 POST 通知你的 <code class="bg-white px-1 rounded border border-slate-200">notify_url</code>，携带 <code class="bg-white px-1 rounded border border-slate-200">trade_status=TRADE_SUCCESS</code> 及 <code class="bg-white px-1 rounded border border-slate-200">sign</code>；你的服务器验签通过后需直接输出原样字符串 <code class="bg-white px-1 rounded border border-slate-200 text-emerald-600 font-bold">success</code>。</p>
+                        </div>
+                        <div class="pt-1 flex justify-end">
+                            <a href="/doc" target="_blank" class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-sm transition-colors">
+                                <i data-lucide="book-open" class="w-4 h-4"></i> 查看完整开发文档
                             </a>
                         </div>
                     </div>
@@ -808,11 +823,12 @@
                 setTxt('dashboard-merchant-rate', `当前套餐扣率 ${(Number(merchant.rate || 0.02) * 100).toFixed(2)}%`);
 
                 const epayApiUrl = merchant.gateway_url || (location.origin + '/submit.php');
-                const epaySiteUrl = merchant.site_url || (location.origin + '/merchant_login.html');
-                setVal('api-gateway-url', epayApiUrl);
-                setVal('epay-api-url', epayApiUrl);
+                const epayMapiUrl = merchant.mapi_url || (location.origin + '/mapi.php');
+                const epaySiteUrl = merchant.site_url || (location.origin + '/');
+                setTxt('api-card-pid', merchant.pid || '');
                 setVal('epay-site-url', epaySiteUrl);
-                setVal('epay-pid', String(merchant.pid || ''));
+                setVal('epay-api-url', epayApiUrl);
+                setVal('epay-mapi-url', epayMapiUrl);
                 setVal('epay-key', merchant.key || '');
                 setTxt('quick-merchant-pid', merchant.pid || '');
                 setTxt('quick-merchant-key', merchant.key || '');

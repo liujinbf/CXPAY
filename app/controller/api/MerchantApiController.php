@@ -198,7 +198,8 @@ class MerchantApiController
                 'packvip_time'   => $merchant->packvip_time ? date('Y-m-d H:i:s', $merchant->packvip_time) : '未开通',
                 'status'         => $merchant->status,
                 'gateway_url'    => $gatewayBase !== '' ? $gatewayBase . '/submit.php' : '',
-                'site_url'       => $gatewayBase !== '' ? $gatewayBase . '/merchant_login.html' : '',
+                'mapi_url'       => $gatewayBase !== '' ? $gatewayBase . '/mapi.php' : '',
+                'site_url'       => $gatewayBase !== '' ? $gatewayBase . '/' : '',
             ]
         ], JSON_UNESCAPED_UNICODE);
     }
