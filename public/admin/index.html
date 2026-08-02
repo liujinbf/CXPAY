@@ -1258,12 +1258,6 @@ $ git pull 2>&1
                 alert('网络请求失败: ' + e.message);
             }
         }
-            if (tabId === 'callbill-review') loadCallbillReviews();
-            if (tabId === 'plugin-market') loadPluginMarket();
-            if (tabId === 'cloud-monitor') loadCloudMonitorStatus();
-            if (tabId === 'alert-config') loadAdminAlertConfig();
-            if (tabId === 'system-update') { checkGitUpdate(); loadGitVersionHistory(); }
-        }
 
         async function checkGitUpdate() {
             const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };

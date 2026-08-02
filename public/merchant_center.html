@@ -1159,11 +1159,6 @@
                 alert('网络请求失败: ' + e.message);
             }
         }
-            if (tabId === 'poll-group')   { loadPollGroups(); }
-            if (tabId === 'channel-config') { loadCashierConfig(); }
-            if (tabId === 'api-keys')       { loadMerchantProfile(); }
-            if (tabId === 'notice-config')  { loadMerchantAlertConfig(); }
-        }
 
         async function loadMerchantDashboardData() {
             try {
