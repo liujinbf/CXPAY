@@ -1197,12 +1197,20 @@ $ git pull 2>&1
             const singleMax = parseFloat(document.getElementById('channel-config-max').value) || 0;
             const remark = document.getElementById('channel-config-remark').value.trim();
 
-            const configData = {};
+            const postParams = new URLSearchParams();
+            postParams.append('c_type', cType);
+            postParams.append('title', title);
+            postParams.append('weight', weight);
+            postParams.append('single_min', singleMin);
+            postParams.append('single_max', singleMax);
+            postParams.append('remark', remark);
+            postParams.append('status', 1);
+
             const inputs = form.querySelectorAll('[name^="config["]');
             inputs.forEach(inp => {
                 const match = inp.name.match(/^config\[(.*)\]$/);
                 if (match && match[1]) {
-                    configData[match[1]] = inp.value.trim();
+                    postParams.append(`config[${match[1]}]`, inp.value.trim());
                 }
             });
 
@@ -1210,16 +1218,7 @@ $ git pull 2>&1
                 const res = await adminFetch('/api/admin/channel/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        c_type: cType,
-                        title: title,
-                        weight: weight,
-                        single_min: singleMin,
-                        single_max: singleMax,
-                        remark: remark,
-                        enabled: 1,
-                        config: JSON.stringify(configData)
-                    })
+                    body: postParams
                 });
                 const payload = await res.json();
                 if (payload.code === 1) {
