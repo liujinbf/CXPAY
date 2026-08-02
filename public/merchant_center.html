@@ -2181,6 +2181,21 @@
             }
         }
 
+        function applyMerchantEmailSuffix(suffix) {
+            if (!suffix) return;
+            const input = document.getElementById('m-email-to');
+            if (!input) return;
+            let val = input.value.trim();
+            if (!val) {
+                input.value = 'user' + suffix;
+            } else if (val.includes('@')) {
+                input.value = val.split('@')[0] + suffix;
+            } else {
+                input.value = val + suffix;
+            }
+            showToast('已快捷套用 ' + suffix + ' 邮箱后缀！');
+        }
+
         async function testMerchantAlert(channel) {
             try {
                 const res = await fetch('/api/merchant/alert/test', {
