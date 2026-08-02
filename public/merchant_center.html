@@ -197,6 +197,11 @@
                                     </div>
 
                                     <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div class="text-[10px] text-slate-400">商户签名密钥 (KEY)</div>
+                                        <div id="quick-merchant-key" class="font-mono font-bold text-slate-700 text-xs truncate mt-0.5 select-all">--</div>
+                                    </div>
+
+                                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                                         <div class="text-[10px] text-slate-400">易支付兼容 MAPI</div>
                                         <div class="font-mono text-[11px] text-slate-700 truncate mt-0.5">/mapi.php</div>
                                     </div>
@@ -810,6 +815,7 @@
                 setVal('epay-pid', String(merchant.pid || ''));
                 setVal('epay-key', merchant.key || '');
                 setTxt('quick-merchant-pid', merchant.pid || '');
+                setTxt('quick-merchant-key', merchant.key || '');
                 setTxt('quick-submit-url', location.origin + '/submit.php');
             } catch (error) {
                 window.location.href = 'merchant_login.html';
