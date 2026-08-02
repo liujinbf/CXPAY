@@ -35,14 +35,21 @@ class MonitorService
             $dbPoolStatus = 'UNHEALTHY';
         }
 
+        $workermanVer = '5.x';
+        try {
+            if (class_exists(\Composer\InstalledVersions::class)) {
+                $workermanVer = \Composer\InstalledVersions::getPrettyVersion('workerman/workerman') ?: '5.x';
+            }
+        } catch (\Throwable $e) {
+            $workermanVer = '5.x';
+        }
+
         return [
             'memory_usage'   => $memoryFormatted,
             'cpu_load'       => $cpuLoad,
             'db_pool'        => $dbPoolStatus,
             'php_version'    => PHP_VERSION,
-            'workerman_ver'  => class_exists(\Composer\InstalledVersions::class)
-                ? (\Composer\InstalledVersions::getPrettyVersion('workerman/workerman') ?: '未知')
-                : '未知',
+            'workerman_ver'  => $workermanVer,
             'opcache_status' => function_exists('opcache_get_status') ? 'ON' : 'OFF',
         ];
     }
