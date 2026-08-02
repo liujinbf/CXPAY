@@ -371,71 +371,173 @@
                     </div>
                 </div>
 
-                <!-- 3.2 通道配置 Channel Config (收银台参数与模板风格选卡) -->
+                <!-- 3.2 通道配置 Channel Config (完全 1:1 参考 XLPAY 聚合收银台配置布局) -->
                 <div id="tab-channel-config" class="tab-panel space-y-6">
-                    <h2 class="text-xl font-extrabold text-slate-800">通道配置 · 收银台设置</h2>
-
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <!-- 收银台基本参数 -->
-                        <div class="lg:col-span-2 glass-card rounded-2xl p-6 space-y-5">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">支付页面公告</label>
-                                <textarea id="cfg-notice" rows="3" placeholder="收银台加载时以弹窗显示的提示，留空则不弹出" class="w-full p-3 border border-slate-200 rounded-xl text-xs"></textarea>
+                        <!-- 左侧 2/3 列：通道配置 - 收银台设置表单 -->
+                        <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-xs border border-slate-200/80 space-y-6">
+                            <div class="border-b border-slate-100 pb-3">
+                                <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="sliders" class="w-4.5 h-4.5 text-blue-600"></i> 通道配置 - 收银台设置
+                                </h3>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-700 mb-1">支付超时时间 (秒)</label>
-                                    <input id="cfg-timeout" type="number" value="180" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">
-                                    <span class="text-[10px] text-slate-400 mt-1 block">60 - 300 秒 (建议 3 分钟)</span>
+                            <div class="space-y-5 text-xs">
+                                <!-- 1. 支付页面公告 -->
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-start">
+                                    <label class="font-bold text-slate-700 md:text-right pt-2">支付页面公告</label>
+                                    <div class="md:col-span-3 space-y-1">
+                                        <div class="relative">
+                                            <textarea id="cfg-notice" rows="3" maxlength="300" oninput="document.getElementById('notice-char-count').textContent = this.value.length" placeholder="收银台加载时以弹窗显示的提示，留空则不弹出" class="w-full p-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"></textarea>
+                                            <span class="absolute bottom-2 right-3 text-[10px] text-slate-400 font-mono"><span id="notice-char-count">0</span> / 300</span>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-700 mb-1">支付超时跳转</label>
-                                    <select id="cfg-redirect" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">
-                                        <option value="return_url">返回网站 (商户 return_url)</option>
-                                        <option value="custom">自定义地址</option>
-                                    </select>
+                                <!-- 2. 支付超时时间 -->
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+                                    <label class="font-bold text-slate-700 md:text-right">支付超时时间</label>
+                                    <div class="md:col-span-3 space-y-1">
+                                        <div class="flex items-center gap-2">
+                                            <div class="inline-flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden">
+                                                <button type="button" onclick="adjustTimeout(-10)" class="px-3 py-2 text-slate-600 hover:bg-slate-200 font-bold transition-colors cursor-pointer">-</button>
+                                                <input id="cfg-timeout" type="number" value="180" min="60" max="300" class="w-16 py-2 text-center bg-white border-x border-slate-200 font-bold font-mono text-slate-800 text-xs focus:outline-none">
+                                                <button type="button" onclick="adjustTimeout(10)" class="px-3 py-2 text-slate-600 hover:bg-slate-200 font-bold transition-colors cursor-pointer">+</button>
+                                            </div>
+                                            <span class="font-bold text-slate-600">秒</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-400">60 ~ 300 秒（最多 5 分钟）；同时决定订单自动关单时间，收银台倒计时与之一致。</p>
+                                    </div>
+                                </div>
+
+                                <!-- 3. 支付超时跳转 -->
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+                                    <label class="font-bold text-slate-700 md:text-right">支付超时跳转</label>
+                                    <div class="md:col-span-3 flex items-center gap-6">
+                                        <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                                            <input type="radio" name="cfg_redirect_type" value="return_url" checked onchange="toggleCustomUrlInput()" class="text-blue-600 focus:ring-blue-500">
+                                            <span>返回网站 (商户 return_url)</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                                            <input type="radio" name="cfg_redirect_type" value="custom" onchange="toggleCustomUrlInput()" class="text-blue-600 focus:ring-blue-500">
+                                            <span>自定义地址</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div id="custom-url-wrapper" class="hidden grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+                                    <div></div>
+                                    <div class="md:col-span-3">
+                                        <input type="text" id="cfg-custom-url" placeholder="https://example.com/timeout" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs">
+                                    </div>
+                                </div>
+
+                                <!-- 4. mapi 默认返回 -->
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-start">
+                                    <label class="font-bold text-slate-700 md:text-right pt-0.5">mapi 默认返回</label>
+                                    <div class="md:col-span-3 space-y-1.5">
+                                        <div class="flex flex-wrap items-center gap-6">
+                                            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                                                <input type="radio" name="cfg_mapi_mode" value="qrcode" checked class="text-blue-600 focus:ring-blue-500">
+                                                <span>支付二维码链接 (qrcode)</span>
+                                            </label>
+                                            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                                                <input type="radio" name="cfg_mapi_mode" value="payurl" class="text-blue-600 focus:ring-blue-500">
+                                                <span>支付页面链接 (payurl)</span>
+                                            </label>
+                                        </div>
+                                        <div class="text-[11px] text-slate-400 leading-relaxed">
+                                            <p><span class="font-bold text-slate-600 font-mono">qrcode:</span> mapi 返回 qrcode 支付链接，由您系统的模块或插件自行生成二维码；</p>
+                                            <p><span class="font-bold text-slate-600 font-mono">payurl:</span> mapi 返回 payurl 收银台页地址，直接跳转到收银台页完成支付。</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 5. 收款浮动金额 -->
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-start">
+                                    <label class="font-bold text-slate-700 md:text-right pt-2">收款浮动金额</label>
+                                    <div class="md:col-span-3 space-y-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-slate-500">最小上浮</span>
+                                            <input id="cfg-float-min" type="number" step="0.01" value="0.00" class="w-20 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-mono font-bold text-xs">
+                                            <span class="text-slate-500">元</span>
+                                            <span class="text-slate-500 ml-2">最大上浮</span>
+                                            <input id="cfg-float-max" type="number" step="0.01" value="0.09" class="w-20 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-mono font-bold text-xs">
+                                            <span class="text-slate-500">元</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-400">下单时在原金额额随机上浮 [最小, 最大] 元以区分并发订单；均为 0 表示不浮动（全额核销实时自动匹配销账）。</p>
+                                    </div>
+                                </div>
+
+                                <!-- 保存配置与重置按钮 -->
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 pt-4">
+                                    <div></div>
+                                    <div class="md:col-span-3 flex items-center gap-3">
+                                        <button onclick="saveCashierConfig()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer">保存配置</button>
+                                        <button onclick="loadCashierConfig()" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs transition-colors cursor-pointer">重置</button>
+                                    </div>
                                 </div>
                             </div>
-
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">收款浮动金额 (最小/最大上浮元)</label>
-                                <div class="flex items-center gap-3">
-                                    <input id="cfg-float-min" type="text" value="0.00" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold">
-                                    <span class="text-xs text-slate-400">至</span>
-                                    <input id="cfg-float-max" type="text" value="0.09" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold">
-                                </div>
-                                <span class="text-[10px] text-slate-400 mt-1 block">下单时在原金额随机微浮动，用于区分并发订单高精准自动销账</span>
-                            </div>
-
-                            <button onclick="saveCashierConfig()" class="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700">保存配置</button>
                         </div>
 
-                        <!-- 支付界面模板选卡 -->
-                        <div class="glass-card rounded-2xl p-6 space-y-4">
-                            <h3 class="text-sm font-extrabold text-slate-800">支付界面模板</h3>
+                        <!-- 右侧 1/3 列：1:1 风格展示 支付界面模板选卡 -->
+                        <div class="bg-white rounded-2xl p-6 shadow-xs border border-slate-200/80 space-y-5">
+                            <div class="border-b border-slate-100 pb-3">
+                                <h3 class="text-sm font-extrabold text-slate-800">支付界面模板</h3>
+                            </div>
                             
-                            <div class="space-y-3">
-                                <div class="theme-card-selected p-4 rounded-xl cursor-pointer flex items-center justify-between">
-                                    <div>
-                                        <div class="font-bold text-xs text-slate-800">经典蓝 (推荐)</div>
-                                        <div class="text-[11px] text-slate-400 mt-0.5">浅色背景 + 蓝色主色，自适应移动端与PC</div>
+                            <div class="space-y-4">
+                                <!-- 1. 暗黑 -->
+                                <div onclick="selectThemeTemplate('dark')" id="theme-card-dark" class="border border-slate-200 rounded-2xl p-4 cursor-pointer hover:border-blue-400 transition-all group relative">
+                                    <div class="bg-slate-900 rounded-xl p-6 text-center space-y-1.5 border border-slate-800 mb-3 shadow-inner">
+                                        <div class="text-[10px] text-slate-400">商品名称</div>
+                                        <div class="text-lg font-black text-white font-mono">¥ 6.66</div>
+                                        <div class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 mx-auto mt-2"></div>
                                     </div>
-                                    <i data-lucide="check-circle" class="w-5 h-5 text-blue-600"></i>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="font-extrabold text-xs text-slate-800">暗黑</div>
+                                            <div class="text-[10px] text-slate-400 mt-0.5">深色背景 + 青色主色，护眼</div>
+                                        </div>
+                                        <div id="theme-check-dark" class="hidden w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                                            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div class="p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-400 flex items-center justify-between">
-                                    <div>
-                                        <div class="font-bold text-xs text-slate-800">暗黑风</div>
-                                        <div class="text-[11px] text-slate-400 mt-0.5">深色背景 + 青色主色，科技护眼</div>
+                                <!-- 2. 经典蓝 -->
+                                <div onclick="selectThemeTemplate('classic_blue')" id="theme-card-classic_blue" class="border-2 border-blue-500 bg-blue-50/20 rounded-2xl p-4 cursor-pointer transition-all relative">
+                                    <div class="bg-slate-100 rounded-xl p-6 text-center space-y-1.5 border border-slate-200 mb-3 shadow-inner">
+                                        <div class="text-[10px] text-slate-500">商品名称</div>
+                                        <div class="text-lg font-black text-blue-600 font-mono">¥ 6.66</div>
+                                        <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 mx-auto mt-2 shadow-xs"></div>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="font-extrabold text-xs text-slate-800">经典蓝</div>
+                                            <div class="text-[10px] text-slate-400 mt-0.5">浅色背景 + 蓝色主色，通用绝佳</div>
+                                        </div>
+                                        <div id="theme-check-classic_blue" class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                                            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div class="p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-400 flex items-center justify-between">
-                                    <div>
-                                        <div class="font-bold text-xs text-slate-800">简约白</div>
-                                        <div class="text-[11px] text-slate-400 mt-0.5">纯白板面 + 绿色主色，极简清爽</div>
+                                <!-- 3. 简约白 -->
+                                <div onclick="selectThemeTemplate('simple_white')" id="theme-card-simple_white" class="border border-slate-200 rounded-2xl p-4 cursor-pointer hover:border-blue-400 transition-all group relative">
+                                    <div class="bg-white rounded-xl p-6 text-center space-y-1.5 border border-slate-100 mb-3 shadow-xs">
+                                        <div class="text-[10px] text-slate-400">商品名称</div>
+                                        <div class="text-lg font-black text-emerald-600 font-mono">¥ 6.66</div>
+                                        <div class="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 mx-auto mt-2"></div>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="font-extrabold text-xs text-slate-800">简约白</div>
+                                            <div class="text-[10px] text-slate-400 mt-0.5">纯白版面 + 绿色主色，清爽</div>
+                                        </div>
+                                        <div id="theme-check-simple_white" class="hidden w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                                            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1385,33 +1487,100 @@
         }
 
         // 加载收银台配置
+        function adjustTimeout(delta) {
+            const input = document.getElementById('cfg-timeout');
+            if (!input) return;
+            let val = parseInt(input.value) || 180;
+            val = Math.max(60, Math.min(300, val + delta));
+            input.value = val;
+        }
+
+        function toggleCustomUrlInput() {
+            const selected = document.querySelector('input[name="cfg_redirect_type"]:checked')?.value;
+            const wrapper = document.getElementById('custom-url-wrapper');
+            if (wrapper) {
+                if (selected === 'custom') {
+                    wrapper.classList.remove('hidden');
+                } else {
+                    wrapper.classList.add('hidden');
+                }
+            }
+        }
+
+        function selectThemeTemplate(themeId) {
+            window.selectedCashierTheme = themeId;
+            ['dark', 'classic_blue', 'simple_white'].forEach(t => {
+                const card = document.getElementById('theme-card-' + t);
+                const check = document.getElementById('theme-check-' + t);
+                if (card && check) {
+                    if (t === themeId) {
+                        card.className = 'border-2 border-blue-500 bg-blue-50/20 rounded-2xl p-4 cursor-pointer transition-all relative';
+                        check.classList.remove('hidden');
+                        check.classList.add('flex');
+                    } else {
+                        card.className = 'border border-slate-200 rounded-2xl p-4 cursor-pointer hover:border-blue-400 transition-all group relative';
+                        check.classList.add('hidden');
+                        check.classList.remove('flex');
+                    }
+                }
+            });
+            showToast('已选中 [' + (themeId === 'dark' ? '暗黑' : (themeId === 'simple_white' ? '简约白' : '经典蓝')) + '] 支付界面模板！');
+        }
+
         async function loadCashierConfig() {
-            // 收银台配置为商户本地持久化，这里只从 localStorage 读回
+            // 收银台配置为商户本地持久化，这里从 localStorage 读回
             const saved = JSON.parse(localStorage.getItem('cx_cashier_config') || 'null');
             if (saved) {
-                if (saved.notice !== undefined) document.getElementById('cfg-notice').value = saved.notice;
+                if (saved.notice !== undefined) {
+                    const noticeEl = document.getElementById('cfg-notice');
+                    if (noticeEl) {
+                        noticeEl.value = saved.notice;
+                        const charCountEl = document.getElementById('notice-char-count');
+                        if (charCountEl) charCountEl.textContent = saved.notice.length;
+                    }
+                }
                 if (saved.timeout !== undefined) document.getElementById('cfg-timeout').value = saved.timeout;
-                if (saved.redirect !== undefined) document.getElementById('cfg-redirect').value = saved.redirect;
+                if (saved.redirect !== undefined) {
+                    const rad = document.querySelector(`input[name="cfg_redirect_type"][value="${saved.redirect}"]`);
+                    if (rad) rad.checked = true;
+                    toggleCustomUrlInput();
+                }
+                if (saved.custom_url !== undefined) {
+                    const cUrlEl = document.getElementById('cfg-custom-url');
+                    if (cUrlEl) cUrlEl.value = saved.custom_url;
+                }
+                if (saved.mapi_mode !== undefined) {
+                    const mRad = document.querySelector(`input[name="cfg_mapi_mode"][value="${saved.mapi_mode}"]`);
+                    if (mRad) mRad.checked = true;
+                }
                 if (saved.float_min !== undefined) document.getElementById('cfg-float-min').value = saved.float_min;
                 if (saved.float_max !== undefined) document.getElementById('cfg-float-max').value = saved.float_max;
+                if (saved.theme !== undefined) {
+                    selectThemeTemplate(saved.theme);
+                }
             }
         }
 
         // 保存收银台配置
         function saveCashierConfig() {
+            const redirectType = document.querySelector('input[name="cfg_redirect_type"]:checked')?.value || 'return_url';
+            const mapiMode = document.querySelector('input[name="cfg_mapi_mode"]:checked')?.value || 'qrcode';
             const cfg = {
                 notice: document.getElementById('cfg-notice').value.trim(),
                 timeout: Number(document.getElementById('cfg-timeout').value) || 180,
-                redirect: document.getElementById('cfg-redirect').value,
+                redirect: redirectType,
+                custom_url: document.getElementById('cfg-custom-url')?.value.trim() || '',
+                mapi_mode: mapiMode,
                 float_min: document.getElementById('cfg-float-min').value,
                 float_max: document.getElementById('cfg-float-max').value,
+                theme: window.selectedCashierTheme || 'classic_blue',
             };
             if (cfg.timeout < 60 || cfg.timeout > 300) {
-                alert('超时时间必须在 60 到 300 秒之间');
+                showToast('超时时间必须在 60 到 300 秒之间', 'error');
                 return;
             }
             localStorage.setItem('cx_cashier_config', JSON.stringify(cfg));
-            alert('收银台参数已保存生效！（商户本地持久化）');
+            showToast('收银台参数与模板配置已成功保存生效！');
         }
 
         // 加载轮询组列表（通过当前通道列表模拟）
