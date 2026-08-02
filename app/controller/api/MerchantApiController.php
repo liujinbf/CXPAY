@@ -181,6 +181,11 @@ class MerchantApiController
             } catch (\Throwable) {}
         }
 
+        $gatewayBase = rtrim((string)config('app.url', ''), '/');
+        if (!filter_var($gatewayBase, FILTER_VALIDATE_URL)) {
+            $gatewayBase = '';
+        }
+
         return json_encode([
             'code' => 1,
             'data' => [
