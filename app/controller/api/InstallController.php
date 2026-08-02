@@ -383,8 +383,8 @@ class InstallController
             if (!preg_match('/^[A-Za-z0-9_.@-]{3,64}$/', $adminUser)) {
                 throw new RuntimeException('管理员用户名仅允许 3 至 64 位字母、数字及 _ . @ -');
             }
-            if (!$this->isStrongPassword($adminPass)) {
-                throw new RuntimeException('管理员密码至少 12 位，且应同时包含大写字母、小写字母、数字和符号中的至少三类');
+            if (mb_strlen($adminPass) < 6) {
+                throw new RuntimeException('管理员密码长度至少 6 位');
             }
 
             $pdo = $this->connectDatabase($database, false);

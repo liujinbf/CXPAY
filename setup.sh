@@ -219,19 +219,13 @@ prompt "管理员用户名 [admin]："
 read -r INPUT_ADMIN_USER; ADMIN_USER="${INPUT_ADMIN_USER:-admin}"
 
 while true; do
-    prompt "管理员密码（≥12位，含大小写+数字+符号）："
+    prompt "管理员密码（≥6位）："
     read -rs ADMIN_PASS; echo ""
     _len=${#ADMIN_PASS}
-    if [ "$_len" -lt 12 ]; then
-        warn "密码至少 12 位，请重新输入"; continue
+    if [ "$_len" -lt 6 ]; then
+        warn "密码至少 6 位，请重新输入"; continue
     fi
-    _upper=$(echo "$ADMIN_PASS" | grep -c '[A-Z]' 2>/dev/null || echo 0)
-    _lower=$(echo "$ADMIN_PASS" | grep -c '[a-z]' 2>/dev/null || echo 0)
-    _digit=$(echo "$ADMIN_PASS" | grep -c '[0-9]' 2>/dev/null || echo 0)
-    _spec=$(echo "$ADMIN_PASS"  | grep -c '[^a-zA-Z0-9]' 2>/dev/null || echo 0)
-    _classes=$(( (_upper>0) + (_lower>0) + (_digit>0) + (_spec>0) ))
-    if [ "$_classes" -ge 3 ]; then break; fi
-    warn "密码强度不足（需含大小写+数字+符号中至少三类），请重新输入"
+    break
 done
 ok "管理员账号：$ADMIN_USER"
 echo ""
