@@ -88,23 +88,22 @@ final class SystemUpdateController
      */
     public function versionHistory(Request $request): Response
     {
-        $baseDir = base_path();
-        $rawLogs = @shell_exec("cd /d \"{$baseDir}\" && git log -10 --pretty=format:\"%h|%an|%cd|%s\" --date=format:\"%Y-%m-%d %H:%M\" 2>&1");
+        $rawLogs = $this->execGit('git log -10 --pretty=format:"%h|%an|%cd|%s" --date=format:"%Y-%m-%d %H:%M"');
         $commits = [];
-        if ($rawLogs) {
+        if ($rawLogs !== '') {
             foreach (explode("\n", trim($rawLogs)) as $line) {
-                $parts = explode("|", $line);
+                $parts = explode("|", trim($line));
                 if (count($parts) >= 4) {
                     $commits[] = [
                         'hash' => $parts[0],
                         'author' => $parts[1],
                         'date' => $parts[2],
-                        'msg' => $parts[3]
+                        'msg' => implode('|', array_slice($parts, 3))
                     ];
                 }
             }
         }
-        return json(['code' => 1, 'msg' => '获取成功', 'data' => ['commits' => $commits]]);
+        return json(['code' => 1, 'msg' => '获取成功', 'data' => $commits]);
     }
 
     public function pollProgress(Request $request): Response
