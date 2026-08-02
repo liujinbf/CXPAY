@@ -988,6 +988,34 @@ $ git pull 2>&1
             }
         }
 
+        async function loadGitVersionHistory() {
+            const container = document.getElementById('git-version-history-list');
+            if (!container) return;
+            try {
+                const res = await adminFetch('/api/admin/system/version_history');
+                const payload = await res.json();
+                if (payload.code === 1 && Array.isArray(payload.data)) {
+                    if (payload.data.length === 0) {
+                        container.innerHTML = '<div class="text-slate-400 text-center py-6 font-bold">暂无 Commit 记录</div>';
+                        return;
+                    }
+                    container.innerHTML = payload.data.map(item => `
+                        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100/80 transition-all space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="font-mono font-bold text-blue-600">#${escapeHtml(item.hash || item.commit || '')}</span>
+                                <span class="text-[10px] text-slate-400">${escapeHtml(item.date || item.time || '')}</span>
+                            </div>
+                            <div class="text-slate-700 font-medium truncate">${escapeHtml(item.msg || item.subject || '')}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="text-slate-400 text-center py-6 font-bold">暂无 Commit 历史</div>';
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="text-rose-500 text-center py-4 text-xs font-bold">加载版本历史失败</div>`;
+            }
+        }
+
         async function loadAdminChannels() {
             const container = document.getElementById('admin-channel-list');
             if (!container) return;
