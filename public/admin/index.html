@@ -871,17 +871,14 @@ $ git pull 2>&1
                     </div>
                 </div>
 
-                <!-- 6. 绑定通道 -->
+                <!-- 6. 绑定通道 (动态读取已安装驱动) -->
                 <div class="grid grid-cols-12 items-center gap-4">
                     <label class="col-span-3 text-right font-medium text-slate-600">绑定通道</label>
                     <div class="col-span-9">
-                        <select id="plan-allowed-channels" multiple class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs h-20">
-                            <option value="alipay">支付宝 (alipay)</option>
-                            <option value="wxpay">微信支付 (wxpay)</option>
-                            <option value="qqpay">QQ 钱包 (qqpay)</option>
-                            <option value="usdt">USDT 挂接 (usdt)</option>
+                        <select id="plan-allowed-channels" multiple class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs h-24 focus:outline-none focus:border-blue-500">
+                            <option value="" disabled class="text-slate-400">正在读取已安装支付插件驱动...</option>
                         </select>
-                        <span class="text-[10px] text-slate-400 mt-1 block">按 Ctrl / Command 键可多选通道支持</span>
+                        <span class="text-[10px] text-slate-400 mt-1 block">按住 Ctrl / Command 键可按需选择该套餐支持的支付驱动插件</span>
                     </div>
                 </div>
 
@@ -1155,7 +1152,7 @@ $ git pull 2>&1
             }
         }
 
-        function openPlanEditor(data = null) {
+        async function openPlanEditor(data = null) {
             const modal = document.getElementById('plan-editor');
             if (!modal) return;
             document.getElementById('plan-editor-title').textContent = data ? '编辑套餐' : '添加套餐';
@@ -1171,11 +1168,25 @@ $ git pull 2>&1
             document.getElementById('plan-sort-order').value = data ? data.sort_order : 0;
 
             const chSelect = document.getElementById('plan-allowed-channels');
-            if (chSelect) {
-                const allowed = (data && data.allowed_channels) ? data.allowed_channels.split(',') : ['alipay', 'wxpay'];
-                Array.from(chSelect.options).forEach(opt => {
-                    opt.selected = allowed.includes(opt.value);
-                });
+            const allowedList = (data && data.allowed_channels) ? data.allowed_channels.split(',').map(s => s.trim()) : [];
+
+            // 动态拉取系统已安装的支付驱动插件
+            try {
+                const res = await adminFetch('/api/admin/plugin/market_list');
+                const payload = await res.json();
+                if (payload.code === 1 && Array.isArray(payload.data)) {
+                    chSelect.innerHTML = payload.data.filter(item => item.c_type).map(driver => {
+                        const code = driver.c_type;
+                        const name = driver.name || code;
+                        const version = driver.version ? ` (v${driver.version})` : '';
+                        const isSelected = allowedList.includes(code) ? 'selected' : '';
+                        return `<option value="${escapeHtml(code)}" ${isSelected}>${escapeHtml(name)} [${escapeHtml(code)}]${escapeHtml(version)}</option>`;
+                    }).join('');
+                } else {
+                    chSelect.innerHTML = '<option value="" disabled>加载插件驱动失败</option>';
+                }
+            } catch (e) {
+                chSelect.innerHTML = `<option value="" disabled>读取异常: ${escapeHtml(e.message)}</option>`;
             }
 
             const statusVal = data ? String(data.status) : '1';
