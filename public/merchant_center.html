@@ -72,6 +72,9 @@
                     <a onclick="switchTab('finance-log')" id="nav-finance-log" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="wallet" class="w-4 h-4 text-amber-500"></i> 财务明细
                     </a>
+                    <a onclick="switchTab('plan-buy')" id="nav-plan-buy" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                        <i data-lucide="gem" class="w-4 h-4 text-purple-500"></i> 套餐订阅与升级
+                    </a>
 
                     <!-- 5. API 配置 -->
                     <div class="nav-group-title">开发与对接</div>
@@ -516,6 +519,51 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+
+                <!-- 商户套餐订阅与升级 Plan Buy 面板 -->
+                <div id="tab-plan-buy" class="tab-panel space-y-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="gem" class="w-6 h-6 text-purple-600"></i> 套餐订阅与套餐广场
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-1">订阅高阶套餐可享受更低交易扣费率、更高通道配额及专属优先通道能力</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 shadow-sm flex items-center gap-2">
+                                <span class="text-slate-400">服务费余额:</span>
+                                <span id="plan-merchant-money" class="text-emerald-600 font-extrabold font-mono text-sm">¥ 0.00</span>
+                            </div>
+                            <button onclick="loadMerchantPlans()" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-600 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-500"></i> 刷新套餐
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 当前生效套餐条 Banner -->
+                    <div class="p-4 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center shrink-0">
+                                <i data-lucide="crown" class="w-5 h-5 text-amber-300"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs text-purple-200 font-medium">当前生效套餐</div>
+                                <div id="plan-current-name" class="text-lg font-black text-white mt-0.5">加载中...</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-6 text-xs text-purple-100">
+                            <div>
+                                <span class="text-purple-300">到期时间:</span>
+                                <strong id="plan-current-expire" class="font-mono ml-1.5 text-white">--</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 套餐展示网格卡片容器 -->
+                    <div id="merchant-plan-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="col-span-3 glass-card rounded-2xl p-8 text-center text-slate-400 font-bold">正在加载套餐广场...</div>
                     </div>
                 </div>
 
@@ -982,6 +1030,7 @@
                 'poll-group': '通道轮询组',
                 'order-list': '订单记录 · 交易明细',
                 'finance-log': '财务管理 · 服务费明细',
+                'plan-buy': '套餐订阅与套餐广场',
                 'api-keys': 'API 配置与对接参数'
             };
             document.getElementById('current-tab-title').innerText = titleMap[tabId] || 'DASHBOARD';
@@ -990,6 +1039,126 @@
             if (tabId === 'channel-list') { loadMerchantChannels(); }
             if (tabId === 'order-list')   { loadMerchantOrderList(); }
             if (tabId === 'finance-log')  { loadMerchantFinanceLogs(); }
+            if (tabId === 'plan-buy')     { loadMerchantPlans(); }
+            if (tabId === 'poll-group')   { loadPollGroups(); }
+            if (tabId === 'channel-config') { loadCashierConfig(); }
+            if (tabId === 'api-keys')       { loadMerchantProfile(); }
+            if (tabId === 'notice-config')  { loadMerchantAlertConfig(); }
+        }
+
+        // ==================== 商户套餐订阅广场 ====================
+        async function loadMerchantPlans() {
+            const grid = document.getElementById('merchant-plan-grid');
+            if (!grid) return;
+            grid.innerHTML = '<div class="col-span-3 glass-card rounded-2xl p-8 text-center text-slate-400 font-bold">正在加载套餐列表...</div>';
+
+            try {
+                const res = await fetch('/api/merchant/plan/list');
+                const payload = await res.json();
+                if (payload.code !== 1 || !payload.data) {
+                    grid.innerHTML = `<div class="col-span-3 glass-card rounded-2xl p-8 text-center text-rose-500 font-bold">${escapeHtml(payload.msg || '加载套餐列表失败')}</div>`;
+                    return;
+                }
+
+                const d = payload.data;
+                document.getElementById('plan-merchant-money').textContent = `¥ ${d.merchant_money}`;
+                document.getElementById('plan-current-name').textContent = d.current_plan_name || '默认基础套餐';
+                document.getElementById('plan-current-expire').textContent = d.plan_expire_format || '无到期限制';
+
+                if (!Array.isArray(d.list) || d.list.length === 0) {
+                    grid.innerHTML = '<div class="col-span-3 glass-card rounded-2xl p-8 text-center text-slate-400 font-bold">暂无上架可购买的套餐</div>';
+                    return;
+                }
+
+                grid.innerHTML = d.list.map(p => {
+                    const isZeroTrial = Number(p.price) === 0;
+                    const isCurrent = p.is_current;
+                    const canBuy = p.can_buy;
+
+                    const priceHtml = isZeroTrial
+                        ? '<div class="text-2xl font-black text-emerald-600">¥ 0.00 <span class="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-1">零元试用</span></div>'
+                        : `<div class="text-2xl font-black text-slate-800">¥ ${Number(p.price).toFixed(2)} <span class="text-xs font-normal text-slate-400">/ ${p.days > 0 ? p.days + '天' : '永久'}</span></div>`;
+
+                    const btnClass = isCurrent
+                        ? 'w-full py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold rounded-xl text-center text-xs'
+                        : (!canBuy
+                            ? 'w-full py-2.5 bg-slate-100 text-slate-400 font-bold rounded-xl text-center text-xs cursor-not-allowed'
+                            : (isZeroTrial
+                                ? 'w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-center text-xs transition-colors shadow-md cursor-pointer'
+                                : 'w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-center text-xs transition-colors shadow-md cursor-pointer'));
+
+                    const btnText = isCurrent
+                        ? '✓ 当前已激活套餐'
+                        : (!canBuy ? '已达购买上限' : (isZeroTrial ? '⚡ 免费试用领取' : '立即订阅购买'));
+
+                    const clickAttr = (!isCurrent && canBuy) ? `onclick="buyMerchantPlan(${p.id}, '${escapeHtml(p.name)}', ${p.price})"` : '';
+
+                    return `<div class="glass-card rounded-2xl p-6 border ${isCurrent ? 'border-2 border-purple-500 bg-purple-50/20' : 'border-slate-200/80'} shadow-sm flex flex-col justify-between space-y-5 transition-all hover:shadow-md">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div>
+                                    <h3 class="text-base font-extrabold text-slate-800">${escapeHtml(p.name)}</h3>
+                                    ${p.memo ? `<p class="text-[11px] text-slate-400 mt-0.5">${escapeHtml(p.memo)}</p>` : ''}
+                                </div>
+                                ${isCurrent ? '<span class="px-2.5 py-1 bg-purple-600 text-white font-bold text-[10px] rounded-full">当前生效</span>' : ''}
+                            </div>
+
+                            ${priceHtml}
+
+                            <div class="space-y-2 text-xs border-t border-b border-slate-100 py-3">
+                                <div class="flex justify-between text-slate-600">
+                                    <span>交易扣除费率:</span>
+                                    <strong class="font-mono font-extrabold text-blue-600">${Number(p.rate).toFixed(2)}%</strong>
+                                </div>
+                                <div class="flex justify-between text-slate-600">
+                                    <span>套餐时长:</span>
+                                    <strong class="font-bold text-slate-800">${p.days > 0 ? p.days + ' 天' : '永久有效'}</strong>
+                                </div>
+                                <div class="flex justify-between text-slate-600">
+                                    <span>通道配额上限:</span>
+                                    <strong class="font-bold text-indigo-600">${p.channel_quota > 0 ? p.channel_quota + ' 个' : '无限制'}</strong>
+                                </div>
+                                <div class="flex justify-between text-slate-600">
+                                    <span>用户购买限额:</span>
+                                    <strong class="text-slate-500">${p.limit_count > 0 ? '限购 ' + p.limit_count + ' 次 (已购 ' + p.bought_count + ' 次)' : '无限制'}</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button ${clickAttr} class="${btnClass}">${btnText}</button>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                grid.innerHTML = `<div class="col-span-3 glass-card rounded-2xl p-8 text-center text-rose-500 font-bold">${escapeHtml(e.message || '网络请求异常')}</div>`;
+            }
+        }
+
+        async function buyMerchantPlan(planId, planName, price) {
+            const isZero = Number(price) === 0;
+            const confirmMsg = isZero
+                ? `确定免费领取【${planName}】吗？`
+                : `确定购买【${planName}】吗？将扣除服务费余额 ¥${Number(price).toFixed(2)}`;
+
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                const res = await fetch('/api/merchant/plan/buy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ plan_id: planId })
+                });
+                const payload = await res.json();
+                if (payload.code === 1) {
+                    alert(payload.msg || '操作成功！');
+                    loadMerchantPlans();
+                    loadMerchantProfile();
+                } else {
+                    alert('订阅失败: ' + (payload.msg || '未知错误'));
+                }
+            } catch (e) {
+                alert('网络请求失败: ' + e.message);
+            }
+        }
             if (tabId === 'poll-group')   { loadPollGroups(); }
             if (tabId === 'channel-config') { loadCashierConfig(); }
             if (tabId === 'api-keys')       { loadMerchantProfile(); }

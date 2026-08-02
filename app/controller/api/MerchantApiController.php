@@ -500,5 +500,146 @@ class MerchantApiController
         $result = (new OrderService())->resendNotify($tradeNo);
         return json_encode($result, JSON_UNESCAPED_UNICODE);
     }
+
+    /**
+     * 获取商户端可购买套餐列表
+     */
+    public function getPlanList(\support\Request $request): string
+    {
+        $merchant = $this->currentMerchant($request);
+        if (!$merchant) {
+            return json_encode(['code' => 401, 'msg' => '未登录'], JSON_UNESCAPED_UNICODE);
+        }
+
+        $plans = \app\model\Plan::where('status', 1)
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        // 统计商户已购买记录
+        $boughtCounts = \app\model\MerchantPlanLog::where('merchant_id', $merchant->id)
+            ->selectRaw('plan_id, COUNT(*) as cnt')
+            ->groupBy('plan_id')
+            ->pluck('cnt', 'plan_id')
+            ->toArray();
+
+        $planData = $plans->map(function ($plan) use ($boughtCounts, $merchant) {
+            $arr = $plan->toArray();
+            $boughtCount = (int)($boughtCounts[$plan->id] ?? 0);
+            $arr['bought_count'] = $boughtCount;
+            $arr['is_current'] = ((int)$merchant->plan_id === (int)$plan->id);
+            $arr['can_buy'] = ($plan->limit_count <= 0 || $boughtCount < $plan->limit_count);
+            return $arr;
+        });
+
+        $expireTimeStr = (int)$merchant->plan_expire_time > 0 ? date('Y-m-d H:i:s', (int)$merchant->plan_expire_time) : '无到期限制/无套餐';
+        $currentPlan = \app\model\Plan::find((int)$merchant->plan_id);
+
+        return json_encode([
+            'code' => 1,
+            'data' => [
+                'list'               => $planData,
+                'merchant_money'     => number_format((float)$merchant->money, 2, '.', ''),
+                'current_plan_id'    => (int)$merchant->plan_id,
+                'current_plan_name'  => $currentPlan ? $currentPlan->name : '默认基础套餐',
+                'plan_expire_time'   => (int)$merchant->plan_expire_time,
+                'plan_expire_format' => $expireTimeStr,
+            ]
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * 商户购买/免费领取套餐
+     */
+    public function buyPlan(\support\Request $request): string
+    {
+        $merchant = $this->currentMerchant($request);
+        if (!$merchant) {
+            return json_encode(['code' => 401, 'msg' => '未登录'], JSON_UNESCAPED_UNICODE);
+        }
+
+        $planId = (int)$request->post('plan_id', 0);
+        $plan = \app\model\Plan::where('id', $planId)->where('status', 1)->first();
+        if (!$plan) {
+            return json_encode(['code' => -1, 'msg' => '套餐不存在或已停用'], JSON_UNESCAPED_UNICODE);
+        }
+
+        // 检查限购次数
+        if ($plan->limit_count > 0) {
+            $boughtCount = \app\model\MerchantPlanLog::where('merchant_id', $merchant->id)
+                ->where('plan_id', $plan->id)
+                ->count();
+            if ($boughtCount >= $plan->limit_count) {
+                return json_encode(['code' => -1, 'msg' => '您已达到该套餐的购买限额 (' . $plan->limit_count . '次)'], JSON_UNESCAPED_UNICODE);
+            }
+        }
+
+        $price = (float)$plan->price;
+        $merchantMoney = (float)$merchant->money;
+
+        if ($price > 0 && $merchantMoney < $price) {
+            return json_encode([
+                'code' => -1,
+                'msg'  => '服务费余额不足，当前余额 ¥' . number_format($merchantMoney, 2) . '，套餐需 ¥' . number_format($price, 2),
+            ], JSON_UNESCAPED_UNICODE);
+        }
+
+        // 事务处理购买
+        \illuminate\database\capsule\manager::transaction(function () use ($merchant, $plan, $price) {
+            // 扣减余额（若 $price > 0）
+            if ($price > 0) {
+                $before = (float)$merchant->money;
+                $after  = $before - $price;
+                $merchant->money = number_format($after, 2, '.', '');
+
+                // 写入变动日志
+                \app\model\FinanceLog::create([
+                    'merchant_id' => $merchant->id,
+                    'type'        => 'buy_plan',
+                    'amount'      => '-' . number_format($price, 2, '.', ''),
+                    'before'      => number_format($before, 2, '.', ''),
+                    'after'       => number_format($after, 2, '.', ''),
+                    'memo'        => "购买/订阅套餐【{$plan->name}】",
+                    'create_time' => time(),
+                ]);
+            }
+
+            // 更新商户套餐信息
+            $merchant->plan_id = $plan->id;
+            $merchant->rate    = number_format((float)$plan->rate / 100.0, 4, '.', ''); // 保存小数形式，如 2.5% 保存为 0.0250
+
+            if ($plan->channel_quota > 0) {
+                $merchant->channel_quota = $plan->channel_quota;
+            }
+
+            // 续期天数计算
+            $now = time();
+            $currentExpire = (int)$merchant->plan_expire_time;
+            if ($plan->days > 0) {
+                $baseTime = ($currentExpire > $now) ? $currentExpire : $now;
+                $merchant->plan_expire_time = $baseTime + ($plan->days * 86400);
+            } else {
+                // 0 表示无时间限制/永久
+                $merchant->plan_expire_time = 0;
+            }
+
+            $merchant->save();
+
+            // 记录购买日志
+            \app\model\MerchantPlanLog::create([
+                'merchant_id' => $merchant->id,
+                'plan_id'     => $plan->id,
+                'plan_name'   => $plan->name,
+                'price'       => number_format($price, 2, '.', ''),
+                'days'        => $plan->days,
+                'rate'        => number_format((float)$plan->rate, 2, '.', ''),
+                'create_time' => time(),
+            ]);
+        });
+
+        $actionText = $price > 0 ? '订阅成功！' : '领取试用成功！';
+        return json_encode(['code' => 1, 'msg' => $actionText], JSON_UNESCAPED_UNICODE);
+    }
 }
+
 

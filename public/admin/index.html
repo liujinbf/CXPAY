@@ -58,6 +58,9 @@
                     <a onclick="switchTab('merchant-mgmt')" id="nav-merchant-mgmt" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="users" class="w-4 h-4 text-purple-500"></i> 商户账号与费率
                     </a>
+                    <a onclick="switchTab('plan-mgmt')" id="nav-plan-mgmt" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                        <i data-lucide="gem" class="w-4 h-4 text-pink-500"></i> 套餐设置与配额
+                    </a>
 
                     <!-- 4. 订单与财务结算 -->
                     <div class="nav-group-title">订单与财务结算</div>
@@ -525,6 +528,42 @@ $ git pull 2>&1
                     </div>
                 </div>
 
+                <!-- 套餐设置与配额管理 -->
+                <div id="tab-plan-mgmt" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="gem" class="w-5 h-5 text-pink-600"></i> 套餐设置与商户配额
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">设置套餐有效天数、费率%、通道配额及 0 元免费试用套餐</p>
+                        </div>
+                        <button onclick="openPlanEditor()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm">
+                            <i data-lucide="plus" class="w-4 h-4"></i> 添加套餐
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 uppercase font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3">ID / 排序</th>
+                                    <th class="p-3">套餐名称</th>
+                                    <th class="p-3">价格 (元)</th>
+                                    <th class="p-3">有效天数</th>
+                                    <th class="p-3">扣除费率 %</th>
+                                    <th class="p-3">最低费率</th>
+                                    <th class="p-3">通道配额</th>
+                                    <th class="p-3">用户限购</th>
+                                    <th class="p-3">状态</th>
+                                    <th class="p-3 text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="plan-table-body" class="divide-y divide-slate-100">
+                                <tr><td colspan="10" class="p-6 text-center text-slate-400">正在加载套餐数据...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- 6. 订单检索与补单 -->
                 <div id="tab-order-list" class="tab-panel glass-panel rounded-2xl p-6 space-y-4">
                     <div class="flex items-center justify-between gap-4">
@@ -777,6 +816,129 @@ $ git pull 2>&1
         </main>
     </div>
 
+    <!-- 添加 / 编辑套餐 Modal 弹窗 (严格符合截图设计) -->
+    <div id="plan-editor" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm items-center justify-center p-4">
+        <form onsubmit="submitPlan(event)" class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+                <h3 id="plan-editor-title" class="text-base font-bold text-slate-800">添加套餐</h3>
+                <button type="button" onclick="closePlanEditor()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Body (可滑动) -->
+            <div class="p-6 space-y-4 overflow-y-auto text-xs text-slate-700 flex-1">
+                <input id="plan-id" type="hidden" value="0">
+
+                <!-- 1. 套餐名称 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600"><span class="text-rose-500 font-bold">*</span> 套餐名称</label>
+                    <div class="col-span-9">
+                        <input id="plan-name" required type="text" placeholder="请输入套餐名称" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 2. 套餐天数 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">套餐天数</label>
+                    <div class="col-span-9">
+                        <input id="plan-days" type="number" min="0" placeholder="例如：30 天，0 表示永久" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 3. 费率(%) -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">费率(%)</label>
+                    <div class="col-span-9">
+                        <input id="plan-rate" type="number" step="0.01" min="0" max="100" placeholder="百分比，如 3 表示 3%" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 4. 最低费率 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">最低费率</label>
+                    <div class="col-span-9">
+                        <input id="plan-min-rate" type="number" step="0.01" min="0" max="100" placeholder="最低费率，留空或 0 表示不限" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 5. 通道配额 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">通道配额</label>
+                    <div class="col-span-9">
+                        <input id="plan-channel-quota" type="number" min="0" placeholder="允许增加的收款通道数量，0 为不限制" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 6. 绑定通道 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">绑定通道</label>
+                    <div class="col-span-9">
+                        <select id="plan-allowed-channels" multiple class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs h-20">
+                            <option value="alipay">支付宝 (alipay)</option>
+                            <option value="wxpay">微信支付 (wxpay)</option>
+                            <option value="qqpay">QQ 钱包 (qqpay)</option>
+                            <option value="usdt">USDT 挂接 (usdt)</option>
+                        </select>
+                        <span class="text-[10px] text-slate-400 mt-1 block">按 Ctrl / Command 键可多选通道支持</span>
+                    </div>
+                </div>
+
+                <!-- 7. 套餐价格 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">套餐价格</label>
+                    <div class="col-span-9">
+                        <input id="plan-price" type="number" step="0.01" min="0" placeholder="0 表示免费/零元试用套餐" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 8. 限购数 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">限购数</label>
+                    <div class="col-span-9">
+                        <input id="plan-limit-count" type="number" min="0" placeholder="每个用户限购数量，0 不限" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 9. 注释 -->
+                <div class="grid grid-cols-12 items-start gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600 pt-2">注释</label>
+                    <div class="col-span-9">
+                        <textarea id="plan-memo" rows="3" placeholder="套餐说明或优惠注释..." class="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs"></textarea>
+                    </div>
+                </div>
+
+                <!-- 10. 排序 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">排序</label>
+                    <div class="col-span-9">
+                        <input id="plan-sort-order" type="number" value="0" placeholder="数字越小越靠前" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 11. 状态 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">状态</label>
+                    <div class="col-span-9 flex items-center gap-4">
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 border border-slate-200 rounded-lg">
+                            <input type="radio" name="plan_status" value="0" class="accent-blue-600"> 禁用
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 border border-blue-200 bg-blue-50 rounded-lg text-blue-700 font-bold">
+                            <input type="radio" name="plan_status" value="1" checked class="accent-blue-600"> 启用
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
+                <button type="button" onclick="closePlanEditor()" class="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-600 transition-colors">取消</button>
+                <button type="submit" class="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">保存</button>
+            </div>
+        </form>
+    </div>
+
     <div id="merchant-editor" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm items-center justify-center p-4">
         <form onsubmit="submitMerchant(event)" class="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between">
@@ -916,6 +1078,7 @@ $ git pull 2>&1
                 'plugin-market': '已安装支付驱动',
                 'cloud-monitor': '个人码云监控运维',
                 'merchant-mgmt': '商户账号与费率',
+                'plan-mgmt': '套餐设置与配额',
                 'order-list': '交易订单与补单',
                 'callbill-review': '到账账单复核',
                 'alert-config': '系统告警与通知',
@@ -930,7 +1093,171 @@ $ git pull 2>&1
             if (tabId === 'dashboard') loadDashboard();
             if (tabId === 'channel-config') loadAdminChannels();
             if (tabId === 'merchant-mgmt') loadMerchants();
+            if (tabId === 'plan-mgmt') loadPlans();
             if (tabId === 'order-list') loadOrders();
+            if (tabId === 'callbill-review') loadCallbillReviews();
+            if (tabId === 'plugin-market') loadInstalledPlugins();
+            if (tabId === 'cloud-monitor') loadCloudMonitorStatus();
+            if (tabId === 'alert-config') loadAdminAlertConfig();
+        }
+
+        // ==================== 套餐管理模块 ====================
+        const planCacheMap = new Map();
+
+        async function loadPlans() {
+            const tbody = document.getElementById('plan-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-slate-400">正在加载套餐列表...</td></tr>';
+            try {
+                const res = await adminFetch('/api/admin/packvip/list');
+                const payload = await res.json();
+                if (payload.code !== 1 || !Array.isArray(payload.data)) {
+                    tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-rose-500 font-bold">${escapeHtml(payload.msg || '加载失败')}</td></tr>`;
+                    return;
+                }
+                planCacheMap.clear();
+                if (payload.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-slate-400 font-bold">暂无配置套餐，请点击右上角「添加套餐」</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = payload.data.map(p => {
+                    planCacheMap.set(p.id, p);
+                    const isZeroTrial = Number(p.price) === 0;
+                    const priceBadge = isZeroTrial
+                        ? '<span class="px-2 py-0.5 rounded-full font-extrabold text-[10px] bg-emerald-100 text-emerald-700">0元试用</span>'
+                        : `<span class="font-mono font-extrabold text-blue-600">¥ ${Number(p.price).toFixed(2)}</span>`;
+                    const daysText = p.days > 0 ? `${p.days} 天` : '<span class="text-purple-600 font-bold">永久有效</span>';
+                    const statusBadge = p.status === 1
+                        ? '<span class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-600 font-bold border border-emerald-200">已启用</span>'
+                        : '<span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-400 font-bold">已禁用</span>';
+
+                    return `<tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="p-3 font-mono">#${p.id} <span class="text-[10px] text-slate-400">(${p.sort_order})</span></td>
+                        <td class="p-3 font-bold text-slate-800">
+                            ${escapeHtml(p.name)}
+                            ${p.memo ? `<div class="text-[10px] text-slate-400 font-normal">${escapeHtml(p.memo)}</div>` : ''}
+                        </td>
+                        <td class="p-3">${priceBadge}</td>
+                        <td class="p-3 font-bold">${daysText}</td>
+                        <td class="p-3 font-mono font-extrabold text-slate-700">${Number(p.rate).toFixed(2)}%</td>
+                        <td class="p-3 font-mono text-slate-500">${Number(p.min_rate) > 0 ? Number(p.min_rate).toFixed(2) + '%' : '无限制'}</td>
+                        <td class="p-3 font-bold text-indigo-600">${p.channel_quota > 0 ? p.channel_quota + ' 个' : '不限制'}</td>
+                        <td class="p-3 text-slate-600">${p.limit_count > 0 ? '限领/购 ' + p.limit_count + ' 次' : '不限次'}</td>
+                        <td class="p-3">${statusBadge}</td>
+                        <td class="p-3 text-right space-x-2">
+                            <button onclick="editPlan(${p.id})" class="text-blue-600 hover:text-blue-700 font-bold">编辑</button>
+                            <button onclick="deletePlan(${p.id})" class="text-rose-500 hover:text-rose-600 font-bold">删除</button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-rose-500 font-bold">${escapeHtml(e.message || '网络请求失败')}</td></tr>`;
+            }
+        }
+
+        function openPlanEditor(data = null) {
+            const modal = document.getElementById('plan-editor');
+            if (!modal) return;
+            document.getElementById('plan-editor-title').textContent = data ? '编辑套餐' : '添加套餐';
+            document.getElementById('plan-id').value = data ? data.id : 0;
+            document.getElementById('plan-name').value = data ? data.name : '';
+            document.getElementById('plan-days').value = data ? data.days : 30;
+            document.getElementById('plan-rate').value = data ? data.rate : 2.50;
+            document.getElementById('plan-min-rate').value = data ? data.min_rate : 0;
+            document.getElementById('plan-channel-quota').value = data ? data.channel_quota : 0;
+            document.getElementById('plan-price').value = data ? data.price : 0;
+            document.getElementById('plan-limit-count').value = data ? data.limit_count : 0;
+            document.getElementById('plan-memo').value = data ? (data.memo || '') : '';
+            document.getElementById('plan-sort-order').value = data ? data.sort_order : 0;
+
+            const chSelect = document.getElementById('plan-allowed-channels');
+            if (chSelect) {
+                const allowed = (data && data.allowed_channels) ? data.allowed_channels.split(',') : ['alipay', 'wxpay'];
+                Array.from(chSelect.options).forEach(opt => {
+                    opt.selected = allowed.includes(opt.value);
+                });
+            }
+
+            const statusVal = data ? String(data.status) : '1';
+            document.querySelectorAll('input[name="plan_status"]').forEach(r => {
+                r.checked = (r.value === statusVal);
+            });
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closePlanEditor() {
+            const modal = document.getElementById('plan-editor');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function editPlan(id) {
+            const p = planCacheMap.get(id);
+            if (p) openPlanEditor(p);
+        }
+
+        async function submitPlan(event) {
+            event.preventDefault();
+            const chSelect = document.getElementById('plan-allowed-channels');
+            const selectedChannels = Array.from(chSelect.selectedOptions).map(o => o.value);
+
+            const payload = {
+                id: document.getElementById('plan-id').value,
+                name: document.getElementById('plan-name').value.trim(),
+                days: document.getElementById('plan-days').value,
+                rate: document.getElementById('plan-rate').value,
+                min_rate: document.getElementById('plan-min-rate').value,
+                channel_quota: document.getElementById('plan-channel-quota').value,
+                allowed_channels: selectedChannels.join(','),
+                price: document.getElementById('plan-price').value,
+                limit_count: document.getElementById('plan-limit-count').value,
+                memo: document.getElementById('plan-memo').value.trim(),
+                sort_order: document.getElementById('plan-sort-order').value,
+                status: document.querySelector('input[name="plan_status"]:checked')?.value || 1,
+            };
+
+            try {
+                const res = await adminFetch('/api/admin/packvip/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams(payload)
+                });
+                const result = await res.json();
+                if (result.code === 1) {
+                    alert(result.msg || '保存成功');
+                    closePlanEditor();
+                    loadPlans();
+                } else {
+                    alert('保存失败: ' + (result.msg || '未知错误'));
+                }
+            } catch (e) {
+                alert('网络请求失败: ' + e.message);
+            }
+        }
+
+        async function deletePlan(id) {
+            if (!confirm('确定要删除该套餐配置吗？删除后新商户将无法订阅。')) return;
+            try {
+                const res = await adminFetch('/api/admin/packvip/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ id })
+                });
+                const result = await res.json();
+                if (result.code === 1) {
+                    alert('套餐已成功删除');
+                    loadPlans();
+                } else {
+                    alert('删除失败: ' + (result.msg || '未知错误'));
+                }
+            } catch (e) {
+                alert('网络请求失败: ' + e.message);
+            }
+        }
             if (tabId === 'callbill-review') loadCallbillReviews();
             if (tabId === 'plugin-market') loadPluginMarket();
             if (tabId === 'cloud-monitor') loadCloudMonitorStatus();

@@ -141,6 +141,9 @@ Route::group('/api/merchant', function () {
     Route::post('/alert/config/save', [app\controller\api\MerchantApiController::class, 'saveAlertConfig']);
     Route::post('/alert/test', [app\controller\api\MerchantApiController::class, 'testAlert']);
     Route::post('/order/resend_notify', [app\controller\api\MerchantApiController::class, 'resendOrderNotify']);
+    // 商户端套餐 API
+    Route::get('/plan/list', [app\controller\api\MerchantApiController::class, 'getPlanList']);
+    Route::post('/plan/buy', [app\controller\api\MerchantApiController::class, 'buyPlan']);
     // 商户端报表 API
     Route::get('/report/trend',         [app\controller\api\MerchantReportController::class, 'trend']);
     Route::get('/report/pay_type_dist', [app\controller\api\MerchantReportController::class, 'payTypeDist']);
@@ -192,6 +195,7 @@ Route::group('/api/admin', function () {
     // VIP 套餐 API
     Route::get('/packvip/list', [app\controller\admin\PackvipAdminController::class, 'list']);
     Route::post('/packvip/save', [app\controller\admin\PackvipAdminController::class, 'save']);
+    Route::post('/packvip/delete', [app\controller\admin\PackvipAdminController::class, 'delete']);
 
     // 系统在线更新 API
     Route::get('/system/check_update',   [app\controller\admin\SystemUpdateController::class, 'checkUpdate']);
