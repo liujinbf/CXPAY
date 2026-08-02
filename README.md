@@ -36,65 +36,59 @@ CXPAY 是基于 PHP 8.1、Webman 2、MySQL 和 Redis 的个人收款码监控网
 - Redis 5+
 - Composer 2
 
-### 🚀 国内服务器快速克隆/更新（解决 GitHub 连不上问题）
-
-如果国内 Linux 服务器连接 GitHub 较慢或经常超时，请选择以下任意一种加速方式：
-
-#### 方式 1：使用国内 GHProxy 代理镜像（推荐，免配置）
-```bash
-# 第一次拉取源码（替换为你的域名目录）
-git clone https://mirror.ghproxy.com/https://github.com/liujinbf/CXPAY.git /www/wwwroot/你的域名
-
-# 后续更新代码（如果连不上 GitHub）
-git config remote.origin.url https://mirror.ghproxy.com/https://github.com/liujinbf/CXPAY.git
-git pull
-```
-
-#### 方式 2：使用 Gitee 镜像仓库（极致稳定）
-```bash
-git clone https://gitee.com/liujinbf/CXPAY.git /www/wwwroot/你的域名
-```
-
 ---
 
-### ⚡ 宝塔面板一键全自动安装（推荐）
+## 安装部署
 
-在宝塔终端中直接全选复制运行以下命令：
+### 🆕 场景一：全新安装（新服务器，第一次部署）
+
+**第一步：从 Gitee 拉取源码**
+
+在宝塔终端中执行（将 `你的Token` 替换为 Gitee 个人令牌，`你的域名` 替换为实际目录）：
+
+```bash
+git clone https://liujinbf:你的Token@gitee.com/liujinbf/CXPAY.git /www/wwwroot/你的域名
+```
+
+> Gitee 个人令牌获取路径：Gitee 网页 → 右上角头像 → 设置 → 私人令牌 → 生成新令牌（勾选 `projects` 权限）
+
+**第二步：一键自动安装**
 
 ```bash
 cd /www/wwwroot/你的域名 && bash setup.sh
 ```
 
-> **`setup.sh` 脚本会自动完成：**
-> 1. 检测 PHP 8.1+ 版本与必要扩展；
-> 2. 自动下载并执行 Composer 依赖安装（使用阿里云镜像加速）；
-> 3. 交互式收集站点域名、数据库、Redis 与管理员配置；
-> 4. 自动创建数据库、导入表结构并初始化管理员账号；
-> 5. 自动配置宝塔 Nginx 反向代理（保留已有 SSL 证书）并重载 Nginx；
-> 6. 自动生成并配置 Supervisor 守护进程；
-> 7. 启动并验证 Webman 服务运行状态。
+按提示依次填写：域名、数据库账号、Redis、管理员账号密码，脚本自动完成所有配置。
 
-完成交互配置后，直接访问 `https://你的域名/admin_login.html` 即可登录后台！
+**完成后访问：** `https://你的域名/admin_login.html`
 
 ---
 
-### 浏览器安装向导（备选）
+### 🔄 场景二：更新已部署的站点（服务器已有代码）
 
-若倾向使用图形界面安装，也可在启动 Webman 服务后，访问 `https://你的域名/install` 进入智能安装向导。安装向导支持环境诊断、Redis 连通测试、Nginx 反代自动检测等功能。
+```bash
+cd /www/wwwroot/cs.fcwan.cn
+git pull
+php start.php reload
+```
 
-### 宝塔进程守护配置（手动）
+> 若 `git pull` 提示需要用户名密码（Gitee 私有仓库），先执行：
+> ```bash
+> git config credential.helper store
+> git pull
+> ```
+> 输入一次账号和令牌后将永久保存，以后直接 `git pull` 无需再次输入。
 
-如果希望服务器重启后自动恢复运行，可以在宝塔【软件商店】安装 **进程守护进程 (Supervisor)**，添加守护：
-- **运行目录**：`/www/wwwroot/你的域名`
-- **启动命令**：`php start.php start`
+---
 
-### 命令行运行（开发者）
+### 命令行运行（开发者本地调试）
 
 ```bash
 composer install
 cp .env.example .env
 php start.php start -d
 ```
+
 
 Webman 是常驻内存框架，不支持把 `public/index.php` 配成 PHP-FPM 单入口。生产环境必须启动 `php start.php start -d`（或使用宝塔守护进程），再由 Nginx 反向代理到 Webman 监听端口。
 
