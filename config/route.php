@@ -126,6 +126,7 @@ Route::group('/api/merchant', function () {
     Route::get('/dashboard', [app\controller\api\MerchantApiController::class, 'getDashboardData']);
     Route::get('/finance_log', [app\controller\api\MerchantApiController::class, 'getFinanceLogs']);
     Route::get('/profile', [app\controller\api\MerchantApiController::class, 'getProfile']);
+    Route::post('/get_key', [app\controller\api\MerchantApiController::class, 'getKey']);
     Route::post('/reset_key', [app\controller\api\MerchantApiController::class, 'resetKey']);
     Route::post('/change_password', [app\controller\api\MerchantApiController::class, 'changePassword']);
     Route::post('/buy_vip', [app\controller\api\MerchantApiController::class, 'buyVip']);

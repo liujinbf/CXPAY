@@ -418,6 +418,82 @@
                 <div id="tab-api-keys" class="tab-panel space-y-6">
                     <h2 class="text-xl font-extrabold text-slate-800">API 密钥与对接配置</h2>
 
+                    <!-- ★ 易支付对接凭据一体化卡片 -->
+                    <div class="glass-card rounded-2xl p-6 space-y-4 max-w-2xl border-l-4 border-l-blue-500">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="plug-zap" class="w-4 h-4 text-blue-500"></i>
+                                    易支付协议对接凭据
+                                </h3>
+                                <p class="text-[11px] text-slate-400 mt-0.5">将本系统作为上游接入其他易支付协议平台时，填入以下四项即可</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-3">
+                            <!-- API 地址 -->
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">① API 地址（必填）</label>
+                                <div class="flex gap-2">
+                                    <input id="epay-api-url" type="text" readonly value=""
+                                        placeholder="加载中..."
+                                        class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono bg-slate-50">
+                                    <button onclick="copyInputValue('epay-api-url')"
+                                        class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-xs font-bold whitespace-nowrap border border-blue-200">复制</button>
+                                </div>
+                            </div>
+                            <!-- 注册地址 -->
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">② 注册地址（可选）</label>
+                                <div class="flex gap-2">
+                                    <input id="epay-site-url" type="text" readonly value=""
+                                        placeholder="加载中..."
+                                        class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono bg-slate-50">
+                                    <button onclick="copyInputValue('epay-site-url')"
+                                        class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-xs font-bold whitespace-nowrap border border-blue-200">复制</button>
+                                </div>
+                            </div>
+                            <!-- PID -->
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">③ 商户 ID（PID）</label>
+                                <div class="flex gap-2">
+                                    <input id="epay-pid" type="text" readonly value=""
+                                        placeholder="加载中..."
+                                        class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold bg-slate-50">
+                                    <button onclick="copyInputValue('epay-pid')"
+                                        class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-xs font-bold whitespace-nowrap border border-blue-200">复制</button>
+                                </div>
+                            </div>
+                            <!-- KEY - 需密码验证 -->
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">④ 商户密钥（KEY）
+                                    <span class="ml-1 text-amber-500 font-normal">— 需验证登录密码后显示</span>
+                                </label>
+                                <div id="epay-key-locked" class="flex gap-2">
+                                    <input id="epay-key-password" type="password" autocomplete="current-password"
+                                        placeholder="输入后台登录密码以显示密钥"
+                                        class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
+                                    <button onclick="revealEpayKey()"
+                                        class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1">
+                                        <i data-lucide="eye" class="w-3.5 h-3.5"></i> 显示密钥
+                                    </button>
+                                </div>
+                                <div id="epay-key-revealed" class="flex gap-2 hidden">
+                                    <input id="epay-key" type="text" readonly value=""
+                                        class="w-full px-3 py-2 border border-emerald-300 rounded-xl text-xs font-mono font-bold bg-emerald-50 text-emerald-800">
+                                    <button onclick="copyInputValue('epay-key')"
+                                        class="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold whitespace-nowrap">复制</button>
+                                    <button onclick="hideEpayKey()"
+                                        class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold whitespace-nowrap">
+                                        <i data-lucide="eye-off" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                                <p id="epay-key-msg" class="mt-1 text-[11px] text-slate-400">密钥用于签名验证，请勿泄露给他人。显示后60秒自动隐藏。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 原有 API 密钥管理卡片（轮换密钥） -->
                     <div class="glass-card rounded-2xl p-6 space-y-5 max-w-2xl">
 
                         <!-- 对接地址 -->
@@ -444,7 +520,7 @@
 
                         <!-- 商户密钥 -->
                         <div>
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">商户密钥</p>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">商户密钥管理</p>
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-600 mb-1">商户对接 PID</label>
@@ -769,6 +845,17 @@
                 if (gatewayInput) {
                     gatewayInput.value = merchant.gateway_url || (location.origin + '/submit.php');
                 }
+                // 同步填充易支付对接凭据卡片
+                const epayApiUrl = merchant.gateway_url || (location.origin + '/submit.php');
+                const epaySiteUrl = merchant.gateway_url
+                    ? merchant.gateway_url.replace(/\/submit\.php$/, '')
+                    : location.origin;
+                const epayApiEl = document.getElementById('epay-api-url');
+                const epaySiteEl = document.getElementById('epay-site-url');
+                const epayPidEl = document.getElementById('epay-pid');
+                if (epayApiEl)  epayApiEl.value  = epayApiUrl;
+                if (epaySiteEl) epaySiteEl.value = epaySiteUrl;
+                if (epayPidEl)  epayPidEl.value  = String(merchant.pid);
                 const qPid = document.getElementById('quick-merchant-pid');
                 if (qPid) qPid.textContent = merchant.pid;
                 const qSub = document.getElementById('quick-submit-url');
@@ -962,6 +1049,65 @@
         function copyInputValue(id) {
             const input = document.getElementById(id);
             if (input) navigator.clipboard.writeText(input.value);
+        }
+
+        // 易支付凭据：密码验证后显示 KEY
+        let epayKeyHideTimer = null;
+        async function revealEpayKey() {
+            const pwdInput = document.getElementById('epay-key-password');
+            const msgEl    = document.getElementById('epay-key-msg');
+            const password = (pwdInput?.value || '').trim();
+            if (!password) {
+                if (msgEl) { msgEl.textContent = '⚠️ 请先输入后台登录密码'; msgEl.className = 'mt-1 text-[11px] text-amber-500 font-bold'; }
+                return;
+            }
+            if (msgEl) { msgEl.textContent = '🔐 正在验证身份...'; msgEl.className = 'mt-1 text-[11px] text-blue-500'; }
+            try {
+                const res = await fetch('/api/merchant/get_key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ current_password: password })
+                });
+                const payload = await res.json();
+                if (payload.code !== 1 || !payload.data?.key) {
+                    if (msgEl) { msgEl.textContent = '❌ ' + (payload.msg || '验证失败，请检查密码'); msgEl.className = 'mt-1 text-[11px] text-rose-500 font-bold'; }
+                    return;
+                }
+                // 显示密钥
+                const keyInput = document.getElementById('epay-key');
+                if (keyInput) keyInput.value = payload.data.key;
+                // 同步其他字段（以服务端为准）
+                if (payload.data.gateway_url) {
+                    const el = document.getElementById('epay-api-url');
+                    if (el) el.value = payload.data.gateway_url;
+                }
+                if (payload.data.site_url) {
+                    const el = document.getElementById('epay-site-url');
+                    if (el) el.value = payload.data.site_url;
+                }
+                document.getElementById('epay-key-locked').classList.add('hidden');
+                document.getElementById('epay-key-revealed').classList.remove('hidden');
+                if (pwdInput) pwdInput.value = '';
+                if (msgEl) { msgEl.textContent = '✅ ' + (payload.msg || '已显示，请复制后妥善保存'); msgEl.className = 'mt-1 text-[11px] text-emerald-600 font-bold'; }
+                // 60 秒后自动隐藏
+                if (epayKeyHideTimer) clearTimeout(epayKeyHideTimer);
+                epayKeyHideTimer = setTimeout(() => {
+                    hideEpayKey();
+                    if (msgEl) { msgEl.textContent = '⏱️ 已自动隐藏（60秒安全保护）'; msgEl.className = 'mt-1 text-[11px] text-slate-400'; }
+                }, 60000);
+            } catch (err) {
+                if (msgEl) { msgEl.textContent = '❌ 网络异常，请稍后重试'; msgEl.className = 'mt-1 text-[11px] text-rose-500 font-bold'; }
+            }
+        }
+
+        function hideEpayKey() {
+            if (epayKeyHideTimer) { clearTimeout(epayKeyHideTimer); epayKeyHideTimer = null; }
+            const keyInput = document.getElementById('epay-key');
+            if (keyInput) keyInput.value = '';
+            document.getElementById('epay-key-locked')?.classList.remove('hidden');
+            document.getElementById('epay-key-revealed')?.classList.add('hidden');
+            const msgEl = document.getElementById('epay-key-msg');
+            if (msgEl) { msgEl.textContent = '密钥用于签名验证，请勿泄露给他人。显示后60秒自动隐藏。'; msgEl.className = 'mt-1 text-[11px] text-slate-400'; }
         }
 
         function escapeHtml(value) {
