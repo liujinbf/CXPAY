@@ -800,6 +800,68 @@ $ git pull 2>&1
         </form>
     </div>
 
+    <!-- 平台全局通道通信参数编辑 Modal 弹窗 -->
+    <div id="channel-config-editor" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm flex items-center justify-center p-4">
+        <form onsubmit="submitChannelConfig(event)" class="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                    <h3 id="channel-config-title" class="font-extrabold text-slate-800 text-base">配置支付通道参数</h3>
+                    <p id="channel-config-subtitle" class="text-xs text-slate-400 font-mono mt-0.5"></p>
+                </div>
+                <button type="button" onclick="closeChannelConfigEditor()" class="text-slate-400 hover:text-slate-700 text-xl font-bold">✕</button>
+            </div>
+            
+            <input id="channel-config-id" type="hidden" value="0">
+            <input id="channel-config-ctype" type="hidden" value="">
+
+            <!-- 基础路由与权重配置 -->
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <label class="space-y-1">
+                    <span class="font-bold text-slate-700">通道显示名称 *</span>
+                    <input id="channel-config-name" required maxlength="100" class="w-full px-3 py-2 border rounded-xl">
+                </label>
+                <label class="space-y-1">
+                    <span class="font-bold text-slate-700">轮询权重 (1-10000) *</span>
+                    <input id="channel-config-weight" required type="number" min="1" max="10000" value="100" class="w-full px-3 py-2 border rounded-xl font-mono">
+                </label>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <label class="space-y-1">
+                    <span class="font-bold text-slate-700">单笔最小金额 (元)</span>
+                    <input id="channel-config-min" type="number" step="0.01" value="0.00" class="w-full px-3 py-2 border rounded-xl font-mono">
+                </label>
+                <label class="space-y-1">
+                    <span class="font-bold text-slate-700">单笔最大金额 (元)</span>
+                    <input id="channel-config-max" type="number" step="0.01" value="0.00" class="w-full px-3 py-2 border rounded-xl font-mono">
+                </label>
+            </div>
+
+            <!-- 动态驱动 inputs 参数容器 -->
+            <div class="border-t border-slate-100 pt-3 space-y-3">
+                <div class="text-xs font-bold text-slate-800 flex items-center justify-between">
+                    <span>通信与密钥参数配置</span>
+                    <span class="text-[10px] text-slate-400 font-normal">敏感密钥将采用 Authcode 算法安全加密</span>
+                </div>
+                <div id="channel-dynamic-inputs" class="space-y-3 text-xs">
+                    <!-- 动态加载驱动表单项 -->
+                    <div class="p-4 text-center text-slate-400 font-bold">正在读取驱动配置要求...</div>
+                </div>
+            </div>
+
+            <!-- 备注说明 -->
+            <label class="block space-y-1 text-xs border-t border-slate-100 pt-3">
+                <span class="font-bold text-slate-700">通道备注说明</span>
+                <input id="channel-config-remark" maxlength="255" placeholder="例如：备用网关 / 主用官方渠道" class="w-full px-3 py-2 border rounded-xl">
+            </label>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeChannelConfigEditor()" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
+                <button type="submit" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 shadow-md">保存并启用配置</button>
+            </div>
+        </form>
+    </div>
+
     <script>
         const merchantRecords = new Map();
 
@@ -1042,8 +1104,134 @@ $ git pull 2>&1
             alert(`[通道联通性测试]\n\n通道 (${code}) 依赖的服务及监听接口状态正常，可用度 100%`);
         }
 
-        function editAdminChannel(code) {
-            alert(`[参数配置]\n\n正在编辑通道 (${code}) 的高级路由权重与通信参数。\n如需调整权重，可在接口或数据库中随时调控！`);
+        async function editAdminChannel(code) {
+            const modal = document.getElementById('channel-config-editor');
+            const dynamicContainer = document.getElementById('channel-dynamic-inputs');
+            if (!modal || !dynamicContainer) return;
+
+            document.getElementById('channel-config-ctype').value = code;
+            document.getElementById('channel-config-subtitle').innerText = `驱动标识: ${code}`;
+            dynamicContainer.innerHTML = '<div class="p-4 text-center text-slate-400 font-bold">正在读取驱动配置参数...</div>';
+            
+            modal.classList.remove('hidden');
+
+            try {
+                // 1. 读取驱动 inputs 表单定义
+                const resInputs = await adminFetch(`/api/admin/channel/inputs?c_type=${encodeURIComponent(code)}`);
+                const inputsPayload = await resInputs.json();
+                const inputsList = (inputsPayload.code === 1 && inputsPayload.data && Array.isArray(inputsPayload.data.inputs)) ? inputsPayload.data.inputs : [];
+                const driverTitle = (inputsPayload.data && inputsPayload.data.title) ? inputsPayload.data.title : code;
+                document.getElementById('channel-config-title').innerText = `配置【${driverTitle}】通信参数`;
+                document.getElementById('channel-config-name').value = driverTitle;
+
+                // 2. 渲染表单结构
+                if (inputsList.length === 0) {
+                    // 内置标准通道的常用基础 inputs 兜底
+                    const fallbackInputs = {
+                        'alipay_official': [
+                            { name: 'app_id', label: '支付宝 AppID', type: 'text', placeholder: '如: 2021000123456789' },
+                            { name: 'merchant_private_key', label: '应用应用私钥 (RSA2)', type: 'textarea', placeholder: 'MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQ...' },
+                            { name: 'alipay_public_key', label: '支付宝公钥', type: 'textarea', placeholder: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...' }
+                        ],
+                        'wxpay_protocol_cloud': [
+                            { name: 'notify_secret', label: '云端账单通知 Key', type: 'text', placeholder: '自定义或填入云端配置的秘钥' },
+                            { name: 'gateway_url', label: '云端回调监听网关', type: 'text', placeholder: 'https://cs.fcwan.cn/notify/wxpay_protocol_cloud' }
+                        ],
+                        'qqpay_app_asst': [
+                            { name: 'mch_id', label: 'QQ 钱包商户号 / 助手 AppID', type: 'text', placeholder: '如: 1500001234' },
+                            { name: 'app_key', label: '通信密钥 Key', type: 'text', placeholder: '填写对应的 AppKey 或通信密匙' }
+                        ]
+                    };
+                    const fields = fallbackInputs[code] || [
+                        { name: 'app_id', label: '应用/商户 AppID', type: 'text', placeholder: '请输入 AppID' },
+                        { name: 'secret_key', label: '通信密钥 / Private Key', type: 'textarea', placeholder: '请输入密钥' }
+                    ];
+
+                    dynamicContainer.innerHTML = fields.map(f => {
+                        if (f.type === 'textarea') {
+                            return `<div class="space-y-1">
+                                <label class="block font-bold text-slate-700">${escapeHtml(f.label)}</label>
+                                <textarea name="config[${escapeHtml(f.name)}]" rows="3" placeholder="${escapeHtml(f.placeholder || '')}" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs"></textarea>
+                            </div>`;
+                        }
+                        return `<div class="space-y-1">
+                            <label class="block font-bold text-slate-700">${escapeHtml(f.label)}</label>
+                            <input type="${f.type || 'text'}" name="config[${escapeHtml(f.name)}]" placeholder="${escapeHtml(f.placeholder || '')}" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs">
+                        </div>`;
+                    }).join('');
+                } else {
+                    dynamicContainer.innerHTML = inputsList.map(inp => {
+                        const name = inp.name || '';
+                        const label = inp.label || name;
+                        const type = inp.type || 'text';
+                        const placeholder = inp.placeholder || inp.desc || '';
+                        if (type === 'textarea') {
+                            return `<div class="space-y-1">
+                                <label class="block font-bold text-slate-700">${escapeHtml(label)}</label>
+                                <textarea name="config[${escapeHtml(name)}]" rows="3" placeholder="${escapeHtml(placeholder)}" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs"></textarea>
+                            </div>`;
+                        }
+                        return `<div class="space-y-1">
+                            <label class="block font-bold text-slate-700">${escapeHtml(label)}</label>
+                            <input type="${type}" name="config[${escapeHtml(name)}]" placeholder="${escapeHtml(placeholder)}" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs">
+                        </div>`;
+                    }).join('');
+                }
+            } catch (e) {
+                dynamicContainer.innerHTML = `<div class="p-4 text-center text-rose-500 font-bold">读取配置表单失败: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        function closeChannelConfigEditor() {
+            const modal = document.getElementById('channel-config-editor');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function submitChannelConfig(event) {
+            event.preventDefault();
+            const form = event.target;
+            const cType = document.getElementById('channel-config-ctype').value;
+            const title = document.getElementById('channel-config-name').value.trim();
+            const weight = parseInt(document.getElementById('channel-config-weight').value) || 100;
+            const singleMin = parseFloat(document.getElementById('channel-config-min').value) || 0;
+            const singleMax = parseFloat(document.getElementById('channel-config-max').value) || 0;
+            const remark = document.getElementById('channel-config-remark').value.trim();
+
+            const configData = {};
+            const inputs = form.querySelectorAll('[name^="config["]');
+            inputs.forEach(inp => {
+                const match = inp.name.match(/^config\[(.*)\]$/);
+                if (match && match[1]) {
+                    configData[match[1]] = inp.value.trim();
+                }
+            });
+
+            try {
+                const res = await adminFetch('/api/admin/channel/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        c_type: cType,
+                        title: title,
+                        weight: weight,
+                        single_min: singleMin,
+                        single_max: singleMax,
+                        remark: remark,
+                        enabled: 1,
+                        config: JSON.stringify(configData)
+                    })
+                });
+                const payload = await res.json();
+                if (payload.code === 1) {
+                    alert('通道配置已成功保存并同步开启上线！');
+                    closeChannelConfigEditor();
+                    loadAdminChannels();
+                } else {
+                    alert(payload.msg || '保存失败');
+                }
+            } catch (e) {
+                alert('保存请求失败: ' + e.message);
+            }
         }
 
         async function loadDashboard() {
