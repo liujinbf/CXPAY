@@ -44,13 +44,9 @@ Route::get('/cloud', function () {
     return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
 });
 
-// 系统在线更新管理页面（需管理员登录）
+// 系统在线更新管理页面（重定向至后台 Git 更新选项卡）
 Route::get('/admin/system_update', function () {
-    return response(
-        '<h2>在线更新已禁用</h2><p>请通过受控 CI/CD、备份与回滚流程发布版本。</p>',
-        501,
-        ['Content-Type' => 'text/html; charset=utf-8']
-    );
+    return redirect('/admin/index.html#system-update');
 })->middleware([app\middleware\AdminAuthMiddleware::class]);
 
 Route::group('/api/cloud', function () {
