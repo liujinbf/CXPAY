@@ -156,6 +156,7 @@ Route::group('/api/merchant', function () {
 Route::group('/api/admin', function () {
     Route::any('/dashboard', [app\controller\admin\AdminController::class, 'dashboard']);
     Route::get('/channel/list', [app\controller\admin\AdminController::class, 'listChannels']);
+    Route::post('/channel/save', [app\controller\admin\AdminController::class, 'saveChannelConfig']);
     Route::get('/channel/get', [app\controller\admin\AdminController::class, 'getChannelConfig']);
     Route::get('/channel/inputs', [app\controller\admin\ChannelAdminController::class, 'getConfigInputs']);
     Route::post('/channel/config/save', [app\controller\admin\AdminController::class, 'saveChannelConfig']);
