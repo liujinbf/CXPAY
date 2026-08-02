@@ -223,4 +223,43 @@ INSERT INTO `cx_pay_channel` (`id`, `pay_category`, `title`, `c_type`, `config`,
 (3, 'qqpay', 'QQ 钱包 App 助手（待配置）', 'qqpay_app_asst', '{}', 50, 0, 0)
 ON DUPLICATE KEY UPDATE `title` = VALUES(`title`);
 
+-- 12. 套餐管理表 cx_plan
+CREATE TABLE IF NOT EXISTS `cx_plan` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL COMMENT '套餐名称',
+  `days` int(11) DEFAULT '30' COMMENT '有效天数(0为永久)',
+  `rate` decimal(5,2) DEFAULT '2.50' COMMENT '扣除费率百分比',
+  `min_rate` decimal(5,2) DEFAULT '0.00' COMMENT '最低费率百分比',
+  `channel_quota` int(11) DEFAULT '0' COMMENT '通道配额(0不限)',
+  `allowed_channels` varchar(255) DEFAULT '' COMMENT '绑定支持通道',
+  `price` decimal(10,2) DEFAULT '0.00' COMMENT '套餐价格(0为试用)',
+  `limit_count` int(11) DEFAULT '0' COMMENT '限购次数(0不限)',
+  `memo` varchar(255) DEFAULT '' COMMENT '套餐注释/说明',
+  `sort_order` int(11) DEFAULT '0' COMMENT '排序',
+  `status` tinyint(1) DEFAULT '1' COMMENT '1启用 0禁用',
+  `create_time` int(11) DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='套餐设置表';
+
+-- 13. 商户套餐购买日志表 cx_merchant_plan_log
+CREATE TABLE IF NOT EXISTS `cx_merchant_plan_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `merchant_id` int(11) NOT NULL COMMENT '商户ID',
+  `plan_id` int(11) NOT NULL COMMENT '套餐ID',
+  `plan_name` varchar(100) NOT NULL COMMENT '套餐名称',
+  `price` decimal(10,2) DEFAULT '0.00' COMMENT '实付金额',
+  `days` int(11) DEFAULT '0' COMMENT '购买天数',
+  `rate` decimal(5,2) DEFAULT '0.00' COMMENT '享受费率',
+  `create_time` int(11) DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_merchant` (`merchant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商户套餐购买日志表';
+
+-- 插入默认免费体验/零元试用套餐与VIP标准套餐
+INSERT INTO `cx_plan` (`id`, `name`, `days`, `rate`, `min_rate`, `channel_quota`, `allowed_channels`, `price`, `limit_count`, `memo`, `sort_order`, `status`, `create_time`) VALUES
+(1, '0元免费体验套餐', 7, 2.50, 0.00, 3, 'alipay,wxpay', 0.00, 1, '新商户零元免费试用，体验全部聚合出码功能', 0, 1, UNIX_TIMESTAMP()),
+(2, 'VIP黄金月卡套餐', 30, 1.80, 0.00, 10, 'alipay,wxpay,qqpay', 99.00, 0, '交易扣率低至 1.8%，多通道轮询与专属告警通知', 1, 1, UNIX_TIMESTAMP()),
+(3, 'VIP钻石年卡套餐', 365, 1.20, 0.00, 0, 'alipay,wxpay,qqpay,usdt', 888.00, 0, '尊享最高权重优先级通道调度，无限通道配额与专属人工服务', 2, 1, UNIX_TIMESTAMP())
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+
 SET FOREIGN_KEY_CHECKS = 1;
