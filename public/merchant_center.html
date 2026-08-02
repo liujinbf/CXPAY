@@ -1154,13 +1154,75 @@
             }
         }
 
+        // 替换原生 confirm 弹窗为高质感 Tailwind Modal
+        function showCustomConfirm(title, message, isDanger = false) {
+            return new Promise((resolve) => {
+                let modal = document.getElementById('custom-confirm-modal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'custom-confirm-modal';
+                    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-300';
+                    modal.innerHTML = `
+                        <div class="bg-white rounded-2xl p-6 shadow-2xl border border-slate-100 max-w-sm w-full transform scale-95 transition-all duration-300 space-y-4">
+                            <div class="flex items-center gap-3">
+                                <div id="confirm-icon-bg" class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                                    <i data-lucide="help-circle" class="w-5 h-5"></i>
+                                </div>
+                                <h3 id="confirm-modal-title" class="font-extrabold text-base text-slate-800">确认操作</h3>
+                            </div>
+                            <p id="confirm-modal-message" class="text-xs text-slate-600 leading-relaxed pl-1"></p>
+                            <div class="flex items-center justify-end gap-2 pt-2">
+                                <button id="confirm-btn-cancel" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition-colors cursor-pointer">取消</button>
+                                <button id="confirm-btn-ok" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm cursor-pointer">确定</button>
+                            </div>
+                        </div>`;
+                    document.body.appendChild(modal);
+                }
+
+                const iconBg = modal.querySelector('#confirm-icon-bg');
+                const titleEl = modal.querySelector('#confirm-modal-title');
+                const msgEl = modal.querySelector('#confirm-modal-message');
+                const btnOk = modal.querySelector('#confirm-btn-ok');
+                const btnCancel = modal.querySelector('#confirm-btn-cancel');
+
+                titleEl.textContent = title;
+                msgEl.textContent = message;
+
+                if (isDanger) {
+                    iconBg.className = 'w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0';
+                    btnOk.className = 'px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm cursor-pointer';
+                } else {
+                    iconBg.className = 'w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0';
+                    btnOk.className = 'px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm cursor-pointer';
+                }
+
+                if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modal.firstElementChild.classList.remove('scale-95');
+
+                const cleanup = (val) => {
+                    modal.classList.add('opacity-0', 'pointer-events-none');
+                    modal.firstElementChild.classList.add('scale-95');
+                    btnOk.onclick = null;
+                    btnCancel.onclick = null;
+                    resolve(val);
+                };
+
+                btnOk.onclick = () => cleanup(true);
+                btnCancel.onclick = () => cleanup(false);
+            });
+        }
+
         async function buyMerchantPlan(planId, planName, price) {
             const isZero = Number(price) === 0;
+            const title = isZero ? '免费领取套餐确认' : '付费订阅套餐确认';
             const confirmMsg = isZero
-                ? `确定免费领取【${planName}】吗？`
-                : `确定购买【${planName}】吗？将扣除服务费余额 ¥${Number(price).toFixed(2)}`;
+                ? `确定立即免费领取【${planName}】试用体验吗？`
+                : `确定购买【${planName}】吗？系统将从您的服务费余额中扣除 ¥${Number(price).toFixed(2)}`;
 
-            if (!confirm(confirmMsg)) return;
+            const ok = await showCustomConfirm(title, confirmMsg);
+            if (!ok) return;
 
             try {
                 const res = await fetch('/api/merchant/plan/buy', {
@@ -1170,14 +1232,15 @@
                 });
                 const payload = await res.json();
                 if (payload.code === 1) {
-                    alert(payload.msg || '操作成功！');
+                    showToast(payload.msg || '套餐升级订阅成功！');
                     loadMerchantPlans();
                     loadMerchantProfile();
+                    loadMerchantDashboardData();
                 } else {
-                    alert('订阅失败: ' + (payload.msg || '未知错误'));
+                    showToast('订阅失败: ' + (payload.msg || '未知错误'), 'error');
                 }
             } catch (e) {
-                alert('网络请求失败: ' + e.message);
+                showToast('网络请求失败: ' + e.message, 'error');
             }
         }
 
