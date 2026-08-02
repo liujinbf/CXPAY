@@ -44,55 +44,69 @@ if [ -f "$LOCK_FILE" ]; then
     exit 0
 fi
 
-# ── Step 1: PHP 版本检测 ───────────────────────────────────────────────────────
-hd "Step 1  PHP 版本检测"
+# ── Step 1 & 2: PHP 版本 + 扩展联合检测（自动选最合适版本）────────────────────
+hd "Step 1  自动选择 PHP 版本（含扩展验证）"
 
+REQUIRED_EXTS=(pdo_mysql redis bcmath mbstring curl openssl pcntl json)
 PHP_BIN=""
+PHP_SKIP_REASONS=()
+
 for candidate in \
-    /www/server/php/81/bin/php \
-    /www/server/php/82/bin/php \
     /www/server/php/83/bin/php \
-    php8.1 php8.2 php8.3 php \
+    /www/server/php/82/bin/php \
+    /www/server/php/81/bin/php \
+    /www/server/php/80/bin/php \
+    php8.3 php8.2 php8.1 php \
     /usr/local/php/bin/php \
     /usr/bin/php; do
-    if command -v "$candidate" &>/dev/null; then
-        _ver=$("$candidate" -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || echo "0.0")
-        _maj=$(echo "$_ver" | cut -d. -f1)
-        _min=$(echo "$_ver" | cut -d. -f2)
-        if [ "$_maj" -gt 8 ] || ( [ "$_maj" -eq 8 ] && [ "$_min" -ge 1 ] ); then
-            PHP_BIN="$candidate"
-            break
-        fi
+
+    # 文件必须存在且可执行
+    _bin=$(command -v "$candidate" 2>/dev/null || true)
+    [ -z "$_bin" ] && continue
+
+    # 检查版本 ≥ 8.1
+    _ver=$("$_bin" -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || echo "0.0")
+    _maj=$(echo "$_ver" | cut -d. -f1)
+    _min=$(echo "$_ver" | cut -d. -f2)
+    if ! ( [ "$_maj" -gt 8 ] || ( [ "$_maj" -eq 8 ] && [ "$_min" -ge 1 ] ) ); then
+        PHP_SKIP_REASONS+=("$_bin (PHP $_ver < 8.1，跳过)")
+        continue
+    fi
+
+    # 逐一检查所有必要扩展
+    _missing=()
+    for ext in "${REQUIRED_EXTS[@]}"; do
+        "$_bin" -r "exit(extension_loaded('$ext') ? 0 : 1);" 2>/dev/null || _missing+=("$ext")
+    done
+
+    if [ ${#_missing[@]} -eq 0 ]; then
+        PHP_BIN="$_bin"
+        ok "已选择 PHP $("$PHP_BIN" -r 'echo PHP_VERSION;')  路径：$PHP_BIN"
+        ok "所有必需扩展均已加载（${REQUIRED_EXTS[*]}）"
+        break
+    else
+        PHP_SKIP_REASONS+=("$_bin (PHP $_ver，缺少扩展：${_missing[*]})")
     fi
 done
 
 if [ -z "$PHP_BIN" ]; then
-    err "未找到 PHP 8.1+。宝塔：软件商店 → PHP 8.1 → 安装，然后「设置 → 命令行版本」设为默认"
-fi
-ok "PHP $("$PHP_BIN" -r 'echo PHP_VERSION;')  路径：$PHP_BIN"
-
-# ── Step 2: PHP 扩展检测 ────────────────────────────────────────────────────────
-hd "Step 2  PHP 扩展检测"
-
-REQUIRED_EXTS=(pdo_mysql redis bcmath mbstring curl openssl pcntl json)
-EXT_MISSING=()
-for ext in "${REQUIRED_EXTS[@]}"; do
-    if "$PHP_BIN" -r "exit(extension_loaded('$ext') ? 0 : 1);" 2>/dev/null; then
-        ok "扩展 $ext"
-    else
-        echo -e "${RED}  ✗ 缺少扩展：$ext${NC}"
-        EXT_MISSING+=("$ext")
-    fi
-done
-
-if [ ${#EXT_MISSING[@]} -gt 0 ]; then
     echo ""
-    warn "请在宝塔「软件商店 → PHP 8.x → 安装扩展」中安装以下扩展后重新运行："
-    for e in "${EXT_MISSING[@]}"; do echo "      • $e"; done
+    err_msg="未找到满足条件的 PHP 版本（需要 PHP 8.1+ 且包含所有必要扩展）"
+    echo -e "${RED}  ✗ ${err_msg}${NC}"
+    echo ""
+    echo -e "  ${YLW}检测到的 PHP 版本不满足条件：${NC}"
+    for reason in "${PHP_SKIP_REASONS[@]}"; do
+        echo -e "    ${RED}✗${NC} $reason"
+    done
+    echo ""
+    echo -e "  ${BOLD}宝塔修复步骤：${NC}"
+    echo "  1. 软件商店 → 已安装 → 找到你的 PHP 8.x 版本"
+    echo "  2. 点击「设置」→「安装扩展」"
+    echo "  3. 安装所有缺失的扩展后重新运行 bash setup.sh"
     echo ""
     exit 1
 fi
-ok "所有必需扩展均已加载"
+
 
 # ── Step 3: Composer 安装依赖 ────────────────────────────────────────────────────
 hd "Step 3  Composer 安装 PHP 依赖"
