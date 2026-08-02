@@ -48,6 +48,9 @@
                     <a onclick="switchTab('profile')" id="nav-profile" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="user-cog" class="w-4 h-4 text-indigo-500"></i> 账户设置
                     </a>
+                    <a onclick="switchTab('notice-config')" id="nav-notice-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                        <i data-lucide="bell" class="w-4 h-4 text-rose-500"></i> 通知设置
+                    </a>
 
                     <!-- 3. 通道管理 -->
                     <div class="nav-group-title">通道与配置</div>
@@ -594,124 +597,200 @@
                         </div>
                     </div>
 
-                    <!-- 2. 下部双列布局 (左2:右1 全宽饱满) -->
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs">
-                        <!-- 左侧 2/3 列：其他接口 URL 与 签名开发文档 -->
-                        <div class="lg:col-span-2 space-y-6">
-                            <!-- 2.1 其他特定接口地址 -->
-                            <div class="glass-card rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">特定接口 URL</h3>
-                                <div class="space-y-3">
-                                    <div>
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="font-bold text-slate-700">页面跳转支付网关 (submit.php)</span>
-                                        </div>
-                                        <div class="flex gap-2">
-                                            <input id="epay-api-url" type="text" readonly value="" placeholder="加载中..."
-                                                class="w-full px-3.5 py-2 border border-slate-200 rounded-xl font-mono bg-slate-50 text-slate-700">
-                                            <button onclick="copyInputValue('epay-api-url')"
-                                                class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer">复制</button>
-                                        </div>
+                    <!-- 2. 下部接口 URL 与 签名开发文档 (全宽平铺) -->
+                    <div class="space-y-6 text-xs">
+                        <!-- 2.1 其他特定接口地址 -->
+                        <div class="glass-card rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">特定接口 URL</h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="font-bold text-slate-700">页面跳转支付网关 (submit.php)</span>
                                     </div>
-
-                                    <div>
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="font-bold text-slate-700">API 接口支付网关 (mapi.php)</span>
-                                        </div>
-                                        <div class="flex gap-2">
-                                            <input id="epay-mapi-url" type="text" readonly value="" placeholder="加载中..."
-                                                class="w-full px-3.5 py-2 border border-slate-200 rounded-xl font-mono bg-slate-50 text-slate-700">
-                                            <button onclick="copyInputValue('epay-mapi-url')"
-                                                class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer">复制</button>
-                                        </div>
+                                    <div class="flex gap-2">
+                                        <input id="epay-api-url" type="text" readonly value="" placeholder="加载中..."
+                                            class="w-full px-3.5 py-2 border border-slate-200 rounded-xl font-mono bg-slate-50 text-slate-700">
+                                        <button onclick="copyInputValue('epay-api-url')"
+                                            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer">复制</button>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- 2.2 签名与回调说明规范 -->
-                            <div class="glass-card rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-3">
-                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">签名与回调说明</h3>
-                                <div class="space-y-2.5 text-slate-600 leading-relaxed font-sans bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <p><strong class="text-slate-800">签名算法：</strong> MD5。待签名参数按键名 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">ksort</code> 升序，拼成 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">k=v&k=v</code>（去除 sign/sign_type 及空值），末尾拼接商户密钥 KEY，再 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">md5()</code> 得 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">sign</code>。</p>
-                                    <p><strong class="text-slate-800">下单参数：</strong> pid (商户PID)、type (alipay/wxpay/qqpay)、out_trade_no (商户订单号)、name (商品名)、money (金额元)、notify_url (异步回调)、return_url (同步跳转)、sign。</p>
-                                    <p><strong class="text-slate-800">异步通知：</strong> 支付成功后系统以 POST 通知你的 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">notify_url</code>，携带 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">trade_status=TRADE_SUCCESS</code> 及 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">sign</code>；你的服务器验签通过后需直接输出原样字符串 <code class="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-emerald-600 font-bold">success</code>。</p>
-                                </div>
-                                <div class="pt-1 flex justify-end">
-                                    <a href="/doc" target="_blank" class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-sm transition-colors cursor-pointer">
-                                        <i data-lucide="book-open" class="w-4 h-4"></i> 查看完整开放文档
-                                    </a>
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="font-bold text-slate-700">API 接口支付网关 (mapi.php)</span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <input id="epay-mapi-url" type="text" readonly value="" placeholder="加载中..."
+                                            class="w-full px-3.5 py-2 border border-slate-200 rounded-xl font-mono bg-slate-50 text-slate-700">
+                                        <button onclick="copyInputValue('epay-mapi-url')"
+                                            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold whitespace-nowrap transition-colors cursor-pointer">复制</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 右侧 1/3 列：交易与到账通知配置 -->
+                        <!-- 2.2 签名与回调说明规范 -->
+                        <div class="glass-card rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-3">
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">签名与回调说明</h3>
+                            <div class="space-y-2.5 text-slate-600 leading-relaxed font-sans bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <p><strong class="text-slate-800">签名算法：</strong> MD5。待签名参数按键名 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">ksort</code> 升序，拼成 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">k=v&k=v</code>（去除 sign/sign_type 及空值），末尾拼接商户密钥 KEY，再 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">md5()</code> 得 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">sign</code>。</p>
+                                <p><strong class="text-slate-800">下单参数：</strong> pid (商户PID)、type (alipay/wxpay/qqpay)、out_trade_no (商户订单号)、name (商品名)、money (金额元)、notify_url (异步回调)、return_url (同步跳转)、sign。</p>
+                                <p><strong class="text-slate-800">异步通知：</strong> 支付成功后系统以 POST 通知你的 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">notify_url</code>，携带 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">trade_status=TRADE_SUCCESS</code> 及 <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-mono">sign</code>；你的服务器验签通过后需直接输出原样字符串 <code class="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-emerald-600 font-bold">success</code>。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. 独立通知设置 Notice Config 面板 -->
+                <div id="tab-notice-config" class="tab-panel space-y-6">
+                    <div class="flex items-center justify-between">
                         <div>
-                            <div class="glass-card rounded-2xl p-6 border-t-4 border-t-rose-500 shadow-sm space-y-4">
+                            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="bell" class="w-6 h-6 text-rose-500"></i> 商户通知中心与预警偏好
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-1">配置多种提醒渠道，实时掌握控制台登录、订单到账、通道掉线及服务费余额预警</p>
+                        </div>
+                        <button onclick="saveMerchantAlertConfig()" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer">
+                            <i data-lucide="save" class="w-4 h-4"></i> 保存通知设置
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs">
+                        <!-- 左侧 2/3 列：通知总开关、订阅事件矩阵与余额阈值 -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <!-- 通知总开关与事件订阅矩阵 -->
+                            <div class="glass-card rounded-2xl p-6 border-t-4 border-t-rose-500 shadow-sm space-y-5">
                                 <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                                     <div>
-                                        <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                                            <i data-lucide="bell" class="w-4 h-4 text-rose-500"></i> 到账通知配置
+                                        <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                            <i data-lucide="bell-ring" class="w-4 h-4 text-rose-500"></i> 核心通知总控与事件订阅
                                         </h3>
-                                        <p class="text-[11px] text-slate-400 mt-0.5">订单成功或登录时推送提醒</p>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">主开关开启后，订阅的事件将触发推送通知</p>
                                     </div>
-                                    <button onclick="saveMerchantAlertConfig()" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer">
-                                        保存设置
-                                    </button>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="m-alert-enabled" class="sr-only peer">
+                                        <div class="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+                                    </label>
                                 </div>
 
-                                <!-- 开关与事件订阅 -->
-                                <div class="space-y-3">
-                                    <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <span class="font-bold text-slate-700">开启通知推送</span>
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" id="m-alert-enabled" class="sr-only peer">
-                                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
-                                        </label>
-                                    </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <!-- 登录提醒 -->
+                                    <label class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3 cursor-pointer hover:border-slate-300 transition-colors">
+                                        <input type="checkbox" id="m-event-merchant_login" class="mt-0.5 rounded text-rose-600 focus:ring-rose-500">
+                                        <div>
+                                            <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                                                <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-indigo-500"></i> 控制台登录提醒
+                                            </div>
+                                            <div class="text-[11px] text-slate-400 mt-0.5">当您的账户成功登录控制台时推送提醒</div>
+                                        </div>
+                                    </label>
 
-                                    <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100 flex-wrap">
-                                        <label class="flex items-center gap-1.5 cursor-pointer">
-                                            <input type="checkbox" id="m-event-merchant_login" class="rounded text-rose-600">
-                                            <span>登录提醒</span>
-                                        </label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer">
-                                            <input type="checkbox" id="m-event-order_paid" class="rounded text-rose-600">
-                                            <span>账单到账提醒</span>
-                                        </label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer">
-                                            <input type="checkbox" id="m-event-channel_offline" class="rounded text-rose-600">
-                                            <span>通道掉线提醒</span>
-                                        </label>
+                                    <!-- 账单到账提醒 -->
+                                    <label class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3 cursor-pointer hover:border-slate-300 transition-colors">
+                                        <input type="checkbox" id="m-event-order_paid" class="mt-0.5 rounded text-rose-600 focus:ring-rose-500">
+                                        <div>
+                                            <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                                                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-500"></i> 账单成功到账提醒
+                                            </div>
+                                            <div class="text-[11px] text-slate-400 mt-0.5">客户支付成功并完成自动核销时推送到账信息</div>
+                                        </div>
+                                    </label>
+
+                                    <!-- 通道掉线提醒 -->
+                                    <label class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3 cursor-pointer hover:border-slate-300 transition-colors">
+                                        <input type="checkbox" id="m-event-channel_offline" class="mt-0.5 rounded text-rose-600 focus:ring-rose-500">
+                                        <div>
+                                            <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                                                <i data-lucide="wifi-off" class="w-3.5 h-3.5 text-amber-500"></i> 收款通道掉线提醒
+                                            </div>
+                                            <div class="text-[11px] text-slate-400 mt-0.5">收款账号超时未上报心跳时提示检查App/协议</div>
+                                        </div>
+                                    </label>
+
+                                    <!-- 服务费余额不足提醒 -->
+                                    <label class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3 cursor-pointer hover:border-slate-300 transition-colors">
+                                        <input type="checkbox" id="m-event-low_balance" class="mt-0.5 rounded text-rose-600 focus:ring-rose-500">
+                                        <div>
+                                            <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                                                <i data-lucide="coins" class="w-3.5 h-3.5 text-rose-500"></i> 服务费低余额预警
+                                            </div>
+                                            <div class="text-[11px] text-slate-400 mt-0.5">账户服务费余额低于设定的触发线时预警</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 专属专维：CXPAY 核心服务费低余额预警阈值设置 -->
+                            <div class="glass-card rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                    <div>
+                                        <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                            <i data-lucide="piggy-bank" class="w-4 h-4 text-amber-500"></i> 服务费余额低额预警阈值
+                                        </h3>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">平台根据设置的扣率扣除服务费，低于设定金额时自动提醒充值</p>
                                     </div>
+                                    <span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">保障不间断收款</span>
                                 </div>
 
-                                <!-- 通知渠道 -->
-                                <div class="space-y-3 pt-2 border-t border-slate-100">
+                                <div class="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3">
+                                    <label class="block text-xs font-bold text-slate-700">当账户服务费余额低于 (元)：</label>
+                                    <div class="flex items-center gap-2">
+                                        <div class="relative flex-1 max-w-xs">
+                                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold font-mono">¥</span>
+                                            <input id="m-low-balance-threshold" type="number" step="1" min="0" placeholder="10.00" class="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-xl font-mono font-bold text-slate-800 bg-white text-xs">
+                                        </div>
+                                        <span class="text-xs text-slate-500">元时，自动向已启用的渠道发送预警</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400">建议设为 10~50 元，避免因服务费余额不足导致无法进行浮动计费或实时核销。</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 右侧 1/3 列：接收渠道配置 -->
+                        <div class="space-y-6">
+                            <div class="glass-card rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+                                <div class="border-b border-slate-100 pb-3">
+                                    <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                        <i data-lucide="send" class="w-4 h-4 text-blue-500"></i> 推送渠道绑定与调试
+                                    </h3>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">请至少启用并配置一种消息接收方式</p>
+                                </div>
+
+                                <div class="space-y-4">
                                     <!-- 1. 邮件 -->
-                                    <div class="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-100">
+                                    <div class="p-3.5 bg-slate-50 rounded-xl space-y-2.5 border border-slate-100">
                                         <div class="flex items-center justify-between">
-                                            <span class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="mail" class="w-3.5 h-3.5 text-blue-500"></i> 邮件通知</span>
+                                            <span class="font-bold text-slate-700 flex items-center gap-1.5"><i data-lucide="mail" class="w-4 h-4 text-blue-500"></i> 电子邮箱通知</span>
                                             <input type="checkbox" id="m-email-enabled" class="rounded text-blue-600">
                                         </div>
-                                        <input type="text" id="m-email-to" placeholder="填入接收邮箱 (如 my@qq.com)" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white">
+                                        <input type="text" id="m-email-to" placeholder="填入接收邮箱，多个逗号隔开 (如 my@qq.com)" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white">
+                                        <div class="flex justify-end">
+                                            <button onclick="testMerchantAlert('email')" class="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg font-bold text-[11px] transition-colors">测试邮件</button>
+                                        </div>
                                     </div>
 
                                     <!-- 2. 企业微信 Webhook -->
-                                    <div class="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-100">
+                                    <div class="p-3.5 bg-slate-50 rounded-xl space-y-2.5 border border-slate-100">
                                         <div class="flex items-center justify-between">
-                                            <span class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="message-square" class="w-3.5 h-3.5 text-emerald-500"></i> 企微群机器人</span>
+                                            <span class="font-bold text-slate-700 flex items-center gap-1.5"><i data-lucide="message-square" class="w-4 h-4 text-emerald-500"></i> 企微群机器人</span>
                                             <input type="checkbox" id="m-wxwork-enabled" class="rounded text-emerald-600">
                                         </div>
-                                        <input type="text" id="m-wxwork-url" placeholder="企微机器人 Webhook 地址" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white">
+                                        <input type="text" id="m-wxwork-url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white">
+                                        <div class="flex justify-end">
+                                            <button onclick="testMerchantAlert('wxwork')" class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg font-bold text-[11px] transition-colors">测试企微</button>
+                                        </div>
                                     </div>
 
                                     <!-- 3. Bark / 自定义 Webhook -->
-                                    <div class="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-100">
+                                    <div class="p-3.5 bg-slate-50 rounded-xl space-y-2.5 border border-slate-100">
                                         <div class="flex items-center justify-between">
-                                            <span class="font-bold text-slate-700 flex items-center gap-1"><i data-lucide="webhook" class="w-3.5 h-3.5 text-purple-500"></i> Bark / 自定义 Webhook</span>
+                                            <span class="font-bold text-slate-700 flex items-center gap-1.5"><i data-lucide="webhook" class="w-4 h-4 text-purple-500"></i> Bark / 自定义 Webhook</span>
                                             <input type="checkbox" id="m-webhook-enabled" class="rounded text-purple-600">
                                         </div>
-                                        <input type="text" id="m-webhook-url" placeholder="Bark URL 地址" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white">
+                                        <input type="text" id="m-webhook-url" placeholder="https://api.day.app/your_bark_key" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-white">
+                                        <div class="flex justify-end">
+                                            <button onclick="testMerchantAlert('webhook')" class="px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-lg font-bold text-[11px] transition-colors">测试 Webhook</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -897,12 +976,13 @@
             const titleMap = {
                 'dashboard': '首页概览',
                 'profile': '账户设置',
+                'notice-config': '通知设置 · 预警偏好',
                 'channel-list': '通道管理 · 我的收款通道',
                 'channel-config': '通道配置 · 收银台设置',
                 'poll-group': '通道轮询组',
                 'order-list': '订单记录 · 交易明细',
                 'finance-log': '财务管理 · 服务费明细',
-                'api-keys': 'API 配置'
+                'api-keys': 'API 配置与对接参数'
             };
             document.getElementById('current-tab-title').innerText = titleMap[tabId] || 'DASHBOARD';
 
@@ -912,7 +992,8 @@
             if (tabId === 'finance-log')  { loadMerchantFinanceLogs(); }
             if (tabId === 'poll-group')   { loadPollGroups(); }
             if (tabId === 'channel-config') { loadCashierConfig(); }
-            if (tabId === 'api-keys')       { loadMerchantProfile(); loadMerchantAlertConfig(); }
+            if (tabId === 'api-keys')       { loadMerchantProfile(); }
+            if (tabId === 'notice-config')  { loadMerchantAlertConfig(); }
         }
 
         async function loadMerchantDashboardData() {
@@ -1789,6 +1870,11 @@
                 document.getElementById('m-event-order_paid').checked = !!evs.order_paid;
                 const chOfflineEl = document.getElementById('m-event-channel_offline');
                 if (chOfflineEl) chOfflineEl.checked = !!evs.channel_offline;
+                const lowBalEl = document.getElementById('m-event-low_balance');
+                if (lowBalEl) lowBalEl.checked = !!evs.low_balance;
+
+                const thresholdEl = document.getElementById('m-low-balance-threshold');
+                if (thresholdEl) thresholdEl.value = d.low_balance_threshold ?? 10.00;
 
                 const em = d.email_config || {};
                 document.getElementById('m-email-enabled').checked = !!em.enabled;
@@ -1809,10 +1895,12 @@
         async function saveMerchantAlertConfig() {
             const data = {
                 enabled: document.getElementById('m-alert-enabled').checked,
+                low_balance_threshold: parseFloat(document.getElementById('m-low-balance-threshold')?.value || 10),
                 events: {
                     merchant_login: document.getElementById('m-event-merchant_login').checked,
                     order_paid: document.getElementById('m-event-order_paid').checked,
                     channel_offline: document.getElementById('m-event-channel_offline')?.checked ?? false,
+                    low_balance: document.getElementById('m-event-low_balance')?.checked ?? false,
                 },
                 email_config: {
                     enabled: document.getElementById('m-email-enabled').checked,

@@ -233,6 +233,17 @@ class AlertNotificationService
                     "金额：¥" . ($extra['amount'] ?? '0.00') . "\n" .
                     "时间：{$now}",
                 ];
+            case 'low_balance':
+                $balance   = $extra['balance'] ?? '0.00';
+                $threshold = $extra['threshold'] ?? '0.00';
+                return [
+                    "【{$siteName}】⚠️ 服务费余额不足预警",
+                    "您的商户服务费余额已低于预警阈值！\n\n" .
+                    "当前服务费余额：¥{$balance}\n" .
+                    "预警触发线：¥{$threshold}\n" .
+                    "请及时充值，以免影响订单轮询与正常收款。\n" .
+                    "时间：{$now}",
+                ];
             default:
                 return [
                     "【{$siteName}】系统通知",
@@ -352,12 +363,18 @@ class AlertNotificationService
 
         // 事件开关
         if (array_key_exists('events', $data) && is_array($data['events'])) {
-            $allowed = ['admin_login', 'merchant_login', 'order_paid', 'channel_offline', 'order_timeout'];
+            $allowed = ['admin_login', 'merchant_login', 'order_paid', 'channel_offline', 'order_timeout', 'low_balance'];
             $events  = [];
             foreach ($allowed as $ev) {
                 $events[$ev] = (bool)($data['events'][$ev] ?? false);
             }
             $this->upsertConfig($scope . '_events', json_encode($events, JSON_UNESCAPED_UNICODE), '事件开关');
+        }
+
+        // 低余额预警阈值
+        if (array_key_exists('low_balance_threshold', $data)) {
+            $val = max(0, (float)$data['low_balance_threshold']);
+            $this->upsertConfig($scope . '_low_balance_threshold', (string)$val, '服务费余额低额预警阈值');
         }
 
         // 邮件配置
@@ -403,11 +420,12 @@ class AlertNotificationService
             ->pluck('value', 'name');
 
         $result = [
-            'enabled'        => ($rows[$prefix . 'enabled'] ?? '0') === '1',
-            'events'         => json_decode((string)($rows[$prefix . 'events'] ?? '{}'), true) ?? [],
-            'email_config'   => [],
-            'wxwork_config'  => [],
-            'webhook_config' => [],
+            'enabled'               => ($rows[$prefix . 'enabled'] ?? '0') === '1',
+            'low_balance_threshold' => (float)($rows[$prefix . 'low_balance_threshold'] ?? 10.00),
+            'events'                => json_decode((string)($rows[$prefix . 'events'] ?? '{}'), true) ?? [],
+            'email_config'          => [],
+            'wxwork_config'         => [],
+            'webhook_config'        => [],
         ];
 
         // 邮件配置脱敏返回（不回显密码）

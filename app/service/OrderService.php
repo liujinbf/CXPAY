@@ -408,6 +408,19 @@ class OrderService
                 $alertSvc->dispatchAdmin('order_paid', $alertPayload);
                 if ($pid !== '') {
                     $alertSvc->dispatchMerchant($pid, 'order_paid', $alertPayload);
+
+                    // 检查商户服务费低余额预警
+                    if ($m) {
+                        $mCfg = $alertSvc->getMerchantConfig($pid);
+                        $threshold = (float)($mCfg['low_balance_threshold'] ?? 10.00);
+                        $currentMoney = (float)($m->money ?? 0.00);
+                        if ($currentMoney < $threshold) {
+                            $alertSvc->dispatchMerchant($pid, 'low_balance', [
+                                'balance'   => number_format($currentMoney, 2, '.', ''),
+                                'threshold' => number_format($threshold, 2, '.', ''),
+                            ]);
+                        }
+                    }
                 }
             } catch (Throwable $e) {
                 error_log('[OrderService] 告警通知派发失败 trade_no=' . $orderNo . ' error=' . $e->getMessage());
