@@ -20,8 +20,8 @@ final class LoginRateLimiter
             }
             return $attempts > $limit;
         } catch (\Throwable $e) {
-            error_log('[LoginRateLimiter] Redis 不可用，拒绝登录: ' . $e->getMessage());
-            return true;
+            error_log('[LoginRateLimiter] Redis 不可用，降级允许登录逻辑: ' . $e->getMessage());
+            return false;
         }
     }
 

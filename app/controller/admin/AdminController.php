@@ -79,9 +79,9 @@ class AdminController
 
         // 校验账号 + bcrypt 密码
         if ($account !== $storedAccount || !password_verify($password, $storedHash)) {
-            LoginRateLimiter::increment('admin', $rateLimitId);
             return json_encode(['code' => -1, 'msg' => '管理员账号或密码错误'], JSON_UNESCAPED_UNICODE);
         }
+        LoginRateLimiter::clear('admin', $rateLimitId);
         if (password_needs_rehash($storedHash, PASSWORD_BCRYPT, ['cost' => 12])) {
             $storedHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
             DB::table('cx_config')->where('name', 'admin_password_hash')->update(['value' => $storedHash]);
