@@ -587,6 +587,9 @@
                 <div class="alert info" style="margin-bottom:12px;">
                     安装完成后，你需要将此配置粘贴到 Nginx 的 server 块文件中，并执行 <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:4px;">nginx -s reload</code> 生效。
                 </div>
+                <div class="alert warn" style="margin-bottom:12px;font-size:12.5px;">
+                    <strong>⚠️ 宝塔面板用户注意：</strong>下方配置中已提供宝塔证书路径与 Let's Encrypt 路径两个选项，请删除不适用的注释行，保留与你实际证书位置一致的路径。如不确定，打开宝塔 → 网站 → 该网站配置文件查看 <code style="background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;">ssl_certificate</code> 所在行即可。
+                </div>
 
                 <div class="nginx-preview">
                     <div class="nginx-header">
@@ -599,6 +602,31 @@
                     <div class="code-block" style="border-radius:0;border:none;margin-bottom:0;">{{ nginxConfig }}</div>
                 </div>
 
+                <!-- Nginx 自动检测 -->
+                <div style="margin-top:14px;">
+                    <button class="btn btn-outline-sky btn-full" @click="checkNginxConfig" :disabled="nginxChecking" style="font-size:13.5px;">
+                        <div class="spinner" v-if="nginxChecking"></div>
+                        <span>{{ nginxChecking ? '正在检测 Nginx 反代配置…' : '🔍 自动检测 Nginx 反代是否生效' }}</span>
+                    </button>
+                    <div v-if="nginxCheckResult" style="margin-top:12px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">
+                        <div :style="`padding:10px 14px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;background:${nginxCheckResult.all_ok ? 'rgba(52,211,153,.1)' : 'rgba(251,113,133,.1)'};border-bottom:1px solid var(--border)`">
+                            <span>{{ nginxCheckResult.all_ok ? '✅' : '⚠️' }}</span>
+                            <span :style="`color:${nginxCheckResult.all_ok ? 'var(--emerald)' : 'var(--rose)'}`">
+                                {{ nginxCheckResult.all_ok ? 'Nginx 反向代理配置正确，可以继续安装' : '检测到配置问题，请按提示修复后重新检测' }}
+                            </span>
+                        </div>
+                        <div v-for="item in nginxCheckResult.items" :key="item.key"
+                             style="padding:10px 14px;border-bottom:1px solid rgba(56,100,160,.15);font-size:12.5px;display:flex;gap:10px;align-items:flex-start;">
+                            <span style="flex-shrink:0;font-size:15px;margin-top:1px;">{{ item.ok ? '✅' : '❌' }}</span>
+                            <div>
+                                <div :style="`font-weight:600;margin-bottom:2px;color:${item.ok ? 'var(--emerald)' : 'var(--rose)'}`">{{ item.label }}</div>
+                                <div style="color:var(--text-secondary);line-height:1.5;">{{ item.detail }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="nginxCheckError" class="alert danger" style="margin-top:10px;">{{ nginxCheckError }}</div>
+                </div>
+
                 <div class="btn-row">
                     <button class="btn btn-ghost" @click="step = 1">← 返回</button>
                     <button class="btn btn-primary main-btn" :disabled="!form.app_url" @click="step = 3">
@@ -606,6 +634,7 @@
                     </button>
                 </div>
             </template>
+
 
             <!-- ================================================================
                  STEP 3: Database + Admin
@@ -793,6 +822,9 @@
                 <div class="alert info" style="margin-bottom:10px;font-size:12.5px;">
                     宝塔面板：网站 → 目标网站 → 配置文件，将下方内容全部替换粘贴后保存，再点击“重启 Nginx”。或下载 .conf 文件直接上传。
                 </div>
+                <div class="alert warn" style="margin-bottom:10px;font-size:12.5px;">
+                    <strong>⚠️ 宝塔用户：</strong>配置中已列出宝塔证书路径与 Let's Encrypt 路径两个选项，请删除不适用的注释行，保留与你实际证书位置一致的路径。如不确定，打开宝塔原有配置文件查看 <code style="background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;">ssl_certificate</code> 所在行即可。
+                </div>
                 <div class="nginx-preview">
                     <div class="nginx-header">
                         <span>🔧 Nginx 配置 · {{ nginxDomain }}</span>
@@ -889,7 +921,10 @@ createApp({
         });
 
         // ── Nginx ──
-        const nginxCopied = ref(false);
+        const nginxCopied      = ref(false);
+        const nginxChecking    = ref(false);
+        const nginxCheckResult = ref(null);
+        const nginxCheckError  = ref('');
         const nginxDomain = computed(() => {
             try {
                 const url = new URL(form.value.app_url || 'http://pay.example.com');
@@ -913,10 +948,21 @@ server {
     listen 443 ssl http2;
     server_name ${domain};
 
-    ssl_certificate     /etc/letsencrypt/live/${domain}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${domain}/privkey.pem;
-    ssl_protocols       TLSv1.2 TLSv1.3;
-    ssl_ciphers         HIGH:!aNULL:!MD5;
+    # ⚠️ SSL 证书路径请按实际情况二选一，删除另一组：
+    # 【宝塔面板】证书路径（以宝塔配置文件中实际路径为准）
+    ssl_certificate     /www/server/panel/vhost/cert/${domain}/fullchain.pem;
+    ssl_certificate_key /www/server/panel/vhost/cert/${domain}/privkey.pem;
+    # 【Let's Encrypt / 手动申请】证书路径
+    # ssl_certificate     /etc/letsencrypt/live/${domain}/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/${domain}/privkey.pem;
+
+    ssl_protocols       TLSv1.1 TLSv1.2 TLSv1.3;
+    ssl_ciphers         EECDH+CHACHA20:EECDH+CHACHA20-draft:EECDH+AES128:RSA+AES128:EECDH+AES256:RSA+AES256:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 10m;
+    add_header Strict-Transport-Security "max-age=31536000";
+    error_page 497 https://$host$request_uri;
 
     client_max_body_size 6m;
 
@@ -1023,6 +1069,24 @@ server {
             dbMsg.value = '';
         }
 
+        // ── Nginx 反代自动检测 ──
+        async function checkNginxConfig() {
+            nginxChecking.value = true;
+            nginxCheckResult.value = null;
+            nginxCheckError.value = '';
+            try {
+                const data = await apiPost('/api/install/check_nginx', {
+                    app_url: form.value.app_url,
+                });
+                if (data.code !== 1) throw new Error(data.msg || '检测失败');
+                nginxCheckResult.value = data.data;
+            } catch (e) {
+                nginxCheckError.value = '检测请求失败：' + e.message + '（请确认 Webman 已启动且可正常访问）';
+            } finally {
+                nginxChecking.value = false;
+            }
+        }
+
         // ── DB test ──
         async function testDb() {
             dbTesting.value = true;
@@ -1112,8 +1176,9 @@ server {
             envInfo,
             form, passStrong,
             nginxCopied, nginxDomain, urlIsHttp, nginxConfig,
+            nginxChecking, nginxCheckResult, nginxCheckError,
             runEnvCheck, testRedis, invalidateDbTest, testDb, doInstall,
-            onUrlChange, copy, copyNginx, downloadNginx,
+            onUrlChange, copy, copyNginx, downloadNginx, checkNginxConfig,
         };
     }
 }).mount('#app');

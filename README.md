@@ -57,19 +57,32 @@ git clone https://gitee.com/liujinbf/CXPAY.git /www/wwwroot/你的域名
 
 ---
 
-### ⚡ 启动 Webman（宝塔终端一键命令）
+### ⚡ 宝塔面板一键全自动安装（推荐）
 
 在宝塔终端中直接全选复制运行以下命令：
 
 ```bash
-cd /www/wwwroot/你的域名 && php start.php stop 2>/dev/null; rm -f runtime/webman.pid && chmod -R 777 runtime/ && php start.php start -d
+cd /www/wwwroot/你的域名 && bash setup.sh
 ```
 
-然后直接打开浏览器访问 `http://你的域名`（例如 `https://cs.fcwan.cn`），即可进入**图形化安装向导**完成数据库与系统配置！
+> **`setup.sh` 脚本会自动完成：**
+> 1. 检测 PHP 8.1+ 版本与必要扩展；
+> 2. 自动下载并执行 Composer 依赖安装（使用阿里云镜像加速）；
+> 3. 交互式收集站点域名、数据库、Redis 与管理员配置；
+> 4. 自动创建数据库、导入表结构并初始化管理员账号；
+> 5. 自动配置宝塔 Nginx 反向代理（保留已有 SSL 证书）并重载 Nginx；
+> 6. 自动生成并配置 Supervisor 守护进程；
+> 7. 启动并验证 Webman 服务运行状态。
+
+完成交互配置后，直接访问 `https://你的域名/admin_login.html` 即可登录后台！
 
 ---
 
-### 宝塔进程守护配置（可选：适合需要开机自启）
+### 浏览器安装向导（备选）
+
+若倾向使用图形界面安装，也可在启动 Webman 服务后，访问 `https://你的域名/install` 进入智能安装向导。安装向导支持环境诊断、Redis 连通测试、Nginx 反代自动检测等功能。
+
+### 宝塔进程守护配置（手动）
 
 如果希望服务器重启后自动恢复运行，可以在宝塔【软件商店】安装 **进程守护进程 (Supervisor)**，添加守护：
 - **运行目录**：`/www/wwwroot/你的域名`

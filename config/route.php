@@ -26,11 +26,12 @@ Route::get('/install/', function () {
 Route::get('/install/index.html', function () {
     return redirect('/install');
 });
-Route::any('/api/install/check',      [app\controller\api\InstallController::class, 'check']);
-Route::any('/api/install/test_db',    [app\controller\api\InstallController::class, 'testDb']);
-Route::any('/api/install/test_redis', [app\controller\api\InstallController::class, 'testRedis']);
-Route::any('/api/install/env_info',   [app\controller\api\InstallController::class, 'environmentInfo']);
-Route::any('/api/install/execute',    [app\controller\api\InstallController::class, 'execute']);
+Route::any('/api/install/check',       [app\controller\api\InstallController::class, 'check']);
+Route::any('/api/install/test_db',     [app\controller\api\InstallController::class, 'testDb']);
+Route::any('/api/install/test_redis',  [app\controller\api\InstallController::class, 'testRedis']);
+Route::any('/api/install/env_info',    [app\controller\api\InstallController::class, 'environmentInfo']);
+Route::any('/api/install/execute',     [app\controller\api\InstallController::class, 'execute']);
+Route::any('/api/install/check_nginx', [app\controller\api\InstallController::class, 'checkNginx']);
 
 // 商户开放 API 开发对接文档
 Route::get('/doc', function () {

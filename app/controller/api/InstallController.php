@@ -82,6 +82,102 @@ class InstallController
     }
 
     /**
+     * 检测 Nginx 反向代理配置是否正确。
+     *
+     * 通过检查请求头中的代理标志（X-Forwarded-Proto / X-Real-IP / X-Forwarded-For）
+     * 判断 Nginx 反代是否已生效，并与前端传入的期望协议进行一致性校验。
+     */
+    public function checkNginx(\support\Request $request)
+    {
+        if ($this->isInstalled()) {
+            return json(['code' => -1, 'msg' => '系统已安装，此接口已关闭'])->withStatus(403);
+        }
+
+        $params       = $this->requestParams($request);
+        $expectedUrl  = trim((string)($params['app_url'] ?? ''));
+        $expectedProto = '';
+        if ($expectedUrl !== '') {
+            $parts = parse_url($expectedUrl);
+            $expectedProto = strtolower((string)($parts['scheme'] ?? ''));
+        }
+
+        // 读取反代相关请求头
+        $forwardedProto = (string)($request->header('x-forwarded-proto') ?? '');
+        $forwardedFor   = (string)($request->header('x-forwarded-for') ?? '');
+        $realIp         = (string)($request->header('x-real-ip') ?? '');
+        $host           = (string)($request->header('host') ?? '');
+
+        $hasProxy     = $forwardedProto !== '' || $forwardedFor !== '' || $realIp !== '';
+        $protoMatch   = $expectedProto === '' || strtolower($forwardedProto) === $expectedProto;
+        $hasRealIp    = $realIp !== '';
+        $hasForwardedFor = $forwardedFor !== '';
+
+        // 域名一致性（忽略端口）
+        $expectedHost = '';
+        if ($expectedUrl !== '') {
+            $p = parse_url($expectedUrl);
+            $expectedHost = strtolower((string)($p['host'] ?? ''));
+        }
+        $currentHost = strtolower(explode(':', $host)[0]);
+        $hostMatch = $expectedHost === '' || $currentHost === $expectedHost;
+
+        $items = [
+            [
+                'key'    => 'proxy_active',
+                'label'  => 'Nginx 反向代理已生效',
+                'ok'     => $hasProxy,
+                'detail' => $hasProxy
+                    ? 'X-Forwarded-Proto / X-Real-IP 等代理头已检测到，说明 Nginx 已正确将请求转发给 Webman。'
+                    : '未检测到任何代理头（X-Forwarded-Proto、X-Real-IP、X-Forwarded-For 均为空）。请确认宝塔 Nginx 配置已保存并重载，且 location / 中的 proxy_set_header 指令已正确填写。',
+            ],
+            [
+                'key'    => 'proto_match',
+                'label'  => '协议与站点 URL 一致',
+                'ok'     => $protoMatch,
+                'detail' => $protoMatch
+                    ? sprintf('当前代理协议 "%s" 与填写的站点地址协议一致。', $forwardedProto ?: '（未检测到）')
+                    : sprintf('协议不匹配：你填写的是 "%s"，但 Nginx 传来的 X-Forwarded-Proto 是 "%s"。请检查 Nginx 中 proxy_set_header X-Forwarded-Proto 是否正确设置为 https。', $expectedProto, $forwardedProto),
+            ],
+            [
+                'key'    => 'real_ip',
+                'label'  => 'X-Real-IP 已传递',
+                'ok'     => $hasRealIp,
+                'detail' => $hasRealIp
+                    ? sprintf('X-Real-IP: %s，客户端真实 IP 将被正确记录。', $realIp)
+                    : '未收到 X-Real-IP，建议在 Nginx 配置中添加 proxy_set_header X-Real-IP $remote_addr; 以便正确记录客户端 IP。',
+            ],
+            [
+                'key'    => 'host_match',
+                'label'  => '域名与站点 URL 匹配',
+                'ok'     => $hostMatch,
+                'detail' => $hostMatch
+                    ? sprintf('Host: %s，与填写的站点域名一致。', $host)
+                    : sprintf('Host 不匹配：当前请求 Host 为 "%s"，填写的站点域名为 "%s"。请确认你正在通过正确域名访问，且 Nginx server_name 已设置正确。', $currentHost, $expectedHost),
+            ],
+        ];
+
+        $allOk = $hasProxy && $protoMatch && $hostMatch;
+
+        return json([
+            'code' => 1,
+            'data' => [
+                'all_ok'           => $allOk,
+                'has_proxy'        => $hasProxy,
+                'proto_match'      => $protoMatch,
+                'host_match'       => $hostMatch,
+                'has_real_ip'      => $hasRealIp,
+                'has_forwarded_for'=> $hasForwardedFor,
+                'forwarded_proto'  => $forwardedProto,
+                'forwarded_for'    => $forwardedFor,
+                'real_ip'          => $realIp,
+                'host'             => $host,
+                'items'            => $items,
+            ],
+        ]);
+    }
+
+
+    /**
      * 通过原生 Socket 测试 Redis 连通性与密码正确性。
      * 不依赖 PHP redis 扩展（扩展已在 check 中验证）。
      */

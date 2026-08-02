@@ -1,33 +1,25 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  CXPAY 宝塔面板 · 前置初始化脚本 v2
-#  用法：在项目根目录执行  bash setup.sh
-#  功能：检测 PHP/扩展 → 安装 Composer → 安装依赖 → 创建目录 → 设置权限
+#  CXPAY 宝塔面板 · 一键全自动安装脚本 v3
+#  用法：cd /www/wwwroot/你的项目目录 && bash setup.sh
+#  功能：环境检测 → 安装依赖 → 交互配置 → 初始化数据库 →
+#        生成 .env → 配置 Nginx 反向代理 → 配置 Supervisor → 启动 Webman
 # =============================================================================
 
-set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # ── 颜色 ──────────────────────────────────────────────────────────────────────
-RED='\033[0;31m'
-GRN='\033[0;32m'
-YLW='\033[1;33m'
-BLU='\033[0;34m'
-CYN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+RED='\033[0;31m'; GRN='\033[0;32m'; YLW='\033[1;33m'
+BLU='\033[0;34m'; CYN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
-ok()   { echo -e "${GRN}  ✓ $*${NC}"; }
-warn() { echo -e "${YLW}  ⚠ $*${NC}"; }
-err()  { echo -e "${RED}  ✗ $*${NC}"; }
-info() { echo -e "${BLU}  → $*${NC}"; }
-head() { echo -e "\n${BOLD}${CYN}══ $* ══${NC}"; }
-
-PASS=0
-FAIL=0
-track_ok()  { PASS=$((PASS+1)); }
-track_err() { FAIL=$((FAIL+1)); }
+ok()     { echo -e "${GRN}  ✓ $*${NC}"; }
+warn()   { echo -e "${YLW}  ⚠ $*${NC}"; }
+err()    { echo -e "${RED}  ✗ $*${NC}"; echo ""; exit 1; }
+info()   { echo -e "${BLU}  → $*${NC}"; }
+hd()     { echo -e "\n${BOLD}${CYN}══ $* ══${NC}"; }
+prompt() { printf "${BOLD}${YLW}  › %s${NC} " "$*"; }
+sep()    { echo -e "${CYN}  ──────────────────────────────────────────────────${NC}"; }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
 echo ""
@@ -39,209 +31,400 @@ echo "  ██║      ██╔██╗ ██╔═══╝ ██╔══�
 echo "  ╚██████╗██╔╝ ██╗██║     ██║  ██║   ██║   "
 echo "   ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝   ╚═╝   "
 echo -e "${NC}"
-echo -e "  ${BOLD}前置初始化脚本${NC} — 宝塔面板部署专用"
-echo "  ────────────────────────────────────────"
+echo -e "  ${BOLD}一键全自动安装脚本 v3${NC} — 宝塔面板专用"
+sep
 echo ""
 
-# ── Step 1: PHP 版本 ───────────────────────────────────────────────────────────
-head "Step 1  PHP 版本检测"
+# ── 防重复安装 ────────────────────────────────────────────────────────────────
+LOCK_FILE="$SCRIPT_DIR/install.lock"
+if [ -f "$LOCK_FILE" ]; then
+    warn "检测到安装锁 install.lock，系统已安装完毕。"
+    info "如需重装，请先备份数据库，再手动删除 install.lock 后重新运行。"
+    echo ""
+    exit 0
+fi
 
-PHP_BIN=$(command -v php 2>/dev/null || true)
+# ── Step 1: PHP 版本检测 ───────────────────────────────────────────────────────
+hd "Step 1  PHP 版本检测"
+
+PHP_BIN=""
+for candidate in \
+    /www/server/php/83/bin/php \
+    /www/server/php/82/bin/php \
+    /www/server/php/81/bin/php \
+    php php8.3 php8.2 php8.1 \
+    /usr/local/php/bin/php \
+    /usr/bin/php; do
+    if command -v "$candidate" &>/dev/null; then
+        _ver=$("$candidate" -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || echo "0.0")
+        _maj=$(echo "$_ver" | cut -d. -f1)
+        _min=$(echo "$_ver" | cut -d. -f2)
+        if [ "$_maj" -gt 8 ] || ( [ "$_maj" -eq 8 ] && [ "$_min" -ge 1 ] ); then
+            PHP_BIN="$candidate"
+            break
+        fi
+    fi
+done
+
 if [ -z "$PHP_BIN" ]; then
-    err "未找到 php 命令。宝塔面板：软件商店 → PHP 版本 → 安装 PHP 8.1，并在【设置 → 命令行版本】设为默认。"
-    track_err; exit 1
+    err "未找到 PHP 8.1+。宝塔：软件商店 → PHP 8.1 → 安装，然后「设置 → 命令行版本」设为默认"
 fi
-
-PHP_VER=$("$PHP_BIN" -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
-PHP_MAJOR=$(echo "$PHP_VER" | cut -d. -f1)
-PHP_MINOR=$(echo "$PHP_VER" | cut -d. -f2)
-
-if [ "$PHP_MAJOR" -gt 8 ] || ( [ "$PHP_MAJOR" -eq 8 ] && [ "$PHP_MINOR" -ge 1 ] ); then
-    ok "PHP $("$PHP_BIN" -r 'echo PHP_VERSION;')  满足 ≥ 8.1 要求"
-    track_ok
-else
-    err "PHP $("$PHP_BIN" -r 'echo PHP_VERSION;')  不满足要求，需要 PHP 8.1+"
-    warn "宝塔面板：软件商店 → PHP 版本 → 安装 8.1 或 8.2，再切换命令行版本"
-    track_err; exit 1
-fi
+ok "PHP $("$PHP_BIN" -r 'echo PHP_VERSION;')  路径：$PHP_BIN"
 
 # ── Step 2: PHP 扩展检测 ────────────────────────────────────────────────────────
-head "Step 2  PHP 扩展检测"
+hd "Step 2  PHP 扩展检测"
 
-REQUIRED_EXTS=("pdo_mysql" "redis" "bcmath" "mbstring" "curl" "openssl" "pcntl" "json")
+REQUIRED_EXTS=(pdo_mysql redis bcmath mbstring curl openssl pcntl json)
 EXT_MISSING=()
-
 for ext in "${REQUIRED_EXTS[@]}"; do
     if "$PHP_BIN" -r "exit(extension_loaded('$ext') ? 0 : 1);" 2>/dev/null; then
-        ok "扩展 ${ext}"
-        track_ok
+        ok "扩展 $ext"
     else
-        err "扩展 ${ext}  ← 缺失"
+        echo -e "${RED}  ✗ 缺少扩展：$ext${NC}"
         EXT_MISSING+=("$ext")
-        track_err
     fi
 done
 
 if [ ${#EXT_MISSING[@]} -gt 0 ]; then
     echo ""
-    warn "检测到以下扩展缺失，请在宝塔面板安装后重新运行此脚本："
-    echo ""
-    echo -e "  ${BOLD}宝塔操作路径：${NC}"
-    echo "  软件商店 → PHP 8.x → 安装扩展 → 搜索并安装以下扩展："
-    for ext in "${EXT_MISSING[@]}"; do
-        echo -e "    ${RED}•${NC} $ext"
-    done
-    echo ""
-    warn "特别注意：宝塔安装的 redis 扩展名称可能为 'redis'，pcntl 可能需要重新编译 PHP"
-    warn "pcntl 无法从扩展商店直接安装时，请用宝塔的 PHP 编译安装（勾选 pcntl）"
+    warn "请在宝塔「软件商店 → PHP 8.x → 安装扩展」中安装以下扩展后重新运行："
+    for e in "${EXT_MISSING[@]}"; do echo "      • $e"; done
     echo ""
     exit 1
 fi
-
-echo ""
 ok "所有必需扩展均已加载"
 
-# ── Step 3: Composer 检测与安装 ─────────────────────────────────────────────────
-head "Step 3  Composer 检测与安装"
+# ── Step 3: Composer 安装依赖 ────────────────────────────────────────────────────
+hd "Step 3  Composer 安装 PHP 依赖"
 
 COMPOSER_CMD=""
-
-# 优先使用全局 composer
 if command -v composer &>/dev/null; then
     COMPOSER_CMD="composer"
     ok "找到全局 composer：$(composer --version 2>/dev/null | head -1)"
-    track_ok
-# 其次检查项目目录的 composer.phar
 elif [ -f "$SCRIPT_DIR/composer.phar" ]; then
     COMPOSER_CMD="$PHP_BIN $SCRIPT_DIR/composer.phar"
     ok "找到本地 composer.phar"
-    track_ok
 else
-    warn "未找到 Composer，正在下载 composer.phar..."
-    # 优先从阿里云镜像下载（国内宝塔服务器）
-    COMPOSER_DOWNLOAD_URL="https://mirrors.aliyun.com/composer/composer.phar"
-    COMPOSER_FALLBACK_URL="https://getcomposer.org/composer.phar"
-
+    info "下载 Composer（阿里云镜像）..."
+    _downloaded=false
     if command -v curl &>/dev/null; then
-        curl -sSL "$COMPOSER_DOWNLOAD_URL" -o "$SCRIPT_DIR/composer.phar" 2>/dev/null \
-            || curl -sSL "$COMPOSER_FALLBACK_URL" -o "$SCRIPT_DIR/composer.phar"
+        curl -sSL https://mirrors.aliyun.com/composer/composer.phar -o "$SCRIPT_DIR/composer.phar" 2>/dev/null \
+            || curl -sSL https://getcomposer.org/composer.phar -o "$SCRIPT_DIR/composer.phar" 2>/dev/null \
+            && _downloaded=true
     elif command -v wget &>/dev/null; then
-        wget -q "$COMPOSER_DOWNLOAD_URL" -O "$SCRIPT_DIR/composer.phar" 2>/dev/null \
-            || wget -q "$COMPOSER_FALLBACK_URL" -O "$SCRIPT_DIR/composer.phar"
-    else
-        err "curl 和 wget 均不可用，无法下载 Composer。请手动安装。"
-        track_err; exit 1
+        wget -q https://mirrors.aliyun.com/composer/composer.phar -O "$SCRIPT_DIR/composer.phar" 2>/dev/null \
+            || wget -q https://getcomposer.org/composer.phar -O "$SCRIPT_DIR/composer.phar" 2>/dev/null \
+            && _downloaded=true
     fi
-
-    if [ -f "$SCRIPT_DIR/composer.phar" ]; then
+    if [ "$_downloaded" = true ] && [ -f "$SCRIPT_DIR/composer.phar" ]; then
         chmod +x "$SCRIPT_DIR/composer.phar"
         COMPOSER_CMD="$PHP_BIN $SCRIPT_DIR/composer.phar"
-        ok "composer.phar 下载成功"
-        track_ok
+        ok "Composer 下载完成"
     else
         err "Composer 下载失败，请手动安装后重试"
-        track_err; exit 1
     fi
 fi
 
-# 配置国内镜像（阿里云），加速宝塔服务器安装
-info "配置 Packagist 阿里云镜像加速..."
 $COMPOSER_CMD config -g repo.packagist composer https://mirrors.aliyun.com/composer/ 2>/dev/null || true
-
-# ── Step 4: 安装 PHP 依赖 ────────────────────────────────────────────────────────
-head "Step 4  安装 PHP 依赖 (composer install)"
-
-if [ -f "$SCRIPT_DIR/vendor/autoload.php" ]; then
-    info "vendor/ 目录已存在，执行 composer install 确认依赖完整性..."
-else
-    info "vendor/ 目录不存在，正在安装依赖..."
-fi
-
-$COMPOSER_CMD install \
-    --no-dev \
-    --optimize-autoloader \
-    --no-interaction \
-    --prefer-dist \
-    2>&1
+info "执行 composer install（可能需要 1~3 分钟）..."
+$COMPOSER_CMD install --no-dev --optimize-autoloader --no-interaction --prefer-dist 2>&1
 
 if [ -f "$SCRIPT_DIR/vendor/autoload.php" ]; then
-    ok "composer install 完成，vendor/autoload.php 就绪"
-    track_ok
+    ok "依赖安装完成，vendor/autoload.php 就绪"
 else
-    err "composer install 失败，vendor/autoload.php 不存在"
-    track_err; exit 1
+    err "composer install 失败，请检查网络或 PHP 扩展后重试"
 fi
 
-# ── Step 5: 创建运行时目录 ────────────────────────────────────────────────────────
-head "Step 5  创建运行时目录"
+# 创建运行时目录
+mkdir -p "$SCRIPT_DIR/runtime/logs"
+ok "运行时目录就绪"
 
-for dir in "runtime" "runtime/logs"; do
-    if [ ! -d "$SCRIPT_DIR/$dir" ]; then
-        mkdir -p "$SCRIPT_DIR/$dir"
-        ok "创建目录：$dir"
-    else
-        ok "目录已存在：$dir"
-    fi
-    track_ok
-done
-
-# ── Step 6: 设置文件权限 ────────────────────────────────────────────────────────
-head "Step 6  设置文件权限"
-
-# 检测宝塔运行用户（通常为 www）
-if id "www" &>/dev/null; then
-    WEB_USER="www"
-    WEB_GROUP="www"
-elif id "nginx" &>/dev/null; then
-    WEB_USER="nginx"
-    WEB_GROUP="nginx"
-elif id "apache" &>/dev/null; then
-    WEB_USER="apache"
-    WEB_GROUP="apache"
-else
-    WEB_USER=$(whoami)
-    WEB_GROUP=$(id -gn)
-fi
-
-info "检测到 Web 运行用户：${WEB_USER}:${WEB_GROUP}"
-
-chmod -R 775 "$SCRIPT_DIR/runtime/" 2>/dev/null && ok "runtime/ 权限设为 775" || warn "无法修改 runtime/ 权限（非 root）"
-chmod -R 755 "$SCRIPT_DIR/vendor/"  2>/dev/null && ok "vendor/ 权限设为 755"  || warn "无法修改 vendor/ 权限（非 root）"
-chmod 644 "$SCRIPT_DIR/composer.json" 2>/dev/null
-
-# 尝试设置所有者（需要 root）
+# 检测 Web 用户
+WEB_USER="www"
+id "$WEB_USER" &>/dev/null 2>&1 || WEB_USER=$(whoami)
+chmod -R 775 "$SCRIPT_DIR/runtime/" 2>/dev/null || true
 if [ "$(id -u)" -eq 0 ]; then
-    chown -R "${WEB_USER}:${WEB_GROUP}" "$SCRIPT_DIR/runtime/" 2>/dev/null && ok "runtime/ 所有者设为 ${WEB_USER}:${WEB_GROUP}"
-    chown -R "${WEB_USER}:${WEB_GROUP}" "$SCRIPT_DIR/vendor/"  2>/dev/null && ok "vendor/ 所有者设为 ${WEB_USER}:${WEB_GROUP}"
-    track_ok
-else
-    warn "当前非 root 用户，跳过 chown（权限问题请在宝塔面板手动处理）"
+    chown -R "${WEB_USER}:${WEB_USER}" "$SCRIPT_DIR/runtime/" 2>/dev/null || true
 fi
 
-# ── Step 7: .env 文件检测 ────────────────────────────────────────────────────────
-head "Step 7  .env 配置文件"
+# ── Step 4: 交互式配置 ────────────────────────────────────────────────────────
+hd "Step 4  填写配置信息"
+echo ""
+echo -e "  按提示输入，直接回车使用 ${BOLD}[默认值]${NC}"
+echo ""
 
-if [ -f "$SCRIPT_DIR/.env" ]; then
-    ok ".env 文件已存在，跳过创建"
-    track_ok
-else
-    if [ -f "$SCRIPT_DIR/.env.example" ]; then
-        cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
-        chmod 640 "$SCRIPT_DIR/.env"
-        ok ".env 从 .env.example 复制完成"
-        warn ".env 仅为模板，请通过浏览器安装向导（/install）完成真实配置"
-        track_ok
-    else
-        warn ".env.example 不存在，请通过安装向导自动生成 .env"
+# 站点域名
+prompt "站点域名（如 cs.fcwan.cn，不含 http/https）："
+read -r INPUT_DOMAIN
+DOMAIN="${INPUT_DOMAIN:-localhost}"
+DOMAIN="${DOMAIN#http://}"; DOMAIN="${DOMAIN#https://}"; DOMAIN="${DOMAIN%%/*}"
+
+SCHEME="https"
+if [ "$DOMAIN" = "localhost" ] || echo "$DOMAIN" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+    SCHEME="http"
+fi
+APP_URL="${SCHEME}://${DOMAIN}"
+ok "站点地址：$APP_URL"
+echo ""
+
+# MySQL
+sep
+echo -e "  ${BOLD}MySQL 数据库${NC}"
+sep
+prompt "MySQL 主机 [127.0.0.1]："
+read -r INPUT_DB_HOST;  DB_HOST="${INPUT_DB_HOST:-127.0.0.1}"
+prompt "MySQL 端口 [3306]："
+read -r INPUT_DB_PORT;  DB_PORT="${INPUT_DB_PORT:-3306}"
+prompt "数据库名称 [cxpay]："
+read -r INPUT_DB_NAME;  DB_NAME="${INPUT_DB_NAME:-cxpay}"
+prompt "数据库用户名 [root]："
+read -r INPUT_DB_USER;  DB_USER="${INPUT_DB_USER:-root}"
+prompt "数据库密码："
+read -rs DB_PASS; echo ""
+ok "数据库：${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+echo ""
+
+# Redis
+sep
+echo -e "  ${BOLD}Redis${NC}"
+sep
+prompt "Redis 主机 [127.0.0.1]："
+read -r INPUT_REDIS_HOST; REDIS_HOST="${INPUT_REDIS_HOST:-127.0.0.1}"
+prompt "Redis 端口 [6379]："
+read -r INPUT_REDIS_PORT; REDIS_PORT="${INPUT_REDIS_PORT:-6379}"
+prompt "Redis 密码（无密码直接回车）："
+read -rs REDIS_PASS; echo ""
+ok "Redis：${REDIS_HOST}:${REDIS_PORT}"
+echo ""
+
+# 管理员
+sep
+echo -e "  ${BOLD}管理员账号${NC}"
+sep
+prompt "管理员用户名 [admin]："
+read -r INPUT_ADMIN_USER; ADMIN_USER="${INPUT_ADMIN_USER:-admin}"
+
+while true; do
+    prompt "管理员密码（≥12位，含大小写+数字+符号）："
+    read -rs ADMIN_PASS; echo ""
+    _len=${#ADMIN_PASS}
+    if [ "$_len" -lt 12 ]; then
+        warn "密码至少 12 位，请重新输入"; continue
     fi
+    _upper=$(echo "$ADMIN_PASS" | grep -c '[A-Z]' 2>/dev/null || echo 0)
+    _lower=$(echo "$ADMIN_PASS" | grep -c '[a-z]' 2>/dev/null || echo 0)
+    _digit=$(echo "$ADMIN_PASS" | grep -c '[0-9]' 2>/dev/null || echo 0)
+    _spec=$(echo "$ADMIN_PASS"  | grep -c '[^a-zA-Z0-9]' 2>/dev/null || echo 0)
+    _classes=$(( (_upper>0) + (_lower>0) + (_digit>0) + (_spec>0) ))
+    if [ "$_classes" -ge 3 ]; then break; fi
+    warn "密码强度不足（需含大小写+数字+符号中至少三类），请重新输入"
+done
+ok "管理员账号：$ADMIN_USER"
+echo ""
+
+# ── Step 5: 数据库初始化 ──────────────────────────────────────────────────────
+hd "Step 5  数据库初始化"
+
+DB_INIT=false
+TABLE_COUNT=0
+
+if command -v mysql &>/dev/null; then
+    info "测试 MySQL 连接..."
+    if mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
+       -e "SELECT 1;" >/dev/null 2>&1; then
+        ok "MySQL 连接成功"
+        DB_INIT=true
+
+        # 创建数据库
+        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
+            -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" \
+            >/dev/null 2>&1 && ok "数据库 ${DB_NAME} 就绪" || true
+
+        # 检查已有表
+        TABLE_COUNT=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
+            -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}';" \
+            2>/dev/null || echo "0")
+        TABLE_COUNT="${TABLE_COUNT//[^0-9]/}"
+        TABLE_COUNT="${TABLE_COUNT:-0}"
+
+        if [ "$TABLE_COUNT" -gt 0 ]; then
+            warn "数据库 ${DB_NAME} 已有 ${TABLE_COUNT} 张表，跳过导入（防止覆盖旧数据）"
+        else
+            SQL_FILE="$SCRIPT_DIR/database/install.sql"
+            if [ -f "$SQL_FILE" ]; then
+                info "导入数据库表结构..."
+                mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
+                    "$DB_NAME" < "$SQL_FILE" >/dev/null 2>&1 && ok "数据库表结构导入完成"
+
+                # 写入管理员账号
+                _ADMIN_HASH=$("$PHP_BIN" -r \
+                    "echo password_hash('${ADMIN_PASS}', PASSWORD_BCRYPT, ['cost'=>12]);")
+                _TOKEN_SALT=$(openssl rand -hex 16 2>/dev/null \
+                    || "$PHP_BIN" -r "echo bin2hex(random_bytes(16));")
+
+                mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" \
+                    -e "INSERT INTO cx_config (name, value, title) VALUES
+                        ('admin_account',        '${ADMIN_USER}',    '管理员账号'),
+                        ('admin_password_hash',  '${_ADMIN_HASH}',   '管理员密码 Bcrypt 哈希'),
+                        ('token_salt',           '${_TOKEN_SALT}',   'Token HMAC 签名盐值')
+                        ON DUPLICATE KEY UPDATE value=VALUES(value);" \
+                    >/dev/null 2>&1 && ok "管理员账号写入完成"
+            else
+                warn "未找到 database/install.sql，跳过 SQL 导入"
+            fi
+        fi
+    else
+        warn "MySQL 连接失败，数据库自动初始化跳过"
+        info "请确认账号密码，或通过浏览器安装向导 /install 完成数据库初始化"
+    fi
+else
+    warn "未找到 mysql 客户端，跳过数据库自动初始化"
+    info "请通过浏览器安装向导 /install 完成数据库初始化"
 fi
 
-# ── Step 8: 生成 Supervisor 配置 ──────────────────────────────────────────────────
-head "Step 8  生成 Supervisor 配置文件（可选）"
+# ── Step 6: 生成 .env ─────────────────────────────────────────────────────────
+hd "Step 6  生成 .env 配置文件"
 
-SUPERVISOR_CONF="$SCRIPT_DIR/cxpay-webman.supervisor.conf"
-cat > "$SUPERVISOR_CONF" << SUPEOF
-[program:cxpay-webman]
+APP_KEY=$(openssl rand -hex 32 2>/dev/null \
+    || "$PHP_BIN" -r "echo bin2hex(random_bytes(32));")
+
+cat > "$SCRIPT_DIR/.env" <<ENVEOF
+APP_DEBUG=false
+APP_URL="${APP_URL}"
+APP_KEY="${APP_KEY}"
+ALLOW_PRIVATE_CALLBACKS=false
+SYSTEM_UPDATE_ENABLED=false
+HOST=127.0.0.1
+PORT=8787
+WEBMAN_WORKERS=4
+
+DB_HOST="${DB_HOST}"
+DB_PORT="${DB_PORT}"
+DB_DATABASE="${DB_NAME}"
+DB_USERNAME="${DB_USER}"
+DB_PASSWORD="${DB_PASS}"
+
+REDIS_HOST="${REDIS_HOST}"
+REDIS_PORT="${REDIS_PORT}"
+REDIS_PASSWORD="${REDIS_PASS}"
+REDIS_DB=0
+ENVEOF
+
+chmod 640 "$SCRIPT_DIR/.env"
+ok ".env 写入完成（APP_KEY 已随机生成）"
+
+# 写入安装锁（仅数据库全新初始化成功时）
+if [ "$DB_INIT" = true ] && [ "$TABLE_COUNT" -eq 0 ]; then
+    { echo "$(date -Iseconds)"; echo "STATUS=INSTALLED_AND_LOCKED"; } > "$LOCK_FILE"
+    ok "install.lock 已创建，安装入口已锁定"
+fi
+
+# ── Step 7: 配置 Nginx 反向代理 ───────────────────────────────────────────────
+hd "Step 7  配置 Nginx 反向代理"
+
+NGINX_VHOST_DIR="/www/server/panel/vhost/nginx"
+NGINX_CONF="${NGINX_VHOST_DIR}/${DOMAIN}.conf"
+NGINX_BIN=$(command -v nginx 2>/dev/null || echo "/www/server/nginx/sbin/nginx")
+
+# 从现有配置中提取 SSL 证书路径（防止覆盖已有证书）
+SSL_CERT=""
+SSL_KEY=""
+if [ -f "$NGINX_CONF" ]; then
+    info "检测到已有 Nginx 配置，提取 SSL 证书路径..."
+    SSL_CERT=$(grep -E '^\s*ssl_certificate\s' "$NGINX_CONF" 2>/dev/null \
+        | grep -v '_key' | head -1 | awk '{print $2}' | tr -d ';' | tr -d ' ' || true)
+    SSL_KEY=$(grep -E '^\s*ssl_certificate_key\s' "$NGINX_CONF" 2>/dev/null \
+        | head -1 | awk '{print $2}' | tr -d ';' | tr -d ' ' || true)
+fi
+
+# 未提取到则使用宝塔默认路径
+SSL_CERT="${SSL_CERT:-/www/server/panel/vhost/cert/${DOMAIN}/fullchain.pem}"
+SSL_KEY="${SSL_KEY:-/www/server/panel/vhost/cert/${DOMAIN}/privkey.pem}"
+
+if [ "$SCHEME" = "https" ]; then
+    NGINX_NEW_CONF="server {
+    listen 80;
+    server_name ${DOMAIN};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ${DOMAIN};
+
+    ssl_certificate     ${SSL_CERT};
+    ssl_certificate_key ${SSL_KEY};
+    ssl_protocols       TLSv1.1 TLSv1.2 TLSv1.3;
+    ssl_ciphers         EECDH+CHACHA20:EECDH+CHACHA20-draft:EECDH+AES128:RSA+AES128:EECDH+AES256:RSA+AES256:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 10m;
+    add_header Strict-Transport-Security \"max-age=31536000\";
+    error_page 497 https://\$host\$request_uri;
+
+    client_max_body_size 6m;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8787;
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto https;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+    }
+}"
+else
+    NGINX_NEW_CONF="server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    client_max_body_size 6m;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8787;
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto http;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+    }
+}"
+fi
+
+if [ -d "$NGINX_VHOST_DIR" ]; then
+    # 备份原配置
+    if [ -f "$NGINX_CONF" ]; then
+        cp "$NGINX_CONF" "${NGINX_CONF}.bak.$(date +%Y%m%d%H%M%S)"
+        ok "原 Nginx 配置已备份"
+    fi
+    printf '%s\n' "$NGINX_NEW_CONF" > "$NGINX_CONF"
+    ok "Nginx 配置已写入：$NGINX_CONF"
+
+    # 测试并重载
+    if "$NGINX_BIN" -t >/dev/null 2>&1; then
+        "$NGINX_BIN" -s reload >/dev/null 2>&1 \
+            && ok "Nginx 已重载" \
+            || warn "Nginx 重载失败，请手动执行：nginx -s reload"
+    else
+        warn "Nginx 配置测试未通过，请手动检查："
+        warn "nginx -t && nginx -s reload"
+    fi
+else
+    warn "未找到宝塔 Nginx vhost 目录（${NGINX_VHOST_DIR}），跳过自动配置"
+    info "请手动将以下内容粘贴到宝塔「网站 → ${DOMAIN} → 配置文件」："
+    echo ""
+    echo "─────────────────── 复制以下内容 ───────────────────"
+    echo "$NGINX_NEW_CONF"
+    echo "─────────────────────────────────────────────────────"
+    echo ""
+fi
+
+# ── Step 8: Supervisor 守护进程 ───────────────────────────────────────────────
+hd "Step 8  配置 Supervisor 守护进程"
+
+SUPERVISOR_CONF_CONTENT="[program:cxpay-webman]
 command=${PHP_BIN} ${SCRIPT_DIR}/start.php start
 directory=${SCRIPT_DIR}
 autostart=true
@@ -251,42 +434,98 @@ stderr_logfile=${SCRIPT_DIR}/runtime/logs/supervisor-stderr.log
 stdout_logfile=${SCRIPT_DIR}/runtime/logs/supervisor-stdout.log
 user=${WEB_USER}
 stopasgroup=true
-killasgroup=true
-SUPEOF
+killasgroup=true"
 
-ok "Supervisor 配置已生成：cxpay-webman.supervisor.conf"
-info "使用方法：cp cxpay-webman.supervisor.conf /etc/supervisor/conf.d/ && supervisorctl update"
-track_ok
+# 保存到项目目录
+SUPERVISOR_LOCAL="$SCRIPT_DIR/cxpay-webman.supervisor.conf"
+printf '%s\n' "$SUPERVISOR_CONF_CONTENT" > "$SUPERVISOR_LOCAL"
+ok "Supervisor 配置文件已生成：cxpay-webman.supervisor.conf"
 
-# ── 最终摘要 ────────────────────────────────────────────────────────────────────
-echo ""
-echo -e "${BOLD}${CYN}══════════════════════════════════════════════════${NC}"
-echo -e "  ${BOLD}初始化结果摘要${NC}"
-echo -e "${BOLD}${CYN}══════════════════════════════════════════════════${NC}"
-echo -e "  ${GRN}通过${NC}：${PASS} 项     ${RED}失败${NC}：${FAIL} 项"
-echo ""
+# 自动安装到系统 Supervisor
+SUPERVISOR_CONF_DIR=""
+for _d in /www/server/supervisor/conf /etc/supervisor/conf.d /etc/supervisord.d; do
+    [ -d "$_d" ] && { SUPERVISOR_CONF_DIR="$_d"; break; }
+done
 
-if [ "$FAIL" -eq 0 ]; then
-    echo -e "  ${GRN}${BOLD}✓ 前置初始化全部完成！${NC}"
-    echo ""
-    echo -e "  ${BOLD}下一步操作：${NC}"
-    echo ""
-    echo -e "  ${BLU}1.${NC} 启动 Webman 服务："
-    echo -e "     ${BOLD}${PHP_BIN} ${SCRIPT_DIR}/start.php start -d${NC}"
-    echo ""
-    echo -e "  ${BLU}2.${NC} 在宝塔面板配置 Nginx 反向代理："
-    echo -e "     网站 → 设置 → 反向代理 → 代理名称随意 → 目标 URL：${BOLD}http://127.0.0.1:8787${NC}"
-    echo -e "     ${YLW}或直接使用安装向导第2步生成的完整 Nginx 配置文件${NC}"
-    echo ""
-    echo -e "  ${BLU}3.${NC} 浏览器访问 ${BOLD}http://你的域名/install${NC} 完成安装向导"
-    echo ""
-    echo -e "  ${BLU}4.${NC} 安装完成后重启 Webman："
-    echo -e "     ${BOLD}${PHP_BIN} ${SCRIPT_DIR}/start.php stop && ${PHP_BIN} ${SCRIPT_DIR}/start.php start -d${NC}"
-    echo ""
+SUPERVISORCTL=$(command -v supervisorctl 2>/dev/null || true)
+
+if [ -n "$SUPERVISOR_CONF_DIR" ] && [ "$(id -u)" -eq 0 ]; then
+    cp "$SUPERVISOR_LOCAL" "${SUPERVISOR_CONF_DIR}/cxpay-webman.conf"
+    ok "已安装到 ${SUPERVISOR_CONF_DIR}/cxpay-webman.conf"
+    if [ -n "$SUPERVISORCTL" ]; then
+        $SUPERVISORCTL update >/dev/null 2>&1 && ok "supervisorctl update 完成" || true
+    fi
+elif [ -n "$SUPERVISOR_CONF_DIR" ]; then
+    info "检测到 Supervisor 目录，但当前非 root，请手动安装："
+    echo "  sudo cp cxpay-webman.supervisor.conf ${SUPERVISOR_CONF_DIR}/cxpay-webman.conf"
+    echo "  sudo supervisorctl update"
+elif [ -z "$SUPERVISORCTL" ]; then
+    info "未检测到 Supervisor，建议在宝塔「软件商店」中安装 Supervisor 后运行："
+    echo "  sudo cp cxpay-webman.supervisor.conf /www/server/supervisor/conf/cxpay-webman.conf"
+    echo "  sudo supervisorctl update"
+fi
+
+# ── Step 9: 启动 Webman ───────────────────────────────────────────────────────
+hd "Step 9  启动 Webman 服务"
+
+# 先尝试通过 Supervisor 启动
+_started_by_supervisor=false
+if [ -n "$SUPERVISORCTL" ] && $SUPERVISORCTL status cxpay-webman >/dev/null 2>&1; then
+    $SUPERVISORCTL restart cxpay-webman >/dev/null 2>&1 \
+        && ok "Webman 已通过 Supervisor 重启" \
+        && _started_by_supervisor=true || true
+fi
+
+# 备用：直接后台启动
+if [ "$_started_by_supervisor" = false ]; then
+    "$PHP_BIN" "$SCRIPT_DIR/start.php" stop >/dev/null 2>&1 || true
+    sleep 1
+    "$PHP_BIN" "$SCRIPT_DIR/start.php" start -d >/dev/null 2>&1 \
+        && ok "Webman 已在后台启动（端口 8787）" \
+        || warn "Webman 启动失败，请查看日志后手动执行：php start.php start -d"
+fi
+
+# 验证端口
+sleep 2
+_port_ok=false
+if ss -tlnp 2>/dev/null | grep -q ':8787'; then
+    _port_ok=true
+elif netstat -tlnp 2>/dev/null | grep -q ':8787'; then
+    _port_ok=true
+fi
+
+if [ "$_port_ok" = true ]; then
+    ok "端口 8787 监听正常，Webman 运行中"
 else
-    echo -e "  ${RED}${BOLD}✗ 有 ${FAIL} 项检查未通过，请按上方提示逐一修复后重新运行此脚本。${NC}"
+    warn "未检测到 8787 端口，Webman 可能启动失败"
+    info "请查看日志：tail -f ${SCRIPT_DIR}/runtime/logs/workerman.log"
+fi
+
+# ── 完成摘要 ─────────────────────────────────────────────────────────────────
+echo ""
+sep
+echo -e "  ${GRN}${BOLD}✓ CXPAY 安装完成！${NC}"
+sep
+echo ""
+echo -e "  ${BOLD}🔗 管理后台地址：${NC}"
+echo -e "     ${GRN}${BOLD}${APP_URL}/admin_login.html${NC}"
+echo ""
+echo -e "  ${BOLD}👤 账号信息：${NC}"
+echo -e "     用户名：${BOLD}${ADMIN_USER}${NC}"
+echo -e "     密  码：你填写的管理员密码"
+echo ""
+
+if [ "$DB_INIT" = false ] || [ "$TABLE_COUNT" -gt 0 ]; then
+    echo -e "  ${YLW}⚠ 数据库未自动初始化，请访问以下地址完成：${NC}"
+    echo -e "     ${BOLD}${APP_URL}/install${NC}"
     echo ""
 fi
 
-echo -e "${BOLD}${CYN}══════════════════════════════════════════════════${NC}"
+echo -e "  ${BOLD}🔄 重启 Webman：${NC}"
+echo -e "     ${BLU}${PHP_BIN} ${SCRIPT_DIR}/start.php stop && ${PHP_BIN} ${SCRIPT_DIR}/start.php start -d${NC}"
+echo ""
+echo -e "  ${BOLD}📄 查看日志：${NC}"
+echo -e "     ${BLU}tail -f ${SCRIPT_DIR}/runtime/logs/workerman.log${NC}"
+echo ""
+sep
 echo ""
