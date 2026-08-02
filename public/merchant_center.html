@@ -1054,7 +1054,14 @@
 
             try {
                 const res = await fetch('/api/merchant/plan/list');
-                const payload = await res.json();
+                const text = await res.text();
+                let payload;
+                try {
+                    payload = JSON.parse(text);
+                } catch (err) {
+                    grid.innerHTML = `<div class="col-span-3 glass-card rounded-2xl p-8 text-center text-rose-500 font-bold">接口返回异常 (${res.status}): ${escapeHtml(text.substring(0, 80))}</div>`;
+                    return;
+                }
                 if (payload.code !== 1 || !payload.data) {
                     grid.innerHTML = `<div class="col-span-3 glass-card rounded-2xl p-8 text-center text-rose-500 font-bold">${escapeHtml(payload.msg || '加载套餐列表失败')}</div>`;
                     return;
