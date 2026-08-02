@@ -172,10 +172,12 @@ class MerchantApiController
             return json_encode(['code' => -1, 'msg' => '未找到商户信息'], JSON_UNESCAPED_UNICODE);
         }
 
-        // 若商户 KEY 为空，自动生成并保存密钥
-        if (trim((string)$merchant->key) === '') {
-            $merchant->key = bin2hex(random_bytes(16));
-            $merchant->save();
+        // 确保商户 KEY 绝对不为空
+        $currentKey = trim((string)($merchant->key ?? ''));
+        if ($currentKey === '') {
+            $currentKey = bin2hex(random_bytes(16));
+            \support\Db::table('cx_merchant')->where('id', $merchant->id)->update(['key' => $currentKey]);
+            $merchant->key = $currentKey;
             try {
                 \Webman\Redis\Client::connection()->del('cx:merchant_key:' . $merchant->pid);
             } catch (\Throwable) {}
@@ -217,8 +219,8 @@ class MerchantApiController
         }
 
         $newKey = bin2hex(random_bytes(16));
+        \support\Db::table('cx_merchant')->where('id', $merchant->id)->update(['key' => $newKey]);
         $merchant->key = $newKey;
-        $merchant->save();
 
         try {
             \Webman\Redis\Client::connection()->del('cx:merchant_key:' . $merchant->pid);
