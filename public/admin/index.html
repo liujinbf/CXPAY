@@ -686,6 +686,10 @@
         }
 
         function switchTab(tabId) {
+            // 避免无效 tabId
+            var targetPanel = document.getElementById('tab-' + tabId);
+            if (!targetPanel) tabId = 'dashboard';
+
             // Hide all tab panels
             var panels = document.querySelectorAll('.tab-panel');
             panels.forEach(function(p) { p.classList.remove('active'); });
@@ -695,21 +699,27 @@
             btns.forEach(function(b) { b.classList.remove('nav-link-active'); });
 
             // Activate target panel and btn
-            var targetPanel = document.getElementById('tab-' + tabId);
+            targetPanel = document.getElementById('tab-' + tabId);
             if (targetPanel) { targetPanel.classList.add('active'); }
 
             var targetBtn = document.getElementById('nav-' + tabId);
             if (targetBtn) { targetBtn.classList.add('nav-link-active'); }
 
+            // 保持 URL hash 锚点状态，实现刷新页面停留在当前 tab
+            if (location.hash !== '#' + tabId) {
+                history.replaceState(null, '', '#' + tabId);
+            }
+
             var titleEl = document.getElementById('current-tab-title');
             const tabTitles = {
-                'dashboard': '仪表盘',
+                'dashboard': '控制台仪表盘',
                 'channel-config': '收款通道配置',
-                'plugin-market': '支付驱动插件',
-                'cloud-monitor': '云监控运维',
-                'merchant-mgmt': '商户账号管理',
-                'order-list': '交易订单检索',
+                'plugin-market': '已安装支付驱动',
+                'cloud-monitor': '个人码云监控运维',
+                'merchant-mgmt': '商户账号与费率',
+                'order-list': '交易订单与补单',
                 'callbill-review': '到账账单复核',
+                'alert-config': '系统告警与通知',
             };
             if (titleEl) { titleEl.innerText = tabTitles[tabId] || tabId.toUpperCase(); }
 
@@ -725,6 +735,7 @@
             if (tabId === 'callbill-review') loadCallbillReviews();
             if (tabId === 'plugin-market') loadPluginMarket();
             if (tabId === 'cloud-monitor') loadCloudMonitorStatus();
+            if (tabId === 'alert-config') loadAdminAlertConfig();
         }
 
         async function loadDashboard() {
@@ -1306,7 +1317,8 @@
             if (window.lucide && typeof lucide.createIcons === 'function') {
                 lucide.createIcons();
             }
-            loadDashboard();
+            const currentTab = (location.hash || '').replace('#', '').trim() || 'dashboard';
+            switchTab(currentTab);
         });
     </script>
 </body>

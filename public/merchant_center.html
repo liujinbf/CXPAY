@@ -720,14 +720,21 @@
         }
 
         function switchTab(tabId) {
+            let targetTab = document.getElementById('tab-' + tabId);
+            if (!targetTab) tabId = 'dashboard';
+
             document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('nav-link-active'));
             
-            const targetTab = document.getElementById('tab-' + tabId);
+            targetTab = document.getElementById('tab-' + tabId);
             const targetNav = document.getElementById('nav-' + tabId);
             
             if (targetTab) targetTab.classList.add('active');
             if (targetNav) targetNav.classList.add('nav-link-active');
+
+            if (location.hash !== '#' + tabId) {
+                history.replaceState(null, '', '#' + tabId);
+            }
 
             const titleMap = {
                 'dashboard': '首页概览',
@@ -1595,6 +1602,14 @@
             }
         }
 
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.lucide && typeof lucide.createIcons === 'function') {
+                lucide.createIcons();
+            }
+            loadMerchantProfile();
+            const currentTab = (location.hash || '').replace('#', '').trim() || 'dashboard';
+            switchTab(currentTab);
+        });
     </script>
 </body>
 </html>
