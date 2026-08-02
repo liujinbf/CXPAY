@@ -800,7 +800,7 @@
             if (tabId === 'finance-log')  { loadMerchantFinanceLogs(); }
             if (tabId === 'poll-group')   { loadPollGroups(); }
             if (tabId === 'channel-config') { loadCashierConfig(); }
-            if (tabId === 'api-keys')       { loadMerchantAlertConfig(); }
+            if (tabId === 'api-keys')       { loadMerchantProfile(); loadMerchantAlertConfig(); }
         }
 
         async function loadMerchantProfile() {
