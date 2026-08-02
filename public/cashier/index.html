@@ -229,6 +229,30 @@
 
         function showPaidMask() {
             document.getElementById('paid-mask').classList.remove('hidden');
+            playSuccessVoice();
+        }
+
+        function playSuccessVoice() {
+            try {
+                const savedCfg = JSON.parse(localStorage.getItem('cx_cashier_config') || '{}');
+                // 默认开启，除非商户明确设为 false
+                if (savedCfg.tts_enabled === false) return;
+
+                if (!('speechSynthesis' in window)) return;
+
+                const amountText = document.getElementById('order-amount')?.innerText || '0.00';
+                const currentTab = document.querySelector('.pay-tab.active-alipay') ? '支付宝' : (document.querySelector('.pay-tab.active-wxpay') ? '微信支付' : 'QQ钱包');
+                
+                window.speechSynthesis.cancel();
+                const speechText = `${currentTab}收款到账 ${amountText} 元`;
+                const msg = new SpeechSynthesisUtterance(speechText);
+                msg.lang = 'zh-CN';
+                msg.rate = 1.0;
+                msg.pitch = 1.0;
+                window.speechSynthesis.speak(msg);
+            } catch (e) {
+                console.log('语音播报未触发', e);
+            }
         }
 
         function renderQr(url) {

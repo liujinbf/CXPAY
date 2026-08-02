@@ -446,6 +446,28 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    <!-- 新增：收银台语音播报提示控制开关 -->
+                                    <div class="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2.5 mt-2">
+                                        <div class="flex items-center justify-between">
+                                            <div class="font-bold text-slate-800 flex items-center gap-2">
+                                                <i data-lucide="volume-2" class="w-4 h-4 text-emerald-600"></i> 收银台智能语音播报
+                                            </div>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" id="cfg-tts-enabled" checked class="sr-only peer">
+                                                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                                            </label>
+                                        </div>
+                                        <p class="text-[11px] text-slate-500 leading-relaxed">
+                                            开启后，用户在收银台付款成功时，收银台页面将使用 HTML5 Web Speech 语音引擎自动播报：<strong>“支付宝/微信支付收款到账 XX 元”</strong>。
+                                        </p>
+                                        <div class="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                                            <span class="text-[10px] text-slate-400">支持原生浏览器语音（无需额外服务费）</span>
+                                            <button type="button" onclick="testTtsSpeech()" class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer">
+                                                <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> 试听语音效果
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1597,6 +1619,20 @@
             showToast('已成功选择 [' + (names[themeId] || themeId) + '] 收银台外观风格！');
         }
 
+        function testTtsSpeech() {
+            if (!('speechSynthesis' in window)) {
+                showToast('您的当前浏览器不支持 HTML5 语音合成播报', 'error');
+                return;
+            }
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance("微信支付收款到账 88 元！感谢使用 CXPAY 聚合收银台！");
+            msg.lang = 'zh-CN';
+            msg.rate = 1.0;
+            msg.pitch = 1.0;
+            window.speechSynthesis.speak(msg);
+            showToast('正在播报演示语音...');
+        }
+
         async function loadCashierConfig() {
             const saved = JSON.parse(localStorage.getItem('cx_cashier_config') || 'null');
             if (saved) {
@@ -1618,6 +1654,10 @@
                     const cUrlEl = document.getElementById('cfg-custom-url');
                     if (cUrlEl) cUrlEl.value = saved.custom_url;
                 }
+                if (saved.tts_enabled !== undefined) {
+                    const ttsEl = document.getElementById('cfg-tts-enabled');
+                    if (ttsEl) ttsEl.checked = !!saved.tts_enabled;
+                }
                 if (saved.mapi_mode !== undefined) {
                     const mRad = document.querySelector(`input[name="cfg_mapi_mode"][value="${saved.mapi_mode}"]`);
                     if (mRad) mRad.checked = true;
@@ -1634,11 +1674,13 @@
             const redirectSelect = document.getElementById('cfg-redirect-select');
             const redirectType = redirectSelect ? redirectSelect.value : 'return_url';
             const mapiMode = document.querySelector('input[name="cfg_mapi_mode"]:checked')?.value || 'qrcode';
+            const ttsEnabled = document.getElementById('cfg-tts-enabled')?.checked ?? true;
             const cfg = {
                 notice: document.getElementById('cfg-notice').value.trim(),
                 timeout: Number(document.getElementById('cfg-timeout').value) || 180,
                 redirect: redirectType,
                 custom_url: document.getElementById('cfg-custom-url')?.value.trim() || '',
+                tts_enabled: ttsEnabled,
                 mapi_mode: mapiMode,
                 float_min: document.getElementById('cfg-float-min').value,
                 float_max: document.getElementById('cfg-float-max').value,
