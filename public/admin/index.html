@@ -77,8 +77,11 @@
             </div>
 
             <div class="text-[11px] text-slate-400 px-3 py-2 border-t border-slate-100 flex items-center justify-between">
-                <span>版本由部署流程管理</span>
-                <span class="text-slate-500 flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 在线更新已禁用</span>
+                <span>管理安全控制</span>
+                <button onclick="logoutAdmin()" class="text-rose-500 hover:text-rose-600 font-bold flex items-center gap-1 cursor-pointer">
+                    <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                    <span>安全退出</span>
+                </button>
             </div>
         </aside>
 
@@ -90,9 +93,15 @@
                     <span class="text-xs font-bold text-slate-500">控制台 /</span>
                     <span id="current-tab-title" class="text-xs font-extrabold text-blue-600 uppercase">DASHBOARD</span>
                 </div>
-                <div class="flex items-center gap-4 text-xs">
-                    <span class="text-slate-400">访问状态: <strong class="text-emerald-600 inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 管理员会话已认证</strong></span>
-                    <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-extrabold flex items-center justify-center text-xs">Admin</div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="text-slate-400 hidden sm:inline">访问状态: <strong class="text-emerald-600 inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 管理员会话已认证</strong></span>
+                    <div class="flex items-center gap-2 border-l border-slate-200 pl-3">
+                        <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-extrabold flex items-center justify-center text-xs shadow-sm">Admin</div>
+                        <button onclick="logoutAdmin()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-bold transition-all border border-slate-200 hover:border-rose-200">
+                            <i data-lucide="log-out" class="w-3.5 h-3.5 text-rose-500"></i>
+                            <span>退出登录</span>
+                        </button>
+                    </div>
                 </div>
             </header>
 
