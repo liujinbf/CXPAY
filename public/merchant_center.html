@@ -630,15 +630,6 @@
     <script>
         lucide.createIcons();
 
-        // 页面初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            loadMerchantProfile();
-            loadMerchantDashboardData();
-            onCategoryChange();
-            loadMerchantChannels();
-            initMerchantTrendChart();
-        });
-
         async function loadMerchantDashboardData() {
             try {
                 const response = await fetch('/api/merchant/dashboard');
@@ -979,35 +970,7 @@
             })[character]);
         }
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('nav-link-active'));
-
-            const targetTab = document.getElementById('tab-' + tabId);
-            const targetNav = document.getElementById('nav-' + tabId);
-
-            if (targetTab) targetTab.classList.add('active');
-            if (targetNav) targetNav.classList.add('nav-link-active');
-
-            const titleMap = {
-                'dashboard'    : '首页概览',
-                'profile'      : '账户设置',
-                'channel-list' : '通道管理 · 我的收款通道',
-                'channel-config': '通道配置 · 收银台设置',
-                'poll-group'   : '通道轮询组',
-                'order-list'   : '订单记录 · 交易明细',
-                'finance-log'  : '财务管理 · 服务费明细',
-                'api-keys'     : 'API 配置'
-            };
-            document.getElementById('current-tab-title').innerText = titleMap[tabId] || 'DASHBOARD';
-
-            if (tabId === 'dashboard')    { loadMerchantDashboardData(); }
-            if (tabId === 'channel-list') { loadMerchantChannels(); }
-            if (tabId === 'order-list')   { loadMerchantOrderList(); }
-            if (tabId === 'finance-log')  { loadMerchantFinanceLogs(); }
-            if (tabId === 'poll-group')   { loadPollGroups(); }
-            if (tabId === 'channel-config') { loadCashierConfig(); }
-        }
+        // switchTab: 已在上方 line 722 完整定义（含 hash 更新、api-keys 告警加载），此处重复定义已移除
 
         window.merchantChannelsMap = {};
 
@@ -1527,6 +1490,8 @@
                 wrapper.append(label, input);
                 container.appendChild(wrapper);
             });
+        }  // END renderDriverConfigFields
+
         async function loadMerchantAlertConfig() {
             try {
                 const res = await fetch('/api/merchant/alert/config');
