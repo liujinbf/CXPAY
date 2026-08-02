@@ -15,16 +15,29 @@ final class SystemUpdateController
     /**
      * 检查 Git 远端代码更新状态与 Commit 信息
      */
+    private function execGit(string $command): string
+    {
+        $baseDir = escapeshellarg(base_path());
+        if (DIRECTORY_SEPARATOR === '\\') {
+            $cmd = "cd /d {$baseDir} && {$command} 2>&1";
+        } else {
+            $cmd = "cd {$baseDir} && {$command} 2>&1";
+        }
+        return trim((string)@shell_exec($cmd));
+    }
+
+    /**
+     * 检查 Git 远端代码更新状态与 Commit 信息
+     */
     public function checkUpdate(Request $request): Response
     {
-        $baseDir = base_path();
-        $branch = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-parse --abbrev-ref HEAD 2>&1"));
-        $commit = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-parse --short HEAD 2>&1"));
-        $commitMsg = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git log -1 --pretty=format:\"%s (%cd)\" --date=format:\"%Y-%m-%d %H:%M:%S\" 2>&1"));
+        $branch = $this->execGit('git rev-parse --abbrev-ref HEAD');
+        $commit = $this->execGit('git rev-parse --short HEAD');
+        $commitMsg = $this->execGit('git log -1 --pretty=format:"%s (%cd)" --date=format:"%Y-%m-%d %H:%M:%S"');
 
         // 执行 fetch 获取远端最新 commit 引用
-        @shell_exec("cd /d \"{$baseDir}\" && git fetch 2>&1");
-        $behindCount = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-list --count HEAD..@{u} 2>&1"));
+        $this->execGit('git fetch');
+        $behindCount = $this->execGit('git rev-list --count HEAD..@{u}');
 
         $hasUpdate = is_numeric($behindCount) && (int)$behindCount > 0;
 
@@ -47,18 +60,16 @@ final class SystemUpdateController
      */
     public function doUpdate(Request $request): Response
     {
-        $baseDir = base_path();
-        $cmd = "cd /d \"{$baseDir}\" && git pull 2>&1";
-        $pullLog = @shell_exec($cmd);
-
-        $newCommit = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-parse --short HEAD 2>&1"));
-        $newCommitMsg = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git log -1 --pretty=format:\"%s (%cd)\" --date=format:\"%Y-%m-%d %H:%M:%S\" 2>&1"));
+        $pullLog = $this->execGit('git pull');
+        $newCommit = $this->execGit('git rev-parse --short HEAD');
+        $newCommitMsg = $this->execGit('git log -1 --pretty=format:"%s (%cd)" --date=format:"%Y-%m-%d %H:%M:%S"');
 
         // 后台触发热重启
         if (DIRECTORY_SEPARATOR === '\\') {
             @pclose(@popen("start /B php start.php reload", "r"));
         } else {
-            @shell_exec("cd /d \"{$baseDir}\" && php start.php reload 2>&1");
+            $baseDir = escapeshellarg(base_path());
+            @shell_exec("cd {$baseDir} && php start.php reload >/dev/null 2>&1 &");
         }
 
         return json([
