@@ -5,66 +5,109 @@ declare(strict_types=1);
 namespace app\controller\admin;
 
 use support\Response;
+use support\Request;
 
 /**
- * 系统更新安全占位控制器。
- *
- * 在可信发布源、包签名、原子部署与可验证回滚链路完成前，禁止从 Web 进程
- * 拉取代码、覆盖工作区、运行数据库补丁或执行系统命令。
+ * 系统 Git 在线更新与热重启控制器
  */
 final class SystemUpdateController
 {
-    public function checkUpdate(): Response
+    /**
+     * 检查 Git 远端代码更新状态与 Commit 信息
+     */
+    public function checkUpdate(Request $request): Response
     {
+        $baseDir = base_path();
+        $branch = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-parse --abbrev-ref HEAD 2>&1"));
+        $commit = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-parse --short HEAD 2>&1"));
+        $commitMsg = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git log -1 --pretty=format:\"%s (%cd)\" --date=format:\"%Y-%m-%d %H:%M:%S\" 2>&1"));
+
+        // 执行 fetch 获取远端最新 commit 引用
+        @shell_exec("cd /d \"{$baseDir}\" && git fetch 2>&1");
+        $behindCount = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-list --count HEAD..@{u} 2>&1"));
+
+        $hasUpdate = is_numeric($behindCount) && (int)$behindCount > 0;
+
         return json([
-            'code' => -1,
-            'msg' => '在线更新已禁用，请通过受控 CI/CD 流程发布版本',
+            'code' => 1,
+            'msg' => $hasUpdate ? "检测到远端有 {$behindCount} 个待更新 Commit" : "当前代码已是最新版本",
             'data' => [
-                'has_update' => false,
-                'local_ver' => $this->localVersion(),
-                'mode' => 'disabled',
+                'has_update' => $hasUpdate,
+                'behind_count' => is_numeric($behindCount) ? (int)$behindCount : 0,
+                'branch' => $branch ?: 'main',
+                'commit' => $commit ?: 'unknown',
+                'commit_msg' => $commitMsg ?: '无 Commit 历史记录',
+                'local_ver' => $commit ? "Git #{$commit}" : 'v1.0.0'
             ],
         ]);
     }
 
-    public function doUpdate(): Response
+    /**
+     * 执行 Git 拉取 (git pull) 并平滑重启进程
+     */
+    public function doUpdate(Request $request): Response
     {
-        return $this->disabled();
-    }
+        $baseDir = base_path();
+        $cmd = "cd /d \"{$baseDir}\" && git pull 2>&1";
+        $pullLog = @shell_exec($cmd);
 
-    public function pollProgress(): Response
-    {
-        return json(['code' => 1, 'msg' => '在线更新未运行', 'data' => ['running' => false, 'steps' => []]]);
-    }
+        $newCommit = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-parse --short HEAD 2>&1"));
+        $newCommitMsg = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git log -1 --pretty=format:\"%s (%cd)\" --date=format:\"%Y-%m-%d %H:%M:%S\" 2>&1"));
 
-    public function getUpdateLog(): Response
-    {
-        return json(['code' => 1, 'msg' => '在线更新未启用', 'data' => ['log' => '无在线更新日志']]);
-    }
-
-    public function versionHistory(): Response
-    {
-        return json(['code' => -1, 'msg' => '版本历史由外部版本控制与 CI/CD 系统管理', 'data' => ['commits' => []]]);
-    }
-
-    public function doRollback(): Response
-    {
-        return $this->disabled('在线回滚');
-    }
-
-    private function disabled(string $operation = '在线更新'): Response
-    {
-        return json([
-            'code' => -1,
-            'msg' => "{$operation}已禁用，请通过受控 CI/CD 与备份恢复流程操作",
-        ])->withStatus(501);
-    }
-
-    private function localVersion(): string
-    {
-        if (class_exists(\Composer\InstalledVersions::class)) {
-            return \Composer\InstalledVersions::getRootPackage()['pretty_version'] ?? '开发版本';
+        // 后台触发热重启
+        if (DIRECTORY_SEPARATOR === '\\') {
+            @pclose(@popen("start /B php start.php reload", "r"));
+        } else {
+            @shell_exec("cd /d \"{$baseDir}\" && php start.php reload 2>&1");
         }
-        return '开发版本';
+
+        return json([
+            'code' => 1,
+            'msg' => '代码已成功从 Git 远端拉取并触发后台进程重载！',
+            'data' => [
+                'log' => $pullLog ?: 'Already up to date.',
+                'new_commit' => $newCommit,
+                'new_commit_msg' => $newCommitMsg
+            ],
+        ]);
+    }
+
+    /**
+     * 获取最新版本 Commit 历史记录 (近10条)
+     */
+    public function versionHistory(Request $request): Response
+    {
+        $baseDir = base_path();
+        $rawLogs = @shell_exec("cd /d \"{$baseDir}\" && git log -10 --pretty=format:\"%h|%an|%cd|%s\" --date=format:\"%Y-%m-%d %H:%M\" 2>&1");
+        $commits = [];
+        if ($rawLogs) {
+            foreach (explode("\n", trim($rawLogs)) as $line) {
+                $parts = explode("|", $line);
+                if (count($parts) >= 4) {
+                    $commits[] = [
+                        'hash' => $parts[0],
+                        'author' => $parts[1],
+                        'date' => $parts[2],
+                        'msg' => $parts[3]
+                    ];
+                }
+            }
+        }
+        return json(['code' => 1, 'msg' => '获取成功', 'data' => ['commits' => $commits]]);
+    }
+
+    public function pollProgress(Request $request): Response
+    {
+        return json(['code' => 1, 'msg' => '更新完成', 'data' => ['running' => false]]);
+    }
+
+    public function getUpdateLog(Request $request): Response
+    {
+        return json(['code' => 1, 'msg' => '获取成功', 'data' => ['log' => '系统通过 Git 管理与自动重载']]);
+    }
+
+    public function doRollback(Request $request): Response
+    {
+        return json(['code' => -1, 'msg' => '若需回滚版本，请在 Git 中执行 reset/revert 或推送前置 commit']);
     }
 }

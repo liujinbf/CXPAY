@@ -70,6 +70,9 @@
 
                     <!-- 5. 系统设置与通知 -->
                     <div class="nav-group-title">系统配置</div>
+                    <a onclick="switchTab('system-update')" id="nav-system-update" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                        <i data-lucide="git-branch" class="w-4 h-4 text-emerald-500"></i> 系统 Git 一键更新
+                    </a>
                     <a onclick="switchTab('alert-config')" id="nav-alert-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="bell" class="w-4 h-4 text-rose-500"></i> 系统告警与通知
                     </a>
@@ -330,6 +333,78 @@
                                     </div>
                                     <p class="text-[11px] text-purple-600/80">掉线告警、大额到账与邮件/企业微信推送就绪</p>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 6. 系统 Git 一键更新 System Update -->
+                <div id="tab-system-update" class="tab-panel space-y-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="git-branch" class="w-6 h-6 text-emerald-600"></i> 系统 Git 在线更新与热加载
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-1">代码推送到远端 Git 仓库后，在此处一键拉取最新代码并平滑重启 Webman 服务</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="checkGitUpdate()" class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="search" class="w-3.5 h-3.5 text-blue-500"></i> 检查远端更新
+                            </button>
+                            <button onclick="executeGitUpdate()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="download-cloud" class="w-4 h-4"></i> 🚀 一键拉取最新代码并热重启
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Git 状态仪表卡片 (3 列) -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white space-y-1">
+                            <div class="text-xs font-bold text-slate-400 uppercase">当前 Git 分支</div>
+                            <div id="git-branch-name" class="text-xl font-black text-slate-800 font-mono">main</div>
+                            <div class="text-[11px] text-slate-400">已连接 Gitee / GitHub 主仓</div>
+                        </div>
+
+                        <div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white space-y-1">
+                            <div class="text-xs font-bold text-slate-400 uppercase">当前 Commit 哈希</div>
+                            <div id="git-commit-hash" class="text-xl font-black text-blue-600 font-mono">--</div>
+                            <div id="git-commit-msg" class="text-[11px] text-slate-500 truncate mt-0.5">正在读取最后一次提交记录...</div>
+                        </div>
+
+                        <div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white space-y-1">
+                            <div class="text-xs font-bold text-slate-400 uppercase">远端更新状态</div>
+                            <div id="git-behind-status" class="text-xl font-black text-emerald-600 font-mono">已是最新代码</div>
+                            <div id="git-behind-desc" class="text-[11px] text-slate-400">无需重复拉取</div>
+                        </div>
+                    </div>
+
+                    <!-- 控制台终端输出窗口与 Commit 历史 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- 左 2 列：执行终端日志框 -->
+                        <div class="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-200/80 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="text-xs font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="terminal" class="w-4 h-4 text-emerald-600"></i> Git Pull 执行终端输出日志
+                                </div>
+                                <button onclick="document.getElementById('git-terminal-output').innerText = '终端控制台已清空...';" class="text-[11px] text-slate-400 hover:text-slate-600">清空终端</button>
+                            </div>
+
+                            <div class="p-4 bg-slate-950 text-emerald-400 font-mono text-xs rounded-xl h-64 overflow-y-auto leading-relaxed select-all border border-slate-800" id="git-terminal-output">
+$ git pull 2>&1
+> 等待点击【一键拉取最新代码并热重启】按钮...
+                            </div>
+                        </div>
+
+                        <!-- 右 1 列：近 10 次 Commit 历史记录 -->
+                        <div class="glass-panel p-6 rounded-2xl border border-slate-200/80 space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                                    <i data-lucide="history" class="w-4 h-4 text-purple-600"></i> 最近 10 次代码提交历史
+                                </div>
+                            </div>
+                            <div id="git-version-history-list" class="space-y-2.5 max-h-64 overflow-y-auto pr-1 text-xs">
+                                <div class="text-slate-400 text-center py-6 font-bold">正在获取版本历史...</div>
                             </div>
                         </div>
                     </div>
@@ -745,6 +820,78 @@
             if (tabId === 'plugin-market') loadPluginMarket();
             if (tabId === 'cloud-monitor') loadCloudMonitorStatus();
             if (tabId === 'alert-config') loadAdminAlertConfig();
+            if (tabId === 'system-update') { checkGitUpdate(); loadGitVersionHistory(); }
+        }
+
+        async function checkGitUpdate() {
+            const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            try {
+                const res = await adminFetch('/api/admin/system/check_update');
+                const payload = await res.json();
+                if (payload.code === 1 && payload.data) {
+                    const d = payload.data;
+                    setTxt('git-branch-name', d.branch || 'main');
+                    setTxt('git-commit-hash', `#${d.commit}`);
+                    setTxt('git-commit-msg', d.commit_msg || '');
+
+                    const behindEl = document.getElementById('git-behind-status');
+                    const descEl = document.getElementById('git-behind-desc');
+                    if (d.has_update) {
+                        behindEl.textContent = `有 ${d.behind_count} 个待更新 Commit`;
+                        behindEl.className = 'text-xl font-black text-rose-600 font-mono';
+                        descEl.textContent = '建议立即点击【一键拉取最新代码并热重启】';
+                    } else {
+                        behindEl.textContent = '已是最新代码';
+                        behindEl.className = 'text-xl font-black text-emerald-600 font-mono';
+                        descEl.textContent = '本地代码已与 Git 远端保持完全同步';
+                    }
+                }
+            } catch (e) {}
+        }
+
+        async function executeGitUpdate() {
+            if (!confirm('确认立即从远端 Git 仓库拉取最新代码并触发后台服务热重启？\n\n更新过程无需重启服务器，秒级完成！')) return;
+            const term = document.getElementById('git-terminal-output');
+            term.innerText = '$ git pull 2>&1\n> 正在连接远端仓库并拉取最新代码...';
+
+            try {
+                const res = await adminFetch('/api/admin/system/do_update', { method: 'POST' });
+                const payload = await res.json();
+                if (payload.code === 1) {
+                    term.innerText = `$ git pull 2>&1\n${payload.data.log || 'Already up to date.'}\n\n[SUCCESS] ${payload.msg}`;
+                    alert(payload.msg || '代码拉取成功并已触发热重载！');
+                    checkGitUpdate();
+                    loadGitVersionHistory();
+                } else {
+                    term.innerText += `\n[ERROR] ${payload.msg || '更新失败'}`;
+                    alert(payload.msg || '代码拉取失败');
+                }
+            } catch (e) {
+                term.innerText += `\n[ERROR] 网络请求失败: ${e.message}`;
+                alert('系统拉取失败，请检查服务器网络');
+            }
+        }
+
+        async function loadGitVersionHistory() {
+            const container = document.getElementById('git-version-history-list');
+            if (!container) return;
+            try {
+                const res = await adminFetch('/api/admin/system/version_history');
+                const payload = await res.json();
+                if (payload.code === 1 && Array.isArray(payload.data?.commits) && payload.data.commits.length > 0) {
+                    container.innerHTML = payload.data.commits.map(c => `
+                        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="font-mono font-bold text-blue-600">#${escapeHtml(c.hash)}</span>
+                                <span class="text-[10px] text-slate-400 font-mono">${escapeHtml(c.date)}</span>
+                            </div>
+                            <div class="font-bold text-slate-700 truncate" title="${escapeHtml(c.msg)}">${escapeHtml(c.msg)}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="text-slate-400 text-center py-4">暂无 Commit 历史</div>';
+                }
+            } catch (e) {}
         }
 
         async function loadDashboard() {

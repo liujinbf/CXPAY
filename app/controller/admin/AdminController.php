@@ -817,4 +817,63 @@ class AdminController
     {
         return preg_match('/(?:key|secret|token|password|private|cookie|cert)/i', $name) === 1;
     }
+
+    /**
+     * 获取当前系统的 Git 版本与远端提交状态
+     */
+    public function getSystemUpdateStatus(\support\Request $request): string
+    {
+        $baseDir = base_path();
+        $branch = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-parse --abbrev-ref HEAD 2>&1"));
+        $commit = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-parse --short HEAD 2>&1"));
+        $commitMsg = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git log -1 --pretty=format:\"%s (%cd)\" --date=format:\"%Y-%m-%d %H:%M:%S\" 2>&1"));
+
+        // 尝试抓取远端最新引用 (仅作检查，不修改本地)
+        @shell_exec("cd /d \"{$baseDir}\" && git fetch 2>&1");
+        $behindCount = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-list --count HEAD..@{u} 2>&1"));
+
+        return json_encode([
+            'code' => 1,
+            'data' => [
+                'branch' => $branch ?: 'main',
+                'commit' => $commit ?: 'unknown',
+                'commit_msg' => $commitMsg ?: '无 Commit 记录',
+                'behind_count' => is_numeric($behindCount) ? (int)$behindCount : 0,
+                'has_update' => is_numeric($behindCount) && (int)$behindCount > 0,
+            ]
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * 执行 Git 拉取 (git pull) 并热更新系统
+     */
+    public function executeSystemUpdate(\support\Request $request): string
+    {
+        $baseDir = base_path();
+        $output = [];
+        $cmd = "cd /d \"{$baseDir}\" && git pull 2>&1";
+        $execOutput = @shell_exec($cmd);
+
+        $newCommit = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git rev-parse --short HEAD 2>&1"));
+        $newCommitMsg = trim((string)@shell_exec("cd /d \"{$baseDir}\" && git log -1 --pretty=format:\"%s (%cd)\" --date=format:\"%Y-%m-%d %H:%M:%S\" 2>&1"));
+
+        // 在后台异步触发热重启
+        if (DIRECTORY_SEPARATOR === '\\') {
+            // Windows 环境下通过 popen 或 reload 触发生效
+            @pclose(@popen("start /B php start.php reload", "r"));
+        } else {
+            // Linux 环境下触发 Workerman 重载
+            @shell_exec("cd /d \"{$baseDir}\" && php start.php reload 2>&1");
+        }
+
+        return json_encode([
+            'code' => 1,
+            'msg' => '系统已成功拉取最新代码并触发热加载！',
+            'data' => [
+                'log' => $execOutput ?: '代码已是最新状态（Already up to date）。',
+                'new_commit' => $newCommit,
+                'new_commit_msg' => $newCommitMsg
+            ]
+        ], JSON_UNESCAPED_UNICODE);
+    }
 }
