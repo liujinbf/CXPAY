@@ -335,6 +335,12 @@ class MerchantApiController
             ->where('status', 1)
             ->count();
 
+        // 获取商户当前生效套餐
+        $plan = \app\model\Plan::find((int)$merchant->plan_id);
+        $planName = $plan ? $plan->name : '默认基础套餐';
+        $expireTime = (int)$merchant->plan_expire_time;
+        $expireStr = $expireTime > 0 ? date('Y-m-d H:i:s', $expireTime) : '无到期限制';
+
         $data = [
             'today_amount'          => number_format($todayAmount, 2, '.', ''),
             'today_count'           => $todayCount,
@@ -342,6 +348,9 @@ class MerchantApiController
             'running_channel_count' => $runningChannelsCount,
             'money'                 => number_format((float)($merchant->money ?? 0), 2, '.', ''),
             'rate'                  => (float)($merchant->rate ?? 0.02),
+            'plan_name'             => $planName,
+            'plan_expire_format'    => $expireStr,
+            'plan_id'               => (int)$merchant->plan_id,
         ];
 
         // 写入缓存（余额字段不缓存，每次实时读取）
