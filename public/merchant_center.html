@@ -669,7 +669,7 @@
                                         </label>
                                     </div>
 
-                                    <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100 flex-wrap">
                                         <label class="flex items-center gap-1.5 cursor-pointer">
                                             <input type="checkbox" id="m-event-merchant_login" class="rounded text-rose-600">
                                             <span>登录提醒</span>
@@ -677,6 +677,10 @@
                                         <label class="flex items-center gap-1.5 cursor-pointer">
                                             <input type="checkbox" id="m-event-order_paid" class="rounded text-rose-600">
                                             <span>账单到账提醒</span>
+                                        </label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer">
+                                            <input type="checkbox" id="m-event-channel_offline" class="rounded text-rose-600">
+                                            <span>通道掉线提醒</span>
                                         </label>
                                     </div>
                                 </div>
@@ -1783,6 +1787,8 @@
                 const evs = d.events || {};
                 document.getElementById('m-event-merchant_login').checked = !!evs.merchant_login;
                 document.getElementById('m-event-order_paid').checked = !!evs.order_paid;
+                const chOfflineEl = document.getElementById('m-event-channel_offline');
+                if (chOfflineEl) chOfflineEl.checked = !!evs.channel_offline;
 
                 const em = d.email_config || {};
                 document.getElementById('m-email-enabled').checked = !!em.enabled;
@@ -1806,6 +1812,7 @@
                 events: {
                     merchant_login: document.getElementById('m-event-merchant_login').checked,
                     order_paid: document.getElementById('m-event-order_paid').checked,
+                    channel_offline: document.getElementById('m-event-channel_offline')?.checked ?? false,
                 },
                 email_config: {
                     enabled: document.getElementById('m-email-enabled').checked,

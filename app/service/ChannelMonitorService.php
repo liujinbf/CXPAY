@@ -93,12 +93,21 @@ class ChannelMonitorService
                     $offlineCount++;
                     $autoOfflined++;
 
-                    // 派发通道掉线告警
+                    // 派发通道掉线告警 (系统管理员 + 对应商户)
                     try {
-                        (new AlertNotificationService())->dispatchAdmin('channel_offline', [
+                        $alertSvc = new AlertNotificationService();
+                        $alertPayload = [
                             'channel_title' => $channel->title,
                             'c_type'        => $cType,
-                        ]);
+                        ];
+                        $alertSvc->dispatchAdmin('channel_offline', $alertPayload);
+
+                        if ($channel->merchant_id) {
+                            $merchant = \app\model\Merchant::find($channel->merchant_id);
+                            if ($merchant && !empty($merchant->pid)) {
+                                $alertSvc->dispatchMerchant((string)$merchant->pid, 'channel_offline', $alertPayload);
+                            }
+                        }
                     } catch (\Throwable $e) {
                         error_log('[ChannelMonitorService] 掉线告警派发失败: ' . $e->getMessage());
                     }
