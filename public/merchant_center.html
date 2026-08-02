@@ -1178,9 +1178,71 @@
             }
         }
 
-        function copyInputValue(id) {
+        function showToast(message, type = 'success') {
+            let toast = document.getElementById('global-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'global-toast';
+                toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl shadow-lg font-bold text-xs flex items-center gap-2 transition-all duration-300 transform translate-y-4 opacity-0 pointer-events-none';
+                document.body.appendChild(toast);
+            }
+            toast.className = `fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl shadow-lg font-bold text-xs flex items-center gap-2 transition-all duration-300 transform translate-y-0 opacity-100 ${
+                type === 'success' ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-rose-600 text-white shadow-rose-600/20'
+            }`;
+            toast.innerHTML = type === 'success' ? `<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i> ${message}` : message;
+            if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+
+            clearTimeout(window.toastTimer);
+            window.toastTimer = setTimeout(() => {
+                toast.classList.add('translate-y-4', 'opacity-0', 'pointer-events-none');
+            }, 2000);
+        }
+
+        function copyInputValue(id, btnElement) {
             const input = document.getElementById(id);
-            if (input) navigator.clipboard.writeText(input.value);
+            if (!input || !input.value) {
+                showToast('暂无可复制的内容', 'error');
+                return;
+            }
+
+            const textToCopy = input.value;
+            const targetBtn = btnElement || (event && event.currentTarget);
+
+            const doCopy = () => {
+                showToast('已成功复制到剪贴板！');
+                if (targetBtn && targetBtn.tagName === 'BUTTON') {
+                    const originalText = targetBtn.innerText;
+                    targetBtn.innerText = '已复制 √';
+                    targetBtn.classList.add('bg-emerald-600', 'text-white');
+                    setTimeout(() => {
+                        targetBtn.innerText = originalText;
+                        targetBtn.classList.remove('bg-emerald-600', 'text-white');
+                    }, 1500);
+                }
+            };
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(textToCopy).then(doCopy).catch(() => fallbackCopy(textToCopy, doCopy));
+            } else {
+                fallbackCopy(textToCopy, doCopy);
+            }
+        }
+
+        function fallbackCopy(text, callback) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                if (callback) callback();
+            } catch (err) {
+                showToast('复制失败，请手动选中复制', 'error');
+            }
+            document.body.removeChild(textArea);
         }
 
         function escapeHtml(value) {
