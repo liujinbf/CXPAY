@@ -183,62 +183,18 @@ class MerchantApiController
             'data' => [
                 'pid'            => $merchant->pid,
                 'name'           => $merchant->name,
+                'key'            => (string)($merchant->key ?? ''),
                 'key_configured' => trim((string)$merchant->key) !== '',
                 'money'          => number_format((float)($merchant->money ?? 0), 2, '.', ''),
                 'rate'           => (float)($merchant->rate ?? 0.02),
                 'packvip_time'   => $merchant->packvip_time ? date('Y-m-d H:i:s', $merchant->packvip_time) : '未开通',
                 'status'         => $merchant->status,
                 'gateway_url'    => $gatewayBase !== '' ? $gatewayBase . '/submit.php' : '',
+                'site_url'       => $gatewayBase,
             ]
         ], JSON_UNESCAPED_UNICODE);
     }
 
-
-    /**
-     * 查看当前商户对接密钥 (KEY) —— 需要登录密码二次验证
-     * 仅用于商户将 CXPAY 作为上游接入其他易支付协议系统时，安全回显密钥。
-     */
-    public function getKey(\support\Request $request): string
-    {
-        $merchant = $this->currentMerchant($request);
-        if (!$merchant) {
-            return json_encode(['code' => -1, 'msg' => '商户不存在'], JSON_UNESCAPED_UNICODE);
-        }
-
-        $rateLimitId = $request->getRemoteIp() . '|' . (string)$merchant->id;
-        if (LoginRateLimiter::tooManyAttempts('merchant_get_key', $rateLimitId, 5, 300)) {
-            return json_encode(['code' => -1, 'msg' => '验证失败次数过多，请5分钟后重试'], JSON_UNESCAPED_UNICODE);
-        }
-
-        $currentPassword = (string)($request->post('current_password') ?? '');
-        if ($currentPassword === '') {
-            return json_encode(['code' => -1, 'msg' => '请输入当前登录密码进行身份验证'], JSON_UNESCAPED_UNICODE);
-        }
-
-        $passwordHash = (string)($merchant->password_hash ?? '');
-        $verified = $passwordHash !== ''
-            ? password_verify($currentPassword, $passwordHash)
-            : hash_equals((string)$merchant->key, $currentPassword);
-
-        if (!$verified) {
-            return json_encode(['code' => -1, 'msg' => '登录密码错误，密钥未显示'], JSON_UNESCAPED_UNICODE);
-        }
-
-        LoginRateLimiter::clear('merchant_get_key', $rateLimitId);
-
-        $gatewayBase = rtrim((string)config('app.url', ''), '/');
-
-        return json_encode([
-            'code' => 1,
-            'msg'  => '身份验证通过，请妥善保管密钥，勿截图或粘贴到不可信页面',
-            'data' => [
-                'key'         => (string)$merchant->key,
-                'pid'         => (string)($merchant->pid ?? $merchant->id),
-                'gateway_url' => $gatewayBase !== '' ? $gatewayBase . '/submit.php' : '',
-                'site_url'    => $gatewayBase,
-            ],
-        ], JSON_UNESCAPED_UNICODE);
-    }
 
     /**
      * 重置商户对接密钥 (KEY)
