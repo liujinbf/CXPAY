@@ -49,10 +49,10 @@ hd "Step 1  PHP 版本检测"
 
 PHP_BIN=""
 for candidate in \
-    /www/server/php/83/bin/php \
-    /www/server/php/82/bin/php \
     /www/server/php/81/bin/php \
-    php php8.3 php8.2 php8.1 \
+    /www/server/php/82/bin/php \
+    /www/server/php/83/bin/php \
+    php8.1 php8.2 php8.3 php \
     /usr/local/php/bin/php \
     /usr/bin/php; do
     if command -v "$candidate" &>/dev/null; then
