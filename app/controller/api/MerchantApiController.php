@@ -172,10 +172,13 @@ class MerchantApiController
             return json_encode(['code' => -1, 'msg' => '未找到商户信息'], JSON_UNESCAPED_UNICODE);
         }
 
-        $gatewayBase = rtrim((string)config('app.url', ''), '/');
-        if (!filter_var($gatewayBase, FILTER_VALIDATE_URL)) {
-            // 未配置 APP_URL 时，尝试从请求 Host 构建
-            $gatewayBase = '';
+        // 若商户 KEY 为空，自动生成并保存密钥
+        if (trim((string)$merchant->key) === '') {
+            $merchant->key = bin2hex(random_bytes(16));
+            $merchant->save();
+            try {
+                \Webman\Redis\Client::connection()->del('cx:merchant_key:' . $merchant->pid);
+            } catch (\Throwable) {}
         }
 
         return json_encode([
