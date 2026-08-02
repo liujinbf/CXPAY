@@ -1,6 +1,6 @@
 <?php
 
-namespace support\exception;
+namespace app\exception;
 
 use Throwable;
 use Webman\Exception\ExceptionHandler;
