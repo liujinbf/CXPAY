@@ -34,6 +34,7 @@ class ChannelTimerProcess
         Timer::add(30, function () {
             try {
                 $this->monitorService->checkExpiredOrders();
+                $this->monitorService->checkExpiredMerchantPlans();
                 $this->monitorService->checkChannelHeartbeats();
             } catch (\Throwable $e) {
                 error_log('[ChannelTimer] periodic maintenance: ' . $e->getMessage());

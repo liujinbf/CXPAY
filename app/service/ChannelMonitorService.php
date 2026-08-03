@@ -36,6 +36,26 @@ class ChannelMonitorService
     }
 
     /**
+     * 巡检已过期的商户套餐，自动将费率恢复为默认基础费率 2.0% (0.0200)
+     */
+    public function checkExpiredMerchantPlans(): int
+    {
+        $now = time();
+        $expiredMerchants = \app\model\Merchant::where('plan_expire_time', '>', 0)
+            ->where('plan_expire_time', '<=', $now)
+            ->where('rate', '!=', '0.0200')
+            ->get();
+
+        $count = 0;
+        foreach ($expiredMerchants as $merchant) {
+            $merchant->rate = '0.0200';
+            $merchant->save();
+            $count++;
+        }
+        return $count;
+    }
+
+    /**
      * 检查通道心跳与在线状态 (超时 60 秒无心跳自动切为离线休眠状态)
      */
     public function checkChannelHeartbeats(): array
