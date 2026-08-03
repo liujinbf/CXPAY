@@ -646,18 +646,63 @@ $ git pull 2>&1
                     </div>
                 </div>
 
-                <!-- 6. 告警通知配置 -->
+                <!-- 6. 告警通知配置与系统运营参数 -->
                 <div id="tab-alert-config" class="tab-panel space-y-6">
                     <div class="flex items-center justify-between border-b border-slate-200 pb-4">
                         <div>
                             <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-                                <i data-lucide="bell" class="w-6 h-6 text-rose-500"></i> 系统告警与通知配置
+                                <i data-lucide="sliders" class="w-6 h-6 text-blue-600"></i> 系统运营参数与告警通知
                             </h2>
-                            <p class="text-xs text-slate-400 mt-1">配置管理员接收系统登录、账单到账、通道掉线等消息的渠道</p>
+                            <p class="text-xs text-slate-400 mt-1">设置新注册用户体验赠送余额、系统统一收单PID以及管理告警通知渠道</p>
                         </div>
-                        <button onclick="saveAdminAlertConfig()" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md transition-all">
-                            保存配置
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="saveSystemOpConfig()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1">
+                                <i data-lucide="save" class="w-3.5 h-3.5"></i> 保存运营配置
+                            </button>
+                            <button onclick="saveAdminAlertConfig()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1">
+                                <i data-lucide="bell" class="w-3.5 h-3.5"></i> 保存告警通知
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 1. 核心运营配置卡片：注册赠送体验余额 & 系统收款PID -->
+                    <div class="glass-panel p-6 rounded-2xl space-y-4 border-l-4 border-l-blue-600 shadow-sm">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div>
+                                <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="gift" class="w-4 h-4 text-blue-600"></i> 平台核心运营与商户收单设置
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">控制新商户注册时自动赠送的服务费体验金及平台统一收单与充值 PID 账号</p>
+                            </div>
+                            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">运营必备</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                            <!-- 新用户注册赠送体验余额 -->
+                            <div class="p-4 bg-blue-50/50 rounded-xl border border-blue-100 space-y-2">
+                                <label class="block font-bold text-slate-700 flex items-center justify-between">
+                                    <span>🎁 新注册商户赠送体验服务费余额 (元)</span>
+                                    <span class="text-[10px] text-blue-600 font-normal">注册即生效</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold font-mono">¥</span>
+                                    <input id="sys-register-grant-balance" type="number" step="0.01" min="0" value="10.00" placeholder="10.00" class="w-full pl-7 pr-3 py-2 border border-blue-200 rounded-xl font-mono font-bold text-blue-800 bg-white text-xs">
+                                </div>
+                                <p class="text-[11px] text-slate-400">新商户在线自主注册成功后，系统自动注入该数额的体验余额，可用于抵扣收单交易手续费。</p>
+                            </div>
+
+                            <!-- 平台系统统一收单 / 充值 PID -->
+                            <div class="p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2">
+                                <label class="block font-bold text-slate-700 flex items-center justify-between">
+                                    <span>💳 平台统一收单 / 余额充值 PID 账号</span>
+                                    <span class="text-[10px] text-emerald-600 font-bold">内置系统账号</span>
+                                </label>
+                                <div class="relative">
+                                    <input id="sys-recharge-pid" type="text" value="1000" placeholder="1000" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono font-bold text-slate-800 bg-white text-xs">
+                                </div>
+                                <p class="text-[11px] text-slate-400">商户在后台发起余额充值或购买高阶套餐时，系统使用的统一服务费收单目标 PID。</p>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 全局开关与事件订阅 -->
@@ -1230,7 +1275,7 @@ $ git pull 2>&1
             if (tabId === 'callbill-review') loadCallbillReviews();
             if (tabId === 'plugin-market') loadInstalledPlugins();
             if (tabId === 'cloud-monitor') loadCloudMonitorStatus();
-            if (tabId === 'alert-config') loadAdminAlertConfig();
+            if (tabId === 'alert-config') { loadAdminAlertConfig(); loadSystemOpConfig(); }
         }
 
         // ==================== 套餐管理模块 ====================
@@ -2365,6 +2410,45 @@ $ git pull 2>&1
                 if (bEl) bEl.value = '';
             });
             showToast('已清空自定义模版文本，系统将自动复用预设规范模版！');
+        }
+
+        async function loadSystemOpConfig() {
+            try {
+                const res = await adminFetch('/api/admin/system/config');
+                const payload = await res.json();
+                if (payload.code === 1 && payload.data) {
+                    if (document.getElementById('sys-register-grant-balance')) {
+                        document.getElementById('sys-register-grant-balance').value = payload.data.register_grant_balance || '10.00';
+                    }
+                    if (document.getElementById('sys-recharge-pid')) {
+                        document.getElementById('sys-recharge-pid').value = payload.data.system_recharge_pid || '1000';
+                    }
+                }
+            } catch (e) {
+                console.error('加载系统运营配置失败', e);
+            }
+        }
+
+        async function saveSystemOpConfig() {
+            const grantBalance = document.getElementById('sys-register-grant-balance').value.trim();
+            const systemPid    = document.getElementById('sys-recharge-pid').value.trim();
+
+            const body = new URLSearchParams({
+                register_grant_balance: grantBalance,
+                system_recharge_pid: systemPid
+            });
+
+            try {
+                const res = await adminFetch('/api/admin/system/config/save', { method: 'POST', body });
+                const payload = await res.json();
+                if (payload.code === 1) {
+                    showToast(payload.msg || '系统运营配置保存成功！');
+                } else {
+                    showToast('保存失败: ' + (payload.msg || '未知错误'), 'error');
+                }
+            } catch (e) {
+                showToast('保存失败: ' + e.message, 'error');
+            }
         }
 
         async function saveAdminAlertConfig() {

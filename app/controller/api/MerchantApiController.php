@@ -63,14 +63,41 @@ class MerchantApiController
             $apiKey = bin2hex(random_bytes(16));
             $passHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
 
+            // 读取后台配置的注册赠送体验余额
+            $grantBalance = 10.00;
+            try {
+                $cfgVal = \Illuminate\Database\Capsule\Manager::table('cx_config')
+                    ->where('name', 'register_grant_balance')
+                    ->value('value');
+                if ($cfgVal !== null && is_numeric($cfgVal)) {
+                    $grantBalance = (float)$cfgVal;
+                }
+            } catch (\Throwable) {}
+
             $merchant = new Merchant();
             $merchant->name = $name;
             $merchant->pid = $pid;
             $merchant->key = $apiKey;
             $merchant->password_hash = $passHash;
+            $merchant->money = number_format($grantBalance, 2, '.', '');
             $merchant->rate = 0.0200; // 默认标准套餐扣率 2%
             $merchant->status = 1;
             $merchant->save();
+
+            // 如果赠送金额 > 0，写入资金明细日志
+            if ($grantBalance > 0) {
+                try {
+                    \app\model\FinanceLog::create([
+                        'merchant_id' => $merchant->id,
+                        'type'        => 'register_grant',
+                        'amount'      => '+' . number_format($grantBalance, 2, '.', ''),
+                        'before'      => '0.00',
+                        'after'       => number_format($grantBalance, 2, '.', ''),
+                        'memo'        => "新商户注册赠送体验服务费余额 ¥" . number_format($grantBalance, 2, '.', ''),
+                        'create_time' => time(),
+                    ]);
+                } catch (\Throwable) {}
+            }
 
             // 注册成功自动完成 Session 登录
             $session = $request->session();
@@ -347,6 +374,7 @@ class MerchantApiController
             'today_success_rate'    => $successRate,
             'running_channel_count' => $runningChannelsCount,
             'money'                 => number_format((float)($merchant->money ?? 0), 2, '.', ''),
+            'plan_fee_discount_balance' => number_format((float)($merchant->plan_fee_discount_balance ?? 0), 2, '.', ''),
             'rate'                  => (float)($merchant->rate ?? 0.02),
             'plan_name'             => $planName,
             'plan_expire_format'    => $expireStr,
@@ -549,6 +577,7 @@ class MerchantApiController
             'data' => [
                 'list'               => $planData,
                 'merchant_money'     => number_format((float)$merchant->money, 2, '.', ''),
+                'plan_fee_discount_balance' => number_format((float)($merchant->plan_fee_discount_balance ?? 0), 2, '.', ''),
                 'current_plan_id'    => (int)$merchant->plan_id,
                 'current_plan_name'  => $currentPlan ? $currentPlan->name : '默认基础套餐',
                 'plan_expire_time'   => (int)$merchant->plan_expire_time,
@@ -613,9 +642,15 @@ class MerchantApiController
                 ]);
             }
 
-            // 更新商户套餐信息
+            // 更新商户套餐信息与抵扣额度
             $merchant->plan_id = $plan->id;
             $merchant->rate    = number_format((float)$plan->rate / 100.0, 4, '.', ''); // 保存小数形式，如 2.5% 保存为 0.0250
+
+            // 核心功能：套餐费用全额转化为同等价格的手续费抵扣金额
+            if ($price > 0) {
+                $currentDiscount = (float)($merchant->plan_fee_discount_balance ?? 0.00);
+                $merchant->plan_fee_discount_balance = number_format($currentDiscount + $price, 2, '.', '');
+            }
 
             if ($plan->channel_quota > 0) {
                 $merchant->channel_quota = $plan->channel_quota;

@@ -168,12 +168,13 @@
                             </div>
                         </div>
 
-                        <!-- 服务费余额 -->
+                        <!-- 服务费余额与套餐抵扣金 -->
                         <div class="glass-card p-5 rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-amber-50/40 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                             <div>
                                 <div class="text-xs font-bold text-slate-400">服务费余额</div>
                                 <div id="dashboard-merchant-balance" class="text-2xl font-black text-amber-600 mt-1 font-mono">¥ 0.00</div>
-                                <div id="dashboard-merchant-rate" class="text-[11px] text-slate-500 mt-1.5">当前扣率 2.00%</div>
+                                <div id="dashboard-discount-balance-sub" class="text-[11px] text-purple-600 mt-1 font-bold">套餐抵扣金 ¥ 0.00</div>
+                                <div id="dashboard-merchant-rate" class="text-[10px] text-slate-400 mt-0.5">当前扣率 2.00%</div>
                             </div>
                             <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
                                 <i data-lucide="coins" class="w-5 h-5"></i>
@@ -753,8 +754,12 @@
                         </div>
                         <div class="flex items-center gap-6 text-xs text-purple-100">
                             <div>
+                                <span class="text-purple-300">套餐抵扣金:</span>
+                                <strong id="plan-current-discount" class="font-mono ml-1 text-amber-300 font-extrabold">¥ 0.00</strong>
+                            </div>
+                            <div>
                                 <span class="text-purple-300">到期时间:</span>
-                                <strong id="plan-current-expire" class="font-mono ml-1.5 text-white">--</strong>
+                                <strong id="plan-current-expire" class="font-mono ml-1 text-white">--</strong>
                             </div>
                         </div>
                     </div>
@@ -1134,6 +1139,9 @@
                     document.getElementById('dashboard-success-rate').textContent = `成功率 ${data.today_success_rate}%`;
                     document.getElementById('dashboard-channel-count').textContent = `${data.running_channel_count} 个`;
                     document.getElementById('dashboard-merchant-balance').textContent = `¥ ${data.money}`;
+                    if (document.getElementById('dashboard-discount-balance-sub')) {
+                        document.getElementById('dashboard-discount-balance-sub').textContent = `套餐抵扣金 ¥ ${data.plan_fee_discount_balance || '0.00'}`;
+                    }
                     document.getElementById('dashboard-merchant-rate').textContent = `当前套餐扣率 ${(Number(data.rate) * 100).toFixed(2)}%`;
                 }
             } catch (e) {
@@ -1267,6 +1275,9 @@
 
                 const d = payload.data;
                 document.getElementById('plan-merchant-money').textContent = `¥ ${d.merchant_money}`;
+                if (document.getElementById('plan-current-discount')) {
+                    document.getElementById('plan-current-discount').textContent = `¥ ${d.plan_fee_discount_balance || '0.00'}`;
+                }
                 document.getElementById('plan-current-name').textContent = d.current_plan_name || '默认基础套餐';
                 document.getElementById('plan-current-expire').textContent = d.plan_expire_format || '无到期限制';
 

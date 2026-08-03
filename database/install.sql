@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS `cx_merchant` (
   `key` varchar(64) NOT NULL DEFAULT '' COMMENT '商户签名MD5密钥',
   `password_hash` varchar(255) NOT NULL DEFAULT '' COMMENT '商户后台登录密码哈希',
   `money` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT '账户余额(元)',
+  `plan_fee_discount_balance` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT '套餐费用抵扣手续费剩余额度',
   `rate` decimal(5,4) DEFAULT '0.0200' COMMENT '交易手续费率(例如0.02表示2%)',
   `packvip_id` int(11) DEFAULT '0' COMMENT 'VIP套餐ID',
   `packvip_time` int(11) DEFAULT '0' COMMENT 'VIP到期时间戳',
@@ -211,6 +212,8 @@ ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
 INSERT INTO `cx_config` (`name`, `value`, `title`) VALUES 
 ('active_home_template', 'default',                                                              '当前生效的主页模版'),
 ('site_name',            'CXPAY 聚合支付网关',                                               '站点名称'),
+('register_grant_balance', '10.00',                                                           '新商户注册赠送体验服务费余额(元)'),
+('system_recharge_pid',    '1000',                                                            '平台统一收单与充值系统商户PID'),
 ('admin_account',        'admin',                                                              '管理员账号'),
 ('admin_password_hash',  '',                                                                  '管理员密码Bcrypt哈希(由安装器写入)'),
 ('token_salt',           '',                                                                  'Token HMAC签名盐值(由安装器写入)')

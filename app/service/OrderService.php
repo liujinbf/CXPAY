@@ -212,21 +212,51 @@ class OrderService
                     ? (string)$rateConfig[$type]
                     : (string)($lockedMerchant->rate ?? '0.02');
                 $fee = bcmul($money, $effectiveRate, 2);
-                $before = $this->normalizeMoney($lockedMerchant->money);
-                if (bccomp($before, $fee, 2) < 0) {
-                    throw new RuntimeException("商户余额不足（需手续费 ¥{$fee}），请先充值");
+                $discountBalance = $this->normalizeMoney($lockedMerchant->plan_fee_discount_balance ?? 0);
+                $moneyBalance    = $this->normalizeMoney($lockedMerchant->money ?? 0);
+                $totalAvailable  = bcadd($discountBalance, $moneyBalance, 2);
+
+                if (bccomp($totalAvailable, $fee, 2) < 0) {
+                    throw new RuntimeException("商户可用余额不足（需手续费 ¥{$fee}，充值余额 ¥{$moneyBalance}，套餐抵扣金 ¥{$discountBalance}），请先充值或购买套餐");
                 }
+
                 if (bccomp($fee, '0.00', 2) > 0) {
-                    $after = bcsub($before, $fee, 2);
-                    $lockedMerchant->money = $after;
-                    $lockedMerchant->save();
-                    UserMoneyLog::log(
-                        $merchantId,
-                        '-' . $fee,
-                        $before,
-                        $after,
-                        "支付订单 {$tradeNo} 手续费预占"
-                    );
+                    $useDiscount = '0.00';
+                    $useMoney    = '0.00';
+
+                    if (bccomp($discountBalance, $fee, 2) >= 0) {
+                        // 抵扣金足够全额抵扣
+                        $useDiscount = $fee;
+                        $newDiscount = bcsub($discountBalance, $fee, 2);
+                        $lockedMerchant->plan_fee_discount_balance = $newDiscount;
+                        $lockedMerchant->save();
+
+                        UserMoneyLog::log(
+                            $merchantId,
+                            '0.00',
+                            $moneyBalance,
+                            $moneyBalance,
+                            "支付订单 {$tradeNo} 手续费预占（从套餐抵扣金抵扣 ¥{$useDiscount}，剩余抵扣金 ¥{$newDiscount}）"
+                        );
+                    } else {
+                        // 抵扣金部分抵扣，剩余扣除通用余额
+                        $useDiscount = $discountBalance;
+                        $remainFee   = bcsub($fee, $useDiscount, 2);
+                        $useMoney    = $remainFee;
+
+                        $newMoney = bcsub($moneyBalance, $useMoney, 2);
+                        $lockedMerchant->plan_fee_discount_balance = '0.00';
+                        $lockedMerchant->money = $newMoney;
+                        $lockedMerchant->save();
+
+                        UserMoneyLog::log(
+                            $merchantId,
+                            '-' . $useMoney,
+                            $moneyBalance,
+                            $newMoney,
+                            "支付订单 {$tradeNo} 手续费预占（套餐抵扣金抵扣 ¥{$useDiscount}，账户余额预扣 ¥{$useMoney}）"
+                        );
+                    }
                     $feeStatus = 1;
                 }
             }

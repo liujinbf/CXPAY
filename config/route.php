@@ -205,6 +205,10 @@ Route::group('/api/admin', function () {
     Route::get('/system/version_history',[app\controller\admin\SystemUpdateController::class, 'versionHistory']);
     Route::post('/system/do_rollback',   [app\controller\admin\SystemUpdateController::class, 'doRollback']);
 
+    // 系统运营与交易参数配置 API
+    Route::get('/system/config',       [app\controller\admin\SystemConfigController::class, 'getConfig']);
+    Route::post('/system/config/save', [app\controller\admin\SystemConfigController::class, 'saveConfig']);
+
     // 告警通知配置 API
     Route::get('/alert/config',        [app\controller\admin\AlertConfigController::class, 'getConfig']);
     Route::post('/alert/config/save',  [app\controller\admin\AlertConfigController::class, 'saveConfig']);
