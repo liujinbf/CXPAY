@@ -9,5 +9,6 @@
 return [
     '' => [
         app\middleware\RequestIdMiddleware::class,
+        app\middleware\AdminChannelListContractMiddleware::class,
     ],
 ];
