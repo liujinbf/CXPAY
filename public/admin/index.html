@@ -1476,66 +1476,97 @@ $ git pull 2>&1
         async function loadAdminChannels() {
             const listEl = document.getElementById('admin-channel-list');
             if (!listEl) return;
+
+            // 重置所有统计卡片为"加载中..."状态
             listEl.innerHTML = '<div class="p-8 text-center text-xs text-slate-400 col-span-full">正在加载平台全局通道...</div>';
+            const statActiveEl = document.getElementById('channel-stat-active-count');
+            if (statActiveEl) statActiveEl.textContent = '读取中...';
 
             try {
                 const res = await adminFetch('/api/admin/channel/list');
-                const payload = await res.json();
+                const text = await res.text();
+                let payload;
+                try {
+                    payload = JSON.parse(text);
+                } catch (parseErr) {
+                    listEl.innerHTML = `<div class="p-8 text-center text-xs text-rose-500 font-bold col-span-full">接口返回非法数据 (HTTP ${res.status})：${escapeHtml(text.substring(0, 100))}</div>`;
+                    if (statActiveEl) statActiveEl.textContent = '读取失败';
+                    return;
+                }
 
                 if (payload.code !== 1 || !Array.isArray(payload.data)) {
                     listEl.innerHTML = `<div class="p-8 text-center text-xs text-rose-500 font-bold col-span-full">${escapeHtml(payload.msg || '通道加载失败')}</div>`;
+                    if (statActiveEl) statActiveEl.textContent = '加载失败';
                     return;
                 }
 
                 channelCacheMap.clear();
                 const channels = payload.data;
-                const activeCount = channels.filter(c => c.enabled === true || c.status == 1).length;
 
-                const statActiveEl = document.getElementById('channel-stat-active-count');
-                if (statActiveEl) statActiveEl.textContent = `${activeCount} 个激活中`;
+                // 启用 = enabled:true；在线路由中 = enabled:true 且 online_status:1
+                const enabledCount = channels.filter(c => c.enabled === true).length;
+                const onlineCount  = channels.filter(c => c.enabled === true && (c.online_status === 1 || c.online_status === '1')).length;
+                if (statActiveEl) {
+                    statActiveEl.textContent = enabledCount > 0
+                        ? `${enabledCount} 个启用 / ${onlineCount} 在线`
+                        : `${channels.length} 个通道 (全部停用)`;
+                }
 
                 if (channels.length === 0) {
-                    listEl.innerHTML = '<div class="p-8 text-center text-xs text-slate-400 col-span-full">暂无配置的底层收款通道</div>';
+                    listEl.innerHTML = '<div class="p-8 text-center text-xs text-slate-400 col-span-full">暂无配置的底层收款通道，请点击右上角「新增通道」</div>';
                     return;
                 }
 
                 listEl.innerHTML = channels.map(c => {
                     channelCacheMap.set(c.id, c);
-                    const isEnabled = (c.enabled === true || c.status == 1);
-                    const payType = (c.pay_type || c.pay_category || 'alipay').toLowerCase();
-                    const isWx = payType.includes('wx');
-                    const isAli = payType.includes('ali');
-                    const iconText = isWx ? '微信' : (isAli ? '支付宝' : 'QQ');
-                    const iconBg = isWx ? 'bg-emerald-100 text-emerald-600' : (isAli ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600');
-                    const displayName = c.name || c.title || c.code || '自定义通道';
-                    const displayCode = c.code || c.c_type || 'default';
-                    const weightVal = c.weight !== undefined ? c.weight : 100;
+
+                    // 名称：优先 title/name，回退到 c_type 驱动代码，再回退到 '未命名通道'
+                    const displayName = (c.name && c.name.trim()) || (c.code && c.code.trim()) || (c.c_type && c.c_type.trim()) || '未命名通道';
+                    const displayCode = (c.code && c.code.trim()) || (c.c_type && c.c_type.trim()) || '';
+
+                    const isEnabled  = c.enabled === true;
+                    const isOnline   = isEnabled && (c.online_status === 1 || c.online_status === '1');
+                    const weightVal  = (c.weight !== undefined && c.weight !== null) ? c.weight : 100;
                     const isConfigured = c.configured !== false;
+
+                    const payType = (c.pay_type || c.pay_category || c.c_type || 'alipay').toLowerCase();
+                    const isWx  = payType.includes('wx');
+                    const isAli = payType.includes('ali') || payType.includes('alipay');
+                    const iconText = isWx ? '微信' : (isAli ? '支付宝' : 'QQ');
+                    const iconBg   = isWx
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : (isAli ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700');
+
+                    const statusTag = isOnline
+                        ? '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-200">● 路由在线</span>'
+                        : isEnabled
+                            ? '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200">◎ 已启用/离线</span>'
+                            : '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-400">○ 已停用</span>';
 
                     return `<div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white space-y-4 shadow-2xs hover:shadow-md transition-all">
                         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                             <div class="flex items-center gap-2.5">
-                                <span class="w-8 h-8 rounded-xl ${iconBg} font-extrabold flex items-center justify-center text-xs shadow-xs">${iconText}</span>
-                                <div>
-                                    <div class="font-extrabold text-sm text-slate-800">${escapeHtml(displayName)}</div>
-                                    <div class="text-[10px] font-mono text-slate-400 mt-0.5">${escapeHtml(displayCode)}</div>
+                                <span class="w-9 h-9 rounded-xl ${iconBg} font-extrabold flex items-center justify-center text-xs shadow-xs flex-shrink-0">${iconText}</span>
+                                <div class="min-w-0">
+                                    <div class="font-extrabold text-sm text-slate-800 truncate">${escapeHtml(displayName)}</div>
+                                    <div class="text-[10px] font-mono text-slate-400 mt-0.5 truncate">${escapeHtml(displayCode)}</div>
                                 </div>
                             </div>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${isEnabled ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-400'}">
-                                ${isEnabled ? '● 在线路由中' : '○ 已停用'}
-                            </span>
+                            ${statusTag}
                         </div>
 
                         <div class="grid grid-cols-2 gap-2.5 text-xs">
                             <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100">
-                                <span class="text-slate-400 text-[11px]">轮询相对权重:</span>
-                                <span class="font-mono font-extrabold text-blue-600 ml-1.5">${weightVal}</span>
+                                <span class="text-slate-400 text-[11px] block mb-0.5">路由权重</span>
+                                <span class="font-mono font-extrabold text-blue-600">${weightVal}</span>
                             </div>
                             <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100">
-                                <span class="text-slate-400 text-[11px]">密钥参数状态:</span>
-                                <span class="font-bold ${isConfigured ? 'text-emerald-600' : 'text-amber-600'} ml-1.5">${isConfigured ? '已保密加密' : '未完整配置'}</span>
+                                <span class="text-slate-400 text-[11px] block mb-0.5">密钥状态</span>
+                                <span class="font-bold ${isConfigured ? 'text-emerald-600' : 'text-amber-600'}">${isConfigured ? '✓ 已加密存储' : '⚠ 待配置'}</span>
                             </div>
                         </div>
+
+                        ${c.remark ? `<div class="text-[11px] text-slate-500 truncate">备注：${escapeHtml(c.remark)}</div>` : ''}
 
                         <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
                             <button onclick="openChannelConfigEditor(${c.id})" class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold transition-colors">
@@ -1548,7 +1579,8 @@ $ git pull 2>&1
 
                 if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
             } catch (e) {
-                listEl.innerHTML = `<div class="p-8 text-center text-xs text-rose-500 font-bold col-span-full">${escapeHtml(e.message || '加载通道发生异常')}</div>`;
+                listEl.innerHTML = `<div class="p-8 text-center text-xs text-rose-500 font-bold col-span-full">加载通道异常：${escapeHtml(e.message || '未知错误')}</div>`;
+                if (statActiveEl) statActiveEl.textContent = '加载异常';
             }
         }
 

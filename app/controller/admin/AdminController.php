@@ -480,14 +480,21 @@ class AdminController
 
         if (!empty($channels)) {
             $formatted = array_map(function($c) {
+                // ?? 只处理 null，用 ?: 同时处理 null 和空字符串
+                $title   = (string)($c['title'] ?? '');
+                $cType   = (string)($c['c_type'] ?? '');
+                $payType = (string)($c['pay_category'] ?? 'alipay');
                 return [
-                    'id' => $c['id'],
-                    'code' => $c['c_type'] ?? 'unknown',
-                    'name' => $c['title'] ?? ($c['c_type'] ?? '通道'),
-                    'pay_type' => $c['pay_category'] ?? 'alipay',
-                    'enabled' => (int)($c['status'] ?? 1) === 1,
-                    'weight' => (int)($c['weight'] ?? 100),
-                    'configured' => true,
+                    'id'            => $c['id'],
+                    'code'          => $cType ?: 'unknown',
+                    'name'          => ($title ?: null) ?? ($cType ?: '未命名通道'),
+                    'pay_type'      => $payType ?: 'alipay',
+                    'c_type'        => $cType,
+                    'remark'        => (string)($c['remark'] ?? ''),
+                    'online_status' => (int)($c['online_status'] ?? 0),
+                    'enabled'       => (int)($c['status'] ?? 0) === 1,
+                    'weight'        => (int)($c['weight'] ?? 100),
+                    'configured'    => true,
                 ];
             }, $channels);
             return json_encode(['code' => 1, 'data' => $formatted], JSON_UNESCAPED_UNICODE);
