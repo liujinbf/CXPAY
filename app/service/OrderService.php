@@ -156,6 +156,13 @@ class OrderService
                 throw new RuntimeException('商户不存在或已被停用');
             }
 
+            // 无套餐 (plan_id <= 0) 或套餐已过期的商户禁止发起任何收单交易
+            $planId = (int)($lockedMerchant->plan_id ?? 0);
+            $planExpire = (int)($lockedMerchant->plan_expire_time ?? 0);
+            if ($planId <= 0 || ($planExpire > 0 && $planExpire < $now)) {
+                throw new RuntimeException('该商户尚未开通有效套餐或套餐已到期，请先前往控制台「套餐订阅广场」开通/续费套餐后方可进行交易');
+            }
+
             $existingOrder = Order::where('merchant_id', $merchantId)
                 ->where('out_trade_no', $outTradeNo)
                 ->lockForUpdate()

@@ -94,6 +94,17 @@ class MerchantChannelController
             return json(['code' => -1, 'msg' => '通道名称不能为空且名称、备注不能超出长度限制']);
         }
 
+        // 检查商户套餐状态：无套餐 (plan_id <= 0) 或套餐已过期不能添加/编辑通道
+        $planId = (int)($merchant->plan_id ?? 0);
+        $planExpire = (int)($merchant->plan_expire_time ?? 0);
+        $isExpired = ($planExpire > 0 && $planExpire < time());
+        if ($planId <= 0 || $isExpired) {
+            return json([
+                'code' => -100, // -100 专用表示需购买/订阅套餐
+                'msg'  => '您当前尚未开通套餐或套餐已到期，请先前往「套餐订阅广场」领取免费试用套餐或购买套餐后再配置收款通道！'
+            ]);
+        }
+
         $channel = null;
         if ($id > 0) {
             $channel = Channel::where('id', $id)

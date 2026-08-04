@@ -80,7 +80,9 @@ class MerchantApiController
             $merchant->key = $apiKey;
             $merchant->password_hash = $passHash;
             $merchant->money = number_format($grantBalance, 2, '.', '');
-            $merchant->rate = 0.0200; // 默认标准套餐扣率 2%
+            $merchant->rate = 0.0200; // 默认标准扣率 2%
+            $merchant->plan_id = 0;   // 默认无套餐，必须领取试用或购买套餐后才能配置通道
+            $merchant->plan_expire_time = 0;
             $merchant->status = 1;
             $merchant->save();
 

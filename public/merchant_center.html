@@ -2061,6 +2061,32 @@
         }
 
         async function openAddChannelModal() {
+            // 校验商户套餐状态：未订阅套餐 (currentMerchantPlanId <= 0) 或已过期弹出引导订阅弹窗
+            try {
+                const res = await fetch('/api/merchant/plan/list');
+                const payload = await res.json();
+                if (payload.code === 1 && payload.data) {
+                    const d = payload.data;
+                    const planId = Number(d.current_plan_id || 0);
+                    const expireTime = Number(d.plan_expire_time || 0);
+                    const isExpired = (expireTime > 0 && expireTime < (Date.now() / 1000));
+
+                    if (planId <= 0 || isExpired) {
+                        const confirmGo = await showCustomConfirm(
+                            '⚠️ 需先领取或订阅套餐',
+                            isExpired
+                                ? '您的套餐已到期，请先前往「套餐订阅广场」续费或更换套餐后再配置收款通道。'
+                                : '新注册商户账号默认不包含收款套餐，无法添加收款通道。请先前往「套餐订阅广场」免费领取试用套餐或订阅付费套餐。',
+                            false
+                        );
+                        if (confirmGo) {
+                            switchTab('plan-buy');
+                        }
+                        return;
+                    }
+                }
+            } catch (e) {}
+
             document.getElementById('modal-title').innerText = '添加收款通道';
             document.getElementById('channel-id-input').value = '0';
             document.getElementById('channel-title-input').value = '';
@@ -2134,6 +2160,16 @@
                     if (!isSilent) alert(json.msg || '保存成功！');
                     closeAddChannelModal();
                     loadMerchantChannels();
+                } else if (json.code === -100) {
+                    closeAddChannelModal();
+                    const confirmGo = await showCustomConfirm(
+                        '⚠️ 需先订阅套餐',
+                        json.msg || '您当前尚未开通套餐，无法添加收款通道。点击“确定”前往套餐广场！',
+                        false
+                    );
+                    if (confirmGo) {
+                        switchTab('plan-buy');
+                    }
                 } else {
                     if (!isSilent) alert(json.msg || '保存失败');
                 }
