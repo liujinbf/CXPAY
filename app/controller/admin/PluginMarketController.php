@@ -6,6 +6,7 @@ namespace app\controller\admin;
 
 use app\model\Channel;
 use app\payment\PaymentManager;
+use app\payment\RemovedPaymentDrivers;
 use app\payment\Plugin\PluginException;
 use app\payment\Plugin\PluginLifecycleManager;
 use app\payment\Plugin\PluginManager;
@@ -43,8 +44,13 @@ class PluginMarketController
                 $drivers = [['code' => '']];
             }
             foreach ($drivers as $driver) {
+                $cType = trim((string)($driver['code'] ?? ''));
+                if ($cType !== '' && RemovedPaymentDrivers::contains($cType)) {
+                    continue;
+                }
+
                 $plugins[] = [
-                    'c_type' => (string)($driver['code'] ?? ''),
+                    'c_type' => $cType,
                     'name' => (string)($manifest['name'] ?? $entry['name'] ?? $pluginId),
                     'version' => (string)($entry['active_version'] ?? ''),
                     'author' => (string)($entry['publisher'] ?? ''),

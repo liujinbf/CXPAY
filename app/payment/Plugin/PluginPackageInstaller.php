@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace app\payment\Plugin;
 
+use app\payment\RemovedPaymentDrivers;
 use PharData;
 use RecursiveIteratorIterator;
 
@@ -57,6 +58,16 @@ final class PluginPackageInstaller
 
         $manifest = PluginManifest::fromJson($files['manifest.json']);
         $this->verifySignature($manifest, $files['signature.json'], $files);
+
+        foreach ($manifest->drivers() as $driver) {
+            $code = trim((string)($driver['code'] ?? ''));
+            if (RemovedPaymentDrivers::contains($code)) {
+                throw new PluginException(
+                    "插件声明了已永久移除的支付驱动: {$code}"
+                );
+            }
+        }
+
         $this->assertDriverFilesDeclared($manifest, $files);
 
         $target = $this->versionDirectory($manifest);

@@ -60,6 +60,15 @@ final class PluginPackageInstallerTest extends TestCase
         $this->installer()->install($package);
     }
 
+    public function testRejectsValidlySignedPackageUsingRemovedDriverCode(): void
+    {
+        $package = $this->createPackage(false, 'wxpay_protocol_cloud');
+
+        $this->expectException(PluginException::class);
+        $this->expectExceptionMessage('已永久移除');
+        $this->installer()->install($package);
+    }
+
     private function installer(): PluginPackageInstaller
     {
         return new PluginPackageInstaller(
@@ -72,7 +81,10 @@ final class PluginPackageInstallerTest extends TestCase
         );
     }
 
-    private function createPackage(bool $tamper): string
+    private function createPackage(
+        bool $tamper,
+        string $driverCode = 'wxpay_signed_demo'
+    ): string
     {
         $manifest = json_encode([
             'schema' => 1,
@@ -85,7 +97,7 @@ final class PluginPackageInstallerTest extends TestCase
             'collection_mode' => 'personal_qr',
             'monitor_mode' => 'callback',
             'drivers' => [[
-                'code' => 'wxpay_signed_demo',
+                'code' => $driverCode,
                 'class' => 'plugin\\cxpay\\wxpay_signed_demo\\Driver',
                 'file' => 'src/Driver.php',
             ]],
