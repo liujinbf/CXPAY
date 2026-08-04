@@ -1552,6 +1552,175 @@ $ git pull 2>&1
             }
         }
 
+        // ==================== 已安装支付驱动 / 插件商城模块 ====================
+
+        async function loadInstalledPlugins() {
+            const listEl = document.getElementById('plugin-driver-list');
+            if (!listEl) return;
+            listEl.innerHTML = '<div class="p-5 text-center text-xs text-slate-400 col-span-full">正在读取本地驱动...</div>';
+
+            try {
+                const res = await adminFetch('/api/admin/plugin/market_list');
+                const payload = await res.json();
+
+                if (payload.code !== 1 || !payload.data) {
+                    listEl.innerHTML = `<div class="p-5 text-center text-xs text-rose-500 font-bold col-span-full">${escapeHtml(payload.msg || '加载驱动列表失败')}</div>`;
+                    return;
+                }
+
+                const plugins = payload.data.list || [];
+
+                if (plugins.length === 0) {
+                    listEl.innerHTML = '<div class="p-5 text-center text-xs text-slate-400 col-span-full">暂无已安装的支付驱动或插件</div>';
+                    return;
+                }
+
+                listEl.innerHTML = plugins.map(p => {
+                    const isBuiltin = p.source === 'builtin';
+                    const isEnabled = p.enabled === true;
+                    const isBroken = p.broken === true;
+
+                    const sourceTag = isBuiltin
+                        ? '<span class="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 text-[10px] font-extrabold">系统内置</span>'
+                        : '<span class="px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200 text-[10px] font-extrabold">扩展插件</span>';
+
+                    const statusTag = isBroken
+                        ? '<span class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-extrabold">⚠ 加载异常</span>'
+                        : isEnabled
+                            ? '<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-extrabold">● 已启用</span>'
+                            : '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 text-[10px] font-extrabold">○ 已停用</span>';
+
+                    const ctypeTag = p.c_type
+                        ? `<span class="font-mono text-[10px] text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded">${escapeHtml(p.c_type)}</span>`
+                        : '';
+
+                    const versionTag = p.version
+                        ? `<span class="text-[10px] text-slate-400">v${escapeHtml(p.version)}</span>`
+                        : '';
+
+                    const pluginActions = !isBuiltin && p.plugin_id ? `
+                        <div class="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                            <button onclick="togglePlugin('${escapeHtml(p.plugin_id)}', ${isEnabled ? 0 : 1})"
+                                class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-colors ${isEnabled ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'}">
+                                ${isEnabled ? '⏸ 停用插件' : '▶ 启用插件'}
+                            </button>
+                            <button onclick="uninstallPlugin('${escapeHtml(p.plugin_id)}')"
+                                class="px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors">
+                                卸载
+                            </button>
+                        </div>
+                    ` : '';
+
+                    return `<div class="glass-panel p-4 rounded-2xl border border-slate-200/80 bg-white space-y-2 shadow-2xs hover:shadow-md transition-all">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-extrabold text-sm text-slate-800 truncate">${escapeHtml(p.name || p.c_type || '未命名驱动')}</div>
+                                <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                                    ${ctypeTag}
+                                    ${versionTag}
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-end gap-1 flex-shrink-0">
+                                ${sourceTag}
+                                ${statusTag}
+                            </div>
+                        </div>
+                        ${p.description ? `<p class="text-[11px] text-slate-500 leading-relaxed">${escapeHtml(p.description)}</p>` : ''}
+                        ${p.author ? `<div class="text-[11px] text-slate-400">作者 / 发布方：${escapeHtml(p.author)}</div>` : ''}
+                        ${pluginActions}
+                    </div>`;
+                }).join('');
+
+                if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+            } catch (e) {
+                listEl.innerHTML = `<div class="p-5 text-center text-xs text-rose-500 font-bold col-span-full">${escapeHtml(e.message || '加载插件驱动时发生异常')}</div>`;
+            }
+        }
+
+        async function togglePlugin(pluginId, enabled) {
+            const ok = await showCustomConfirm(
+                enabled ? '启用插件确认' : '停用插件确认',
+                enabled
+                    ? `确定要启用插件 "${pluginId}" 吗？启用后其关联支付通道将可接受订单。`
+                    : `确定要停用插件 "${pluginId}" 吗？停用前请确认相关支付通道已全部停用。`,
+                !enabled
+            );
+            if (!ok) return;
+            try {
+                const res = await adminFetch('/api/admin/plugin/set_enabled', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ plugin_id: pluginId, enabled: enabled })
+                });
+                const payload = await res.json();
+                if (payload.code === 1) {
+                    showToast(payload.msg || '操作成功');
+                    loadInstalledPlugins();
+                } else {
+                    showToast('操作失败: ' + (payload.msg || '未知错误'), 'error');
+                }
+            } catch (e) {
+                showToast('请求失败: ' + e.message, 'error');
+            }
+        }
+
+        async function uninstallPlugin(pluginId) {
+            const ok = await showCustomConfirm(
+                '卸载插件确认',
+                `确定要卸载插件 "${pluginId}" 吗？卸载后历史订单数据不会删除，但相关支付功能将不可用。`,
+                true
+            );
+            if (!ok) return;
+            try {
+                const res = await adminFetch('/api/admin/plugin/uninstall', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ plugin_id: pluginId })
+                });
+                const payload = await res.json();
+                if (payload.code === 1) {
+                    showToast(payload.msg || '插件卸载成功');
+                    loadInstalledPlugins();
+                } else {
+                    showToast('卸载失败: ' + (payload.msg || '未知错误'), 'error');
+                }
+            } catch (e) {
+                showToast('请求失败: ' + e.message, 'error');
+            }
+        }
+
+        async function installPluginPackage(fileInput) {
+            const file = fileInput.files[0];
+            if (!file) return;
+            if (!file.name.endsWith('.cxpay-plugin')) {
+                showToast('只允许上传 .cxpay-plugin 安装包', 'error');
+                return;
+            }
+            const listEl = document.getElementById('plugin-driver-list');
+            if (listEl) listEl.innerHTML = '<div class="p-5 text-center text-xs text-slate-400">⏳ 正在上传并安装插件包...</div>';
+
+            const formData = new FormData();
+            formData.append('package', file);
+            try {
+                const res = await adminFetch('/api/admin/plugin/install', {
+                    method: 'POST',
+                    body: formData
+                });
+                const payload = await res.json();
+                if (payload.code === 1) {
+                    showToast(payload.msg || '插件安装成功！');
+                    loadInstalledPlugins();
+                } else {
+                    showToast('安装失败: ' + (payload.msg || '未知错误'), 'error');
+                    loadInstalledPlugins();
+                }
+            } catch (e) {
+                showToast('安装请求异常: ' + e.message, 'error');
+                loadInstalledPlugins();
+            }
+            fileInput.value = '';
+        }
+
         async function openChannelConfigEditor(channelId) {
             const modal = document.getElementById('channel-config-editor');
             if (!modal) return;
