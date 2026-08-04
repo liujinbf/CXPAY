@@ -3142,9 +3142,7 @@ $ git pull 2>&1
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.lucide && typeof lucide.createIcons === 'function') {
-                lucide.createIcons();
-            }
+            safeCreateIcons();
             let rawHash = (location.hash || '').replace('#', '').trim();
             if (rawHash.includes('?')) {
                 rawHash = rawHash.split('?')[0];
