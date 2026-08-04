@@ -2226,102 +2226,6 @@ $ git pull 2>&1
             }
         }
 
-        async function loadAdminChannels() {
-            const container = document.getElementById('admin-channel-list');
-            if (!container) return;
-            container.innerHTML = '<div class="p-8 text-center text-xs text-slate-400 col-span-full font-bold">正在获取平台通道列表...</div>';
-
-            try {
-                const res = await adminFetch('/api/admin/channel/list');
-                const payload = await res.json();
-                if (payload.code !== 1 || !Array.isArray(payload.data)) {
-                    container.innerHTML = `<div class="p-8 text-center text-xs text-rose-500 col-span-full font-bold">${escapeHtml(payload.msg || '加载失败')}</div>`;
-                    return;
-                }
-
-                // 统计在线激活的通道数量
-                const activeCount = payload.data.filter(ch => ch && (ch.enabled === true || Number(ch.enabled) === 1)).length;
-                const activeStatEl = document.getElementById('channel-stat-active-count');
-                if (activeStatEl) activeStatEl.textContent = `${activeCount} / ${payload.data.length} 个启用`;
-
-                const brandMap = {
-                    'alipay_official': { name: '支付宝官方网页支付', icon: '💳', color: 'from-blue-600 to-sky-500' },
-                    'wxpay_protocol_cloud': { name: '微信外部账单回调', icon: '🟢', color: 'from-emerald-600 to-teal-500' },
-                    'qqpay_app_asst': { name: 'QQ 钱包 App 助手', icon: '🐧', color: 'from-purple-600 to-indigo-500' }
-                };
-
-                let htmlContent = '';
-                for (let i = 0; i < payload.data.length; i++) {
-                    const ch = payload.data[i] || {};
-                    const code = String(ch.code || '');
-                    const titleName = String(ch.name || (brandMap[code] ? brandMap[code].name : code));
-                    const isEnabled = ch.enabled === true || Number(ch.enabled) === 1;
-                    const weightVal = Number(ch.weight) || 100;
-                    const isConfigured = Boolean(ch.configured);
-                    const meta = brandMap[code] || { name: titleName, icon: '⚡', color: 'from-slate-700 to-slate-500' };
-
-                    const safeCode = escapeHtml(code);
-                    const safeTitle = escapeHtml(titleName);
-
-                    htmlContent += `
-                    <div class="glass-panel rounded-2xl border ${isEnabled ? 'border-slate-200/90 shadow-xs' : 'border-slate-200/50 opacity-90'} bg-white overflow-hidden hover:shadow-md transition-all flex flex-col justify-between p-5 space-y-4">
-                        <div class="space-y-4">
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br ${meta.color} text-white flex items-center justify-center text-lg shadow-md shrink-0">
-                                        <span>${meta.icon}</span>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <div class="font-extrabold text-slate-800 text-sm truncate">${safeTitle}</div>
-                                        <div class="font-mono text-[11px] text-slate-400 truncate">${safeCode}</div>
-                                    </div>
-                                </div>
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold border shrink-0 ${isEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'}">
-                                    ${isEnabled ? '● 已启用' : '○ 已停用'}
-                                </span>
-                            </div>
-
-                            <div class="p-3.5 bg-slate-50/80 rounded-xl space-y-2 text-xs border border-slate-100/80">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-slate-400 font-medium">路由分配权重</span>
-                                    <span class="font-mono font-black text-slate-700 bg-white px-2 py-0.5 rounded-md border border-slate-200">${weightVal}</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-slate-400 font-medium">配置接入状态</span>
-                                    <span class="font-bold inline-flex items-center gap-1 ${isConfigured ? 'text-emerald-600' : 'text-amber-600'}">
-                                        <span class="w-1.5 h-1.5 rounded-full ${isConfigured ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
-                                        ${isConfigured ? '配置就绪' : '等待补充配置'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs font-bold text-slate-600">开关:</span>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleAdminChannel('${safeCode}', this.checked)" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                                </label>
-                            </div>
-
-                            <div class="flex items-center gap-1.5">
-                                <button onclick="testAdminChannel('${safeCode}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors cursor-pointer flex items-center gap-1">
-                                    测试
-                                </button>
-                                <button onclick="editAdminChannel('${safeCode}')" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-xs flex items-center gap-1">
-                                    配置
-                                </button>
-                            </div>
-                        </div>
-                    </div>`;
-                }
-
-                container.innerHTML = htmlContent;
-            } catch (e) {
-                container.innerHTML = `<div class="p-8 text-center text-xs text-rose-500 col-span-full font-bold">无法读取通道列表: ${escapeHtml(e.message)}</div>`;
-            }
-        }
 
         async function toggleAdminChannel(code, enabled) {
             try {
@@ -2930,26 +2834,6 @@ $ git pull 2>&1
             if (payload.code === 1) await loadPluginMarket();
         }
 
-        async function loadAdminChannels() {
-            const container = document.getElementById('admin-channel-list');
-            try {
-                const response = await adminFetch('/api/admin/channel/list');
-                const payload = await response.json();
-                if (payload.code !== 1 || !Array.isArray(payload.data)) throw new Error(payload.msg || '平台通道加载失败');
-                container.innerHTML = payload.data.length ? payload.data.map(channel => `<div class="p-4 border border-slate-200 rounded-xl flex items-center justify-between gap-4">
-                    <div class="min-w-0">
-                        <div class="font-bold text-slate-800 text-sm truncate">${escapeHtml(channel.title)}</div>
-                        <code class="text-[11px] text-blue-600">${escapeHtml(channel.c_type)}</code>
-                    </div>
-                    <div class="text-right text-xs">
-                        <div class="font-bold ${Number(channel.status) === 1 ? 'text-emerald-600' : 'text-slate-400'}">${Number(channel.status) === 1 ? '已启用' : '已停用'}</div>
-                        <div class="text-slate-400">权重 ${Number(channel.weight || 0)}</div>
-                    </div>
-                </div>`).join('') : '<div class="p-5 text-center text-xs text-slate-400">暂无平台级通道；商户可在自己的控制台添加专属通道</div>';
-            } catch (e) {
-                container.innerHTML = `<div class="p-5 text-center text-xs text-rose-500">${escapeHtml(e.message || '平台通道加载失败')}</div>`;
-            }
-        }
 
         async function loadAdminAlertConfig() {
             try {
