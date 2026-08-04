@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace app\controller\admin;
 
+use app\service\SystemUpdateGuard;
 use support\Response;
 use support\Request;
 
@@ -12,6 +13,15 @@ use support\Request;
  */
 final class SystemUpdateController
 {
+    public function __construct(private readonly ?SystemUpdateGuard $guard = null)
+    {
+    }
+
+    private function updateGuard(): SystemUpdateGuard
+    {
+        return $this->guard ?? new SystemUpdateGuard();
+    }
+
     /**
      * 检查 Git 远端代码更新状态与 Commit 信息
      */
@@ -31,6 +41,10 @@ final class SystemUpdateController
      */
     public function checkUpdate(Request $request): Response
     {
+        if ($blocked = $this->updateGuard()->disabledResponse()) {
+            return $blocked;
+        }
+
         $branch = $this->execGit('git rev-parse --abbrev-ref HEAD');
         $commit = $this->execGit('git rev-parse --short HEAD');
         $commitMsg = $this->execGit('git log -1 --pretty=format:"%s (%cd)" --date=format:"%Y-%m-%d %H:%M:%S"');
@@ -60,6 +74,10 @@ final class SystemUpdateController
      */
     public function doUpdate(Request $request): Response
     {
+        if ($blocked = $this->updateGuard()->disabledResponse()) {
+            return $blocked;
+        }
+
         // 先清除服务器上未提交的脏改动，防止因为线上临时修改文件阻止 git pull 合并
         $this->execGit('git reset --hard HEAD');
         $this->execGit('git checkout .');
@@ -115,6 +133,10 @@ final class SystemUpdateController
      */
     public function versionHistory(Request $request): Response
     {
+        if ($blocked = $this->updateGuard()->disabledResponse()) {
+            return $blocked;
+        }
+
         $rawLogs = $this->execGit('git log -10 --pretty=format:"%h|%an|%cd|%s" --date=format:"%Y-%m-%d %H:%M"');
         $commits = [];
         if ($rawLogs !== '') {
@@ -135,16 +157,28 @@ final class SystemUpdateController
 
     public function pollProgress(Request $request): Response
     {
+        if ($blocked = $this->updateGuard()->disabledResponse()) {
+            return $blocked;
+        }
+
         return json(['code' => 1, 'msg' => '更新完成', 'data' => ['running' => false]]);
     }
 
     public function getUpdateLog(Request $request): Response
     {
+        if ($blocked = $this->updateGuard()->disabledResponse()) {
+            return $blocked;
+        }
+
         return json(['code' => 1, 'msg' => '获取成功', 'data' => ['log' => '系统通过 Git 管理与自动重载']]);
     }
 
     public function doRollback(Request $request): Response
     {
+        if ($blocked = $this->updateGuard()->disabledResponse()) {
+            return $blocked;
+        }
+
         return json(['code' => -1, 'msg' => '若需回滚版本，请在 Git 中执行 reset/revert 或推送前置 commit']);
     }
 }
