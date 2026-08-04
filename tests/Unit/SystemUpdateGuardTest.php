@@ -8,6 +8,7 @@ use app\controller\admin\SystemUpdateController;
 use app\service\SystemUpdateGuard;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use ReflectionNamedType;
 use support\Request;
 
 final class SystemUpdateGuardTest extends TestCase
@@ -26,7 +27,11 @@ final class SystemUpdateGuardTest extends TestCase
         $controllerReflection = new ReflectionClass(SystemUpdateController::class);
         $constructor = $controllerReflection->getConstructor();
         self::assertNotNull($constructor, 'SystemUpdateController must accept an injectable guard');
-        self::assertSame(SystemUpdateGuard::class, (string)$constructor->getParameters()[0]->getType());
+
+        $guardType = $constructor->getParameters()[0]->getType();
+        self::assertInstanceOf(ReflectionNamedType::class, $guardType);
+        self::assertSame(SystemUpdateGuard::class, $guardType->getName());
+        self::assertTrue($guardType->allowsNull());
 
         $controller = new SystemUpdateController($guard);
         $request = (new ReflectionClass(Request::class))->newInstanceWithoutConstructor();
