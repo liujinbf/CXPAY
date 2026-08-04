@@ -1343,9 +1343,7 @@ $ git pull 2>&1
             };
             if (titleEl) { titleEl.innerText = tabTitles[tabId] || tabId.toUpperCase(); }
 
-            if (window.lucide && typeof lucide.createIcons === 'function') {
-                lucide.createIcons();
-            }
+            safeCreateIcons();
 
             // 根据当前切换到的选项卡按需加载真实数据
             if (tabId === 'dashboard') loadDashboard();
