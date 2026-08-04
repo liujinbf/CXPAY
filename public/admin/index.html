@@ -1489,7 +1489,8 @@ $ git pull 2>&1
 
                 channelCacheMap.clear();
                 const channels = payload.data;
-                const activeCount = channels.filter(c => c.enabled || c.status == 1).length;
+                const activeCount = channels.filter(c => c.enabled === true || c.status == 1).length;
+
                 const statActiveEl = document.getElementById('channel-stat-active-count');
                 if (statActiveEl) statActiveEl.textContent = `${activeCount} 个激活中`;
 
@@ -1500,20 +1501,24 @@ $ git pull 2>&1
 
                 listEl.innerHTML = channels.map(c => {
                     channelCacheMap.set(c.id, c);
-                    const isEnabled = c.enabled || c.status == 1;
+                    const isEnabled = (c.enabled === true || c.status == 1);
                     const payType = (c.pay_type || c.pay_category || 'alipay').toLowerCase();
                     const isWx = payType.includes('wx');
                     const isAli = payType.includes('ali');
                     const iconText = isWx ? '微信' : (isAli ? '支付宝' : 'QQ');
                     const iconBg = isWx ? 'bg-emerald-100 text-emerald-600' : (isAli ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600');
+                    const displayName = c.name || c.title || c.code || '自定义通道';
+                    const displayCode = c.code || c.c_type || 'default';
+                    const weightVal = c.weight !== undefined ? c.weight : 100;
+                    const isConfigured = c.configured !== false;
 
                     return `<div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white space-y-4 shadow-2xs hover:shadow-md transition-all">
                         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                             <div class="flex items-center gap-2.5">
                                 <span class="w-8 h-8 rounded-xl ${iconBg} font-extrabold flex items-center justify-center text-xs shadow-xs">${iconText}</span>
                                 <div>
-                                    <div class="font-extrabold text-sm text-slate-800">${escapeHtml(c.name || c.title || c.code)}</div>
-                                    <div class="text-[10px] font-mono text-slate-400 mt-0.5">${escapeHtml(c.code || c.c_type || '')}</div>
+                                    <div class="font-extrabold text-sm text-slate-800">${escapeHtml(displayName)}</div>
+                                    <div class="text-[10px] font-mono text-slate-400 mt-0.5">${escapeHtml(displayCode)}</div>
                                 </div>
                             </div>
                             <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${isEnabled ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-400'}">
@@ -1524,11 +1529,11 @@ $ git pull 2>&1
                         <div class="grid grid-cols-2 gap-2.5 text-xs">
                             <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100">
                                 <span class="text-slate-400 text-[11px]">轮询相对权重:</span>
-                                <span class="font-mono font-extrabold text-blue-600 ml-1.5">${c.weight || 100}</span>
+                                <span class="font-mono font-extrabold text-blue-600 ml-1.5">${weightVal}</span>
                             </div>
                             <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100">
                                 <span class="text-slate-400 text-[11px]">密钥参数状态:</span>
-                                <span class="font-bold ${c.configured ? 'text-emerald-600' : 'text-amber-600'} ml-1.5">${c.configured ? '已保密加密' : '未完整配置'}</span>
+                                <span class="font-bold ${isConfigured ? 'text-emerald-600' : 'text-amber-600'} ml-1.5">${isConfigured ? '已保密加密' : '未完整配置'}</span>
                             </div>
                         </div>
 
