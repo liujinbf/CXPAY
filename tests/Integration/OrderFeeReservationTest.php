@@ -51,6 +51,9 @@ final class OrderFeeReservationTest extends TestCase
             $table->decimal('money', 10, 2)->default(0);
             $table->decimal('rate', 5, 4)->default(0.01);
             $table->integer('packvip_time')->default(0);
+            $table->integer('plan_id')->default(0);
+            $table->integer('plan_expire_time')->default(0);
+            $table->decimal('plan_fee_discount_balance', 10, 2)->default(0);
             $table->decimal('pay_float_min', 6, 2)->default(0);
             $table->decimal('pay_float_max', 6, 2)->default(0);
             $table->integer('pay_outtime')->default(180);
@@ -511,7 +514,8 @@ final class OrderFeeReservationTest extends TestCase
     {
         return Merchant::create([
             'pid' => 'M10001', 'name' => '测试商户', 'key' => str_repeat('k', 48),
-            'money' => $money, 'rate' => '0.0100', 'status' => 1,
+            'money' => $money, 'rate' => '0.0100',
+            'plan_id' => 1, 'plan_expire_time' => time() + 3600, 'status' => 1,
         ]);
     }
 
