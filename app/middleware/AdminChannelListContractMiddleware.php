@@ -31,6 +31,11 @@ final class AdminChannelListContractMiddleware implements MiddlewareInterface
             return $response;
         }
 
+        $data = $payload['data'] ?? null;
+        if (is_array($data) && $data !== [] && $this->containsPersistedChannelShape($data)) {
+            return $response;
+        }
+
         try {
             $channels = Channel::where('merchant_id', 0)
                 ->select([
@@ -42,8 +47,14 @@ final class AdminChannelListContractMiddleware implements MiddlewareInterface
                 ->get()
                 ->toArray();
         } catch (\Throwable) {
-            // Preserve the authenticated controller response when storage is unavailable.
-            return $response;
+            return $response
+                ->withStatus(503)
+                ->withHeader('Content-Type', 'application/json; charset=utf-8')
+                ->withBody((string)json_encode([
+                    'code' => 503,
+                    'msg' => '通道数据暂时不可用，请稍后重试',
+                    'data' => [],
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         }
 
         return $response
@@ -52,5 +63,21 @@ final class AdminChannelListContractMiddleware implements MiddlewareInterface
                 'code' => 1,
                 'data' => AdminChannelPresenter::format($channels),
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * @param array<int, mixed> $channels
+     */
+    private function containsPersistedChannelShape(array $channels): bool
+    {
+        foreach ($channels as $channel) {
+            if (!is_array($channel)
+                || !array_key_exists('c_type', $channel)
+                || !array_key_exists('online_status', $channel)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
