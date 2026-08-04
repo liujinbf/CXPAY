@@ -451,24 +451,6 @@ class AdminController
         // 核心驱动兜底清单，确保管理员后台 100% 渲染呈现
         $defaultDrivers = [
             [
-                'id' => 1,
-                'code' => 'alipay_official',
-                'name' => '支付宝官方网页支付',
-                'pay_type' => 'alipay',
-                'enabled' => true,
-                'weight' => 100,
-                'configured' => true,
-            ],
-            [
-                'id' => 2,
-                'code' => 'wxpay_protocol_cloud',
-                'name' => '微信外部账单回调',
-                'pay_type' => 'wxpay',
-                'enabled' => true,
-                'weight' => 80,
-                'configured' => true,
-            ],
-            [
                 'id' => 3,
                 'code' => 'qqpay_app_asst',
                 'name' => 'QQ 钱包 App 助手',

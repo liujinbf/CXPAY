@@ -39,7 +39,7 @@ class PollService
                     ->orWhere('merchant_id', 0);
             })
             ->where(function ($query) use ($payType) {
-                // c_type 以 payType 开头，例如 alipay_official / alipay_scan_bill 等
+                // c_type 以 payType 开头，例如 alipay_app_asst / wxpay_app_asst
                 $query->where('c_type', 'LIKE', $payType . '%')
                     ->orWhere('pay_category', $payType);
             })

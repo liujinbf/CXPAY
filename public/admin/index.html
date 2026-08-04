@@ -2245,8 +2245,6 @@ $ git pull 2>&1
                 if (activeStatEl) activeStatEl.textContent = `${activeCount} / ${payload.data.length} 个启用`;
 
                 const brandMap = {
-                    'alipay_official': { name: '支付宝官方网页支付', icon: '💳', color: 'from-blue-600 to-sky-500' },
-                    'wxpay_protocol_cloud': { name: '微信外部账单回调', icon: '🟢', color: 'from-emerald-600 to-teal-500' },
                     'qqpay_app_asst': { name: 'QQ 钱包 App 助手', icon: '🐧', color: 'from-purple-600 to-indigo-500' }
                 };
 
@@ -2371,15 +2369,6 @@ $ git pull 2>&1
                 if (inputsList.length === 0) {
                     // 内置标准通道的常用基础 inputs 兜底
                     const fallbackInputs = {
-                        'alipay_official': [
-                            { name: 'app_id', label: '支付宝 AppID', type: 'text', placeholder: '如: 2021000123456789' },
-                            { name: 'merchant_private_key', label: '应用应用私钥 (RSA2)', type: 'textarea', placeholder: 'MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQ...' },
-                            { name: 'alipay_public_key', label: '支付宝公钥', type: 'textarea', placeholder: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...' }
-                        ],
-                        'wxpay_protocol_cloud': [
-                            { name: 'notify_secret', label: '云端账单通知 Key', type: 'text', placeholder: '自定义或填入云端配置的秘钥' },
-                            { name: 'gateway_url', label: '云端回调监听网关', type: 'text', placeholder: 'https://cs.fcwan.cn/notify/wxpay_protocol_cloud' }
-                        ],
                         'qqpay_app_asst': [
                             { name: 'mch_id', label: 'QQ 钱包商户号 / 助手 AppID', type: 'text', placeholder: '如: 1500001234' },
                             { name: 'app_key', label: '通信密钥 Key', type: 'text', placeholder: '填写对应的 AppKey 或通信密匙' }
