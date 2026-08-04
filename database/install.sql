@@ -82,6 +82,31 @@ CREATE TABLE IF NOT EXISTS `cx_pay_channel` (
   KEY `idx_merchant_cat` (`merchant_id`, `pay_category`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付通道与商户个人收款码配置表';
 
+-- 3.1 已移除支付通道非敏感元数据归档表
+CREATE TABLE IF NOT EXISTS `cx_pay_channel_archive` (
+  `archive_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `original_channel_id` int(11) NOT NULL COMMENT '原活动通道ID',
+  `merchant_id` int(11) DEFAULT NULL COMMENT '原所属商户ID',
+  `pay_category` varchar(32) DEFAULT NULL COMMENT '原支付分类',
+  `title` varchar(100) DEFAULT NULL COMMENT '原通道显示名称',
+  `c_type` varchar(64) NOT NULL COMMENT '原驱动标识',
+  `remark` varchar(255) DEFAULT NULL COMMENT '原通道备注',
+  `weight` int(11) DEFAULT NULL COMMENT '原轮询权重',
+  `single_min` decimal(12,2) DEFAULT NULL COMMENT '原单笔最小限制',
+  `single_max` decimal(12,2) DEFAULT NULL COMMENT '原单笔最大限制',
+  `day_max` decimal(12,2) DEFAULT NULL COMMENT '原单日额度限制',
+  `today_money` decimal(12,2) DEFAULT NULL COMMENT '归档时今日金额',
+  `today_count` int(11) DEFAULT NULL COMMENT '归档时今日笔数',
+  `total_money` decimal(14,2) DEFAULT NULL COMMENT '归档时累计金额',
+  `online_status` tinyint(1) DEFAULT NULL COMMENT '归档时在线状态',
+  `status` tinyint(1) DEFAULT NULL COMMENT '归档时启用状态',
+  `archive_reason` varchar(80) NOT NULL COMMENT '归档原因',
+  `archived_at` bigint(20) unsigned NOT NULL COMMENT '归档时间戳',
+  PRIMARY KEY (`archive_id`),
+  UNIQUE KEY `uk_original_channel_id` (`original_channel_id`),
+  KEY `idx_archive_ctype` (`c_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='已移除支付通道非敏感元数据归档表';
+
 -- 4. 挂机账单上报表 cx_callbill
 CREATE TABLE IF NOT EXISTS `cx_callbill` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -221,8 +246,6 @@ ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 
 -- 插入禁用的通道配置示例；管理员必须填写真实配置并主动启用。
 INSERT INTO `cx_pay_channel` (`id`, `pay_category`, `title`, `c_type`, `config`, `weight`, `online_status`, `status`) VALUES
-(1, 'alipay', '支付宝官方网页支付（待配置）', 'alipay_official', '{}', 100, 0, 0),
-(2, 'wxpay', '微信外部账单回调（待配置）', 'wxpay_protocol_cloud', '{}', 80, 0, 0),
 (3, 'qqpay', 'QQ 钱包 App 助手（待配置）', 'qqpay_app_asst', '{}', 50, 0, 0)
 ON DUPLICATE KEY UPDATE `title` = VALUES(`title`);
 
