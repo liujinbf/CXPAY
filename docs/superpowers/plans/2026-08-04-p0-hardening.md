@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the online-update disable switch enforceable, remove synthetic channel records, and add a repeatable CI quality gate.
+**Goal:** Make the online-update disable switch enforceable, prevent synthetic channel records from reaching the administrator API, and establish a repeatable CI quality gate.
 
-**Architecture:** Introduce two small, independently testable services. `SystemUpdateGuard` owns the update enable/disable decision and produces a consistent 403 response; `AdminChannelPresenter` owns the API representation of real channel rows and never fabricates records. Controllers delegate to these services, while GitHub Actions runs syntax checks and PHPUnit on every push and pull request.
+**Architecture:** `SystemUpdateGuard` owns the update enable/disable decision and stops controller actions before side effects. `AdminChannelPresenter` normalizes persisted channel rows, while `AdminChannelListContractMiddleware` runs after the existing administrator authentication chain and replaces only the legacy synthetic response shape. GitHub Actions is intended to run Composer validation, dependency installation, PHP syntax checks, and PHPUnit.
 
 **Tech Stack:** PHP 8.1+, Webman 2, PHPUnit 10, GitHub Actions, Composer.
 
@@ -13,6 +13,8 @@
 - Online update remains disabled by default through `SYSTEM_UPDATE_ENABLED=false`.
 - Disabled update endpoints must not execute Git, SQL, or process-reload commands.
 - Channel list responses must contain only persisted `cx_channel` rows.
+- Authentication and authorization must execute before channel response normalization.
+- Database failure must not restore synthetic fallback channels.
 - No direct changes are made to `main`; all work is isolated on `fix/p0-hardening`.
 - Existing public API response envelope remains `{code, msg, data}`.
 
@@ -24,26 +26,23 @@
 - Create: `.github/workflows/ci.yml`
 - Create: `tests/Unit/SystemUpdateGuardTest.php`
 - Create: `tests/Unit/AdminChannelPresenterTest.php`
+- Create: `tests/Unit/AdminChannelListContractMiddlewareTest.php`
 
-**Interfaces:**
-- Produces: `app\service\SystemUpdateGuard::__construct(?bool $enabled = null)` and `disabledResponse(): ?support\Response`.
-- Produces: `app\service\AdminChannelPresenter::format(array $channels): array`.
+- [x] **Step 1: Add the CI workflow**
 
-- [ ] **Step 1: Add a PHP 8.1 CI workflow**
+The workflow inspects the runner, validates Composer metadata, installs dependencies, syntax-checks PHP files, runs PHPUnit, and preserves diagnostic logs when execution reaches those steps.
 
-Run Composer validation, install dependencies, syntax-check application PHP files, and run PHPUnit.
+- [x] **Step 2: Add the update-guard regression test**
 
-- [ ] **Step 2: Add failing update-guard test**
+The test covers disabled and enabled policy behavior and all six update controller endpoints.
 
-Assert that the guard class exists, disabled mode returns HTTP 403, enabled mode returns `null`, and every public update controller endpoint returns 403 when injected with a disabled guard.
+- [x] **Step 3: Add channel presenter and middleware tests**
 
-- [ ] **Step 3: Add failing channel-presenter test**
+The tests cover empty input, strict field normalization, middleware registration, legacy synthetic shape detection, and persisted response pass-through.
 
-Assert that an empty input returns an empty array and a persisted channel row is normalized with strict boolean `enabled` and integer `online_status` fields.
+- [x] **Step 4: Establish a red baseline**
 
-- [ ] **Step 4: Verify the branch CI fails for the missing services**
-
-Expected: PHPUnit fails because `SystemUpdateGuard` and `AdminChannelPresenter` do not exist.
+A CI run failed before the two new services existed, proving the regression tests detect the missing behavior.
 
 ### Task 2: Enforce the online-update switch
 
@@ -56,48 +55,63 @@ Expected: PHPUnit fails because `SystemUpdateGuard` and `AdminChannelPresenter` 
 - `SystemUpdateGuard::disabledResponse(): ?support\Response`
 - `SystemUpdateController::__construct(?SystemUpdateGuard $guard = null)`
 
-- [ ] **Step 1: Implement the minimal guard**
+- [x] **Step 1: Implement the policy guard**
 
-Resolve the configured value from constructor injection for tests or `config('app.system_update_enabled', false)` in production. Return a JSON 403 response when disabled.
+Constructor injection controls tests; production resolves `config('app.system_update_enabled', false)`. Disabled mode returns HTTP 403.
 
-- [ ] **Step 2: Gate every update endpoint before side effects**
+- [x] **Step 2: Gate every update endpoint before side effects**
 
-Apply the guard at the first line of `checkUpdate`, `doUpdate`, `versionHistory`, `pollProgress`, `getUpdateLog`, and `doRollback`.
+The guard is the first operation in `checkUpdate`, `doUpdate`, `versionHistory`, `pollProgress`, `getUpdateLog`, and `doRollback`.
 
-- [ ] **Step 3: Verify guard tests pass**
+- [x] **Step 3: Perform targeted behavior verification**
 
-Expected: all `SystemUpdateGuardTest` cases pass and no command path runs while disabled.
+A local PHP stub harness verified that disabled endpoints return 403 before code paths that require `base_path()`, Git, SQL, or reload execution.
 
-### Task 3: Remove synthetic channel records
+### Task 3: Enforce the real-channel response contract
 
 **Files:**
 - Create: `app/service/AdminChannelPresenter.php`
-- Modify: `app/controller/admin/AdminController.php`
+- Create: `app/middleware/AdminChannelListContractMiddleware.php`
+- Modify: `config/middleware.php`
 
 **Interfaces:**
 - `AdminChannelPresenter::format(array $channels): array`
+- `AdminChannelListContractMiddleware::process(Request $request, callable $handler): Response`
 
-- [ ] **Step 1: Implement deterministic channel normalization**
+- [x] **Step 1: Implement deterministic channel normalization**
 
-Map only supplied rows. Preserve `id`, `code`, `name`, `pay_type`, `c_type`, `remark`, `online_status`, `enabled`, `weight`, and `configured`.
+The presenter maps only supplied rows and never creates fallback records.
 
-- [ ] **Step 2: Replace the default-driver fallback**
+- [x] **Step 2: Preserve the administrator authentication chain**
 
-Have `listChannels()` return `AdminChannelPresenter::format($channels)`; an empty query result must produce `data: []`.
+The middleware invokes the downstream handler first and leaves non-success responses unchanged.
 
-- [ ] **Step 3: Verify presenter and full test suite pass**
+- [x] **Step 3: Replace only the legacy synthetic response**
 
-Expected: PHPUnit and syntax checks pass in CI.
+Persisted responses containing `c_type` and `online_status` pass through. Legacy fallback data or an empty legacy response is replaced using real `cx_channel` rows.
 
-### Task 4: Review and handoff
+- [x] **Step 4: Fail closed on storage errors**
 
-**Files:**
-- Review all changed files.
+A failed corrective database read returns HTTP 503 with `data: []`, rather than exposing synthetic channels.
 
-- [ ] **Step 1: Compare `fix/p0-hardening` against `main`**
+- [x] **Step 5: Perform targeted behavior verification**
 
-Confirm only the plan, workflow, two services, two tests, and two controller changes are present.
+A local PHP stub harness covered empty storage, synthetic fallback replacement, persisted response pass-through, database failure, and unauthorized response pass-through.
 
-- [ ] **Step 2: Open a draft pull request**
+### Task 4: CI diagnosis and review handoff
 
-Document root causes, behavioral changes, test evidence, and remaining follow-up risks without merging automatically.
+- [x] **Step 1: Compare the branch with `main`**
+
+The final diff contains the CI workflow, plan, two services, one middleware, middleware registration, controller guard changes, and three focused test files.
+
+- [x] **Step 2: Open and document a draft PR**
+
+PR #2 records the root causes, implementation, verification evidence, and remaining risks.
+
+- [ ] **Step 3: Obtain a complete green GitHub Actions run**
+
+Current Actions runs terminate before reporting any executed steps; the API exposes an empty step list and no downloadable log or artifact. Keep the PR in Draft until the repository Actions environment executes the workflow and the full Composer/PHPUnit suite passes.
+
+- [ ] **Step 4: Remove the legacy controller fallback in a follow-up cleanup**
+
+The middleware enforces safe external behavior now. A later focused PR should delete the obsolete fallback block directly from `AdminController::listChannels()` once normal repository checkout and full-suite verification are available.
