@@ -1516,6 +1516,8 @@ $ git pull 2>&1
                 // 启用 = enabled:true；在线路由中 = enabled:true 且 online_status:1
                 const enabledCount = channels.filter(c => c.enabled === true).length;
                 const onlineCount  = channels.filter(c => c.enabled === true && (c.online_status === 1 || c.online_status === '1')).length;
+                
+                // 【关键修复】优先更新顶部统计状态节点，防止后续 DOM 拼接或图标渲染异常导致其卡在"加载中..."
                 if (statActiveEl) {
                     statActiveEl.textContent = enabledCount > 0
                         ? `${enabledCount} 个启用 / ${onlineCount} 在线`
