@@ -33,6 +33,8 @@ class PaymentManager
      */
     public static function register(string $cType, string $class): void
     {
+        RemovedPaymentDrivers::assertAllowed($cType);
+
         if (!is_subclass_of($class, PaymentDriverInterface::class)) {
             throw new InvalidArgumentException("驱动类 {$class} 必须实现 PaymentDriverInterface");
         }
@@ -41,6 +43,8 @@ class PaymentManager
 
     public static function registerPluginDriver(string $cType, string $class, string $pluginId): void
     {
+        RemovedPaymentDrivers::assertAllowed($cType);
+
         if (!is_subclass_of($class, PaymentDriverInterface::class)) {
             throw new InvalidArgumentException("插件驱动类 {$class} 必须实现 PaymentDriverInterface");
         }
@@ -57,6 +61,7 @@ class PaymentManager
      */
     public static function make(string $cType): PaymentDriverInterface
     {
+        RemovedPaymentDrivers::assertAllowed($cType);
         static::discoverDrivers();
         if (!static::driverIsEnabled($cType)) {
             throw new InvalidArgumentException("支付通道插件已停用: {$cType}");
@@ -89,6 +94,10 @@ class PaymentManager
      */
     public static function has(string $cType): bool
     {
+        if (RemovedPaymentDrivers::contains($cType)) {
+            return false;
+        }
+
         static::discoverDrivers();
         if (!static::driverIsEnabled($cType)) {
             return false;
@@ -191,7 +200,9 @@ class PaymentManager
         static::discoverDrivers();
         $list = [];
         foreach (static::$drivers as $cType => $class) {
-            if (!static::driverIsEnabled($cType) || !static::classIsAvailable($class)) {
+            if (RemovedPaymentDrivers::contains($cType)
+                || !static::driverIsEnabled($cType)
+                || !static::classIsAvailable($class)) {
                 continue;
             }
             try {
@@ -226,7 +237,7 @@ class PaymentManager
                 $instance = new $class();
                 $meta = $instance->getMeta();
                 $cType = trim((string)($meta['name'] ?? ''));
-                if ($cType !== '') {
+                if ($cType !== '' && !RemovedPaymentDrivers::contains($cType)) {
                     static::$drivers[$cType] = $class;
                 }
             } catch (\Throwable) {

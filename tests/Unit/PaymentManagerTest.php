@@ -13,6 +13,11 @@ use PHPUnit\Framework\TestCase;
 
 final class PaymentManagerTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        PaymentManager::flush();
+    }
+
     #[DataProvider('personalQrDriverProvider')]
     public function testPersonalQrDriverIsAvailable(string $driverName, string $monitorMode): void
     {
@@ -21,11 +26,18 @@ final class PaymentManagerTest extends TestCase
         self::assertSame($monitorMode, PaymentManager::monitorMode($driverName));
     }
 
-    #[DataProvider('merchantDriverProvider')]
-    public function testMerchantPaymentDriverCannotBeSelected(string $driverName): void
+    #[DataProvider('removedDriverProvider')]
+    public function testRemovedDriverIsPermanentlyUnavailable(string $driverName): void
     {
         self::assertFalse(PaymentManager::has($driverName));
         self::assertArrayNotHasKey($driverName, PaymentManager::getRegisteredDrivers());
+
+        try {
+            PaymentManager::make($driverName);
+            self::fail('Removed driver must not be instantiated');
+        } catch (InvalidArgumentException $e) {
+            self::assertStringContainsString('已永久移除', $e->getMessage());
+        }
     }
 
     #[DataProvider('epayDriverProvider')]
@@ -47,10 +59,25 @@ final class PaymentManagerTest extends TestCase
         PaymentManager::make('driver_that_does_not_exist');
     }
 
-    public function testDisabledMerchantDriverFailsClosed(): void
+    public function testRemovedDriverCannotBeRegisteredAsBuiltin(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        PaymentManager::make('alipay_official');
+        $this->expectExceptionMessage('已永久移除');
+        PaymentManager::register(
+            'alipay_official',
+            FakePluginPaymentDriver::class
+        );
+    }
+
+    public function testRemovedDriverCannotBeRegisteredByPlugin(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('已永久移除');
+        PaymentManager::registerPluginDriver(
+            'wxpay_protocol_cloud',
+            FakePluginPaymentDriver::class,
+            'cxpay.wxpay.retired'
+        );
     }
 
     public function testPluginCannotOverrideBuiltinDriverCode(): void
@@ -121,21 +148,20 @@ final class PaymentManagerTest extends TestCase
     {
         return [
             '支付宝安卓监控' => ['alipay_app_asst', MonitorableDriverInterface::MODE_PUSH],
-            '支付宝旧版外部账单回调' => ['alipay_scan_bill', MonitorableDriverInterface::MODE_CALLBACK],
             '微信安卓监控' => ['wxpay_app_asst', MonitorableDriverInterface::MODE_PUSH],
             '微信PC监控' => ['wxpay_recpt_afk_pc', MonitorableDriverInterface::MODE_PUSH],
-            '微信外部账单回调' => ['wxpay_protocol_cloud', MonitorableDriverInterface::MODE_CALLBACK],
             'QQ安卓监控' => ['qqpay_app_asst', MonitorableDriverInterface::MODE_PUSH],
-            'QQ外部账单回调' => ['qqpay_protocol_cloud', MonitorableDriverInterface::MODE_CALLBACK],
         ];
     }
 
-    public static function merchantDriverProvider(): array
+    public static function removedDriverProvider(): array
     {
-        // 官方商户驱动需要外部 SDK 初始化，保持 available=false 不可直接选中
         return [
-            '支付宝官方商户支付' => ['alipay_official'],
-            '微信官方商户支付' => ['wxpay_official'],
+            '支付宝官方占位' => ['alipay_official'],
+            '微信官方占位' => ['wxpay_official'],
+            '支付宝旧共享Token' => ['alipay_scan_bill'],
+            '微信旧共享Token' => ['wxpay_protocol_cloud'],
+            'QQ旧共享Token' => ['qqpay_protocol_cloud'],
         ];
     }
 

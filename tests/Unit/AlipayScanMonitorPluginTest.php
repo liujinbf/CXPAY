@@ -25,7 +25,11 @@ final class AlipayScanMonitorPluginTest extends TestCase
         self::assertSame('alipay_scan_monitor', $manifest->drivers()[0]['code']);
         self::assertSame(MonitorableDriverInterface::MODE_CALLBACK, (new Driver())->monitorMode());
         self::assertInstanceOf(AccountAuthorizationInterface::class, new Driver());
-        self::assertTrue(PaymentManager::make('alipay_scan_bill')->getMeta()['deprecated']);
+        self::assertFalse(PaymentManager::has('alipay_scan_bill'));
+        self::assertArrayNotHasKey(
+            'alipay_scan_bill',
+            PaymentManager::getRegisteredDrivers()
+        );
     }
 
     public function testAllowsDisabledChannelBeforeQrAuthorization(): void
