@@ -2,54 +2,52 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Permanently remove five placeholder or shared-Token payment drivers from discovery, plugin installation, configuration UIs, active channel data, and package bindings while preserving non-sensitive audit metadata and historical transaction references.
+**Goal:** Permanently remove five placeholder or shared-Token payment drivers from discovery, installation, configuration UIs, active channel data, and package bindings while preserving non-sensitive audit metadata and historical transaction references.
 
-**Architecture:** A single `RemovedPaymentDrivers` policy owns the immutable tombstone list and is enforced by `PaymentManager`, plugin installation, controllers, and migration code. A focused cleanup service performs two-stage schema preparation plus transactional archive/delete work; a CLI wrapper defaults to dry-run and only mutates data with `--apply`. Existing orders and callbills retain their numeric `channel_id`, while active channels and poll-group links are removed.
+**Architecture:** `RemovedPaymentDrivers` is the single immutable tombstone policy. `PaymentManager`, plugin installation, channel/package controllers, UI contracts, and the cleanup migration all consume that policy. Database cleanup is split into idempotent archive-table DDL followed by one DML transaction; the CLI defaults to dry-run and requires `--apply`.
 
-**Tech Stack:** PHP 8.2, Webman, Illuminate Database/Eloquent, MySQL 5.7+/8.0, PHPUnit 10, HTML/vanilla JavaScript.
+**Tech Stack:** PHP 8.2, Webman, Illuminate Database/Eloquent, MySQL 5.7+/8.0, SQLite for integration tests, PHPUnit 10, HTML/vanilla JavaScript.
 
 ## Global Constraints
 
-- Work only on branch `fix/p0-hardening`; keep PR #2 in Draft until verification is complete.
-- Permanently remove exactly: `alipay_official`, `wxpay_official`, `alipay_scan_bill`, `wxpay_protocol_cloud`, `qqpay_protocol_cloud`.
-- Keep `sandbox_test`; it remains an internal test driver and is outside this cleanup.
-- Delete the five driver implementations physically; do not merely hide them with UI flags.
-- Reject future built-in or plugin registration using any removed code.
-- Archive only non-sensitive channel metadata; never archive `config`, Token, Cookie, private key, or secret values.
-- Preserve `cx_order.channel_id`, `cx_callbill.channel_id`, and other historical numeric channel references unchanged.
-- Default migration mode is dry-run; data mutation requires the exact `--apply` argument.
-- Abort `--apply` when any pending order (`cx_order.status = 0`) references a target channel; never strand an in-flight payment.
-- The archive-table DDL runs before the DML transaction because MySQL DDL causes an implicit commit.
-- Migration must be idempotent and must roll back all phase-two DML on failure.
-- Do not run `git clean -fd`; preserve `CXPAY.rar`, `cxpay-webman.supervisor.conf`, and `install.lock` on the test server.
-- Do not claim GitHub Actions is green; use server-side PHPUnit output as the verification evidence unless Actions later produces executable jobs and logs.
+- Work only on `fix/p0-hardening`; keep PR #2 Draft during implementation.
+- Permanently remove exactly `alipay_official`, `wxpay_official`, `alipay_scan_bill`, `wxpay_protocol_cloud`, and `qqpay_protocol_cloud`.
+- Keep `sandbox_test` unchanged.
+- Delete the five driver implementation files; hiding them only in JavaScript is insufficient.
+- Reject future built-in or plugin registration using a removed code.
+- Never archive `cx_pay_channel.config` or any Token, Cookie, private key, or secret.
+- Preserve `cx_order.channel_id`, `cx_callbill.channel_id`, and historical statuses unchanged.
+- Abort cleanup while any `cx_order.status = 0` row references a target channel.
+- Run archive-table DDL before transactional DML because MySQL DDL implicitly commits.
+- Migration defaults to dry-run; data changes require the exact `--apply` argument.
+- The DML phase must be idempotent and must fully roll back on failure.
+- On the test server, preserve `CXPAY.rar`, `cxpay-webman.supervisor.conf`, and `install.lock`; never run `git clean -fd`.
+- Do not claim GitHub Actions is green without executable jobs and logs.
 
----
-
-## File Structure
+## File Map
 
 **Create**
 
-- `app/payment/RemovedPaymentDrivers.php` — immutable tombstone policy and CSV cleanup helper.
-- `app/service/LegacyPaymentDriverCleanupService.php` — archive-table creation, preview, pending-order guard, transactional cleanup, and result counters.
-- `database/migrations/20260805_remove_legacy_payment_drivers.php` — CLI dry-run/`--apply` entrypoint.
-- `tests/Integration/LegacyPaymentDriverCleanupServiceTest.php` — SQLite-backed cleanup, idempotency, history preservation, and rollback tests.
-- `tests/Unit/RemovedPaymentDriverFrontendContractTest.php` — prevents stale driver codes from returning to tracked admin UI assets.
-- `docs/runbooks/remove-legacy-payment-drivers.md` — exact test-server backup, dry-run, apply, verification, and restart procedure.
+- `app/payment/RemovedPaymentDrivers.php`
+- `app/service/LegacyPaymentDriverCleanupService.php`
+- `database/migrations/20260805_remove_legacy_payment_drivers.php`
+- `tests/Integration/LegacyPaymentDriverCleanupServiceTest.php`
+- `tests/Unit/RemovedPaymentDriverFrontendContractTest.php`
+- `docs/runbooks/remove-legacy-payment-drivers.md`
 
 **Modify**
 
-- `app/payment/PaymentManager.php` — enforce tombstones in registration, discovery, lookup, instantiation, and listing.
-- `app/payment/Plugin/PluginPackageInstaller.php` — reject signed packages that declare a tombstoned driver code before writing files.
-- `app/controller/admin/PluginMarketController.php` — suppress tombstoned codes from installed-plugin listings, including stale registry entries.
-- `app/controller/admin/AdminController.php` — return an explicit permanent-removal error for admin channel save requests.
-- `app/controller/api/MerchantChannelController.php` — return an explicit permanent-removal error for merchant channel save requests.
-- `app/controller/admin/PackvipAdminController.php` — reject new package bindings containing removed codes.
-- `public/admin/index.html` — remove stale brand/fallback mappings for `alipay_official` and `wxpay_protocol_cloud`.
-- `database/install.sql` — add the archive table and stop seeding removed channel examples.
-- `tests/Unit/PaymentManagerTest.php` — replace legacy availability expectations with tombstone behavior.
-- `tests/Unit/AlipayScanMonitorPluginTest.php` — assert the retired predecessor is absent instead of deprecated-but-runnable.
-- `tests/Unit/PluginPackageInstallerTest.php` — verify a validly signed package cannot claim a tombstoned code.
+- `app/payment/PaymentManager.php`
+- `app/payment/Plugin/PluginPackageInstaller.php`
+- `app/controller/admin/PluginMarketController.php`
+- `app/controller/admin/AdminController.php`
+- `app/controller/api/MerchantChannelController.php`
+- `app/controller/admin/PackvipAdminController.php`
+- `public/admin/index.html`
+- `database/install.sql`
+- `tests/Unit/PaymentManagerTest.php`
+- `tests/Unit/AlipayScanMonitorPluginTest.php`
+- `tests/Unit/PluginPackageInstallerTest.php`
 
 **Delete**
 
@@ -61,7 +59,7 @@
 
 ---
 
-### Task 1: Add the immutable removed-driver policy and fail-closed manager behavior
+### Task 1: Add the tombstone policy and fail-closed driver manager
 
 **Files:**
 - Create: `app/payment/RemovedPaymentDrivers.php`
@@ -70,13 +68,13 @@
 - Modify: `tests/Unit/AlipayScanMonitorPluginTest.php`
 
 **Interfaces:**
-- Produces: `RemovedPaymentDrivers::all(): array`, `contains(string): bool`, `assertAllowed(string): void`, `stripCsv(string): string`.
-- Produces: `PaymentManager::has($removedCode) === false`; `make/register/registerPluginDriver` throw `InvalidArgumentException` containing `已永久移除`.
-- Consumed later by plugin installation, controllers, and database cleanup.
+- Produces `RemovedPaymentDrivers::all(): array`, `contains(string): bool`, `assertAllowed(string): void`, and `stripCsv(string): string`.
+- Produces `PaymentManager::has($removedCode) === false`.
+- `make()`, `register()`, and `registerPluginDriver()` throw `InvalidArgumentException` containing `已永久移除` for removed codes.
 
-- [ ] **Step 1: Write failing tombstone tests in `PaymentManagerTest`**
+- [ ] **Step 1: Write failing manager tests**
 
-Add `setUp()` and a provider containing all five exact codes:
+Add to `PaymentManagerTest`:
 
 ```php
 protected function setUp(): void
@@ -84,21 +82,6 @@ protected function setUp(): void
     PaymentManager::flush();
 }
 
-public static function removedDriverProvider(): array
-{
-    return [
-        '支付宝官方占位' => ['alipay_official'],
-        '微信官方占位' => ['wxpay_official'],
-        '支付宝旧共享Token' => ['alipay_scan_bill'],
-        '微信旧共享Token' => ['wxpay_protocol_cloud'],
-        'QQ旧共享Token' => ['qqpay_protocol_cloud'],
-    ];
-}
-```
-
-Add these tests:
-
-```php
 #[DataProvider('removedDriverProvider')]
 public function testRemovedDriverIsPermanentlyUnavailable(string $driverName): void
 {
@@ -130,9 +113,20 @@ public function testRemovedDriverCannotBeRegisteredByPlugin(): void
         'cxpay.wxpay.retired'
     );
 }
+
+public static function removedDriverProvider(): array
+{
+    return [
+        '支付宝官方占位' => ['alipay_official'],
+        '微信官方占位' => ['wxpay_official'],
+        '支付宝旧共享Token' => ['alipay_scan_bill'],
+        '微信旧共享Token' => ['wxpay_protocol_cloud'],
+        'QQ旧共享Token' => ['qqpay_protocol_cloud'],
+    ];
+}
 ```
 
-Remove `alipay_scan_bill`, `wxpay_protocol_cloud`, and `qqpay_protocol_cloud` from `personalQrDriverProvider()`. Replace the old `merchantDriverProvider()` and `testDisabledMerchantDriverFailsClosed()` expectations with the tombstone provider above.
+Remove the three shared-Token drivers from `personalQrDriverProvider()`. Remove `merchantDriverProvider()`, `testMerchantPaymentDriverCannotBeSelected()`, and the single-driver `testDisabledMerchantDriverFailsClosed()` because all five behaviors are now covered by one provider.
 
 In `AlipayScanMonitorPluginTest::testManifestDeclaresPersonalQrCallbackPlugin()`, replace the deprecated-driver assertion with:
 
@@ -141,9 +135,7 @@ self::assertFalse(PaymentManager::has('alipay_scan_bill'));
 self::assertArrayNotHasKey('alipay_scan_bill', PaymentManager::getRegisteredDrivers());
 ```
 
-- [ ] **Step 2: Run the tests to verify the red state**
-
-Run:
+- [ ] **Step 2: Verify the tests fail before implementation**
 
 ```bash
 php vendor/bin/phpunit --colors=never \
@@ -151,11 +143,9 @@ php vendor/bin/phpunit --colors=never \
   tests/Unit/AlipayScanMonitorPluginTest.php
 ```
 
-Expected: failures because removed directories are still auto-discovered and `PaymentManager` has no permanent tombstone error.
+Expected: removed drivers are still discoverable or do not produce the permanent-removal exception.
 
 - [ ] **Step 3: Create `RemovedPaymentDrivers.php`**
-
-Implement exactly:
 
 ```php
 <?php
@@ -209,45 +199,25 @@ final class RemovedPaymentDrivers
 }
 ```
 
-- [ ] **Step 4: Enforce the policy in `PaymentManager`**
+- [ ] **Step 4: Enforce the policy in every `PaymentManager` entrypoint**
 
-Make these exact behavioral changes:
+Make these exact changes:
 
-```php
-public static function register(string $cType, string $class): void
-{
-    RemovedPaymentDrivers::assertAllowed($cType);
-    // existing subclass check and registration
-}
+- Call `RemovedPaymentDrivers::assertAllowed($cType)` as the first statement in `register()`, `registerPluginDriver()`, and `make()`.
+- Return `false` before discovery in `has()` when `contains($cType)` is true.
+- In `discoverDrivers()`, do not add metadata whose `name` is empty or removed.
+- In `getRegisteredDrivers()`, skip a removed key before plugin-enabled and class-availability checks.
+- Keep `flush()`, normal plugin conflict checks, and non-removed driver behavior unchanged.
 
-public static function registerPluginDriver(string $cType, string $class, string $pluginId): void
-{
-    RemovedPaymentDrivers::assertAllowed($cType);
-    // existing validation and registration
-}
+- [ ] **Step 5: Run focused tests**
 
-public static function make(string $cType): PaymentDriverInterface
-{
-    RemovedPaymentDrivers::assertAllowed($cType);
-    static::discoverDrivers();
-    // existing logic
-}
-
-public static function has(string $cType): bool
-{
-    if (RemovedPaymentDrivers::contains($cType)) {
-        return false;
-    }
-    static::discoverDrivers();
-    // existing logic
-}
+```bash
+php vendor/bin/phpunit --colors=never \
+  tests/Unit/PaymentManagerTest.php \
+  tests/Unit/AlipayScanMonitorPluginTest.php
 ```
 
-Inside `discoverDrivers()`, after reading `$cType` from metadata, skip tombstoned values before assigning `static::$drivers[$cType]`. Inside `getRegisteredDrivers()`, defensively skip any tombstoned key before availability checks.
-
-- [ ] **Step 5: Run the focused tests**
-
-Run the same PHPUnit command. Expected: all tests pass, including surviving assistant and EPay driver assertions.
+Expected: pass.
 
 - [ ] **Step 6: Commit Task 1**
 
@@ -262,7 +232,7 @@ git commit -m "refactor: tombstone removed payment drivers"
 
 ---
 
-### Task 2: Reject retired codes during plugin installation and hide stale registry entries
+### Task 2: Reject removed codes in signed plugin packages and listings
 
 **Files:**
 - Modify: `app/payment/Plugin/PluginPackageInstaller.php`
@@ -270,19 +240,19 @@ git commit -m "refactor: tombstone removed payment drivers"
 - Modify: `tests/Unit/PluginPackageInstallerTest.php`
 
 **Interfaces:**
-- Consumes: `RemovedPaymentDrivers::contains(string): bool`.
-- Produces: signed packages declaring a retired code fail before staging or registry writes.
-- Produces: `getMarketList()` omits removed codes even if an old registry entry remains on disk.
+- Consumes `RemovedPaymentDrivers::contains()`.
+- A validly signed package using a removed driver code fails before staging or registry writes.
+- Stale installed-plugin registry entries using a removed code are omitted from `getMarketList()`.
 
-- [ ] **Step 1: Write a failing package-installer test**
+- [ ] **Step 1: Write the failing installer test**
 
-Change `createPackage()` to accept a driver code:
+Change the helper signature to:
 
 ```php
 private function createPackage(bool $tamper, string $driverCode = 'wxpay_signed_demo'): string
 ```
 
-Use `$driverCode` for `manifest.drivers[0].code`. Add:
+Use `$driverCode` for `manifest.drivers[0].code`, then add:
 
 ```php
 public function testRejectsValidlySignedPackageUsingRemovedDriverCode(): void
@@ -295,32 +265,33 @@ public function testRejectsValidlySignedPackageUsingRemovedDriverCode(): void
 }
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+- [ ] **Step 2: Verify red state**
 
 ```bash
 php vendor/bin/phpunit --colors=never tests/Unit/PluginPackageInstallerTest.php
 ```
 
-Expected: the package currently installs because signature verification does not enforce the tombstone list.
+Expected: the signed package installs because no tombstone check exists.
 
-- [ ] **Step 3: Reject tombstoned manifest codes**
+- [ ] **Step 3: Enforce the policy after signature verification**
 
-Import `app\payment\RemovedPaymentDrivers`. Immediately after `PluginManifest::fromJson()` and before staging writes, execute:
+Import `app\payment\RemovedPaymentDrivers`. Preserve this order in `install()`:
 
 ```php
+$manifest = PluginManifest::fromJson($files['manifest.json']);
+$this->verifySignature($manifest, $files['signature.json'], $files);
 foreach ($manifest->drivers() as $driver) {
     $code = trim((string)($driver['code'] ?? ''));
     if (RemovedPaymentDrivers::contains($code)) {
         throw new PluginException("插件声明了已永久移除的支付驱动: {$code}");
     }
 }
+$this->assertDriverFilesDeclared($manifest, $files);
 ```
 
-Keep signature verification in place; a package must not bypass signature checks merely because its code is retired. The order must be: parse manifest, verify signature, reject removed code, verify declared files, stage.
+- [ ] **Step 4: Filter stale installed-plugin entries**
 
-- [ ] **Step 4: Filter installed registry entries in `PluginMarketController`**
-
-Import `RemovedPaymentDrivers`. In the installed-plugin driver loop, add before appending `$plugins[]`:
+Import `RemovedPaymentDrivers` in `PluginMarketController`. In the installed-plugin driver loop:
 
 ```php
 $cType = trim((string)($driver['code'] ?? ''));
@@ -329,9 +300,9 @@ if ($cType !== '' && RemovedPaymentDrivers::contains($cType)) {
 }
 ```
 
-Use `$cType` in the returned array. Built-ins require no separate list because `PaymentManager::getRegisteredDrivers()` is already tombstone-safe.
+Assign `'c_type' => $cType` in the response entry.
 
-- [ ] **Step 5: Run plugin and manager tests**
+- [ ] **Step 5: Run focused tests**
 
 ```bash
 php vendor/bin/phpunit --colors=never \
@@ -353,22 +324,21 @@ git commit -m "fix: block retired payment plugin codes"
 
 ---
 
-### Task 3: Reject removed codes in channel and package configuration APIs
+### Task 3: Reject removed codes in channel and package saves
 
 **Files:**
-- Modify: `app/controller/admin/AdminController.php` in `saveChannelConfig()`
-- Modify: `app/controller/api/MerchantChannelController.php` in `save()`
-- Modify: `app/controller/admin/PackvipAdminController.php` in `save()`
-- Test: `tests/Unit/PaymentManagerTest.php`
+- Modify: `app/controller/admin/AdminController.php`
+- Modify: `app/controller/api/MerchantChannelController.php`
+- Modify: `app/controller/admin/PackvipAdminController.php`
+- Modify: `tests/Unit/PaymentManagerTest.php`
 
 **Interfaces:**
-- Consumes: `RemovedPaymentDrivers::contains()` and `stripCsv()`.
-- Produces: explicit API message `该支付驱动已永久移除` for channel saves.
-- Produces: package save rejects a list containing any exact retired code while preserving category values such as `alipay`, `wxpay`, and `qqpay`.
+- Channel save returns an explicit permanent-removal error.
+- Package save rejects exact removed codes but keeps category values such as `alipay`, `wxpay`, and `qqpay` valid.
 
-- [ ] **Step 1: Add unit coverage for CSV behavior**
+- [ ] **Step 1: Lock CSV cleanup behavior**
 
-Add to `PaymentManagerTest` or a new focused test class:
+Import `RemovedPaymentDrivers` and add:
 
 ```php
 public function testRemovedDriverCsvCleanupPreservesOtherValuesAndOrder(): void
@@ -382,19 +352,17 @@ public function testRemovedDriverCsvCleanupPreservesOtherValuesAndOrder(): void
 }
 ```
 
-Import `RemovedPaymentDrivers`.
-
-- [ ] **Step 2: Run the test to establish the expected policy behavior**
+Run:
 
 ```bash
 php vendor/bin/phpunit --colors=never tests/Unit/PaymentManagerTest.php
 ```
 
-Expected: pass after Task 1; this locks the helper contract before controller use.
+Expected: pass, fixing the helper contract before controller use.
 
-- [ ] **Step 3: Add explicit admin and merchant rejection**
+- [ ] **Step 2: Add explicit admin rejection**
 
-In both channel-save methods, immediately after trimming `$cType`, add:
+Import `RemovedPaymentDrivers` in `AdminController`. Immediately after `$cType` is trimmed in `saveChannelConfig()`:
 
 ```php
 if (RemovedPaymentDrivers::contains($cType)) {
@@ -405,11 +373,22 @@ if (RemovedPaymentDrivers::contains($cType)) {
 }
 ```
 
-Use the controller's existing response type: `AdminController` returns encoded strings; `MerchantChannelController` returns `json([...])`. Do not change surrounding response conventions.
+- [ ] **Step 3: Add explicit merchant rejection**
+
+Import `RemovedPaymentDrivers` in `MerchantChannelController`. Immediately after `$cType` is trimmed in `save()`:
+
+```php
+if (RemovedPaymentDrivers::contains($cType)) {
+    return json([
+        'code' => -1,
+        'msg' => '该支付驱动已永久移除，不能创建或修改通道',
+    ]);
+}
+```
 
 - [ ] **Step 4: Normalize and reject package bindings**
 
-In `PackvipAdminController::save()`, replace direct `implode`/string assignment with:
+Import `RemovedPaymentDrivers` in `PackvipAdminController`. Replace the existing `$allowedCh` assignment with:
 
 ```php
 $submittedAllowed = $request->post('allowed_channels');
@@ -434,9 +413,9 @@ if ($removed !== []) {
 $allowedCh = implode(',', $allowedList);
 ```
 
-Do not reject category values (`alipay`, `wxpay`, `qqpay`) because current plans use them as compatibility categories.
+Do not require `PaymentManager::has()` for category values because current plans store category-level compatibility values.
 
-- [ ] **Step 5: Run syntax and focused tests**
+- [ ] **Step 5: Lint and test**
 
 ```bash
 php -l app/controller/admin/AdminController.php
@@ -445,7 +424,7 @@ php -l app/controller/admin/PackvipAdminController.php
 php vendor/bin/phpunit --colors=never tests/Unit/PaymentManagerTest.php
 ```
 
-Expected: all syntax checks and tests pass.
+Expected: pass.
 
 - [ ] **Step 6: Commit Task 3**
 
@@ -460,20 +439,18 @@ git commit -m "fix: reject removed drivers in channel settings"
 
 ---
 
-### Task 4: Delete legacy driver sources and remove stale admin UI mappings
+### Task 4: Delete source implementations and stale admin UI literals
 
 **Files:**
-- Delete the five `Driver.php` files listed in File Structure.
+- Delete the five driver files listed in File Map.
 - Modify: `public/admin/index.html`
 - Create: `tests/Unit/RemovedPaymentDriverFrontendContractTest.php`
 
 **Interfaces:**
-- Produces: no auto-discoverable implementation file for any tombstoned code.
-- Produces: tracked admin UI contains no removed driver literal.
+- No removed driver implementation remains auto-discoverable.
+- Tracked admin HTML contains none of the five codes.
 
-- [ ] **Step 1: Write the failing frontend/source contract test**
-
-Create:
+- [ ] **Step 1: Write the failing source/UI contract**
 
 ```php
 <?php
@@ -491,20 +468,19 @@ final class RemovedPaymentDriverFrontendContractTest extends TestCase
     {
         $html = (string)file_get_contents(__DIR__ . '/../../public/admin/index.html');
         foreach (RemovedPaymentDrivers::all() as $code) {
-            self::assertStringNotContainsString($code, $html, "后台页面仍引用已移除驱动 {$code}");
+            self::assertStringNotContainsString($code, $html);
         }
     }
 
     public function testRemovedDriverImplementationFilesDoNotExist(): void
     {
-        $paths = [
+        foreach ([
             'AlipayOfficial',
             'WxpayOfficial',
             'AlipayScanBill',
             'WxpayProtocolCloud',
             'QqpayProtocolCloud',
-        ];
-        foreach ($paths as $directory) {
+        ] as $directory) {
             self::assertFileDoesNotExist(
                 __DIR__ . "/../../app/payment/Drivers/{$directory}/Driver.php"
             );
@@ -513,16 +489,16 @@ final class RemovedPaymentDriverFrontendContractTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Run the test and verify it fails**
+Run:
 
 ```bash
 php vendor/bin/phpunit --colors=never \
   tests/Unit/RemovedPaymentDriverFrontendContractTest.php
 ```
 
-Expected: failure because source files exist and `public/admin/index.html` contains `alipay_official` and `wxpay_protocol_cloud` in `brandMap` and `fallbackInputs`.
+Expected: failure because files and two admin literals remain.
 
-- [ ] **Step 3: Delete the five driver implementations**
+- [ ] **Step 2: Delete all five implementation files and empty directories**
 
 ```bash
 rm -- \
@@ -539,16 +515,15 @@ rmdir -- \
   app/payment/Drivers/QqpayProtocolCloud
 ```
 
-- [ ] **Step 4: Remove stale UI literals**
+- [ ] **Step 3: Remove exact stale UI entries**
 
 In `public/admin/index.html`:
 
-1. Delete `alipay_official` and `wxpay_protocol_cloud` entries from the legacy `brandMap` object.
-2. Delete their complete entries from `fallbackInputs`.
-3. Keep `qqpay_app_asst` and generic metadata-driven rendering unchanged.
-4. Do not add replacement fake drivers; installed/registered drivers remain the only source of options.
+- delete `alipay_official` and `wxpay_protocol_cloud` from the legacy `brandMap` object;
+- delete both complete entries from `fallbackInputs`;
+- retain `qqpay_app_asst` and generic metadata-driven rendering.
 
-- [ ] **Step 5: Run contract and driver tests**
+- [ ] **Step 4: Run source/UI and surviving-driver tests**
 
 ```bash
 php vendor/bin/phpunit --colors=never \
@@ -559,23 +534,18 @@ php vendor/bin/phpunit --colors=never \
 
 Expected: pass.
 
-- [ ] **Step 6: Run a repository reference audit**
+- [ ] **Step 5: Audit runtime/UI references**
 
 ```bash
 grep -RInE \
   'alipay_official|wxpay_official|alipay_scan_bill|wxpay_protocol_cloud|qqpay_protocol_cloud' \
-  app public config tests database \
-  --exclude='RemovedPaymentDrivers.php' \
-  --exclude='20260805_remove_legacy_payment_drivers.php' \
-  --exclude='LegacyPaymentDriverCleanupServiceTest.php' \
-  --exclude='PaymentManagerTest.php' \
-  --exclude='RemovedPaymentDriverFrontendContractTest.php' \
-  --exclude='install.sql' || true
+  app public config \
+  --exclude='RemovedPaymentDrivers.php' || true
 ```
 
-Expected: no runtime/UI references. Documentation and migration policy references are allowed; executable references are not.
+Expected remaining hits are limited to explicit controller error handling or migration-related code added later; no driver class, hard-coded option, brand mapping, or fallback form remains.
 
-- [ ] **Step 7: Commit Task 4**
+- [ ] **Step 6: Commit Task 4**
 
 ```bash
 git add -A -- \
@@ -587,7 +557,7 @@ git commit -m "refactor: remove obsolete payment driver sources"
 
 ---
 
-### Task 5: Build the transactional archive-and-delete service with integration tests
+### Task 5: Implement archive/delete service with transaction tests
 
 **Files:**
 - Create: `app/service/LegacyPaymentDriverCleanupService.php`
@@ -595,43 +565,76 @@ git commit -m "refactor: remove obsolete payment driver sources"
 
 **Interfaces:**
 - Constructor: `__construct(Illuminate\Database\Connection $connection)`.
-- Produces: `ensureArchiveTable(): void`.
-- Produces: `preview(): array{channels:list<array<string,mixed>>,channel_count:int,poll_group_links:int,plans_to_update:int,pending_orders:int}`.
-- Produces: `apply(): array{archived:int,poll_group_links_deleted:int,channels_deleted:int,plans_updated:int,remaining:int}`.
-- Consumes: `RemovedPaymentDrivers::all()` and `stripCsv()`.
+- `ensureArchiveTable(): void` performs schema phase only.
+- `preview(): array` returns `channels`, `channel_count`, `poll_group_links`, `plans_to_update`, and `pending_orders`.
+- `apply(): array` returns `archived`, `poll_group_links_deleted`, `channels_deleted`, `plans_updated`, and `remaining`.
 
-- [ ] **Step 1: Create the SQLite integration-test schema**
+- [ ] **Step 1: Build the exact SQLite test schema**
 
-In test `setUp()`, create an in-memory Illuminate connection and these tables with only required columns:
+In `setUp()` create an in-memory connection, then create:
 
 ```php
-$capsule = new \Illuminate\Database\Capsule\Manager();
-$capsule->addConnection(['driver' => 'sqlite', 'database' => ':memory:']);
-$capsule->setAsGlobal();
-$capsule->bootEloquent();
-$this->db = $capsule->getConnection();
-$schema = $this->db->getSchemaBuilder();
+$schema->create('cx_pay_channel', function (Blueprint $table): void {
+    $table->increments('id');
+    $table->integer('merchant_id')->default(0);
+    $table->string('pay_category', 32);
+    $table->string('title', 100);
+    $table->string('c_type', 50);
+    $table->string('remark', 255)->default('');
+    $table->text('config')->nullable();
+    $table->decimal('today_money', 10, 2)->default(0);
+    $table->integer('today_count')->default(0);
+    $table->decimal('total_money', 10, 2)->default(0);
+    $table->integer('weight')->default(50);
+    $table->decimal('single_min', 10, 2)->default(0);
+    $table->decimal('single_max', 10, 2)->default(0);
+    $table->decimal('day_max', 10, 2)->default(0);
+    $table->integer('online_status')->default(0);
+    $table->integer('status')->default(0);
+});
+$schema->create('cx_poll_group_channel', function (Blueprint $table): void {
+    $table->increments('id');
+    $table->integer('group_id');
+    $table->integer('channel_id');
+    $table->integer('weight')->default(50);
+});
+$schema->create('cx_plan', function (Blueprint $table): void {
+    $table->increments('id');
+    $table->string('allowed_channels', 255)->default('');
+});
+$schema->create('cx_order', function (Blueprint $table): void {
+    $table->increments('id');
+    $table->integer('channel_id');
+    $table->integer('status');
+});
+$schema->create('cx_callbill', function (Blueprint $table): void {
+    $table->increments('id');
+    $table->integer('channel_id');
+    $table->integer('status');
+});
 ```
 
-Create `cx_pay_channel`, `cx_poll_group_channel`, `cx_plan`, `cx_order`, and `cx_callbill`. The channel table must include every archive field plus a `config` column so the test can prove secrets are not copied.
+Import `Illuminate\Database\Schema\Blueprint` and retain the `Connection` in `$this->db`.
 
-- [ ] **Step 2: Write failing preview and apply tests**
+- [ ] **Step 2: Seed two removed channels and one valid channel**
 
-Seed:
+Use IDs 10, 11, and 12:
 
-- channel 10: `alipay_official`, config containing `merchant_private_key`;
-- channel 11: `wxpay_protocol_cloud`, config containing `notify_token`;
-- channel 12: `qqpay_app_asst`, which must remain active;
-- poll-group links for channels 10, 11, and 12;
-- plans containing exact removed codes mixed with category and valid driver values;
-- paid/closed historical orders and callbills referencing 10 and 11.
+- 10: `alipay_official`, config `{"merchant_private_key":"secret-a"}`;
+- 11: `wxpay_protocol_cloud`, config `{"notify_token":"secret-b"}`;
+- 12: `qqpay_app_asst`, config `{"device_id":"ANDROID_device-01"}`.
 
-Tests must assert:
+Add poll links for all three, a plan value `alipay,alipay_official,qqpay_app_asst,wxpay_protocol_cloud`, one paid order referencing 10, one closed order referencing 11, and callbills referencing both removed channels.
+
+- [ ] **Step 3: Write failing preview/apply assertions**
+
+After `ensureArchiveTable()`:
 
 ```php
 $preview = $service->preview();
 self::assertSame(2, $preview['channel_count']);
 self::assertSame(2, $preview['poll_group_links']);
+self::assertSame(1, $preview['plans_to_update']);
 self::assertSame(0, $preview['pending_orders']);
 self::assertSame(0, $this->db->table('cx_pay_channel_archive')->count());
 ```
@@ -640,16 +643,21 @@ After `apply()`:
 
 ```php
 self::assertSame(2, $result['archived']);
+self::assertSame(2, $result['poll_group_links_deleted']);
 self::assertSame(2, $result['channels_deleted']);
+self::assertSame(1, $result['plans_updated']);
 self::assertSame(0, $result['remaining']);
 self::assertSame(1, $this->db->table('cx_pay_channel')->where('id', 12)->count());
 self::assertFalse($schema->hasColumn('cx_pay_channel_archive', 'config'));
-self::assertSame('alipay,qqpay_app_asst', $this->db->table('cx_plan')->where('id', 1)->value('allowed_channels'));
+self::assertSame(
+    'alipay,qqpay_app_asst',
+    $this->db->table('cx_plan')->where('id', 1)->value('allowed_channels')
+);
 ```
 
-Capture order/callbill rows before apply and assert the same count, status, and `channel_id` afterward.
+Snapshot order and callbill rows before apply; assert all IDs, statuses, and channel IDs are identical afterward.
 
-- [ ] **Step 3: Write failing idempotency and pending-order tests**
+- [ ] **Step 4: Write idempotency, pending-order, and rollback tests**
 
 Idempotency:
 
@@ -661,24 +669,9 @@ self::assertSame(0, $second['channels_deleted']);
 self::assertSame(2, $this->db->table('cx_pay_channel_archive')->count());
 ```
 
-Pending-order guard:
+Pending-order guard: insert `['id' => 99, 'channel_id' => 10, 'status' => 0]`, call `apply()`, and assert a `RuntimeException` containing `待支付订单`. After catching it, assert archive, links, plans, and channels are unchanged.
 
-```php
-$this->db->table('cx_order')->insert([
-    'id' => 99,
-    'channel_id' => 10,
-    'status' => 0,
-]);
-$this->expectException(\RuntimeException::class);
-$this->expectExceptionMessage('待支付订单');
-$service->apply();
-```
-
-Assert in a separate catch-based test that channels, links, plans, and archive data remain unchanged when this guard triggers.
-
-- [ ] **Step 4: Write the failing rollback test using an SQLite trigger**
-
-After `ensureArchiveTable()`, create:
+Rollback: after `ensureArchiveTable()`, run:
 
 ```sql
 CREATE TRIGGER fail_legacy_channel_delete
@@ -688,9 +681,9 @@ BEGIN
 END;
 ```
 
-Call `apply()`, catch `QueryException`, then assert archive count is zero and all activity/link/plan data remains unchanged. This proves phase-two DML uses one transaction without adding a production-only test hook.
+Call `apply()`, catch `Illuminate\Database\QueryException`, and assert archive count is zero and all links, plans, and active channels retain their original values.
 
-- [ ] **Step 5: Run integration tests and verify red state**
+- [ ] **Step 5: Verify red state**
 
 ```bash
 php vendor/bin/phpunit --colors=never \
@@ -699,70 +692,51 @@ php vendor/bin/phpunit --colors=never \
 
 Expected: class-not-found failure.
 
-- [ ] **Step 6: Implement `LegacyPaymentDriverCleanupService`**
+- [ ] **Step 6: Implement `ensureArchiveTable()`**
 
-Core shape:
+The method must:
 
-```php
-final class LegacyPaymentDriverCleanupService
-{
-    public function __construct(private readonly Connection $connection) {}
+1. throw when `cx_pay_channel` is absent;
+2. create `cx_pay_channel_archive` when absent;
+3. define `archive_id`, unique `original_channel_id`, every non-sensitive channel field in the design, `archive_reason`, and `archived_at`;
+4. omit `config`;
+5. when the table already exists, call `hasColumns()` for every required column and throw `RuntimeException('归档表结构不完整')` if any are missing.
 
-    public function ensureArchiveTable(): void { /* schema phase */ }
-    public function preview(): array { /* no DML */ }
-    public function apply(): array { /* one transaction */ }
-}
-```
+- [ ] **Step 7: Implement `preview()`**
 
-`ensureArchiveTable()` requirements:
+Query target channels using `whereIn('c_type', RemovedPaymentDrivers::all())`, ordered by ID. Derive channel IDs and:
 
-- fail if `cx_pay_channel` does not exist;
-- create `cx_pay_channel_archive` if absent;
-- use `archive_id` auto-increment primary key and unique `original_channel_id`;
-- include all non-sensitive fields from the design;
-- omit `config` entirely;
-- if the table already exists, verify all required columns exist and throw a descriptive `RuntimeException` when malformed.
-
-`preview()` requirements:
-
-- select target channels ordered by `id`;
-- count poll-group links only when `cx_poll_group_channel` exists;
-- count plans requiring change only when `cx_plan` and `allowed_channels` exist;
+- count matching poll links only when `cx_poll_group_channel` exists;
+- scan `cx_plan.allowed_channels` only when that table and column exist, counting rows where `stripCsv($value) !== $value`;
 - count pending orders only when `cx_order` exists;
-- perform no insert/update/delete.
+- return channel rows converted to arrays without decrypting or returning `config`.
 
-`apply()` requirements:
+- [ ] **Step 8: Implement `apply()` as one DML transaction**
 
-```php
-return $this->connection->transaction(function (): array {
-    $channels = $this->connection->table('cx_pay_channel')
-        ->whereIn('c_type', RemovedPaymentDrivers::all())
-        ->orderBy('id')
-        ->lockForUpdate()
-        ->get();
+Inside `Connection::transaction()`:
 
-    // derive IDs; fail when pending status=0 orders exist
-    // insertOrIgnore archive rows keyed by original_channel_id
-    // delete optional poll links
-    // clean optional cx_plan.allowed_channels with stripCsv()
-    // delete target active channels
-    // verify remaining count is zero; throw on mismatch
-    // return exact counters
-});
-```
+1. select and `lockForUpdate()` target channels;
+2. return all-zero counters when none remain;
+3. query pending orders for the target IDs and throw before any insert/update/delete when count is nonzero;
+4. archive each row with `insertOrIgnore`, fixed reason `removed_placeholder_or_shared_token_driver`, and `time()`;
+5. delete target poll links when the table exists;
+6. update each changed plan with `RemovedPaymentDrivers::stripCsv()`;
+7. delete target active channels;
+8. count remaining target channels and throw if nonzero;
+9. return exact affected-row counters.
 
-Use a fixed archive reason such as `removed_placeholder_or_shared_token_driver` and `time()` for `archived_at`. Count `archived` as rows newly inserted, not total archive size.
+Determine `archived` by summing each `insertOrIgnore()` return value so a second run reports zero.
 
-- [ ] **Step 7: Run integration tests**
+- [ ] **Step 9: Run integration tests**
 
 ```bash
 php vendor/bin/phpunit --colors=never \
   tests/Integration/LegacyPaymentDriverCleanupServiceTest.php
 ```
 
-Expected: all cleanup, idempotency, pending-order, and rollback tests pass.
+Expected: all preview, apply, history, idempotency, pending-order, and rollback tests pass.
 
-- [ ] **Step 8: Commit Task 5**
+- [ ] **Step 10: Commit Task 5**
 
 ```bash
 git add \
@@ -773,7 +747,7 @@ git commit -m "feat: archive and remove retired payment channels"
 
 ---
 
-### Task 6: Add the safe CLI migration, fresh-install schema, and operator runbook
+### Task 6: Add CLI migration, fresh-install schema, and runbook
 
 **Files:**
 - Create: `database/migrations/20260805_remove_legacy_payment_drivers.php`
@@ -781,41 +755,81 @@ git commit -m "feat: archive and remove retired payment channels"
 - Create: `docs/runbooks/remove-legacy-payment-drivers.md`
 
 **Interfaces:**
-- CLI default: schema preparation plus preview only; exit 0 when safe, exit 2 when pending orders block apply.
-- CLI mutation: exact argument `--apply` calls service `apply()`.
-- Fresh installs create `cx_pay_channel_archive` and do not seed removed drivers.
+- Default CLI execution prepares schema and previews only.
+- `--apply` performs cleanup after the pending-order guard.
+- Fresh installations create the archive table and seed no removed driver.
 
-- [ ] **Step 1: Write the CLI migration entrypoint**
-
-Use the repository's existing standalone migration bootstrap pattern:
+- [ ] **Step 1: Create the standalone CLI bootstrap**
 
 ```php
+<?php
+
+declare(strict_types=1);
+
+use app\service\LegacyPaymentDriverCleanupService;
+use Illuminate\Database\Capsule\Manager as Capsule;
+
 $baseDir = dirname(__DIR__, 2);
 require $baseDir . '/vendor/autoload.php';
 $config = require $baseDir . '/config/database.php';
+
 $capsule = new Capsule();
 $capsule->addConnection($config['connections']['mysql']);
 $capsule->setAsGlobal();
 $capsule->bootEloquent();
-$service = new LegacyPaymentDriverCleanupService($capsule->getConnection());
+
+try {
+    $service = new LegacyPaymentDriverCleanupService($capsule->getConnection());
+    $service->ensureArchiveTable();
+    $preview = $service->preview();
+
+    foreach ($preview['channels'] as $channel) {
+        printf(
+            "id=%d merchant_id=%d c_type=%s title=%s\n",
+            $channel['id'],
+            $channel['merchant_id'],
+            $channel['c_type'],
+            $channel['title']
+        );
+    }
+    printf(
+        "channel_count=%d poll_group_links=%d plans_to_update=%d pending_orders=%d\n",
+        $preview['channel_count'],
+        $preview['poll_group_links'],
+        $preview['plans_to_update'],
+        $preview['pending_orders']
+    );
+
+    if (!in_array('--apply', $argv, true)) {
+        echo "DRY-RUN: no channel data changed\n";
+        exit(0);
+    }
+    if ($preview['pending_orders'] > 0) {
+        fwrite(STDERR, "Cleanup blocked: pending orders still reference removed channels\n");
+        exit(2);
+    }
+
+    $result = $service->apply();
+    printf(
+        "archived=%d poll_group_links_deleted=%d channels_deleted=%d plans_updated=%d remaining=%d\n",
+        $result['archived'],
+        $result['poll_group_links_deleted'],
+        $result['channels_deleted'],
+        $result['plans_updated'],
+        $result['remaining']
+    );
+    exit(0);
+} catch (Throwable $e) {
+    fwrite(STDERR, 'Cleanup failed: ' . $e->getMessage() . "\n");
+    exit(1);
+}
 ```
 
-Then:
+The script must never print `config`.
 
-1. call `ensureArchiveTable()`;
-2. call `preview()`;
-3. print each target as `id=<id> merchant_id=<id> c_type=<code> title=<title>`;
-4. print all preview counters;
-5. without `--apply`, print `DRY-RUN: no channel data changed` and exit 0;
-6. with `--apply` and `pending_orders > 0`, print an error and exit 2;
-7. otherwise call `apply()`, print counters, and exit 0;
-8. catch `Throwable`, write only the safe exception message to STDERR, and exit 1.
+- [ ] **Step 2: Add archive schema to `database/install.sql`**
 
-Do not print decrypted configuration or raw `config` JSON.
-
-- [ ] **Step 2: Update `database/install.sql`**
-
-Immediately after `cx_pay_channel`, add `cx_pay_channel_archive` with the same non-sensitive columns used by the service and:
+Immediately after `cx_pay_channel`, add the same archive columns and indexes used by the service:
 
 ```sql
 PRIMARY KEY (`archive_id`),
@@ -824,18 +838,22 @@ KEY `idx_archive_ctype` (`c_type`),
 KEY `idx_archive_merchant` (`merchant_id`)
 ```
 
-In the disabled example-channel seed, remove these two rows entirely:
+Remove these full seed rows:
 
 ```sql
-(1, 'alipay', '支付宝官方网页支付（待配置）', 'alipay_official', ...),
-(2, 'wxpay', '微信外部账单回调（待配置）', 'wxpay_protocol_cloud', ...),
+(1, 'alipay', '支付宝官方网页支付（待配置）', 'alipay_official', '{}', 100, 0, 0),
+(2, 'wxpay', '微信外部账单回调（待配置）', 'wxpay_protocol_cloud', '{}', 80, 0, 0),
 ```
 
-Keep the `qqpay_app_asst` example. Convert the remaining insert to valid single-row SQL with no trailing-comma error.
+Keep this row and make the statement syntactically valid as a single-row insert:
 
-- [ ] **Step 3: Create the operator runbook**
+```sql
+(3, 'qqpay', 'QQ 钱包 App 助手（待配置）', 'qqpay_app_asst', '{}', 50, 0, 0)
+```
 
-Document this exact order for `/www/wwwroot/cs.fcwan.cn`:
+- [ ] **Step 3: Write the operator runbook**
+
+Document exactly:
 
 ```bash
 cd /www/wwwroot/cs.fcwan.cn
@@ -844,42 +862,35 @@ git branch --show-current
 php start.php status
 ```
 
-Require a new 宝塔 database backup before any `--apply`. Then:
+Require a fresh 宝塔 database backup before data mutation. Then document:
 
 ```bash
 php start.php stop
 php database/migrations/20260805_remove_legacy_payment_drivers.php
 ```
 
-The operator must inspect target IDs and `pending_orders=0`, then run:
+The operator must verify `pending_orders=0` and inspect all listed IDs before:
 
 ```bash
 php database/migrations/20260805_remove_legacy_payment_drivers.php --apply
 php database/migrations/20260805_remove_legacy_payment_drivers.php
 ```
 
-The second command must report zero targets. Finish with targeted tests, full tests, restart, and browser `Ctrl+F5`. Explicitly state not to delete `install.lock` and not to run `git clean -fd`.
+The second run must show zero targets. Include targeted tests, full tests, `php start.php start -d`, `php start.php status`, browser `Ctrl+F5`, and explicit warnings not to remove `install.lock` or run `git clean -fd`.
 
-- [ ] **Step 4: Lint migration and inspect SQL diff**
+- [ ] **Step 4: Lint and inspect**
 
 ```bash
 php -l database/migrations/20260805_remove_legacy_payment_drivers.php
 git diff --check
 git diff -- database/install.sql docs/runbooks/remove-legacy-payment-drivers.md
-```
-
-Expected: no syntax or whitespace errors; no removed driver remains in fresh-install seed data.
-
-- [ ] **Step 5: Run migration service tests again**
-
-```bash
 php vendor/bin/phpunit --colors=never \
   tests/Integration/LegacyPaymentDriverCleanupServiceTest.php
 ```
 
-Expected: pass.
+Expected: pass; fresh-install seed contains no removed code.
 
-- [ ] **Step 6: Commit Task 6**
+- [ ] **Step 5: Commit Task 6**
 
 ```bash
 git add \
@@ -891,25 +902,25 @@ git commit -m "docs: add retired channel cleanup migration runbook"
 
 ---
 
-### Task 7: Complete static audit, full regression, and test-server application
+### Task 7: Run full verification and apply on the test server
 
 **Files:**
-- Verify all files from Tasks 1–6.
-- Update only files implicated by failed tests or remaining executable references.
+- Verify all Task 1–6 files.
+- Correct only files named by a failing test, syntax check, or reference audit.
 
 **Interfaces:**
-- Produces a clean branch, successful targeted/full test output, and a migration result with zero remaining active target channels.
+- Produces clean Git state, passing tests, zero active target channels, and preserved historical references.
 
-- [ ] **Step 1: Run PHP syntax lint for tracked application code**
+- [ ] **Step 1: Lint all PHP files in scope**
 
 ```bash
 find app config process tests database/migrations -type f -name '*.php' -print0 \
   | xargs -0 -n1 php -l
 ```
 
-Expected: every file reports `No syntax errors detected`.
+Expected: every file reports no syntax errors.
 
-- [ ] **Step 2: Run the targeted regression set**
+- [ ] **Step 2: Run targeted regression**
 
 ```bash
 php vendor/bin/phpunit --colors=never \
@@ -920,35 +931,38 @@ php vendor/bin/phpunit --colors=never \
   tests/Integration/LegacyPaymentDriverCleanupServiceTest.php
 ```
 
-Expected: `OK`; no errors or failures.
+Expected: `OK`.
 
-- [ ] **Step 3: Run the full PHPUnit suite**
+- [ ] **Step 3: Run the full suite**
 
 ```bash
 php vendor/bin/phpunit --colors=never
 ```
 
-Expected: `OK`. Record the exact test and assertion counts; do not reuse the previous `157 tests, 483 assertions` count unless this run prints it.
+Expected: `OK`. Record the exact test and assertion counts printed by this run.
 
-- [ ] **Step 4: Run final reference and source audits**
+- [ ] **Step 4: Audit executable references**
 
 ```bash
-for code in \
-  alipay_official wxpay_official alipay_scan_bill \
-  wxpay_protocol_cloud qqpay_protocol_cloud
-do
-  test ! -e "app/payment/Drivers/$(echo "$code" | awk -F_ '{for(i=1;i<=NF;i++) printf toupper(substr($i,1,1)) substr($i,2)}')/Driver.php"
-done
-
 grep -RInE \
   'alipay_official|wxpay_official|alipay_scan_bill|wxpay_protocol_cloud|qqpay_protocol_cloud' \
   app public config \
   --exclude='RemovedPaymentDrivers.php' || true
 ```
 
-Expected: no executable reference outside the tombstone policy, controller rejection messages, cleanup service, and intentional audit text.
+Review every hit. Allowed hits are explicit permanent-removal guards and cleanup policy use. No implementation class, hard-coded driver option, fallback form, or brand mapping may remain.
 
-- [ ] **Step 5: Verify clean Git scope before deployment**
+Verify deleted files directly:
+
+```bash
+test ! -e app/payment/Drivers/AlipayOfficial/Driver.php
+test ! -e app/payment/Drivers/WxpayOfficial/Driver.php
+test ! -e app/payment/Drivers/AlipayScanBill/Driver.php
+test ! -e app/payment/Drivers/WxpayProtocolCloud/Driver.php
+test ! -e app/payment/Drivers/QqpayProtocolCloud/Driver.php
+```
+
+- [ ] **Step 5: Verify clean Git scope**
 
 ```bash
 git status --short
@@ -956,41 +970,42 @@ git diff --check
 git log --oneline --decorate -10
 ```
 
-Expected: no uncommitted tracked changes. On the server, only the preserved untracked files may remain.
+Expected: no uncommitted tracked changes. Server-only untracked files remain preserved.
 
-- [ ] **Step 6: Back up and apply on the Alibaba Cloud test server**
+- [ ] **Step 6: Back up and apply on `/www/wwwroot/cs.fcwan.cn`**
 
-Follow `docs/runbooks/remove-legacy-payment-drivers.md` exactly. Required evidence:
+Follow the runbook. Required evidence:
 
 - 宝塔 database backup completed;
 - dry-run target IDs reviewed;
 - `pending_orders=0`;
-- `--apply` reports archive/delete counters and `remaining=0`;
+- `--apply` reports `remaining=0`;
 - second dry-run reports zero targets;
-- full PHPUnit passes after migration;
-- `php start.php start -d` and `php start.php status` confirm the service is running.
+- targeted and full PHPUnit pass after migration;
+- service restarts with `php start.php start -d` and reports running status.
 
 - [ ] **Step 7: Browser verification**
 
-After `Ctrl+F5`, confirm:
+After `Ctrl+F5`, confirm all six outcomes:
 
-1. Admin “已安装支付驱动” does not display any of the five codes.
-2. Admin channel add/config UI does not display them.
-3. Package allowed-channel selector does not display them.
-4. Merchant channel selector does not display them.
-5. Existing historical orders remain visible and retain their original channel ID.
-6. A manual request using a removed `c_type` returns the permanent-removal error.
+1. Admin installed-driver list shows none of the five codes.
+2. Admin channel form shows none of them.
+3. Package allowed-channel selector shows none of them.
+4. Merchant channel selector shows none of them.
+5. Historical orders retain original channel IDs.
+6. A manually submitted removed `c_type` returns the permanent-removal message.
 
-- [ ] **Step 8: Commit any verification-only correction, then push**
+- [ ] **Step 8: Commit corrections only when verification changed tracked files**
 
-Only when a test or audit required a correction:
+Run `git status --short`, list each modified tracked path, stage those paths explicitly, then commit:
 
 ```bash
-git add <exact-corrected-files>
 git commit -m "test: enforce removed payment driver contracts"
 ```
 
-Then:
+Do not create an empty commit.
+
+- [ ] **Step 9: Push and re-check PR state**
 
 ```bash
 git push origin fix/p0-hardening
@@ -998,4 +1013,4 @@ git rev-parse HEAD
 git status --short
 ```
 
-Do not mark PR #2 ready and do not merge it solely from local tests; first re-evaluate its conflict state with current `main` and the availability of GitHub Actions logs.
+Re-check PR #2 conflict state and workflow availability. Do not mark it ready or merge solely from local tests.
