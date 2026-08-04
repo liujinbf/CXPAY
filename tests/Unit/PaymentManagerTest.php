@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use app\payment\Contracts\MonitorableDriverInterface;
 use app\payment\Contracts\PaymentDriverInterface;
 use app\payment\PaymentManager;
+use app\payment\RemovedPaymentDrivers;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -77,6 +78,16 @@ final class PaymentManagerTest extends TestCase
             'wxpay_protocol_cloud',
             FakePluginPaymentDriver::class,
             'cxpay.wxpay.retired'
+        );
+    }
+
+    public function testRemovedDriverCsvCleanupPreservesOtherValuesAndOrder(): void
+    {
+        self::assertSame(
+            'alipay,qqpay_app_asst,wxpay',
+            RemovedPaymentDrivers::stripCsv(
+                'alipay,alipay_official,qqpay_app_asst,wxpay_protocol_cloud,wxpay'
+            )
         );
     }
 

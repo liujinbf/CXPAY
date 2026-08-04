@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace app\controller\admin;
 
 use app\model\Plan;
+use app\payment\RemovedPaymentDrivers;
 use support\Request;
 use support\Response;
 
@@ -41,9 +42,33 @@ class PackvipAdminController
         $rate          = max(0.00, (float)$request->post('rate', 2.50));
         $minRate       = max(0.00, (float)$request->post('min_rate', 0.00));
         $channelQuota  = max(0, (int)$request->post('channel_quota', 0));
-        $allowedCh     = is_array($request->post('allowed_channels'))
-            ? implode(',', $request->post('allowed_channels'))
-            : trim((string)$request->post('allowed_channels', ''));
+
+        $submittedAllowed = $request->post('allowed_channels');
+        $allowedList = is_array($submittedAllowed)
+            ? $submittedAllowed
+            : explode(',', (string)$submittedAllowed);
+        $allowedList = array_values(array_filter(
+            array_map(
+                static fn($value): string => trim((string)$value),
+                $allowedList
+            ),
+            static fn(string $value): bool => $value !== ''
+        ));
+
+        $removed = array_values(array_filter(
+            $allowedList,
+            static fn(string $code): bool =>
+                RemovedPaymentDrivers::contains($code)
+        ));
+        if ($removed !== []) {
+            return json([
+                'code' => -1,
+                'msg' => '套餐包含已永久移除的支付驱动：'
+                    . implode(', ', $removed),
+            ]);
+        }
+
+        $allowedCh = implode(',', $allowedList);
         $price         = max(0.00, (float)$request->post('price', 0.00));
         $limitCount    = max(0, (int)$request->post('limit_count', 0));
         $memo          = trim((string)$request->post('memo', ''));

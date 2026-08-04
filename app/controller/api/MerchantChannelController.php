@@ -7,6 +7,7 @@ namespace app\controller\api;
 use app\model\Channel;
 use app\model\Merchant;
 use app\payment\PaymentManager;
+use app\payment\RemovedPaymentDrivers;
 use support\Authcode;
 use support\Request;
 
@@ -78,6 +79,14 @@ class MerchantChannelController
         $id = (int)($params['id'] ?? 0);
         $payCategory = trim((string)($params['pay_category'] ?? ''));
         $cType = trim((string)($params['c_type'] ?? ''));
+
+        if (RemovedPaymentDrivers::contains($cType)) {
+            return json([
+                'code' => -1,
+                'msg' => '该支付驱动已永久移除，不能创建或修改通道',
+            ]);
+        }
+
         $title = trim((string)($params['title'] ?? ''));
         $remark = trim((string)($params['remark'] ?? ''));
         $status = (int)($params['status'] ?? 1) === 1 ? 1 : 0;

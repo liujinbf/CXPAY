@@ -11,6 +11,7 @@ use app\service\MonitorService;
 use app\service\OrderService;
 use app\service\AlertNotificationService;
 use app\payment\PaymentManager;
+use app\payment\RemovedPaymentDrivers;
 use support\Authcode;
 use support\AuditLog;
 use Illuminate\Database\Capsule\Manager as DB;
@@ -511,6 +512,14 @@ class AdminController
         $params    = $request->post();
         $channelId = (int)($params['id'] ?? 0);
         $cType     = trim((string)($params['c_type'] ?? ''));
+
+        if (RemovedPaymentDrivers::contains($cType)) {
+            return json_encode([
+                'code' => -1,
+                'msg' => '该支付驱动已永久移除，不能创建或修改通道',
+            ], JSON_UNESCAPED_UNICODE);
+        }
+
         $title     = trim((string)($params['title'] ?? ''));
         $remark    = trim((string)($params['remark'] ?? ''));
         $rawConfig = is_array($params['config'] ?? null) ? $params['config'] : [];
