@@ -1347,7 +1347,11 @@ $ git pull 2>&1
 
             // 根据当前切换到的选项卡按需加载真实数据
             if (tabId === 'dashboard') loadDashboard();
-            if (tabId === 'channel-config') loadAdminChannels();
+            if (tabId === 'channel-config') {
+                const sEl = document.getElementById('channel-stat-active-count');
+                if (sEl) sEl.textContent = '读取中...';
+                loadAdminChannels();
+            }
             if (tabId === 'merchant-mgmt') loadMerchants();
             if (tabId === 'plan-mgmt') loadPlans();
             if (tabId === 'order-list') loadOrders();
