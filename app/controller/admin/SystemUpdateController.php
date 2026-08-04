@@ -56,15 +56,42 @@ final class SystemUpdateController
     }
 
     /**
-     * 执行 Git 拉取 (git pull) 并平滑重启进程
+     * 执行 Git 强制同步拉取 (git reset + git pull) 并平滑重启进程
      */
     public function doUpdate(Request $request): Response
     {
+        // 先清除服务器上未提交的脏改动，防止因为线上临时修改文件阻止 git pull 合并
+        $this->execGit('git reset --hard HEAD');
+        $this->execGit('git checkout .');
+
+        // 执行 git pull 拉取远端仓库最新代码
         $pullLog = $this->execGit('git pull');
         $newCommit = $this->execGit('git rev-parse --short HEAD');
         $newCommitMsg = $this->execGit('git log -1 --pretty=format:"%s (%cd)" --date=format:"%Y-%m-%d %H:%M:%S"');
 
-        // 后台触发热重启
+        // 尝试自动补全表结构迁移 SQL Patch（避免漏掉字段）
+        try {
+            $patchFile = base_path() . '/database/patch_v7.sql';
+            if (file_exists($patchFile)) {
+                $sqlContent = file_get_contents($patchFile);
+                if (!empty($sqlContent)) {
+                    $statements = array_filter(array_map('trim', explode(';', $sqlContent)));
+                    foreach ($statements as $stmt) {
+                        if (!empty($stmt)) {
+                            try {
+                                \Illuminate\Database\Capsule\Manager::statement($stmt);
+                            } catch (\Throwable) {
+                                // 容错处理：当字段已存在时忽略报错
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('[SystemUpdate] auto patch sql execution error: ' . $e->getMessage());
+        }
+
+        // 后台触发平滑热重启
         if (DIRECTORY_SEPARATOR === '\\') {
             @pclose(@popen("start /B php start.php reload", "r"));
         } else {
@@ -74,7 +101,7 @@ final class SystemUpdateController
 
         return json([
             'code' => 1,
-            'msg' => '代码已成功从 Git 远端拉取并触发后台进程重载！',
+            'msg' => '代码与数据库补丁已强制同步从 Git 远端拉取成功，并触发后台进程重载！',
             'data' => [
                 'log' => $pullLog ?: 'Already up to date.',
                 'new_commit' => $newCommit,
