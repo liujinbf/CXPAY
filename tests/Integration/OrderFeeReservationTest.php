@@ -91,7 +91,7 @@ final class OrderFeeReservationTest extends TestCase
             $table->integer('merchant_id')->default(0);
             $table->string('pay_category')->default('alipay');
             $table->string('title')->default('测试通道');
-            $table->string('c_type')->default('alipay_scan_bill');
+            $table->string('c_type')->default('order_fee_test');
             $table->text('config')->nullable();
             $table->decimal('today_money', 10, 2)->default(0);
             $table->integer('today_count')->default(0);
@@ -130,6 +130,62 @@ final class OrderFeeReservationTest extends TestCase
             $table->integer('create_time')->default(0);
             $table->unique(['channel_id', 'source_bill_id']);
         });
+
+        $mockDriver = new class implements PaymentDriverInterface {
+            public function pay(array $params, array $config): array
+            {
+                return [
+                    'type' => 'qrcode',
+                    'pay_url' => (string)(
+                        $config['qr_url'] ?? 'mock://order-fee'
+                    ),
+                    'trade_no' => (string)(
+                        $params['trade_no'] ?? ''
+                    ),
+                    'out_trade_no' => (string)(
+                        $params['out_trade_no'] ?? ''
+                    ),
+                    'amount' => (string)($params['money'] ?? '0'),
+                ];
+            }
+
+            public function notify(array $params, array $config): array
+            {
+                return [
+                    'success' => false,
+                    'out_trade_no' => '',
+                    'trade_no' => '',
+                    'amount' => 0.0,
+                ];
+            }
+
+            public function query(string $tradeNo, array $config): array
+            {
+                return ['paid' => false];
+            }
+
+            public function getMeta(): array
+            {
+                return [
+                    'name' => 'order_fee_test',
+                    'title' => '订单手续费测试驱动',
+                    'description' => '',
+                    'pay_category' => 'alipay',
+                    'collection_mode' => 'qrcode',
+                    'inputs' => [],
+                ];
+            }
+
+            public function upchannel(array $request, array $config): array
+            {
+                return $config;
+            }
+        };
+
+        PaymentManager::register(
+            'order_fee_test',
+            get_class($mockDriver)
+        );
     }
 
     public function testClosingPendingOrderRefundsReservedFeeExactlyOnce(): void
@@ -525,7 +581,7 @@ final class OrderFeeReservationTest extends TestCase
             'merchant_id' => 0,
             'pay_category' => 'alipay',
             'title' => '支付宝测试通道',
-            'c_type' => 'alipay_scan_bill',
+            'c_type' => 'order_fee_test',
             'config' => '{}',
             'today_money' => 0,
             'today_count' => 0,

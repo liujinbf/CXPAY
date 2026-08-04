@@ -86,7 +86,7 @@ final class RateConfigTest extends TestCase
             $t->integer('merchant_id')->default(0);
             $t->string('pay_category')->default('alipay');
             $t->string('title')->default('测试通道');
-            $t->string('c_type')->default('alipay_scan_bill');
+            $t->string('c_type')->default('rate_config_test');
             $t->text('config')->nullable();
             $t->decimal('today_money', 10, 2)->default(0);
             $t->integer('today_count')->default(0);
@@ -114,10 +114,10 @@ final class RateConfigTest extends TestCase
             public function pay(array $p, array $c): array { return ['type' => 'url', 'pay_url' => 'mock://test', 'trade_no' => $p['trade_no'] ?? '', 'out_trade_no' => $p['out_trade_no'] ?? '', 'amount' => $p['money'] ?? '0']; }
             public function notify(array $p, array $c): array { return ['success' => false, 'out_trade_no' => '', 'trade_no' => '', 'amount' => 0.0]; }
             public function query(string $t, array $c): array { return ['paid' => false]; }
-            public function getMeta(): array { return ['name' => 'mock', 'title' => 'Mock 驱动', 'description' => '', 'pay_category' => 'alipay', 'collection_mode' => 'qrcode', 'inputs' => []]; }
+            public function getMeta(): array { return ['name' => 'rate_config_test', 'title' => 'Mock 驱动', 'description' => '', 'pay_category' => 'alipay', 'collection_mode' => 'qrcode', 'inputs' => []]; }
             public function upchannel(array $r, array $c): array { return $c; }
         };
-        PaymentManager::register('alipay_scan_bill', get_class($mockDriver));
+        PaymentManager::register('rate_config_test', get_class($mockDriver));
     }
 
     // ─── 辅助方法 ──────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ final class RateConfigTest extends TestCase
         return Channel::create([
             'merchant_id'  => 0,
             'pay_category' => 'alipay',
-            'c_type'       => 'alipay_scan_bill',
+            'c_type'       => 'rate_config_test',
             'config'       => '{}',
         ]);
     }

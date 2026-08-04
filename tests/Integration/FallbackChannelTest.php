@@ -42,7 +42,7 @@ final class FallbackChannelTest extends TestCase
             $t->integer('merchant_id')->default(0);
             $t->string('pay_category')->default('alipay');
             $t->string('title')->default('测试通道');
-            $t->string('c_type')->default('alipay_scan_bill');
+            $t->string('c_type')->default('fallback_channel_test');
             $t->text('config')->nullable();
             $t->decimal('today_money', 10, 2)->default(0);
             $t->integer('today_count')->default(0);
@@ -57,15 +57,15 @@ final class FallbackChannelTest extends TestCase
         });
 
         // 注册 mock 驱动
-        if (!PaymentManager::has('alipay_scan_bill')) {
+        if (!PaymentManager::has('fallback_channel_test')) {
             $mockDriver = new class implements PaymentDriverInterface {
                 public function pay(array $p, array $c): array { return ['type' => 'url', 'pay_url' => 'mock://', 'trade_no' => '', 'out_trade_no' => '', 'amount' => '0']; }
                 public function notify(array $p, array $c): array { return ['success' => false, 'out_trade_no' => '', 'trade_no' => '', 'amount' => 0.0]; }
                 public function query(string $t, array $c): array { return ['paid' => false]; }
-                public function getMeta(): array { return ['name' => 'alipay_scan_bill', 'title' => 'Mock', 'description' => '', 'pay_category' => 'alipay', 'collection_mode' => 'qrcode', 'inputs' => []]; }
+                public function getMeta(): array { return ['name' => 'fallback_channel_test', 'title' => 'Mock', 'description' => '', 'pay_category' => 'alipay', 'collection_mode' => 'qrcode', 'inputs' => []]; }
                 public function upchannel(array $r, array $c): array { return $c; }
             };
-            PaymentManager::register('alipay_scan_bill', get_class($mockDriver));
+            PaymentManager::register('fallback_channel_test', get_class($mockDriver));
         }
     }
 
@@ -76,7 +76,7 @@ final class FallbackChannelTest extends TestCase
         return Channel::create(array_merge([
             'merchant_id'       => 0,
             'pay_category'      => 'alipay',
-            'c_type'            => 'alipay_scan_bill',
+            'c_type'            => 'fallback_channel_test',
             'config'            => '{}',
             'status'            => 1,
             'online_status'     => 1,
