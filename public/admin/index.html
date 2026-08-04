@@ -1482,18 +1482,14 @@ $ git pull 2>&1
         const channelCacheMap = new Map();
 
         async function loadAdminChannels() {
-            console.log('[DIAGNOSTIC] loadAdminChannels called!');
-            const listEl = document.getElementById('admin-channel-list');
-            if (!listEl) {
-                console.error('[DIAGNOSTIC] #admin-channel-list NOT FOUND!');
-                return;
-            }
-
-            // 重置所有统计卡片为"加载中..."状态
-            listEl.innerHTML = '<div class="p-8 text-center text-xs text-slate-400 col-span-full">正在加载平台全局通道...</div>';
+            console.log('[DIAGNOSTIC] loadAdminChannels executed!');
             const statActiveEl = document.getElementById('channel-stat-active-count');
-            console.log('[DIAGNOSTIC] statActiveEl element:', statActiveEl);
             if (statActiveEl) statActiveEl.textContent = '读取中...';
+
+            const listEl = document.getElementById('admin-channel-list');
+            if (listEl) {
+                listEl.innerHTML = '<div class="p-8 text-center text-xs text-slate-400 col-span-full">正在加载平台全局通道...</div>';
+            }
 
             try {
                 const res = await adminFetch('/api/admin/channel/list');
