@@ -1470,6 +1470,206 @@ $ git pull 2>&1
             }
         }
 
+        // ==================== 全局收款通道配置模块 ====================
+        const channelCacheMap = new Map();
+
+        async function loadAdminChannels() {
+            const listEl = document.getElementById('admin-channel-list');
+            if (!listEl) return;
+            listEl.innerHTML = '<div class="p-8 text-center text-xs text-slate-400 col-span-full">正在加载平台全局通道...</div>';
+
+            try {
+                const res = await adminFetch('/api/admin/channel/list');
+                const payload = await res.json();
+
+                if (payload.code !== 1 || !Array.isArray(payload.data)) {
+                    listEl.innerHTML = `<div class="p-8 text-center text-xs text-rose-500 font-bold col-span-full">${escapeHtml(payload.msg || '通道加载失败')}</div>`;
+                    return;
+                }
+
+                channelCacheMap.clear();
+                const channels = payload.data;
+                const activeCount = channels.filter(c => c.enabled || c.status == 1).length;
+                const statActiveEl = document.getElementById('channel-stat-active-count');
+                if (statActiveEl) statActiveEl.textContent = `${activeCount} 个激活中`;
+
+                if (channels.length === 0) {
+                    listEl.innerHTML = '<div class="p-8 text-center text-xs text-slate-400 col-span-full">暂无配置的底层收款通道</div>';
+                    return;
+                }
+
+                listEl.innerHTML = channels.map(c => {
+                    channelCacheMap.set(c.id, c);
+                    const isEnabled = c.enabled || c.status == 1;
+                    const payType = (c.pay_type || c.pay_category || 'alipay').toLowerCase();
+                    const isWx = payType.includes('wx');
+                    const isAli = payType.includes('ali');
+                    const iconText = isWx ? '微信' : (isAli ? '支付宝' : 'QQ');
+                    const iconBg = isWx ? 'bg-emerald-100 text-emerald-600' : (isAli ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600');
+
+                    return `<div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white space-y-4 shadow-2xs hover:shadow-md transition-all">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-8 h-8 rounded-xl ${iconBg} font-extrabold flex items-center justify-center text-xs shadow-xs">${iconText}</span>
+                                <div>
+                                    <div class="font-extrabold text-sm text-slate-800">${escapeHtml(c.name || c.title || c.code)}</div>
+                                    <div class="text-[10px] font-mono text-slate-400 mt-0.5">${escapeHtml(c.code || c.c_type || '')}</div>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${isEnabled ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-400'}">
+                                ${isEnabled ? '● 在线路由中' : '○ 已停用'}
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2.5 text-xs">
+                            <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100">
+                                <span class="text-slate-400 text-[11px]">轮询相对权重:</span>
+                                <span class="font-mono font-extrabold text-blue-600 ml-1.5">${c.weight || 100}</span>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100">
+                                <span class="text-slate-400 text-[11px]">密钥参数状态:</span>
+                                <span class="font-bold ${c.configured ? 'text-emerald-600' : 'text-amber-600'} ml-1.5">${c.configured ? '已保密加密' : '未完整配置'}</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                            <button onclick="openChannelConfigEditor(${c.id})" class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold transition-colors">
+                                ⚙️ 配置通讯参数
+                            </button>
+                            <span class="text-[11px] text-slate-400 font-mono">ID #${c.id}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+            } catch (e) {
+                listEl.innerHTML = `<div class="p-8 text-center text-xs text-rose-500 font-bold col-span-full">${escapeHtml(e.message || '加载通道发生异常')}</div>`;
+            }
+        }
+
+        async function openChannelConfigEditor(channelId) {
+            const modal = document.getElementById('channel-config-editor');
+            if (!modal) return;
+
+            document.getElementById('channel-config-id').value = channelId;
+            const container = document.getElementById('channel-dynamic-inputs');
+            container.innerHTML = '<div class="p-4 text-center text-slate-400 font-bold">正在读取通道密钥与驱动参数...</div>';
+
+            modal.classList.remove('hidden');
+
+            try {
+                const res = await adminFetch(`/api/admin/channel/get?id=${channelId}`);
+                const payload = await res.json();
+                if (payload.code !== 1 || !payload.data) {
+                    alert(payload.msg || '读取通道参数失败');
+                    closeChannelConfigEditor();
+                    return;
+                }
+                const data = payload.data;
+                document.getElementById('channel-config-title').textContent = `配置 [${data.title || data.c_type}] 通信参数`;
+                document.getElementById('channel-config-subtitle').textContent = `底层驱动代码: ${data.c_type}`;
+                document.getElementById('channel-config-ctype').value = data.c_type;
+                document.getElementById('channel-config-name').value = data.title || '';
+                document.getElementById('channel-config-weight').value = data.weight || 100;
+                document.getElementById('channel-config-min').value = data.single_min || 0;
+                document.getElementById('channel-config-max').value = data.single_max || 0;
+                document.getElementById('channel-config-remark').value = data.remark || '';
+
+                // 动态获取驱动所要求的配置字段
+                const inputRes = await adminFetch(`/api/admin/channel/inputs?c_type=${data.c_type}`);
+                const inputPayload = await inputRes.json();
+
+                if (inputPayload.code === 1 && Array.isArray(inputPayload.data) && inputPayload.data.length > 0) {
+                    const cfg = data.config || {};
+                    const isConfiguredMap = data.configured || {};
+
+                    container.innerHTML = inputPayload.data.map(input => {
+                        const key = input.name;
+                        const label = input.label || key;
+                        const type = input.type || 'text';
+                        const val = cfg[key] || '';
+                        const isSecretConfigured = isConfiguredMap[key] === true;
+
+                        if (type === 'textarea') {
+                            return `<div class="space-y-1">
+                                <label class="font-bold text-slate-700 flex items-center justify-between">
+                                    <span>${escapeHtml(label)}</span>
+                                    ${isSecretConfigured ? '<span class="text-[10px] text-emerald-600 font-bold">✓ 秘钥已加密保存（留空保持不变）</span>' : ''}
+                                </label>
+                                <textarea data-config-key="${escapeHtml(key)}" rows="3" placeholder="${isSecretConfigured ? '如需更新请输入新私钥/证书内容，留空保持旧秘钥' : '请输入秘钥/证书内容'}" class="w-full px-3 py-2 border rounded-xl font-mono text-xs">${escapeHtml(val)}</textarea>
+                            </div>`;
+                        } else {
+                            return `<div class="space-y-1">
+                                <label class="font-bold text-slate-700 flex items-center justify-between">
+                                    <span>${escapeHtml(label)}</span>
+                                    ${isSecretConfigured ? '<span class="text-[10px] text-emerald-600 font-bold">✓ 已加密（留空不修改）</span>' : ''}
+                                </label>
+                                <input data-config-key="${escapeHtml(key)}" type="${type === 'password' ? 'password' : 'text'}" value="${escapeHtml(val)}" placeholder="${isSecretConfigured ? '已设置加密参数，留空保持旧设置' : ''}" class="w-full px-3 py-2 border rounded-xl font-mono text-xs">
+                            </div>`;
+                        }
+                    }).join('');
+                } else {
+                    container.innerHTML = '<div class="p-3 text-slate-400 font-bold text-center">该通道驱动无需额外通信秘钥配置</div>';
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="p-4 text-center text-rose-500 font-bold">读取失败: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        function closeChannelConfigEditor() {
+            const modal = document.getElementById('channel-config-editor');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function submitChannelConfig(event) {
+            event.preventDefault();
+            const id = document.getElementById('channel-config-id').value;
+            const cType = document.getElementById('channel-config-ctype').value;
+            const title = document.getElementById('channel-config-name').value.trim();
+            const weight = document.getElementById('channel-config-weight').value;
+            const singleMin = document.getElementById('channel-config-min').value;
+            const singleMax = document.getElementById('channel-config-max').value;
+            const remark = document.getElementById('channel-config-remark').value.trim();
+
+            const configObj = {};
+            document.querySelectorAll('[data-config-key]').forEach(input => {
+                const key = input.dataset.configKey;
+                configObj[key] = input.value;
+            });
+
+            const bodyParams = new URLSearchParams();
+            bodyParams.append('id', id);
+            bodyParams.append('c_type', cType);
+            bodyParams.append('title', title);
+            bodyParams.append('weight', weight);
+            bodyParams.append('single_min', singleMin);
+            bodyParams.append('single_max', singleMax);
+            bodyParams.append('remark', remark);
+            bodyParams.append('status', '1');
+
+            Object.entries(configObj).forEach(([k, v]) => {
+                bodyParams.append(`config[${k}]`, v);
+            });
+
+            try {
+                const res = await adminFetch('/api/admin/channel/config/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: bodyParams
+                });
+                const payload = await res.json();
+                if (payload.code === 1) {
+                    showToast(payload.msg || '通道通信参数保存成功！');
+                    closeChannelConfigEditor();
+                    loadAdminChannels();
+                } else {
+                    showToast('保存失败: ' + (payload.msg || '未知错误'), 'error');
+                }
+            } catch (e) {
+                showToast('保存请求异常: ' + e.message, 'error');
+            }
+        }
+
         // ==================== 套餐管理模块 ====================
         const planCacheMap = new Map();
 
