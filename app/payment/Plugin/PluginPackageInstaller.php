@@ -57,6 +57,7 @@ final class PluginPackageInstaller
         }
 
         $manifest = PluginManifest::fromJson($files['manifest.json']);
+        (new CloudConnectorPolicy())->assertManifest($manifest);
         $this->verifySignature($manifest, $files['signature.json'], $files);
 
         foreach ($manifest->drivers() as $driver) {

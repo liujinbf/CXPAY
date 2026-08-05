@@ -79,6 +79,27 @@ final class PluginPackageInstallerTest extends TestCase
         $this->installer()->install($package);
     }
 
+    public function testRejectsCloudConnectorPackageWithCookieSecretConfig(): void
+    {
+        $package = $this->createPackage(false, 'wxpay_signed_demo', 'wxpay', [
+            'runtime_type' => 'cloud_connector',
+            'credential_boundary' => 'cloud_only',
+            'cloud_protocol' => 'cxpay-cloud-payment-v1',
+            'capabilities' => ['external_monitor' => true],
+            'permissions' => [
+                'outbound_hosts' => ['api.provider.example'],
+                'callbacks' => ['/notify/wxpay_signed_demo'],
+                'scheduled_tasks' => false,
+                'secret_config' => ['client_secret', 'cookie_base64'],
+            ],
+        ]);
+
+        $this->expectException(PluginException::class);
+        $this->expectExceptionMessage('Cookie');
+
+        $this->installer()->install($package);
+    }
+
     private function installer(): PluginPackageInstaller
     {
         return new PluginPackageInstaller(
@@ -91,13 +112,15 @@ final class PluginPackageInstallerTest extends TestCase
         );
     }
 
+    /** @param array<string, mixed> $manifestOverrides */
     private function createPackage(
         bool $tamper,
         string $driverCode = 'wxpay_signed_demo',
-        string $paymentType = 'wxpay'
+        string $paymentType = 'wxpay',
+        array $manifestOverrides = []
     ): string
     {
-        $manifest = json_encode([
+        $manifestData = [
             'schema' => 1,
             'id' => 'cxpay.wxpay.signed_demo',
             'slug' => 'wxpay_signed_demo',
@@ -112,7 +135,12 @@ final class PluginPackageInstallerTest extends TestCase
                 'class' => 'plugin\\cxpay\\wxpay_signed_demo\\Driver',
                 'file' => 'src/Driver.php',
             ]],
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        ];
+        $manifestData = array_replace_recursive($manifestData, $manifestOverrides);
+        $manifest = json_encode(
+            $manifestData,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        );
         $driver = "<?php\nnamespace plugin\\cxpay\\wxpay_signed_demo;\nfinal class Driver {}\n";
         $hashes = [
             'manifest.json' => hash('sha256', $manifest),

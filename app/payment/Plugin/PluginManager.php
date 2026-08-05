@@ -58,7 +58,10 @@ final class PluginManager
                         throw new PluginException("驱动入口不存在: {$driver['file']}");
                     }
                     require_once $entryFile;
-                    PaymentManager::registerPluginDriver($driver['code'], $driver['class'], $pluginId);
+                    $class = (string)$driver['class'];
+                    $instance = new $class();
+                    (new CloudConnectorPolicy())->assertDriverMeta($manifest, $instance->getMeta());
+                    PaymentManager::registerPluginDriver($driver['code'], $class, $pluginId);
                 }
             } catch (\Throwable) {
                 // 单个损坏插件不能阻断其他支付方式；详情页会展示 broken 状态。
