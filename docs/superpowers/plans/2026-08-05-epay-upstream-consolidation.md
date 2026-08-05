@@ -81,9 +81,9 @@
 - Produces: `PaymentManager::make('qqpay_epay')` 抛出包含“已永久移除”的 `InvalidArgumentException`。
 - Produces: 内置注册、插件注册和签名安装包均不能恢复该代码。
 
-- [ ] **Step 1: 扩展 PaymentManager 红灯测试**
+- [ ] **Step 1: 修正易支付驱动分类并扩展红灯测试**
 
-在 `PaymentManagerTest::removedDriverProvider()` 末尾加入：
+先从 `PaymentManagerTest::epayDriverProvider()` 删除 `'QQ 钱包易支付驱动' => ['qqpay_epay']`，再在 `PaymentManagerTest::removedDriverProvider()` 末尾加入：
 
 ```php
 'QQ易支付重复上游' => ['qqpay_epay'],
