@@ -11,9 +11,6 @@ use RuntimeException;
 
 final class LegacyPaymentDriverCleanupService
 {
-    private const ARCHIVE_REASON =
-        'removed_placeholder_or_shared_token_driver';
-
     /** @var list<string> */
     private const CHANNEL_COLUMNS = [
         'id',
@@ -248,7 +245,9 @@ final class LegacyPaymentDriverCleanupService
                         'status' =>
                             $channel['status'],
                         'archive_reason' =>
-                            self::ARCHIVE_REASON,
+                            RemovedPaymentDrivers::archiveReason(
+                                (string)$channel['c_type']
+                            ),
                         'archived_at' =>
                             $archivedAt,
                     ]);

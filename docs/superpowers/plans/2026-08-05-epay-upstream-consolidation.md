@@ -81,9 +81,9 @@
 - Produces: `PaymentManager::make('qqpay_epay')` 抛出包含“已永久移除”的 `InvalidArgumentException`。
 - Produces: 内置注册、插件注册和签名安装包均不能恢复该代码。
 
-- [ ] **Step 1: 扩展 PaymentManager 红灯测试**
+- [ ] **Step 1: 修正易支付驱动分类并扩展红灯测试**
 
-在 `PaymentManagerTest::removedDriverProvider()` 末尾加入：
+先从 `PaymentManagerTest::epayDriverProvider()` 删除 `'QQ 钱包易支付驱动' => ['qqpay_epay']`，再在 `PaymentManagerTest::removedDriverProvider()` 末尾加入：
 
 ```php
 'QQ易支付重复上游' => ['qqpay_epay'],
@@ -98,7 +98,7 @@
 ```php
 public function testRejectsSupersededQqpayEpayDriverCode(): void
 {
-    $package = $this->createPackage(false, 'qqpay_epay');
+    $package = $this->createPackage(false, 'qqpay_epay', 'qqpay');
 
     $this->expectException(PluginException::class);
     $this->expectExceptionMessage('已永久移除');
@@ -596,7 +596,7 @@ private function isPublicIp(string $ip): bool
     return filter_var(
         $ip,
         FILTER_VALIDATE_IP,
-        FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+        FILTER_FLAG_GLOBAL_RANGE
     ) !== false;
 }
 
@@ -1129,32 +1129,16 @@ Expected: `qqpay_epay` 当前会写入旧的统一原因。
 
 - [ ] **Step 4: 按代码选择归档原因**
 
-把服务中的常量替换为：
+在 `RemovedPaymentDrivers` 墓碑类中集中维护默认归档原因和 `qqpay_epay` 的替代原因，并增加：
 
 ```php
-private const DEFAULT_ARCHIVE_REASON =
-    'removed_placeholder_or_shared_token_driver';
-
-/** @var array<string,string> */
-private const ARCHIVE_REASONS = [
-    'qqpay_epay' => 'superseded_by_epay_generic',
-];
+public static function archiveReason(string $cType): string
 ```
 
-增加：
+清理服务不得直接包含永久移除驱动字面值。归档 insert 改为：
 
 ```php
-private function archiveReason(string $cType): string
-{
-    return self::ARCHIVE_REASONS[$cType]
-        ?? self::DEFAULT_ARCHIVE_REASON;
-}
-```
-
-归档 insert 中改为：
-
-```php
-'archive_reason' => $this->archiveReason(
+'archive_reason' => RemovedPaymentDrivers::archiveReason(
     (string)$channel['c_type']
 ),
 ```

@@ -75,6 +75,17 @@ final class LegacyPaymentDriverCleanupServiceTest extends TestCase
             2,
             $this->db->table('cx_pay_channel_archive')->count()
         );
+
+        self::assertSame(
+            ['removed_placeholder_or_shared_token_driver'],
+            $this->db->table('cx_pay_channel_archive')
+                ->whereIn('original_channel_id', [10, 11])
+                ->distinct()
+                ->pluck('archive_reason')
+                ->values()
+                ->all()
+        );
+
         self::assertSame(
             1,
             $this->db->table('cx_pay_channel')
@@ -137,6 +148,64 @@ final class LegacyPaymentDriverCleanupServiceTest extends TestCase
             (int)$this->db->table('cx_callbill')
                 ->where('id', 200)
                 ->value('status')
+        );
+    }
+
+    public function testQqpayEpayUsesReplacementArchiveReason(): void
+    {
+        $this->db->table('cx_pay_channel')->insert([
+            'id' => 13,
+            'merchant_id' => 0,
+            'pay_category' => 'qqpay',
+            'title' => '重复QQ易支付上游',
+            'c_type' => 'qqpay_epay',
+            'remark' => '',
+            'config' =>
+                '{"pid":"secret","key":"must-not-archive"}',
+            'weight' => 50,
+            'single_min' => 0,
+            'single_max' => 5000,
+            'day_max' => 10000,
+            'today_money' => 0,
+            'today_count' => 0,
+            'total_money' => 0,
+            'online_status' => 0,
+            'status' => 0,
+        ]);
+
+        $service = new LegacyPaymentDriverCleanupService(
+            $this->db
+        );
+        $service->ensureArchiveTable();
+
+        $result = $service->apply();
+
+        self::assertSame(
+            3,
+            $result['archived']
+        );
+
+        self::assertSame(
+            'superseded_by_epay_generic',
+            $this->db
+                ->table('cx_pay_channel_archive')
+                ->where('original_channel_id', 13)
+                ->value('archive_reason')
+        );
+
+        self::assertFalse(
+            $this->db->getSchemaBuilder()
+                ->hasColumn(
+                    'cx_pay_channel_archive',
+                    'config'
+                )
+        );
+
+        self::assertSame(
+            0,
+            $this->db->table('cx_pay_channel')
+                ->where('id', 13)
+                ->count()
         );
     }
 

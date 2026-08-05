@@ -69,6 +69,16 @@ final class PluginPackageInstallerTest extends TestCase
         $this->installer()->install($package);
     }
 
+    public function testRejectsSupersededQqpayEpayDriverCode(): void
+    {
+        $package = $this->createPackage(false, 'qqpay_epay', 'qqpay');
+
+        $this->expectException(PluginException::class);
+        $this->expectExceptionMessage('已永久移除');
+
+        $this->installer()->install($package);
+    }
+
     private function installer(): PluginPackageInstaller
     {
         return new PluginPackageInstaller(
@@ -83,7 +93,8 @@ final class PluginPackageInstallerTest extends TestCase
 
     private function createPackage(
         bool $tamper,
-        string $driverCode = 'wxpay_signed_demo'
+        string $driverCode = 'wxpay_signed_demo',
+        string $paymentType = 'wxpay'
     ): string
     {
         $manifest = json_encode([
@@ -93,7 +104,7 @@ final class PluginPackageInstallerTest extends TestCase
             'name' => '微信签名测试插件',
             'version' => '1.0.0',
             'publisher' => 'cxpay.official',
-            'payment_type' => 'wxpay',
+            'payment_type' => $paymentType,
             'collection_mode' => 'personal_qr',
             'monitor_mode' => 'callback',
             'drivers' => [[

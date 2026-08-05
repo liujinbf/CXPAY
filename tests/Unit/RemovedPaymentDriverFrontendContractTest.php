@@ -80,6 +80,7 @@ final class RemovedPaymentDriverFrontendContractTest extends TestCase
             'AlipayScanBill',
             'WxpayProtocolCloud',
             'QqpayProtocolCloud',
+            'QqpayEpay',
         ];
 
         foreach ($directories as $directory) {
