@@ -186,6 +186,7 @@ final class PaymentManagerTest extends TestCase
             '支付宝旧共享Token' => ['alipay_scan_bill'],
             '微信旧共享Token' => ['wxpay_protocol_cloud'],
             'QQ旧共享Token' => ['qqpay_protocol_cloud'],
+            'QQ易支付重复上游' => ['qqpay_epay'],
         ];
     }
 
@@ -193,7 +194,6 @@ final class PaymentManagerTest extends TestCase
     {
         return [
             '通用易支付 MD5 驱动' => ['epay_generic'],
-            'QQ 钱包易支付驱动'   => ['qqpay_epay'],
         ];
     }
 }

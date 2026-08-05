@@ -15,6 +15,7 @@ final class RemovedPaymentDrivers
         'alipay_scan_bill',
         'wxpay_protocol_cloud',
         'qqpay_protocol_cloud',
+        'qqpay_epay',
     ];
 
     /** @return list<string> */
