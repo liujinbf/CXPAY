@@ -39,3 +39,6 @@ pc/Wechat_Pc.exe
 pc/dll/
 tests/pc/*.exe
 tests/pc/flaui-smoke/
+
+# 本地隔离开发工作区
+/.worktrees/
