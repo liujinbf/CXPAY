@@ -64,6 +64,10 @@ final class SandboxDriverTest extends TestCase
         $meta = $this->driver->getMeta();
         self::assertSame('sandbox_test', $meta['name'], 'c_type 应为 sandbox_test');
         self::assertSame('sandbox', $meta['pay_category'], 'pay_category 应为 sandbox');
+        self::assertTrue(
+            ($meta['internal'] ?? false) === true,
+            '沙箱驱动必须标记为内部驱动'
+        );
         self::assertNotEmpty($meta['inputs'], 'inputs 不应为空');
     }
 

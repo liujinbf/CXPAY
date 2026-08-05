@@ -209,6 +209,9 @@ class PaymentManager
                 // 使用单例缓存（如果已实例化则复用）
                 $instance     = static::$instances[$cType] ?? new $class();
                 $meta = $instance->getMeta();
+                if (($meta['internal'] ?? false) === true) {
+                    continue;
+                }
                 if ($instance instanceof MonitorableDriverInterface) {
                     $meta['monitor_mode'] = static::monitorMode($cType);
                 }

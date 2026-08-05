@@ -437,7 +437,7 @@ $ git pull 2>&1
                             </div>
                             <div>
                                 <div class="text-[11px] font-semibold text-slate-400">已接入驱动总数</div>
-                                <div class="text-base font-black text-slate-800 mt-0.5">3 个底层驱动</div>
+                                <div id="channel-stat-driver-count" class="text-base font-black text-slate-800 mt-0.5">加载中...</div>
                             </div>
                         </div>
 
@@ -1485,7 +1485,40 @@ $ git pull 2>&1
         // ==================== 全局收款通道配置模块 ====================
         const channelCacheMap = new Map();
 
+        async function loadAdminDriverCount() {
+            const countEl = document.getElementById(
+                'channel-stat-driver-count'
+            );
+            if (!countEl) return;
+
+            countEl.textContent = '读取中...';
+
+            try {
+                const res = await adminFetch(
+                    '/api/admin/plugin/market_list'
+                );
+                const payload = await res.json();
+
+                if (
+                    payload.code !== 1
+                    || !payload.data
+                    || !Array.isArray(payload.data.list)
+                ) {
+                    throw new Error(
+                        payload.msg || '驱动数量读取失败'
+                    );
+                }
+
+                countEl.textContent =
+                    `${payload.data.list.length} 个底层驱动`;
+            } catch (error) {
+                countEl.textContent = '读取失败';
+                console.error('驱动数量读取失败', error);
+            }
+        }
+
         async function loadAdminChannels() {
+            loadAdminDriverCount();
             console.log('[DIAGNOSTIC] loadAdminChannels executed!');
             const statActiveEl = document.getElementById('channel-stat-active-count');
             if (statActiveEl) statActiveEl.textContent = '读取中...';

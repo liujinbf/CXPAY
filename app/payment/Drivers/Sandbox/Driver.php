@@ -79,6 +79,7 @@ class Driver implements PaymentDriverInterface
             'pay_category'    => 'sandbox',
             'collection_mode' => 'sandbox',
             'monitor_mode'    => 'none',
+            'internal'        => true,
             'deprecated'      => false,
             'inputs'          => [
                 [

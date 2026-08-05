@@ -19,6 +19,19 @@ final class PaymentManagerTest extends TestCase
         PaymentManager::flush();
     }
 
+    public function testInternalSandboxDriverIsAvailableButNotPubliclyListed(): void
+    {
+        self::assertTrue(PaymentManager::has('sandbox_test'));
+        self::assertSame(
+            'sandbox_test',
+            PaymentManager::make('sandbox_test')->getMeta()['name']
+        );
+        self::assertArrayNotHasKey(
+            'sandbox_test',
+            PaymentManager::getRegisteredDrivers()
+        );
+    }
+
     #[DataProvider('personalQrDriverProvider')]
     public function testPersonalQrDriverIsAvailable(string $driverName, string $monitorMode): void
     {
