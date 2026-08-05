@@ -18,6 +18,14 @@ final class RemovedPaymentDrivers
         'qqpay_epay',
     ];
 
+    private const DEFAULT_ARCHIVE_REASON =
+        'removed_placeholder_or_shared_token_driver';
+
+    /** @var array<string,string> */
+    private const ARCHIVE_REASONS = [
+        'qqpay_epay' => 'superseded_by_epay_generic',
+    ];
+
     /** @return list<string> */
     public static function all(): array
     {
@@ -36,6 +44,21 @@ final class RemovedPaymentDrivers
                 "支付驱动已永久移除: {$cType}"
             );
         }
+    }
+
+    public static function archiveReason(
+        string $cType
+    ): string {
+        $code = trim($cType);
+
+        if (!self::contains($code)) {
+            throw new InvalidArgumentException(
+                "支付驱动不在永久移除名单中: {$code}"
+            );
+        }
+
+        return self::ARCHIVE_REASONS[$code]
+            ?? self::DEFAULT_ARCHIVE_REASON;
     }
 
     public static function stripCsv(string $csv): string

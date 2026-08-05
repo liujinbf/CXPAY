@@ -11,6 +11,11 @@
 - `alipay_scan_bill`
 - `wxpay_protocol_cloud`
 - `qqpay_protocol_cloud`
+- `qqpay_epay`（由 `epay_generic` 替代）
+
+即使本迁移此前已经执行过，也必须再次执行 dry-run。
+永久墓碑名单已经扩展，旧执行结果不会自动处理
+后续新增的 `qqpay_epay` 活动通道。
 
 ## 安全边界
 
@@ -25,6 +30,12 @@
 归档表不得包含 `config`、Token、Cookie、私钥或其他密钥。
 
 存在 `cx_order.status = 0` 的待支付订单引用目标通道时，清理必须停止。
+
+归档原因按驱动区分：
+
+- `qqpay_epay`：`superseded_by_epay_generic`
+- 其他五个旧驱动：
+  `removed_placeholder_or_shared_token_driver`
 
 ## 1. 创建数据库备份
 
@@ -62,7 +73,7 @@
 - 每个 `c_type`
 - 每个通道标题
 
-只有列出的驱动均属于本手册顶部五个标识，且数据库备份已经完成，才能继续。
+只有列出的驱动均属于本手册顶部六个标识，且数据库备份已经完成，才能继续。
 
 ## 4. 显式执行
 
@@ -95,7 +106,8 @@
       'wxpay_official',
       'alipay_scan_bill',
       'wxpay_protocol_cloud',
-      'qqpay_protocol_cloud'
+      'qqpay_protocol_cloud',
+      'qqpay_epay'
     );
 
 查询结果必须为零行。
@@ -137,7 +149,7 @@
 - 套餐允许通道选择器
 - 插件与驱动市场
 
-五个旧驱动均不得显示。
+六个永久移除驱动均不得显示。
 
 创建一笔测试订单，确认路由不会选择已归档通道。
 
