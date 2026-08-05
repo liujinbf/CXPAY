@@ -57,6 +57,37 @@ final class PluginManifest
         return (string)$this->data['publisher'];
     }
 
+    public function runtimeType(): string
+    {
+        return (string)($this->data['runtime_type'] ?? '');
+    }
+
+    public function credentialBoundary(): string
+    {
+        return (string)($this->data['credential_boundary'] ?? '');
+    }
+
+    public function cloudProtocol(): string
+    {
+        return (string)($this->data['cloud_protocol'] ?? '');
+    }
+
+    /** @return array<string, mixed> */
+    public function permissions(): array
+    {
+        return is_array($this->data['permissions'] ?? null)
+            ? $this->data['permissions']
+            : [];
+    }
+
+    /** @return array<string, mixed> */
+    public function capabilities(): array
+    {
+        return is_array($this->data['capabilities'] ?? null)
+            ? $this->data['capabilities']
+            : [];
+    }
+
     /** @return list<array{code:string,class:string,file:string}> */
     public function drivers(): array
     {
@@ -86,6 +117,21 @@ final class PluginManifest
         }
         if (!in_array($data['monitor_mode'] ?? '', ['push', 'callback', 'server'], true)) {
             throw new PluginException('插件监控方式不受支持');
+        }
+
+        $declaresCloudConnector = array_key_exists('runtime_type', $data)
+            || array_key_exists('credential_boundary', $data)
+            || array_key_exists('cloud_protocol', $data);
+        if ($declaresCloudConnector) {
+            if (($data['runtime_type'] ?? '') !== 'cloud_connector') {
+                throw new PluginException('云端连接器 runtime_type 必须为 cloud_connector');
+            }
+            if (($data['credential_boundary'] ?? '') !== 'cloud_only') {
+                throw new PluginException('云端连接器 credential_boundary 必须为 cloud_only');
+            }
+            if (($data['cloud_protocol'] ?? '') !== 'cxpay-cloud-payment-v1') {
+                throw new PluginException('云端连接器协议版本不受支持');
+            }
         }
 
         $drivers = $data['drivers'] ?? null;
