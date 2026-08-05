@@ -98,7 +98,7 @@
 ```php
 public function testRejectsSupersededQqpayEpayDriverCode(): void
 {
-    $package = $this->createPackage(false, 'qqpay_epay');
+    $package = $this->createPackage(false, 'qqpay_epay', 'qqpay');
 
     $this->expectException(PluginException::class);
     $this->expectExceptionMessage('已永久移除');
