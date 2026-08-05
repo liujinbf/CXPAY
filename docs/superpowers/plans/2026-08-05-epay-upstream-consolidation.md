@@ -1129,32 +1129,16 @@ Expected: `qqpay_epay` 当前会写入旧的统一原因。
 
 - [ ] **Step 4: 按代码选择归档原因**
 
-把服务中的常量替换为：
+在 `RemovedPaymentDrivers` 墓碑类中集中维护默认归档原因和 `qqpay_epay` 的替代原因，并增加：
 
 ```php
-private const DEFAULT_ARCHIVE_REASON =
-    'removed_placeholder_or_shared_token_driver';
-
-/** @var array<string,string> */
-private const ARCHIVE_REASONS = [
-    'qqpay_epay' => 'superseded_by_epay_generic',
-];
+public static function archiveReason(string $cType): string
 ```
 
-增加：
+清理服务不得直接包含永久移除驱动字面值。归档 insert 改为：
 
 ```php
-private function archiveReason(string $cType): string
-{
-    return self::ARCHIVE_REASONS[$cType]
-        ?? self::DEFAULT_ARCHIVE_REASON;
-}
-```
-
-归档 insert 中改为：
-
-```php
-'archive_reason' => $this->archiveReason(
+'archive_reason' => RemovedPaymentDrivers::archiveReason(
     (string)$channel['c_type']
 ),
 ```
