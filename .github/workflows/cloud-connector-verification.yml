@@ -1,0 +1,39 @@
+name: Cloud Connector Verification
+
+on:
+  push:
+    branches:
+      - work/cloud-connector-credential-isolation
+  pull_request:
+    paths:
+      - 'app/payment/Plugin/**'
+      - 'plugins-src/**'
+      - 'tests/Unit/CloudConnector*Test.php'
+      - 'tests/Unit/AlipayScanMonitorPluginTest.php'
+      - '.github/workflows/cloud-connector-verification.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  php-syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check focused PHP syntax
+        run: |
+          php -l app/payment/Plugin/PluginManifest.php
+          php -l tests/Unit/CloudConnectorPolicyTest.php
+
+  manifest-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Run cloud connector manifest contract test
+        run: vendor/bin/phpunit tests/Unit/CloudConnectorPolicyTest.php
