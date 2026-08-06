@@ -28,6 +28,11 @@ final class ProviderClient
         ]);
     }
 
+    public function queryOrder(array $config, string $tradeNo): array
+    {
+        return $this->request('GET', '/v1/orders/' . rawurlencode($tradeNo), $config);
+    }
+
     public function createAuthSession(array $config): array
     {
         return $this->request('POST', '/v1/auth-sessions', $config, [

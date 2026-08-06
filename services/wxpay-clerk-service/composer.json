@@ -1,0 +1,22 @@
+{
+    "name": "cxpay/wxpay-clerk-service",
+    "description": "微信云端店员免挂核心服务 — 接入 gewe/iPad 协议，接收店员到账通知并回调 CXPAY",
+    "type": "project",
+    "require": {
+        "php": ">=8.1",
+        "ext-json": "*",
+        "ext-pdo": "*",
+        "ext-pdo_sqlite": "*",
+        "ext-openssl": "*",
+        "ext-curl": "*",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "WxpayClerk\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

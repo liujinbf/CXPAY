@@ -82,9 +82,18 @@ final class Driver implements PaymentDriverInterface, MonitorableDriverInterface
         ];
     }
 
+    /**
+     * 通过云端店员服务查询指定平台订单的支付状态。
+     * 云服务若能找到匹配记录则返回 paid=true；查询失败按未支付处理。
+     */
     public function query(string $tradeNo, array $config): array
     {
-        return ['paid' => false];
+        try {
+            $result = (new ProviderClient())->queryOrder($config, $tradeNo);
+            return ['paid' => ($result['paid'] ?? false) === true];
+        } catch (\Throwable) {
+            return ['paid' => false];
+        }
     }
 
     public function getMeta(): array
