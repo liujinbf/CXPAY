@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace plugin\cxpay\alipay_scan_monitor;
 
+use app\payment\Contracts\AccountCapabilityDetectorInterface;
+use app\payment\Contracts\AccountAuthorizationInterface;
 use app\payment\Contracts\MonitorableDriverInterface;
 use app\payment\Contracts\PaymentDriverInterface;
-use app\payment\Contracts\AccountAuthorizationInterface;
 use support\UrlGuard;
 
 require_once __DIR__ . '/ProviderClient.php';
 
-final class Driver implements PaymentDriverInterface, MonitorableDriverInterface, AccountAuthorizationInterface
+final class Driver implements PaymentDriverInterface, MonitorableDriverInterface, AccountAuthorizationInterface, AccountCapabilityDetectorInterface
 {
     public function monitorMode(): string
     {
@@ -33,29 +34,29 @@ final class Driver implements PaymentDriverInterface, MonitorableDriverInterface
             throw new \RuntimeException('支付宝云账单服务没有确认订单登记');
         }
         return [
-            'type' => 'qrcode',
-            'trade_no' => $tradeNo,
+            'type'         => 'qrcode',
+            'trade_no'     => $tradeNo,
             'out_trade_no' => (string)($params['out_trade_no'] ?? ''),
-            'amount' => $amount,
-            'pay_url' => trim((string)($config['qr_url'] ?? '')),
+            'amount'       => $amount,
+            'pay_url'      => trim((string)($config['qr_url'] ?? '')),
         ];
     }
 
     public function notify(array $params, array $config): array
     {
         $occurredAt = (int)($params['occurred_at'] ?? 0);
-        $timestamp = (int)($params['timestamp'] ?? 0);
-        $moneyRaw = trim((string)($params['money'] ?? ''));
-        $money = number_format((float)$moneyRaw, 2, '.', '');
+        $timestamp  = (int)($params['timestamp'] ?? 0);
+        $moneyRaw   = trim((string)($params['money'] ?? ''));
+        $money      = number_format((float)$moneyRaw, 2, '.', '');
         $fields = [
             'source_bill_id' => trim((string)($params['source_bill_id'] ?? '')),
-            'out_trade_no' => trim((string)($params['out_trade_no'] ?? '')),
-            'money' => $money,
-            'occurred_at' => (string)$occurredAt,
-            'timestamp' => (string)$timestamp,
-            'nonce' => trim((string)($params['nonce'] ?? '')),
+            'out_trade_no'   => trim((string)($params['out_trade_no'] ?? '')),
+            'money'          => $money,
+            'occurred_at'    => (string)$occurredAt,
+            'timestamp'      => (string)$timestamp,
+            'nonce'          => trim((string)($params['nonce'] ?? '')),
         ];
-        $received = strtolower(trim((string)($params['sign'] ?? '')));
+        $received   = strtolower(trim((string)($params['sign'] ?? '')));
         $validShape = preg_match('/^[A-Za-z0-9_.:-]{16,128}$/', $fields['source_bill_id']) === 1
             && preg_match('/^[A-Za-z0-9_.:-]{4,128}$/', $fields['out_trade_no']) === 1
             && preg_match('/^[A-Za-z0-9_.:-]{16,128}$/', $fields['nonce']) === 1
@@ -66,7 +67,7 @@ final class Driver implements PaymentDriverInterface, MonitorableDriverInterface
             && abs(time() - $timestamp) <= 300;
         ksort($fields);
         $canonical = http_build_query($fields, '', '&', PHP_QUERY_RFC3986);
-        $verified = false;
+        $verified  = false;
         foreach (['callback_secret', 'callback_secret_previous'] as $name) {
             $secret = (string)($config[$name] ?? '');
             if (strlen($secret) >= 32 && strlen($secret) <= 128) {
@@ -75,16 +76,25 @@ final class Driver implements PaymentDriverInterface, MonitorableDriverInterface
         }
         $verified = $validShape && $verified;
         return [
-            'success' => $verified,
+            'success'      => $verified,
             'out_trade_no' => $verified ? $fields['out_trade_no'] : '',
-            'trade_no' => $verified ? $fields['source_bill_id'] : '',
-            'amount' => $verified ? (float)$money : 0.0,
+            'trade_no'     => $verified ? $fields['source_bill_id'] : '',
+            'amount'       => $verified ? (float)$money : 0.0,
         ];
     }
 
+    /**
+     * 通过云账单服务查询指定平台订单的支付状态。
+     * 云服务返回 paid=true 则确认已支付；查询失败时按未支付处理，避免误核销。
+     */
     public function query(string $tradeNo, array $config): array
     {
-        return ['paid' => false];
+        try {
+            $result = (new ProviderClient())->queryOrder($config, $tradeNo);
+            return ['paid' => ($result['paid'] ?? false) === true];
+        } catch (\Throwable) {
+            return ['paid' => false];
+        }
     }
 
     public function reviewEvents(array $config): array
@@ -117,33 +127,76 @@ final class Driver implements PaymentDriverInterface, MonitorableDriverInterface
         return (new ProviderClient())->ignoreReviewEvent($config, $eventId, $operator, $note);
     }
 
+    /**
+     * 通过云账单服务的运维状态接口探测账号状态。
+     * 若云服务返回了账号状态字段则直接映射；否则按未知处理。
+     */
+    public function detectAccountCapabilities(array $config): array
+    {
+        try {
+            $status    = (new ProviderClient())->operationsStatus($config);
+            $accountId = trim((string)($config['account_id'] ?? ''));
+
+            $accountStatus = self::STATUS_UNKNOWN;
+            $message       = '账号状态未知';
+
+            foreach ((array)($status['accounts'] ?? []) as $account) {
+                if (!is_array($account)) {
+                    continue;
+                }
+                if ($accountId !== '' && !hash_equals($accountId, (string)($account['id'] ?? ''))) {
+                    continue;
+                }
+                $raw = strtoupper(trim((string)($account['status'] ?? '')));
+                $accountStatus = match ($raw) {
+                    'ACTIVE', 'RECEIPT_AVAILABLE' => self::STATUS_RECEIPT_AVAILABLE,
+                    'RECEIPT_NOT_OPENED'           => self::STATUS_RECEIPT_NOT_OPENED,
+                    'BOOK_AVAILABLE'               => self::STATUS_BOOK_AVAILABLE,
+                    'REAUTH_REQUIRED'              => self::STATUS_REAUTH_REQUIRED,
+                    'ERROR', 'TEMPORARY_ERROR'     => self::STATUS_TEMPORARY_ERROR,
+                    default                        => self::STATUS_UNKNOWN,
+                };
+                $message = trim((string)($account['message'] ?? $account['status_message'] ?? '账号状态已更新'));
+                break;
+            }
+
+            if ($accountId === '' && $accountStatus === self::STATUS_UNKNOWN) {
+                return ['status' => self::STATUS_UNKNOWN, 'message' => '请先完成支付宝扫码登录以获取账号 ID'];
+            }
+            return ['status' => $accountStatus, 'message' => $message];
+        } catch (\Throwable $e) {
+            return ['status' => self::STATUS_TEMPORARY_ERROR, 'message' => '云账单服务暂时不可用：' . $e->getMessage()];
+        }
+    }
+
     public function getMeta(): array
     {
         return [
-            'name' => 'alipay_scan_monitor',
-            'title' => '支付宝扫码免挂',
-            'description' => '固定支付宝个人收款码 + 授权云账单服务订单登记与签名到账回调',
-            'supports_account_authorization' => true,
-            'authorization_label' => '支付宝扫码登录',
-            'pay_category' => 'alipay',
-            'collection_mode' => 'personal_qr',
-            'monitor_mode' => $this->monitorMode(),
+            'name'                                 => 'alipay_scan_monitor',
+            'title'                                => '支付宝扫码免挂',
+            'description'                          => '固定支付宝个人收款码 + 授权云账单服务订单登记与签名到账回调',
+            'supports_account_authorization'       => true,
+            'supports_account_capability_detection'=> true,
+            'authorization_label'                  => '支付宝扫码登录',
+            'pay_category'                         => 'alipay',
+            'collection_mode'                      => 'personal_qr',
+            'monitor_mode'                         => $this->monitorMode(),
             'inputs' => [
                 [
-                    'type' => 'notice',
-                    'title' => '扫码免挂说明',
+                    'type'    => 'notice',
+                    'title'   => '扫码免挂说明',
                     'content' => "通过【支付宝扫码登录】自动获取支付宝网页版 Cookie，自动检测金额账单并触发回调。\n"
                         . "也可以手动粘贴 Base64 编码的 Cookie。密文在云端 AES-256 加密保存。",
-                    'tone' => 'info',
+                    'tone'    => 'info',
                 ],
-                ['name' => 'cookie_base64', 'title' => 'Cookie (Base64 编码，扫码自动获取或手动粘贴)', 'type' => 'textarea', 'required' => false],
-                ['name' => 'qr_url', 'title' => '支付宝个人收款码内容', 'type' => 'string', 'required' => true],
-                ['name' => 'monitor_base_url', 'title' => '支付宝云账单服务地址', 'type' => 'string', 'required' => true],
-                ['name' => 'account_id', 'title' => '云账单账号 ID（扫码成功后自动写入）', 'type' => 'string', 'required' => false],
-                ['name' => 'client_id', 'title' => '接口 Client ID', 'type' => 'string', 'required' => true],
-                ['name' => 'client_secret', 'title' => '接口请求签名密钥', 'type' => 'password', 'required' => true],
-                ['name' => 'callback_secret', 'title' => '响应及到账回调密钥', 'type' => 'password', 'required' => true],
-                ['name' => 'callback_secret_previous', 'title' => '上一回调密钥（轮换宽限期，可选）', 'type' => 'password', 'required' => false],
+                ['name' => 'cookie_base64',           'title' => 'Cookie（Base64 编码，扫码自动获取或手动粘贴）', 'type' => 'password', 'required' => false],
+                ['name' => 'qr_url',                  'title' => '支付宝个人收款码内容',                          'type' => 'string',   'required' => true],
+                ['name' => 'monitor_base_url',         'title' => '支付宝云账单服务地址',                          'type' => 'string',   'required' => true],
+                ['name' => 'account_id',               'title' => '云账单账号 ID（扫码成功后自动写入）',             'type' => 'string',   'required' => false],
+                ['name' => 'client_id',                'title' => '接口 Client ID',                               'type' => 'string',   'required' => true],
+                ['name' => 'client_secret',            'title' => '接口请求签名密钥',                               'type' => 'password', 'required' => true],
+                ['name' => 'callback_secret',          'title' => '响应及到账回调密钥',                             'type' => 'password', 'required' => true],
+                ['name' => 'callback_secret_previous', 'title' => '上一回调密钥（轮换宽限期，可选）',                 'type' => 'password', 'required' => false],
             ],
         ];
     }
@@ -179,7 +232,12 @@ final class Driver implements PaymentDriverInterface, MonitorableDriverInterface
         if ($previous !== '' && (strlen($previous) < 32 || strlen($previous) > 128)) {
             return ['code' => -1, 'msg' => 'callback_secret_previous 长度必须为32至128位'];
         }
-        $config['qr_url'] = $qrUrl;
+        // cookie_base64：可选字段，若填写则验证是否为合法 Base64 编码
+        $cookieBase64 = trim((string)($config['cookie_base64'] ?? ''));
+        if ($cookieBase64 !== '' && base64_decode($cookieBase64, true) === false) {
+            return ['code' => -1, 'msg' => 'Cookie Base64 编码格式不合法'];
+        }
+        $config['qr_url']          = $qrUrl;
         $config['monitor_base_url'] = $baseUrl;
         return $config;
     }

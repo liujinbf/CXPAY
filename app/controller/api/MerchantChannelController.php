@@ -346,12 +346,33 @@ class MerchantChannelController
                 $config
             );
             if (($result['status'] ?? '') === 'CONFIRMED') {
-                $accountId = trim((string)($result['account_id'] ?? ''));
-                if (!preg_match('/^[A-Za-z0-9_-]{16,64}$/', $accountId)) {
-                    throw new \RuntimeException('云服务没有返回合法的账号 ID');
-                }
                 $raw = json_decode((string)$channel->config, true) ?: [];
-                $raw['account_id'] = $this->authcode->encrypt($accountId);
+
+                // 方式一：account_id 单字段写回（扫码免挂等标准模式）
+                $accountId = trim((string)($result['account_id'] ?? ''));
+                if ($accountId !== '') {
+                    if (!preg_match('/^[A-Za-z0-9_-]{16,64}$/', $accountId)) {
+                        throw new \RuntimeException('云服务没有返回合法的账号 ID');
+                    }
+                    $raw['account_id'] = $this->authcode->encrypt($accountId);
+                }
+
+                // 方式二：config_patch 多字段写回（accountlog-monitor 等需同时写回多个配置的场景）
+                $configPatch = is_array($result['config_patch'] ?? null) ? $result['config_patch'] : [];
+                foreach ($configPatch as $patchKey => $patchValue) {
+                    if (is_string($patchKey)
+                        && preg_match('/^[A-Za-z0-9_]{1,64}$/', $patchKey)
+                        && is_string($patchValue)
+                        && $patchValue !== ''
+                    ) {
+                        $raw[$patchKey] = $this->authcode->encrypt($patchValue);
+                    }
+                }
+
+                if ($accountId === '' && $configPatch === []) {
+                    throw new \RuntimeException('授权确认状态下必须返回账号 ID 或配置补丁');
+                }
+
                 $channel->config = json_encode($raw, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 $channel->save();
             }

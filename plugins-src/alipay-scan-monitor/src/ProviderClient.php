@@ -49,6 +49,17 @@ final class ProviderClient
         return $this->request('GET', '/v1/ops/status', $config);
     }
 
+    /**
+     * 查询指定平台订单号的支付状态。
+     * 云服务应返回 {"paid": true/false, "amount": "xx.xx", "occurred_at": 123456}。
+     *
+     * @return array<string, mixed>
+     */
+    public function queryOrder(array $config, string $tradeNo): array
+    {
+        return $this->request('GET', '/v1/orders/' . rawurlencode($tradeNo), $config);
+    }
+
     /** @return array<string, mixed> */
     public function matchReviewEvent(array $config, int $eventId, string $tradeNo, string $operator, string $note): array
     {

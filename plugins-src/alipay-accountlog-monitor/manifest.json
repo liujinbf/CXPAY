@@ -2,10 +2,10 @@
   "schema": 1,
   "id": "cxpay.alipay.accountlog_monitor",
   "slug": "alipay_accountlog_monitor",
-  "name": "支付宝商家账单监控（手动配置）",
-  "version": "1.0.1",
+  "name": "支付宝商家账单监控适配器",
+  "version": "1.1.0",
   "publisher": "cxpay.official",
-  "description": "使用用户自行申请的支付宝开放平台应用查询商家账单，仅用于监控固定收款码到账。",
+  "description": "通过支付宝开放平台官方账单查询 API（alipay.data.bill.accountlog.query）轮询到账记录，支持扫码自动配置代理服务与手动配置。",
   "payment_type": "alipay",
   "collection_mode": "personal_qr",
   "monitor_mode": "server",
@@ -18,16 +18,18 @@
     "dynamic_qr": false,
     "server_monitor": true,
     "account_authorization": true,
-    "stable_bill_id": true,
-    "official_bill_api": true,
-    "creates_official_payment_order": false,
-    "automatic_application": true
+    "order_registration": false,
+    "order_query": false,
+    "signed_callback": false,
+    "callback_key_rotation": false,
+    "payment_event_review": false,
+    "operations_status": false
   },
   "permissions": {
-    "outbound_domains": ["openapi.alipay.com"],
+    "outbound_domains": ["openapi.alipay.com", "由管理员配置的自动配置代理服务域名"],
     "callbacks": [],
     "scheduled_tasks": true,
-    "secret_config": ["app_private_key"]
+    "secret_config": ["app_private_key", "autoconfig_client_secret", "autoconfig_callback_secret"]
   },
   "drivers": [
     {
