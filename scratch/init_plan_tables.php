@@ -96,14 +96,21 @@ try {
         echo "cx_merchant_plan_log already exists\n";
     }
 
-    // 检查 cx_merchant 表是否补充字段
-    if (!DB::schema()->hasColumn('cx_merchant', 'plan_id')) {
-        DB::schema()->table('cx_merchant', function ($t) {
-            $t->integer('plan_id')->default(0);
-            $t->integer('plan_expire_time')->default(0);
-            $t->integer('channel_quota')->default(0);
-        });
-        echo "cx_merchant columns added\n";
+    // 独立检查并补充 cx_merchant 表的 4 个套餐字段
+    // 使用逐列判断，避免任意一列已存在时跳过其他列
+    $merchantCols = [
+        'plan_id'                   => function ($t) { $t->integer('plan_id')->default(0); },
+        'plan_expire_time'          => function ($t) { $t->integer('plan_expire_time')->default(0); },
+        'channel_quota'             => function ($t) { $t->integer('channel_quota')->default(0); },
+        'plan_fee_discount_balance' => function ($t) { $t->decimal('plan_fee_discount_balance', 12, 2)->default(0.00); },
+    ];
+    foreach ($merchantCols as $col => $blueprint) {
+        if (!DB::schema()->hasColumn('cx_merchant', $col)) {
+            DB::schema()->table('cx_merchant', $blueprint);
+            echo "cx_merchant.{$col} added\n";
+        } else {
+            echo "cx_merchant.{$col} already exists\n";
+        }
     }
 } catch (Throwable $e) {
     echo "Error: " . $e->getMessage() . "\n";

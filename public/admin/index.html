@@ -1518,8 +1518,6 @@ $ git pull 2>&1
         }
 
         async function loadAdminChannels() {
-            loadAdminDriverCount();
-            console.log('[DIAGNOSTIC] loadAdminChannels executed!');
             const statActiveEl = document.getElementById('channel-stat-active-count');
             if (statActiveEl) statActiveEl.textContent = '读取中...';
 
@@ -2004,11 +2002,15 @@ $ git pull 2>&1
             const allowedList = (data && data.allowed_channels) ? data.allowed_channels.split(',').map(s => s.trim()) : [];
 
             // 动态拉取系统已安装的支付驱动插件
+            // 注意：API 返回 {data: {list:[], total:0, installed:0}}，data 本身是对象而非数组
             try {
                 const res = await adminFetch('/api/admin/plugin/market_list');
                 const payload = await res.json();
-                if (payload.code === 1 && Array.isArray(payload.data)) {
-                    chSelect.innerHTML = payload.data.filter(item => item.c_type).map(driver => {
+                const drivers = (payload.code === 1 && payload.data && Array.isArray(payload.data.list))
+                    ? payload.data.list
+                    : [];
+                if (drivers.length > 0) {
+                    chSelect.innerHTML = drivers.filter(item => item.c_type).map(driver => {
                         const code = driver.c_type;
                         const name = driver.name || code;
                         const version = driver.version ? ` (v${driver.version})` : '';
@@ -2016,7 +2018,7 @@ $ git pull 2>&1
                         return `<option value="${escapeHtml(code)}" ${isSelected}>${escapeHtml(name)} [${escapeHtml(code)}]${escapeHtml(version)}</option>`;
                     }).join('');
                 } else {
-                    chSelect.innerHTML = '<option value="" disabled>加载插件驱动失败</option>';
+                    chSelect.innerHTML = '<option value="" disabled>暂无已安装的支付驱动</option>';
                 }
             } catch (e) {
                 chSelect.innerHTML = `<option value="" disabled>读取异常: ${escapeHtml(e.message)}</option>`;
@@ -2259,6 +2261,7 @@ $ git pull 2>&1
             }
         }
 
+<<<<<<< HEAD
         async function loadAdminChannelsLegacyCards() {
             const container = document.getElementById('admin-channel-list');
             if (!container) return;
@@ -2353,6 +2356,8 @@ $ git pull 2>&1
                 container.innerHTML = `<div class="p-8 text-center text-xs text-rose-500 col-span-full font-bold">无法读取通道列表: ${escapeHtml(e.message)}</div>`;
             }
         }
+=======
+>>>>>>> gitee/main
 
         async function toggleAdminChannel(code, enabled) {
             try {
@@ -2952,6 +2957,7 @@ $ git pull 2>&1
             if (payload.code === 1) await loadPluginMarket();
         }
 
+<<<<<<< HEAD
         async function loadAdminChannelsLegacyReadOnly() {
             const container = document.getElementById('admin-channel-list');
             try {
@@ -2972,6 +2978,8 @@ $ git pull 2>&1
                 container.innerHTML = `<div class="p-5 text-center text-xs text-rose-500">${escapeHtml(e.message || '平台通道加载失败')}</div>`;
             }
         }
+=======
+>>>>>>> gitee/main
 
         async function loadAdminAlertConfig() {
             try {
