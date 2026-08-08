@@ -111,4 +111,43 @@ final class OutboxRepository
             ':attempts' => $attempts,
         ]);
     }
+
+    /** @return array<string, mixed>|null */
+    public function findByOrder(string $outTradeNo): ?array
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+            SELECT * FROM callback_outbox
+            WHERE out_trade_no = :out_trade_no
+            ORDER BY id DESC
+            LIMIT 1
+            SQL);
+        $statement->execute([':out_trade_no' => $outTradeNo]);
+        $row = $statement->fetch();
+        return is_array($row) ? $row : null;
+    }
+
+    /** @return array{pending_count: int, processing_count: int, failed_count: int, oldest_pending_at: ?int, last_error: string} */
+    public function statusSummary(): array
+    {
+        $row = $this->pdo->query(<<<'SQL'
+            SELECT
+                SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) AS pending_count,
+                SUM(CASE WHEN status = 'PROCESSING' THEN 1 ELSE 0 END) AS processing_count,
+                SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) AS failed_count,
+                MIN(CASE WHEN status = 'PENDING' THEN created_at END) AS oldest_pending_at
+            FROM callback_outbox
+            SQL)->fetch();
+        $lastError = $this->pdo->query(<<<'SQL'
+            SELECT last_error FROM callback_outbox
+            WHERE last_error IS NOT NULL AND last_error <> ''
+            ORDER BY id DESC LIMIT 1
+            SQL)->fetchColumn();
+        return [
+            'pending_count' => (int) ($row['pending_count'] ?? 0),
+            'processing_count' => (int) ($row['processing_count'] ?? 0),
+            'failed_count' => (int) ($row['failed_count'] ?? 0),
+            'oldest_pending_at' => isset($row['oldest_pending_at']) ? (int) $row['oldest_pending_at'] : null,
+            'last_error' => $lastError !== false ? (string) $lastError : '',
+        ];
+    }
 }

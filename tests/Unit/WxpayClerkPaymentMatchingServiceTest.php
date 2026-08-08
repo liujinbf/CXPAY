@@ -184,6 +184,28 @@ final class WxpayClerkPaymentMatchingServiceTest extends WxpayClerkDatabaseTestC
         self::assertSame(0, $this->countRows('callback_outbox'));
     }
 
+    public function testEventWithoutStableBillIdIsIdempotentButNeverAutoMatched(): void
+    {
+        $this->orders->register('acc_1', 'ch_1', 'CX-UNSTABLE', '8.88', 1700000600, 1700000000);
+        $event = $this->event([
+            'source_bill_id' => '',
+            'raw_hash' => str_repeat('f', 64),
+        ]);
+
+        $first = $this->matching->ingest($event);
+        $again = $this->matching->ingest($event);
+
+        self::assertSame('REVIEW_REQUIRED', $first['status']);
+        self::assertSame($first, $again);
+        self::assertSame('PENDING', $this->orders->find('CX-UNSTABLE')['status']);
+        self::assertSame(1, $this->countRows('payment_events'));
+        self::assertSame(0, $this->countRows('callback_outbox'));
+        self::assertSame(
+            'unstable:' . str_repeat('f', 64),
+            $this->database->pdo()->query('SELECT source_bill_id FROM payment_events')->fetchColumn()
+        );
+    }
+
     /** @param array<string, mixed> $overrides @return array<string, mixed> */
     private function event(array $overrides = []): array
     {

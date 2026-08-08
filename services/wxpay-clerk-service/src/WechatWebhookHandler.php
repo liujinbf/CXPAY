@@ -4,150 +4,90 @@ declare(strict_types=1);
 
 namespace WxpayClerk;
 
-/**
- * 接收并分发 gewe 推送的微信消息 Webhook。
- *
- * 端点：POST /wechat/message（仅 gewe 内网 IP 可访问）
- *
- * gewe Webhook 消息体结构：
- * {
- *   "TypeName": "AddMsg",
- *   "Appid": "gewe_app_id",
- *   "Data": {
- *     "MsgId": 123,
- *     "FromUserName": {"string": "fmessage"},
- *     "ToUserName":   {"string": "wxid_xxx"},
- *     "MsgType": 49,
- *     "Content":    {"string": "<msg>...</msg>"},
- *     "PushContent": "收款助手: [收款通知]¥12.50",
- *     "CreateTime": 1722959329,
- *     "NewMsgId": 987654321
- *   }
- * }
- */
 final class WechatWebhookHandler
 {
     public function __construct(
         private readonly PaymentNotificationParser $parser,
-        private readonly OrderMatcher              $matcher,
-        private readonly CxpayCallback             $callback,
-        private readonly OrderStore                $store,
-        private readonly string                    $logFile
-    ) {}
+        private readonly PaymentMatchingService $matching,
+        private readonly AccountRepository $accounts,
+        private readonly string $logFile
+    ) {
+    }
 
-    /**
-     * 处理来自 gewe 的 Webhook 推送，返回是否成功处理。
-     *
-     * @param array<string, mixed> $payload
-     */
-    public function handle(array $payload): bool
+    /** @param array<string, mixed> $payload */
+    public function handle(array $payload, ?int $receivedAt = null): bool
     {
-        $typeName = (string)($payload['TypeName'] ?? '');
-        $appId    = (string)($payload['Appid']    ?? '');
-        $data     = (array)($payload['Data']       ?? []);
+        $receivedAt ??= time();
+        $typeName = (string) ($payload['TypeName'] ?? '');
+        $appId = (string) ($payload['Appid'] ?? '');
+        $data = (array) ($payload['Data'] ?? []);
 
-        // 仅处理收到的新消息
-        if ($typeName !== 'AddMsg' || $data === []) {
-            $this->updateAccountHeartbeat($appId);
-            return true; // 其他类型消息（登录成功、断线等）直接返回 OK
-        }
-
-        // 处理登录/断线状态变更
         if (in_array($typeName, ['Login', 'Logout', 'Offline'], true)) {
-            $this->handleStatusChange($typeName, $appId, $data);
+            $this->handleStatusChange($typeName, $appId, $data, $receivedAt);
+            return true;
+        }
+        if ($typeName !== 'AddMsg' || $data === []) {
+            $this->updateHeartbeat($appId, $receivedAt);
             return true;
         }
 
-        // 尝试解析为支付通知
         $payment = $this->parser->parse($data);
-        if (!$payment['is_payment']) {
-            return true; // 非收款消息，忽略
+        if (($payment['is_payment'] ?? false) !== true) {
+            return true;
         }
-
-        // 根据 gewe AppId 找对应的账号
-        $account   = $this->findAccountByGeweAppId($appId);
-        $accountId = $account !== null ? (string)$account['id'] : $appId;
-
-        $this->log("收到到账通知 accountId={$accountId} amount={$payment['amount']} remark={$payment['remark']}");
-
-        // 匹配订单
-        $matchResult = $this->matcher->match($accountId, $payment);
-
-        if ($matchResult['matched']) {
-            $outTradeNo   = (string)($matchResult['out_trade_no']   ?? '');
-            $sourceBillId = (string)($matchResult['source_bill_id'] ?? '');
-            $this->log("匹配成功 out_trade_no={$outTradeNo} reason={$matchResult['reason']}");
-
-            try {
-                $this->callback->send(
-                    $outTradeNo,
-                    $sourceBillId,
-                    (string)$payment['amount'],
-                    (int)$payment['occurred_at']
-                );
-                $this->log("CXPAY 回调发送成功 out_trade_no={$outTradeNo}");
-            } catch (\Throwable $e) {
-                $this->log("CXPAY 回调失败 out_trade_no={$outTradeNo} error=" . $e->getMessage(), 'ERROR');
-                // 回调失败不影响 HTTP 200 响应，防止 gewe 重试推送
-            }
-        } else {
-            $eventId = (int)($matchResult['review_event_id'] ?? 0);
-            $this->log("无法自动匹配，已创建审核事件 review_event_id={$eventId} reason={$matchResult['reason']}", 'WARN');
-        }
-
+        $account = $this->accounts->findByGeweAppId($appId);
+        $accountId = $account !== null ? (string) $account['id'] : $appId;
+        $raw = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $this->matching->ingest([
+            'account_id' => $accountId,
+            'source_bill_id' => (string) ($payment['source_bill_id'] ?? ''),
+            'amount' => (string) $payment['amount'],
+            'payer_name' => (string) ($payment['payer_name'] ?? ''),
+            'remark' => (string) ($payment['remark'] ?? ''),
+            'occurred_at' => (int) $payment['occurred_at'],
+            'received_at' => $receivedAt,
+            'raw_hash' => hash('sha256', $raw),
+        ]);
+        $this->log("到账事件已持久化 account_id={$accountId} amount={$payment['amount']}");
         return true;
     }
 
-    // ─── 辅助方法 ─────────────────────────────────────────────────────────────
-
-    private function handleStatusChange(string $type, string $appId, array $data): void
+    /** @param array<string, mixed> $data */
+    private function handleStatusChange(string $type, string $appId, array $data, int $now): void
     {
-        $status = match ($type) {
-            'Login'   => 'ONLINE',
-            'Logout'  => 'OFFLINE',
-            'Offline' => 'OFFLINE',
-            default   => 'UNKNOWN',
-        };
-        $wxid     = (string)($data['Wxid']    ?? $data['WxId']    ?? '');
-        $nickname = (string)($data['Nickname'] ?? '');
+        $wxid = (string) ($data['Wxid'] ?? $data['WxId'] ?? '');
         $accountId = $wxid !== '' ? $wxid : $appId;
-        $this->store->upsertAccount($accountId, $nickname, $appId, $status);
-        $this->log("账号状态变更 accountId={$accountId} status={$status}");
+        $status = $type === 'Login' ? 'ONLINE' : 'OFFLINE';
+        $this->accounts->save($accountId, (string) ($data['Nickname'] ?? ''), $appId, $status, $now);
     }
 
-    private function updateAccountHeartbeat(string $appId): void
+    private function updateHeartbeat(string $appId, int $now): void
     {
-        $account = $this->findAccountByGeweAppId($appId);
+        $account = $this->accounts->findByGeweAppId($appId);
         if ($account !== null) {
-            $this->store->upsertAccount(
-                (string)$account['id'],
-                (string)($account['nickname'] ?? ''),
+            $this->accounts->save(
+                (string) $account['id'],
+                (string) $account['nickname'],
                 $appId,
-                'ONLINE'
+                'ONLINE',
+                $now
             );
         }
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function findAccountByGeweAppId(string $appId): ?array
+    private function log(string $message): void
     {
-        foreach ($this->store->getAllAccounts() as $acc) {
-            if ((string)($acc['gewe_app_id'] ?? '') === $appId) {
-                return $acc;
-            }
+        if ($this->logFile === '') {
+            return;
         }
-        return null;
-    }
-
-    private function log(string $message, string $level = 'INFO'): void
-    {
-        $dir = dirname($this->logFile);
-        if (!is_dir($dir)) {
-            @mkdir($dir, 0750, true);
+        $directory = dirname($this->logFile);
+        if (!is_dir($directory)) {
+            mkdir($directory, 0750, true);
         }
-        $line = date('Y-m-d H:i:s') . " [{$level}] " . $message . PHP_EOL;
-        file_put_contents($this->logFile, $line, FILE_APPEND | LOCK_EX);
+        file_put_contents(
+            $this->logFile,
+            date('Y-m-d H:i:s') . ' [INFO] ' . $message . PHP_EOL,
+            FILE_APPEND | LOCK_EX
+        );
     }
 }

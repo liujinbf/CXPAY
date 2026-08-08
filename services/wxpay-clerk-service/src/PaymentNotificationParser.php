@@ -124,7 +124,7 @@ final class PaymentNotificationParser
             'payer_name'     => $this->extractPayerName($combined),
             'remark'         => $this->extractRemark($combined),
             'occurred_at'    => $createTime,
-            'source_bill_id' => $newMsgId ?: bin2hex(random_bytes(8)),
+            'source_bill_id' => $newMsgId,
         ];
     }
 
@@ -148,7 +148,7 @@ final class PaymentNotificationParser
             'payer_name'     => $this->extractPayerName($content),
             'remark'         => $this->extractRemark($content),
             'occurred_at'    => $createTime,
-            'source_bill_id' => $newMsgId ?: bin2hex(random_bytes(8)),
+            'source_bill_id' => $newMsgId,
         ];
     }
 
@@ -169,7 +169,7 @@ final class PaymentNotificationParser
             'payer_name'     => '',
             'remark'         => '',
             'occurred_at'    => $createTime,
-            'source_bill_id' => $newMsgId ?: bin2hex(random_bytes(8)),
+            'source_bill_id' => $newMsgId,
         ];
     }
 

@@ -18,7 +18,7 @@ use RuntimeException;
  * - 查询账号在线状态
  * - 退出登录
  */
-final class GeweApiClient
+final class GeweApiClient implements GeweApiClientInterface
 {
     private const TIMEOUT         = 10;
     private const CONNECT_TIMEOUT = 5;

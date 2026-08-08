@@ -63,6 +63,20 @@ final class PaymentEventRepository
         return is_array($row) ? $row : null;
     }
 
+    /** @return array<string, mixed>|null */
+    public function findByOrder(string $outTradeNo): ?array
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+            SELECT * FROM payment_events
+            WHERE out_trade_no = :out_trade_no AND status = 'MATCHED'
+            ORDER BY id DESC
+            LIMIT 1
+            SQL);
+        $statement->execute([':out_trade_no' => $outTradeNo]);
+        $row = $statement->fetch();
+        return is_array($row) ? $row : null;
+    }
+
     public function markStatus(int $id, string $status, ?string $outTradeNo = null): bool
     {
         $statement = $this->pdo->prepare(<<<'SQL'

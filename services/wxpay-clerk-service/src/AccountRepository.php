@@ -57,4 +57,10 @@ final class AccountRepository
         $row = $statement->fetch();
         return is_array($row) ? $row : null;
     }
+
+    /** @return list<array<string, mixed>> */
+    public function all(): array
+    {
+        return $this->pdo->query('SELECT * FROM accounts ORDER BY last_seen_at DESC, id ASC')->fetchAll() ?: [];
+    }
 }

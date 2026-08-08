@@ -23,13 +23,24 @@ final class PaymentMatchingService
      */
     public function ingest(array $event): array
     {
-        return $this->database->transaction(function () use ($event): array {
+        $hasStableSource = trim((string) ($event['source_bill_id'] ?? '')) !== '';
+        if (!$hasStableSource) {
+            $event['source_bill_id'] = 'unstable:' . (string) $event['raw_hash'];
+        }
+        return $this->database->transaction(function () use ($event, $hasStableSource): array {
             $stored = $this->events->createOrFind($event);
             if (!$stored['created']) {
                 return $this->result($stored['event']);
             }
 
             $paymentEvent = $stored['event'];
+            if (!$hasStableSource) {
+                $eventId = (int) $paymentEvent['id'];
+                $this->events->markStatus($eventId, 'REVIEW_REQUIRED');
+                $paymentEvent['status'] = 'REVIEW_REQUIRED';
+                $this->reviews->create($paymentEvent, '到账通知缺少稳定账单编号');
+                return ['event_id' => $eventId, 'status' => 'REVIEW_REQUIRED', 'out_trade_no' => null];
+            }
             $occurredAt = (int) $paymentEvent['occurred_at'];
             $candidates = array_values(array_filter(
                 $this->orders->candidates(
