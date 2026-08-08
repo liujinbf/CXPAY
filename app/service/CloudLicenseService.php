@@ -33,11 +33,27 @@ class CloudLicenseService
 
         $watermark = $this->tracer->generateWatermark($domain, $license->auth_key);
 
+        // 优先从 cx_config 表或环境变量读取下载包基础路径/URL，方便 CDN 或自定义存放目录部署
+        $downloadUrl = '';
+        try {
+            $downloadUrl = (string)(\Illuminate\Database\Capsule\Manager::table('cx_config')
+                ->where('name', 'download_package_url')
+                ->value('value') ?? '');
+        } catch (\Throwable) {}
+
+        if ($downloadUrl === '') {
+            $downloadUrl = (string)getenv('DOWNLOAD_PACKAGE_URL');
+        }
+
+        if ($downloadUrl === '') {
+            $downloadUrl = "/download/CXPayAssistant_latest.exe";
+        }
+
         return [
             'domain'         => $domain,
             'watermark_id'   => $watermark['watermark_id'],
             'code_signature' => $watermark['code_signature'],
-            'download_url'   => "/scratch/pc_project/CXPayAssistant_v4.exe",
+            'download_url'   => $downloadUrl,
         ];
     }
 

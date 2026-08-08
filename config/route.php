@@ -58,6 +58,11 @@ Route::group('/api/cloud', function () {
     Route::post('/bind_qq', [app\controller\api\CloudLicenseController::class, 'bindQq']);
     Route::get('/wx_login_qr', [app\controller\api\CloudLicenseController::class, 'getWxLoginQr']);
     Route::any('/poll_wx_login', [app\controller\api\CloudLicenseController::class, 'pollWxLogin']);
+
+    // 云端支付插件商城与下载 API
+    Route::get('/plugin/market_list', [app\controller\api\CloudLicenseController::class, 'pluginMarketList']);
+    Route::post('/plugin/buy', [app\controller\api\CloudLicenseController::class, 'pluginBuy']);
+    Route::get('/plugin/download', [app\controller\api\CloudLicenseController::class, 'pluginDownload']);
 });
 
 // 授权变更、下载和泄漏封禁属于后台管理能力，必须由管理员操作。
@@ -181,6 +186,10 @@ Route::group('/api/admin', function () {
     Route::post('/plugin/set_enabled', [app\controller\admin\PluginMarketController::class, 'setEnabled']);
     Route::post('/plugin/rollback', [app\controller\admin\PluginMarketController::class, 'rollback']);
     Route::post('/plugin/uninstall', [app\controller\admin\PluginMarketController::class, 'uninstall']);
+    // 云端插件商城对接
+    Route::get('/plugin/cloud_market', [app\controller\admin\PluginMarketController::class, 'getCloudMarket']);
+    Route::post('/plugin/cloud_buy', [app\controller\admin\PluginMarketController::class, 'buyFromCloud']);
+    Route::post('/plugin/cloud_download', [app\controller\admin\PluginMarketController::class, 'downloadFromCloud']);
 
     // 轮询组 API
     // 注意：save / bind 接口目前返回 HTTP 501（轮询组尚未接入通道调度器），

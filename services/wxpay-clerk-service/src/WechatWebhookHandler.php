@@ -129,16 +129,14 @@ final class WechatWebhookHandler
     }
 
     /**
+     * 以 gewe_app_id 查找账号。
+     * 已改为直接调用 OrderStore::getAccountByGeweAppId()，利用 SQLite 索引 O(1) 定位。
+     *
      * @return array<string, mixed>|null
      */
     private function findAccountByGeweAppId(string $appId): ?array
     {
-        foreach ($this->store->getAllAccounts() as $acc) {
-            if ((string)($acc['gewe_app_id'] ?? '') === $appId) {
-                return $acc;
-            }
-        }
-        return null;
+        return $this->store->getAccountByGeweAppId($appId);
     }
 
     private function log(string $message, string $level = 'INFO'): void

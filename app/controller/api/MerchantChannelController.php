@@ -114,6 +114,20 @@ class MerchantChannelController
             ]);
         }
 
+        // 检查套餐允许的通道类型（allowed_channels 为空则不限制，向后兼容旧套餐数据）
+        $currentPlan = \app\model\Plan::find($planId);
+        if ($currentPlan) {
+            $allowedChannels = array_filter(
+                array_map('trim', explode(',', (string)($currentPlan->allowed_channels ?? '')))
+            );
+            if ($allowedChannels !== [] && !in_array($cType, $allowedChannels, true)) {
+                return json([
+                    'code' => -101, // -101 专用表示通道类型不在套餐范围内
+                    'msg'  => '您当前套餐「' . $currentPlan->name . '」不包含此支付通道类型，请升级套餐或联系代理商开通。',
+                ]);
+            }
+        }
+
         $channel = null;
         if ($id > 0) {
             $channel = Channel::where('id', $id)
@@ -263,28 +277,63 @@ class MerchantChannelController
 
     public function drivers(Request $request)
     {
-        if (!$this->currentMerchant($request)) {
+        $merchant = $this->currentMerchant($request);
+        if (!$merchant) {
             return json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401);
+        }
+
+        // 读取当前套餐允许的通道类型白名单（为空则不限制）
+        $allowedChannels = [];
+        $planId          = (int)($merchant->plan_id ?? 0);
+        $currentPlan     = null;
+        if ($planId > 0) {
+            $currentPlan = \app\model\Plan::find($planId);
+            if ($currentPlan) {
+                $allowedChannels = array_filter(
+                    array_map('trim', explode(',', (string)($currentPlan->allowed_channels ?? '')))
+                );
+            }
+        }
+
+        // 计算套餐到期剩余天数（供前端展示预警）
+        $planExpireTime = (int)($merchant->plan_expire_time ?? 0);
+        $planDaysLeft   = null;
+        if ($planExpireTime > 0) {
+            $diff = $planExpireTime - time();
+            $planDaysLeft = $diff > 0 ? (int)ceil($diff / 86400) : 0;
         }
 
         $grouped = ['wxpay' => [], 'alipay' => [], 'qqpay' => [], 'other' => []];
         foreach (PaymentManager::getRegisteredDrivers() as $cType => $meta) {
+            // 若套餐设置了允许通道白名单，则过滤不在其中的驱动
+            if ($allowedChannels !== [] && !in_array($cType, $allowedChannels, true)) {
+                continue;
+            }
             $category = str_starts_with($cType, 'wxpay_') ? 'wxpay'
                 : (str_starts_with($cType, 'alipay_') ? 'alipay'
                     : (str_starts_with($cType, 'qqpay_') ? 'qqpay' : 'other'));
             $grouped[$category][] = [
-                'c_type' => $cType,
-                'name' => (string)($meta['title'] ?? $cType),
-                'description' => (string)($meta['description'] ?? ''),
-                'inputs' => (array)($meta['inputs'] ?? []),
-                'supports_account_authorization' => ($meta['supports_account_authorization'] ?? false) === true,
-                'supports_account_capability_detection' => ($meta['supports_account_capability_detection'] ?? false) === true,
-                'authorization_label' => (string)($meta['authorization_label'] ?? '扫码授权'),
-                'status' => 1,
+                'c_type'                               => $cType,
+                'name'                                 => (string)($meta['title'] ?? $cType),
+                'description'                          => (string)($meta['description'] ?? ''),
+                'inputs'                               => (array)($meta['inputs'] ?? []),
+                'supports_account_authorization'       => ($meta['supports_account_authorization'] ?? false) === true,
+                'supports_account_capability_detection'=> ($meta['supports_account_capability_detection'] ?? false) === true,
+                'authorization_label'                  => (string)($meta['authorization_label'] ?? '扫码授权'),
+                'status'                               => 1,
             ];
         }
 
-        return json(['code' => 1, 'data' => $grouped]);
+        return json([
+            'code'              => 1,
+            'data'              => $grouped,
+            'allowed_channels'  => array_values($allowedChannels),
+            // 套餐信息（供前端展示套餐到期预警提示）
+            'plan_id'           => $planId,
+            'plan_name'         => $currentPlan ? (string)$currentPlan->name : '',
+            'plan_expire_time'  => $planExpireTime,
+            'plan_days_left'    => $planDaysLeft, // null=永久/无限制，0=已过期，>0=剩余天数
+        ]);
     }
 
     public function capabilities(Request $request)

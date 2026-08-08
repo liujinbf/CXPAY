@@ -59,6 +59,46 @@ final class PluginPackageInstaller
         $manifest = PluginManifest::fromJson($files['manifest.json']);
         $this->verifySignature($manifest, $files['signature.json'], $files);
 
+        // 云端授权联网二次校验（当代理站点已配置 site_domain 与 auth_key 时自动触发）
+        $domain  = function_exists('config') ? strtolower(trim((string)config('app.site_domain', ''))) : '';
+        $authKey = function_exists('config') ? trim((string)config('app.auth_key', '')) : '';
+        $cloudUrl = function_exists('config') ? trim((string)config('app.cloud_url', '')) : '';
+
+        if ($domain !== '' && $authKey !== '' && $cloudUrl !== '') {
+            try {
+                $query = http_build_query([
+                    'domain'    => $domain,
+                    'auth_key'  => $authKey,
+                    'plugin_id' => $manifest->id(),
+                ]);
+                $url = rtrim($cloudUrl, '/') . '/api/cloud/plugin/market_list?' . $query;
+                $ctx = stream_context_create([
+                    'http' => ['method' => 'GET', 'timeout' => 5, 'ignore_errors' => true],
+                    'ssl'  => ['verify_peer' => false, 'verify_peer_name' => false],
+                ]);
+                $raw = @file_get_contents($url, false, $ctx);
+                if ($raw !== false && $raw[0] === '{') {
+                    $json = json_decode($raw, true);
+                    if (is_array($json) && (int)($json['code'] ?? 0) === 1 && is_array($json['data'] ?? null)) {
+                        $match = null;
+                        foreach ($json['data'] as $item) {
+                            if (($item['plugin_id'] ?? '') === $manifest->id()) {
+                                $match = $item;
+                                break;
+                            }
+                        }
+                        if ($match && !($match['license_valid'] ?? false)) {
+                            throw new PluginException('当前站点尚未获得该插件的有效授权（' . ($match['expire_label'] ?? '未购买') . '），请在插件商城购买授权');
+                        }
+                    }
+                }
+            } catch (PluginException $pe) {
+                throw $pe;
+            } catch (\Throwable) {
+                // 允许离线或开发调试环境，忽略请求异常
+            }
+        }
+
         foreach ($manifest->drivers() as $driver) {
             $code = trim((string)($driver['code'] ?? ''));
             if (RemovedPaymentDrivers::contains($code)) {

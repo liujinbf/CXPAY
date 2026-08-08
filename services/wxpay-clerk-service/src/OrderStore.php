@@ -257,6 +257,22 @@ final class OrderStore
         return is_array($row) ? $row : null;
     }
 
+    /**
+     * 以 gewe_app_id 直接查询账号记录（O(1) 索引查询，取代全表遍历）。
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getAccountByGeweAppId(string $geweAppId): ?array
+    {
+        if ($geweAppId === '') {
+            return null;
+        }
+        $stmt = $this->db->prepare('SELECT * FROM accounts WHERE gewe_app_id = :appid LIMIT 1');
+        $stmt->execute([':appid' => $geweAppId]);
+        $row = $stmt->fetch();
+        return is_array($row) ? $row : null;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // 数据库迁移
     // ─────────────────────────────────────────────────────────────────────────
@@ -314,6 +330,9 @@ final class OrderStore
                 last_seen_at INTEGER,
                 created_at   INTEGER NOT NULL
             );
+            -- gewe_app_id 索引：支持 O(1) 按 gewe_app_id 定位账号，避免每次 Webhook 全表遍历
+            CREATE INDEX IF NOT EXISTS idx_accounts_gewe_app_id
+              ON accounts (gewe_app_id);
         SQL);
     }
 }

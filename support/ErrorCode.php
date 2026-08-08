@@ -22,6 +22,16 @@ final class ErrorCode
     public const OK = 1;
     /** 通用失败 */
     public const FAIL = -1;
+    /**
+     * 商户未开通套餐或套餐已到期，需先购买/订阅套餐
+     * 对应 DEVELOPMENT.md §五 规定的专用错误码 -100
+     */
+    public const PLAN_REQUIRED = -100;
+    /**
+     * 通道类型不在当前套餐 allowed_channels 白名单内
+     * 对应 DEVELOPMENT.md §五 规定的专用错误码 -101
+     */
+    public const CHANNEL_NOT_IN_PLAN = -101;
     /** 参数缺失或格式不合法 */
     public const INVALID_PARAMS = 1001;
     /** 请求频率超限 */
@@ -97,6 +107,8 @@ final class ErrorCode
         return match ($code) {
             self::OK                          => '操作成功',
             self::FAIL                        => '操作失败',
+            self::PLAN_REQUIRED               => '您尚未开通套餐或套餐已到期，请先购买/订阅套餐',
+            self::CHANNEL_NOT_IN_PLAN         => '当前套餐不支持此支付通道类型，请升级套餐',
             self::INVALID_PARAMS              => '请求参数缺失或格式不合法',
             self::RATE_LIMITED                => '请求频率超限，请稍后重试',
             self::INVALID_ORIGIN              => '请求来源校验失败',

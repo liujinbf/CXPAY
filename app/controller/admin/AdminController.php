@@ -418,18 +418,19 @@ class AdminController
         return json_encode([
             'code' => 1,
             'data' => [
-                'id'         => $channel->id,
-                'pay_category' => $channel->pay_category,
-                'title'      => $channel->title,
-                'c_type'     => $channel->c_type,
-                'remark'     => $channel->remark,
-                'weight'     => $channel->weight,
-                'single_min' => $channel->single_min,
-                'single_max' => $channel->single_max,
-                'day_max'    => $channel->day_max,
-                'status'     => $channel->status,
-                'config'     => $decryptedConfig,
-                'configured' => $configured,
+                'id'                  => $channel->id,
+                'pay_category'        => $channel->pay_category,
+                'title'               => $channel->title,
+                'c_type'              => $channel->c_type,
+                'remark'              => $channel->remark,
+                'weight'              => $channel->weight,
+                'single_min'          => $channel->single_min,
+                'single_max'          => $channel->single_max,
+                'day_max'             => $channel->day_max,
+                'fallback_channel_id' => (int)($channel->fallback_channel_id ?? 0),
+                'status'              => $channel->status,
+                'config'              => $decryptedConfig,
+                'configured'          => $configured,
             ]
         ], JSON_UNESCAPED_UNICODE);
     }
@@ -443,7 +444,7 @@ class AdminController
             ->select([
                 'id', 'pay_category', 'title', 'c_type', 'remark', 'weight',
                 'single_min', 'single_max', 'day_max', 'online_status',
-                'last_heartbeat_time', 'status',
+                'last_heartbeat_time', 'fallback_channel_id', 'status',
             ])
             ->orderByDesc('id')
             ->get()->toArray();
@@ -468,16 +469,17 @@ class AdminController
                 $cType   = (string)($c['c_type'] ?? '');
                 $payType = (string)($c['pay_category'] ?? 'alipay');
                 return [
-                    'id'            => $c['id'],
-                    'code'          => $cType ?: 'unknown',
-                    'name'          => ($title ?: null) ?? ($cType ?: '未命名通道'),
-                    'pay_type'      => $payType ?: 'alipay',
-                    'c_type'        => $cType,
-                    'remark'        => (string)($c['remark'] ?? ''),
-                    'online_status' => (int)($c['online_status'] ?? 0),
-                    'enabled'       => (int)($c['status'] ?? 0) === 1,
-                    'weight'        => (int)($c['weight'] ?? 100),
-                    'configured'    => true,
+                    'id'                  => $c['id'],
+                    'code'                => $cType ?: 'unknown',
+                    'name'                => ($title ?: null) ?? ($cType ?: '未命名通道'),
+                    'pay_type'            => $payType ?: 'alipay',
+                    'c_type'              => $cType,
+                    'remark'              => (string)($c['remark'] ?? ''),
+                    'online_status'       => (int)($c['online_status'] ?? 0),
+                    'enabled'             => (int)($c['status'] ?? 0) === 1,
+                    'weight'              => (int)($c['weight'] ?? 100),
+                    'fallback_channel_id' => (int)($c['fallback_channel_id'] ?? 0),
+                    'configured'          => true,
                 ];
             }, $channels);
             return json_encode(['code' => 1, 'data' => $formatted], JSON_UNESCAPED_UNICODE);
@@ -553,13 +555,25 @@ class AdminController
             return json_encode(['code' => -1, 'msg' => '支付分类与驱动不匹配'], JSON_UNESCAPED_UNICODE);
         }
 
-        $weight = (int)($params['weight'] ?? 50);
-        $singleMin = (float)($params['single_min'] ?? 0);
-        $singleMax = (float)($params['single_max'] ?? 0);
-        $dayMax = (float)($params['day_max'] ?? 0);
+        $weight           = (int)($params['weight'] ?? 50);
+        $singleMin        = (float)($params['single_min'] ?? 0);
+        $singleMax        = (float)($params['single_max'] ?? 0);
+        $dayMax           = (float)($params['day_max'] ?? 0);
+        $fallbackChannelId = max(0, (int)($params['fallback_channel_id'] ?? 0));
         if ($weight < 0 || $weight > 10000 || $singleMin < 0 || $singleMax < 0 || $dayMax < 0
             || ($singleMax > 0 && $singleMin > $singleMax)) {
             return json_encode(['code' => -1, 'msg' => '通道权重或金额限制不合法'], JSON_UNESCAPED_UNICODE);
+        }
+        // fallback_channel_id 合法性校验：必须为 0（无备用）或指向一条真实存在的平台通道
+        if ($fallbackChannelId > 0) {
+            $fallbackExists = Channel::where('id', $fallbackChannelId)->where('merchant_id', 0)->exists();
+            if (!$fallbackExists) {
+                return json_encode(['code' => -1, 'msg' => '备用通道 ID 不存在或不合法'], JSON_UNESCAPED_UNICODE);
+            }
+            // 防止通道将自身设为备用通道（循环引用）
+            if ($fallbackChannelId === $channelId) {
+                return json_encode(['code' => -1, 'msg' => '备用通道不能指向自身'], JSON_UNESCAPED_UNICODE);
+            }
         }
 
         $channel = null;
@@ -603,17 +617,18 @@ class AdminController
         }
 
         $updateData = [
-            'merchant_id'=> 0,
-            'pay_category' => $payCategory,
-            'title'      => $title,
-            'c_type'     => $cType,
-            'remark'     => $remark,
-            'config'     => json_encode($encryptedConfig, JSON_UNESCAPED_UNICODE),
-            'weight'     => $weight,
-            'single_min' => $singleMin,
-            'single_max' => $singleMax,
-            'day_max'    => $dayMax,
-            'status'     => (int)($params['status'] ?? 1) === 1 ? 1 : 0,
+            'merchant_id'         => 0,
+            'pay_category'        => $payCategory,
+            'title'               => $title,
+            'c_type'              => $cType,
+            'remark'              => $remark,
+            'config'              => json_encode($encryptedConfig, JSON_UNESCAPED_UNICODE),
+            'weight'              => $weight,
+            'single_min'          => $singleMin,
+            'single_max'          => $singleMax,
+            'day_max'             => $dayMax,
+            'fallback_channel_id' => $fallbackChannelId,
+            'status'              => (int)($params['status'] ?? 1) === 1 ? 1 : 0,
         ];
 
         if ($channelId > 0) {

@@ -33,10 +33,15 @@ final class AutoConfigController
      *
      * 请求体 JSON：
      * {
-     *   "reference"  : "cxpay-channel-123",   // CXPAY 通道标识
-     *   "public_key" : "BASE64...",            // 插件本地生成的 RSA2 公钥（去头尾行）
-     *   "pay_type"   : "alipay"
+     *   "reference"   : "cxpay-channel-123",  // CXPAY 通道标识
+     *   "public_key"  : "BASE64...",           // 可选：插件本地生成的 RSA2 公钥（去头尾行）
+     *   "private_key" : "BASE64...",           // 可选：与 public_key 配套的私钥；或留空由代理生成密钥对
+     *   "pay_type"    : "alipay"
      * }
+     *
+     * 若 public_key 为空，代理服务端自动生成 RSA2-2048 密钥对：
+     *   - private_key 临时存储在会话中，验证成功后随 CONFIRMED 状态一并返回给插件保存
+     *   - public_key  展示在引导页面供商户粘贴到支付宝开放平台
      *
      * 成功响应：
      * {
@@ -53,23 +58,41 @@ final class AutoConfigController
             $this->signer->sendJson(['error' => '请求体必须是合法 JSON'], 400);
         }
 
-        $reference = trim((string)($data['reference'] ?? ''));
-        $publicKey = trim((string)($data['public_key'] ?? ''));
-        $payType   = trim((string)($data['pay_type'] ?? ''));
+        $reference  = trim((string)($data['reference'] ?? ''));
+        $payType    = trim((string)($data['pay_type'] ?? ''));
+        $publicKey  = trim((string)($data['public_key'] ?? ''));
+        $privateKey = trim((string)($data['private_key'] ?? ''));
 
-        if ($reference === '' || $publicKey === '' || $payType !== 'alipay') {
+        if ($reference === '' || $payType !== 'alipay') {
             $this->signer->sendJson(['error' => '缺少必要参数或 pay_type 不受支持'], 400);
         }
 
-        // 验证公钥格式
-        if (base64_decode(preg_replace('/\s+/', '', $publicKey) ?? '', true) === false) {
-            $this->signer->sendJson(['error' => 'public_key 格式不合法'], 400);
+        if ($publicKey === '') {
+            // 插件未提供密钥对 —— 由代理服务端生成 RSA2-2048 密钥对
+            if (!extension_loaded('openssl')) {
+                $this->signer->sendJson(['error' => '服务端缺少 openssl 扩展，无法生成密钥对'], 500);
+            }
+            $res = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+            if ($res === false) {
+                $this->signer->sendJson(['error' => '服务端生成 RSA2 密钥对失败'], 500);
+            }
+            openssl_pkey_export($res, $privateKeyPem);
+            $details    = openssl_pkey_get_details($res);
+            // 去除 PEM 头尾行与换行，只保留 Base64 内容
+            $publicKey  = preg_replace('/-----.*?-----|\s+/', '', (string)($details['key'] ?? '')) ?? '';
+            $privateKey = preg_replace('/-----.*?-----|\s+/', '', $privateKeyPem ?? '') ?? '';
+        } else {
+            // 验证公钥格式
+            if (base64_decode(preg_replace('/\s+/', '', $publicKey) ?? '', true) === false) {
+                $this->signer->sendJson(['error' => 'public_key 格式不合法'], 400);
+            }
         }
 
         $sessionId = $this->sessions->create([
-            'reference'  => $reference,
-            'public_key' => $publicKey,
-            'pay_type'   => 'alipay',
+            'reference'             => $reference,
+            'public_key'            => $publicKey,
+            '_app_private_key_temp' => $privateKey,  // 临时存储私钥；验证通过后随 CONFIRMED 数据返回插件
+            'pay_type'              => 'alipay',
         ]);
 
         $expiresAt = time() + 1200;
@@ -92,10 +115,11 @@ final class AutoConfigController
      *
      * CONFIRMED 时的额外字段：
      * {
-     *   "status"     : "CONFIRMED",
-     *   "app_id"     : "2021...",
+     *   "status"          : "CONFIRMED",
+     *   "app_id"          : "2021...",
      *   "alipay_public_key": "MIIBIjANBgkqh...",
-     *   "message"    : "配置成功"
+     *   "app_private_key" : "MIIEvgIBADANBgkq...",  // 若密钥由代理生成则返回；插件应保存到通道配置
+     *   "message"         : "配置成功"
      * }
      */
     public function pollSession(string $sessionId): void
@@ -112,9 +136,11 @@ final class AutoConfigController
         match ($status) {
             'PENDING'   => $response['message'] = '等待商户在引导页面完成配置',
             'CONFIRMED' => $response = array_merge($response, [
-                'message'           => (string)($session['_confirmed']['message'] ?? '配置成功'),
-                'app_id'            => (string)($session['_confirmed']['app_id'] ?? ''),
+                'message'           => (string)($session['_confirmed']['message']           ?? '配置成功'),
+                'app_id'            => (string)($session['_confirmed']['app_id']            ?? ''),
                 'alipay_public_key' => (string)($session['_confirmed']['alipay_public_key'] ?? ''),
+                // 若密钥由代理生成，在此一并返回；插件写入通道配置后即可完成 RSA2 通信
+                'app_private_key'   => (string)($session['_confirmed']['app_private_key']   ?? ''),
             ]),
             'FAILED' => $response['message'] = (string)($session['_fail_message'] ?? '配置失败'),
             default  => $response['message'] = '未知状态',
@@ -154,9 +180,9 @@ final class AutoConfigController
      */
     public function verifyCredentials(): void
     {
-        $sessionId      = trim((string)($_POST['session_id']      ?? ''));
-        $appId          = trim((string)($_POST['app_id']          ?? ''));
-        $alipayPubKey   = trim((string)($_POST['alipay_public_key'] ?? ''));
+        $sessionId    = trim((string)($_POST['session_id']        ?? ''));
+        $appId        = trim((string)($_POST['app_id']            ?? ''));
+        $alipayPubKey = trim((string)($_POST['alipay_public_key'] ?? ''));
 
         if ($sessionId === '' || $appId === '' || $alipayPubKey === '') {
             http_response_code(400);
@@ -176,9 +202,17 @@ final class AutoConfigController
             return;
         }
 
-        // 从会话中取出 CXPAY 端生成的 RSA2 私钥对应的公钥（用于后续在开放平台配置）
-        // 注意：私钥由 CXPAY 插件本地生成并保存，代理服务只保存公钥
+        // 从会话中取出应用私钥：
+        //   - 若代理服务端生成了密钥对，此字段在 createSession 时已写入
+        //   - 若插件自行生成并随请求传入，createSession 也已写入
+        //   - 若两者均未设置，此处为空字符串，openssl_sign 将返回 false
         $appPrivateKey = trim((string)($session['_app_private_key_temp'] ?? ''));
+
+        if ($appPrivateKey === '') {
+            $this->sessions->fail($sessionId, '私钥未配置：请在 CXPAY 插件侧重新发起自动配置（附带私钥）或由代理生成密钥对');
+            $this->renderVerifyResult(false, '配置失败：缺少应用私钥，无法完成凭证验证', $sessionId);
+            return;
+        }
 
         // 调用支付宝接口验证凭证组合
         $result = $this->alipay->verifyAppCredentials($appId, $appPrivateKey, $alipayPubKey);
@@ -187,8 +221,11 @@ final class AutoConfigController
             $this->sessions->confirm($sessionId, [
                 'app_id'            => $appId,
                 'alipay_public_key' => $alipayPubKey,
+                'app_private_key'   => $appPrivateKey,  // 返回给插件保存到通道配置
                 'message'           => $result['message'],
             ]);
+            // 验证成功后清除 session 中的临时私钥（确认数据中已有副本）
+            $this->sessions->update($sessionId, ['_app_private_key_temp' => '']);
             $this->renderVerifyResult(true, $result['message'], $sessionId);
         } else {
             $this->sessions->fail($sessionId, $result['message']);

@@ -20,6 +20,7 @@ class License extends Model
     protected $fillable = [
         'domain',
         'auth_key',
+        'watermark_id',
         'agent_id',
         'modules', // JSON 保存已订阅模块与到期时间 ['wx_cloud' => 1735689600, 'alipay_scan' => 1735689600]
         'status',  // 1: 授权有效, 0: 封禁冻结
