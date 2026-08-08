@@ -5,11 +5,34 @@ declare(strict_types=1);
 namespace Tests\Integration;
 
 use app\model\UserMoneyLog;
+use app\service\order\CloseOrderService;
 use app\service\OrderService;
 use Tests\Support\OrderDatabaseTestCase;
 
 final class OrderClosingServiceTest extends OrderDatabaseTestCase
 {
+    public function testCloseOrderServiceAndFacadeShareTheSameContract(): void
+    {
+        if (!class_exists(CloseOrderService::class)) {
+            self::fail('订单关闭应用服务尚未实现');
+        }
+
+        $merchant = $this->merchant('9.00');
+        $channel = $this->channel();
+        $order = $this->order($merchant, $channel, [
+            'fee_amount' => '1.00',
+            'fee_reserved_cash' => '1.00',
+            'fee_reservation_status' => 'reserved',
+            'fee_status' => 1,
+        ]);
+
+        self::assertTrue((new CloseOrderService())->close((string)$order->trade_no, '契约测试'));
+        self::assertTrue((new OrderService())->closePendingOrder((string)$order->trade_no, '门面重试'));
+        self::assertSame(2, (int)$order->fresh()->status);
+        self::assertSame(3, (int)$order->fresh()->fee_status);
+        self::assertSame('released', (string)$order->fresh()->fee_reservation_status);
+    }
+
     public function testClosingOrderReturnsCashAndDiscountToOriginalSourcesExactlyOnce(): void
     {
         $merchant = $this->merchant('8.00', ['plan_fee_discount_balance' => '0.00']);

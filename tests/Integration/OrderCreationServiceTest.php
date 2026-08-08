@@ -7,6 +7,7 @@ namespace Tests\Integration;
 use app\model\Order;
 use app\model\UserMoneyLog;
 use app\service\order\ChannelRoutingService;
+use app\service\order\CreateOrderService;
 use app\service\OrderService;
 use app\service\PollService;
 use app\service\RiskGuardService;
@@ -15,6 +16,35 @@ use Tests\Support\OrderDatabaseTestCase;
 
 final class OrderCreationServiceTest extends OrderDatabaseTestCase
 {
+    public function testCreateOrderServiceAndFacadeShareTheSameContract(): void
+    {
+        if (!class_exists(CreateOrderService::class)) {
+            self::fail('订单创建应用服务尚未实现');
+        }
+
+        $merchant = $this->merchant('10.00');
+        $this->channel([
+            'merchant_id' => $merchant->id,
+            'config' => json_encode(['qr_url' => 'https://qr.alipay.com/contract'], JSON_UNESCAPED_SLASHES),
+        ]);
+        $params = [
+            'pid' => $merchant->pid,
+            'type' => 'alipay',
+            'out_trade_no' => 'CREATE-CONTRACT-1',
+            'money' => '100.00',
+            'name' => '创建契约测试',
+            'notify_url' => 'https://merchant.example/notify',
+        ];
+        $params['sign'] = Sign::makeSign($params, (string)$merchant->key);
+
+        $direct = (new CreateOrderService())->create($params, 'https://pay.example.com');
+        $facade = (new OrderService())->createOrder($params, 'https://pay.example.com');
+
+        $expectedKeys = ['trade_no', 'money', 'price', 'pay_type', 'business_type', 'status', 'pay_url', 'pay_mode'];
+        self::assertSame($expectedKeys, array_keys($direct));
+        self::assertSame($direct, $facade);
+    }
+
     public function testChannelRouterUsesConfiguredFallbackWhenPrimaryDriverIsUnavailable(): void
     {
         $fallback = $this->channel(['title' => '备用通道']);

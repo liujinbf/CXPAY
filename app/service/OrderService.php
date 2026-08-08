@@ -9,283 +9,49 @@ use app\model\Merchant;
 use app\model\Order;
 use app\model\UserMoneyLog;
 use app\service\order\ChannelRoutingService;
+use app\service\order\CloseOrderService;
+use app\service\order\CreateOrderService;
 use app\service\order\FeeReservationService;
 use app\service\order\OrderNumberGenerator;
 use app\service\order\PaymentInitializationService;
-use app\service\AlertNotificationService;
 use Illuminate\Database\Capsule\Manager as DB;
 use RuntimeException;
-use support\Sign;
-use support\IpWhitelist;
 use Throwable;
 
 /**
- * 订单创建与支付核销服务。
+ * 订单领域兼容门面；创建和关闭用例由独立应用服务实现。
  */
 class OrderService
 {
-    /** 金额释放后继续隔离，避免超时前发起的延迟付款命中新订单。 */
-    private const PRICE_REUSE_COOLDOWN = 600;
-
     private MerchantNotifyService $notifyService;
-    private RiskGuardService $riskGuard;
-    private OrderNumberGenerator $orderNumberGenerator;
-    private FeeReservationService $feeReservationService;
-    private ChannelRoutingService $channelRoutingService;
-    private PaymentInitializationService $paymentInitializationService;
+    private CreateOrderService $createOrderService;
+    private CloseOrderService $closeOrderService;
 
     public function __construct(
         ?OrderNumberGenerator $orderNumberGenerator = null,
         ?FeeReservationService $feeReservationService = null,
         ?ChannelRoutingService $channelRoutingService = null,
         ?PaymentInitializationService $paymentInitializationService = null,
+        ?CreateOrderService $createOrderService = null,
+        ?CloseOrderService $closeOrderService = null,
     ) {
         $this->notifyService = new MerchantNotifyService();
-        $this->riskGuard = new RiskGuardService();
-        $this->orderNumberGenerator = $orderNumberGenerator ?? new OrderNumberGenerator();
-        $this->feeReservationService = $feeReservationService ?? new FeeReservationService();
-        $this->channelRoutingService = $channelRoutingService ?? new ChannelRoutingService();
-        $this->paymentInitializationService = $paymentInitializationService ?? new PaymentInitializationService();
+        $this->createOrderService = $createOrderService ?? new CreateOrderService(
+            $orderNumberGenerator,
+            $feeReservationService,
+            $channelRoutingService,
+            $paymentInitializationService,
+        );
+        $this->closeOrderService = $closeOrderService ?? new CloseOrderService();
     }
 
-    /**
-     * 下单核心逻辑：验签、幂等检查、风控、选通道、金额去重、建单。
-     */
     public function createOrder(
         array $params,
         string $gatewayBaseUrl = '',
         string $businessType = 'payment',
         string $remoteIp = ''
-    ): array
-    {
-        $pid = trim((string)($params['pid'] ?? ''));
-        if ($pid === '') {
-            throw new RuntimeException('商户 PID (pid) 不能为空');
-        }
-
-        $merchant = Merchant::where('pid', $pid)->first();
-        if (!$merchant || (int)$merchant->status !== 1) {
-            throw new RuntimeException('商户不存在或已被停用');
-        }
-        if ($remoteIp !== '' && !IpWhitelist::allows($remoteIp, (string)($merchant->ip_white ?? ''))) {
-            throw new RuntimeException('当前请求 IP 不在商户白名单中');
-        }
-        if (!Sign::verifySign($params, (string)$merchant->key)) {
-            throw new RuntimeException('签名校验失败，请检查对接密钥');
-        }
-
-        // ── 商户级下单限频（滑动窗口：60s / 30次）────────────────────
-        $this->enforceOrderRateLimit((int)$merchant->id);
-
-        $outTradeNo = trim((string)($params['out_trade_no'] ?? ''));
-        $notifyUrl = trim((string)($params['notify_url'] ?? ''));
-        $returnUrl = trim((string)($params['return_url'] ?? ''));
-        $subject = trim((string)($params['name'] ?? '网络支付'));
-        $money = $this->normalizeInputMoney($params['money'] ?? null);
-        $type = trim((string)($params['type'] ?? 'alipay'));
-        if (!in_array($businessType, ['payment', 'recharge'], true)) {
-            throw new RuntimeException('不支持的订单业务类型');
-        }
-
-        if ($outTradeNo === '' || strlen($outTradeNo) > 64 || !preg_match('/^[A-Za-z0-9_.:-]+$/', $outTradeNo)) {
-            throw new RuntimeException('out_trade_no 格式不合法');
-        }
-        // type 为易支付协议标准字段，表示收款钱包分类，不是驱动标识（c_type）。
-        // 通道选取时会按 pay_category 或 c_type 前缀匹配，此处仅校验合法范围。
-        $allowedTypes = ['alipay', 'wxpay', 'qqpay'];
-        if (!in_array($type, $allowedTypes, true)) {
-            throw new RuntimeException('不支持的支付类型（type），允许值：' . implode('/', $allowedTypes));
-        }
-
-        if (bccomp($money, '0.00', 2) <= 0) {
-            throw new RuntimeException('支付金额必须大于 0');
-        }
-        if (($businessType === 'payment' && !$this->isHttpUrl($notifyUrl))
-            || ($notifyUrl !== '' && !$this->isHttpUrl($notifyUrl))
-            || ($returnUrl !== '' && !$this->isHttpUrl($returnUrl))) {
-            throw new RuntimeException('notify_url 或 return_url 格式不合法');
-        }
-
-        // 同一商户订单号只允许对应一笔业务；重复请求返回原订单。
-        $existing = Order::where('merchant_id', $merchant->id)
-            ->where('out_trade_no', $outTradeNo)
-            ->first();
-        if ($existing) {
-            if (bccomp((string)$existing->amount, $money, 2) !== 0
-                || (string)$existing->pay_type !== $type
-                || (string)($existing->business_type ?? 'payment') !== $businessType) {
-                throw new RuntimeException('商户订单号已存在且订单属性不一致');
-            }
-            return $this->paymentInitializationService->prepare($existing, $params, $gatewayBaseUrl);
-        }
-
-        if (!empty($merchant->packvip_time) && (int)$merchant->packvip_time < time()) {
-            throw new RuntimeException('商户 VIP 套餐已过期，请前往商户后台续费');
-        }
-
-        // 余额充值只能进入平台公共通道，不能用商户自己的收款码给自己增加余额。
-        $channelOwnerId = $businessType === 'recharge' ? 0 : (int)$merchant->id;
-        $selectedChannel = $this->channelRoutingService->select($channelOwnerId, $type, $money);
-        $this->channelRoutingService->assertReady($selectedChannel);
-        $basePrice = $money;
-        if (bccomp((string)($merchant->pay_float_max ?? '0.00'), '0.00', 2) > 0) {
-            $floated = $this->riskGuard->generateSmartFloatMoney(
-                (float)$money,
-                max(0.01, (float)($merchant->pay_float_min ?? 0.01)),
-                max(0.01, (float)($merchant->pay_float_max ?? 0.09))
-            );
-            // 浮动后若超出通道单笔上限或低于单笔下限，则回退为原始金额，避免突破通道风控边界。
-            $singleMin = (float)($selectedChannel->single_min ?? 0);
-            $singleMax = (float)($selectedChannel->single_max ?? 0);
-            $floatExceedsMax = $singleMax > 0 && bccomp($floated, number_format($singleMax, 2, '.', ''), 2) > 0;
-            $floatBelowMin  = $singleMin > 0 && bccomp($floated, number_format($singleMin, 2, '.', ''), 2) < 0;
-            $basePrice = ($floatExceedsMax || $floatBelowMin) ? $money : $floated;
-        }
-
-        $now = time();
-        $tradeNo = $this->orderNumberGenerator->generate();
-        $merchantId = (int)$merchant->id;
-        $channelId = (int)$selectedChannel->id;
-
-        // 锁定商户可防止并发订单共同通过同一余额检查；锁定通道可防止并发占用同一识别金额。
-        $order = DB::connection()->transaction(function () use (
-            $merchantId,
-            $channelId,
-            $outTradeNo,
-            $tradeNo,
-            $type,
-            $businessType,
-            $money,
-            $basePrice,
-            $subject,
-            $notifyUrl,
-            $returnUrl,
-            $now
-        ): Order {
-            $lockedMerchant = Merchant::where('id', $merchantId)->lockForUpdate()->first();
-            if (!$lockedMerchant || (int)$lockedMerchant->status !== 1) {
-                throw new RuntimeException('商户不存在或已被停用');
-            }
-
-            // 无套餐 (plan_id <= 0) 或套餐已过期的商户禁止发起任何收单交易
-            $planId = (int)($lockedMerchant->plan_id ?? 0);
-            $planExpire = (int)($lockedMerchant->plan_expire_time ?? 0);
-            if ($planId <= 0 || ($planExpire > 0 && $planExpire < $now)) {
-                throw new RuntimeException('该商户尚未开通有效套餐或套餐已到期，请先前往控制台「套餐订阅广场」开通/续费套餐后方可进行交易');
-            }
-
-            $existingOrder = Order::where('merchant_id', $merchantId)
-                ->where('out_trade_no', $outTradeNo)
-                ->lockForUpdate()
-                ->first();
-            if ($existingOrder) {
-                if (bccomp((string)$existingOrder->amount, $money, 2) !== 0
-                    || (string)$existingOrder->pay_type !== $type
-                    || (string)($existingOrder->business_type ?? 'payment') !== $businessType) {
-                    throw new RuntimeException('商户订单号已存在且订单属性不一致');
-                }
-                return $existingOrder;
-            }
-
-            $lockedChannel = Channel::where('id', $channelId)->lockForUpdate()->first();
-            if (!$lockedChannel || (int)$lockedChannel->status !== 1 || (int)$lockedChannel->online_status !== 1) {
-                throw new RuntimeException('支付通道状态已变化，请重新下单');
-            }
-
-            // 事务内用最新数据（已加排他锁）做日限额二次校验，消除并发超限竞态
-            if ((float)($lockedChannel->day_max ?? 0) > 0
-                && bccomp(
-                    bcadd((string)($lockedChannel->today_money ?? '0'), $money, 2),
-                    number_format((float)$lockedChannel->day_max, 2, '.', ''),
-                    2
-                ) > 0) {
-                throw new RuntimeException('当前通道今日收款额度已满，请稍后重试或更换通道');
-            }
-
-
-            $finalPrice = $basePrice;
-            $priceAvailable = false;
-            for ($attempt = 0; $attempt < 100; $attempt++) {
-                $conflict = Order::where('channel_id', $channelId)
-                    ->where('price', $finalPrice)
-                    // 已支付、已超时的订单也必须经过冷却期后才能复用识别金额。
-                    ->where('expire_time', '>', $now - self::PRICE_REUSE_COOLDOWN)
-                    ->exists();
-                if (!$conflict) {
-                    $priceAvailable = true;
-                    break;
-                }
-                $finalPrice = bcadd($finalPrice, '0.01', 2);
-            }
-            if (!$priceAvailable) {
-                throw new RuntimeException('当前通道可识别金额已占满，请稍后重试');
-            }
-
-            $fee = '0.00';
-            $feeStatus = 0;
-            $feeReservedCash = '0.00';
-            $feeReservedDiscount = '0.00';
-            $feeReservationStatus = 'consumed';
-            if ($businessType === 'payment') {
-                // 差异化费率：优先按支付类型从 rate_config 取费率，不存在则回退全局 rate
-                $rateConfig = json_decode((string)($lockedMerchant->rate_config ?? ''), true);
-                $effectiveRate = (is_array($rateConfig) && isset($rateConfig[$type]))
-                    ? (string)$rateConfig[$type]
-                    : (string)($lockedMerchant->rate ?? '0.02');
-                $fee = bcmul($money, $effectiveRate, 2);
-                $discountBalance = $this->normalizeMoney($lockedMerchant->plan_fee_discount_balance ?? 0);
-                $moneyBalance    = $this->normalizeMoney($lockedMerchant->money ?? 0);
-
-                if (bccomp($fee, '0.00', 2) > 0) {
-                    $reservation = $this->feeReservationService->allocate($fee, $moneyBalance, $discountBalance);
-                    $feeReservedCash = $reservation->cash;
-                    $feeReservedDiscount = $reservation->discount;
-                    $feeReservationStatus = 'reserved';
-
-                    $newMoney = bcsub($moneyBalance, $reservation->cash, 2);
-                    $newDiscount = bcsub($discountBalance, $reservation->discount, 2);
-                    $lockedMerchant->money = $newMoney;
-                    $lockedMerchant->plan_fee_discount_balance = $newDiscount;
-                    $lockedMerchant->save();
-
-                    UserMoneyLog::log(
-                        $merchantId,
-                        bccomp($reservation->cash, '0.00', 2) > 0 ? '-' . $reservation->cash : '0.00',
-                        $moneyBalance,
-                        $newMoney,
-                        "支付订单 {$tradeNo} 手续费预占（套餐抵扣金 ¥{$reservation->discount}，账户余额 ¥{$reservation->cash}）"
-                    );
-                    $feeStatus = 1;
-                }
-            }
-
-            return Order::create([
-                'merchant_id' => $merchantId,
-                'out_trade_no' => $outTradeNo,
-                'trade_no' => $tradeNo,
-                'channel_id' => $channelId,
-                'pay_type' => $type,
-                'business_type' => $businessType,
-                'fee_amount' => $fee,
-                'fee_reserved_cash' => $feeReservedCash,
-                'fee_reserved_discount' => $feeReservedDiscount,
-                'fee_reservation_status' => $feeReservationStatus,
-                'fee_status' => $feeStatus,
-                'amount' => $money,
-                'price' => $finalPrice,
-                'subject' => mb_substr($subject !== '' ? $subject : '网络支付', 0, 255),
-                'notify_url' => $notifyUrl,
-                'return_url' => $returnUrl,
-                'pay_init_status' => 0,
-                'pay_init_time' => 0,
-                'notify_status' => 0,
-                'status' => 0,
-                'create_time' => $now,
-                'expire_time' => $now + max(60, (int)($lockedMerchant->pay_outtime ?? 180)),
-            ]);
-        }, 3);
-
-        return $this->paymentInitializationService->prepare($order, $params, $gatewayBaseUrl);
+    ): array {
+        return $this->createOrderService->create($params, $gatewayBaseUrl, $businessType, $remoteIp);
     }
 
     /**
@@ -324,7 +90,6 @@ class OrderService
                 $channelId,
                 $validateAmount
             ): array {
-                // 与建单、关单保持“商户→订单”的固定锁顺序，降低交叉事务死锁概率。
                 $merchant = Merchant::where('id', $targetMerchantId)->lockForUpdate()->first();
                 if (!$merchant) {
                     throw new RuntimeException('订单所属商户不存在');
@@ -355,20 +120,12 @@ class OrderService
                 } else {
                     $feeStatus = (int)($order->fee_status ?? 0);
                     $fee = $this->normalizeMoney($order->fee_amount ?? 0);
-                    if ($feeStatus === 1) {
-                        // 新订单已在创建事务中扣除余额，此处只消费预占，禁止重复扣费。
-                        $change = '0.00';
-                        $after = $before;
-                        $memo = '';
-                    } elseif ($feeStatus === 2) {
-                        // 异常恢复场景：手续费已核销但订单仍待支付，不再重复扣费。
+                    if ($feeStatus === 1 || $feeStatus === 2) {
                         $change = '0.00';
                         $after = $before;
                         $memo = '';
                     } else {
-                        // 兼容迁移前创建的旧订单：没有预占记录时在核销阶段扣费。
                         if (bccomp($fee, '0.00', 2) === 0) {
-                            // 差异化费率：优先读取 rate_config，与建单逻辑保持一致
                             $rateConfigLegacy = json_decode((string)($merchant->rate_config ?? ''), true);
                             $payType = (string)($order->pay_type ?? '');
                             $effectiveRateLegacy = (is_array($rateConfigLegacy) && isset($rateConfigLegacy[$payType]))
@@ -388,13 +145,7 @@ class OrderService
                 if (bccomp($change, '0.00', 2) !== 0) {
                     $merchant->money = $after;
                     $merchant->save();
-                    UserMoneyLog::log(
-                        (int)$merchant->id,
-                        $change,
-                        $before,
-                        $after,
-                        $memo
-                    );
+                    UserMoneyLog::log((int)$merchant->id, $change, $before, $after, $memo);
                 }
 
                 Channel::where('id', $order->channel_id)->update([
@@ -404,7 +155,6 @@ class OrderService
                 ]);
 
                 $order->status = 1;
-                // 支付结果已经确认后不再允许重试上游初始化，避免遗留“处理中”状态。
                 $order->pay_init_status = 2;
                 $order->channel_trade_no = mb_substr($channelTradeNo, 0, 128);
                 $order->pay_time = time();
@@ -427,28 +177,25 @@ class OrderService
                 error_log('[OrderService] 商户通知启动失败 trade_no=' . $orderNo . ' error=' . $e->getMessage());
             }
 
-            // 派发系统/商户告警通知
             try {
                 $alertSvc = new AlertNotificationService();
-                $m = Merchant::find($result['order']->merchant_id);
-                $pid = $m ? (string)$m->pid : '';
+                $merchant = Merchant::find($result['order']->merchant_id);
+                $pid = $merchant ? (string)$merchant->pid : '';
                 $alertPayload = [
                     'trade_no' => $result['order']->trade_no,
-                    'amount'   => number_format((float)$result['order']->price, 2, '.', ''),
-                    'pid'      => $pid,
+                    'amount' => number_format((float)$result['order']->price, 2, '.', ''),
+                    'pid' => $pid,
                 ];
                 $alertSvc->dispatchAdmin('order_paid', $alertPayload);
                 if ($pid !== '') {
                     $alertSvc->dispatchMerchant($pid, 'order_paid', $alertPayload);
-
-                    // 检查商户服务费低余额预警
-                    if ($m) {
-                        $mCfg = $alertSvc->getMerchantConfig($pid);
-                        $threshold = (float)($mCfg['low_balance_threshold'] ?? 10.00);
-                        $currentMoney = (float)($m->money ?? 0.00);
+                    if ($merchant) {
+                        $merchantConfig = $alertSvc->getMerchantConfig($pid);
+                        $threshold = (float)($merchantConfig['low_balance_threshold'] ?? 10.00);
+                        $currentMoney = (float)($merchant->money ?? 0.00);
                         if ($currentMoney < $threshold) {
                             $alertSvc->dispatchMerchant($pid, 'low_balance', [
-                                'balance'   => number_format($currentMoney, 2, '.', ''),
+                                'balance' => number_format($currentMoney, 2, '.', ''),
                                 'threshold' => number_format($threshold, 2, '.', ''),
                             ]);
                         }
@@ -478,100 +225,16 @@ class OrderService
         ];
     }
 
-    /**
-     * 关闭待支付订单，并在同一事务内释放已预占的手续费。
-     */
     public function closePendingOrder(string $tradeNo, string $reason = '订单关闭'): bool
     {
-        $targetOrder = Order::where('trade_no', $tradeNo)->first();
-        if (!$targetOrder) {
-            return false;
-        }
-        if ((int)$targetOrder->status === 2) {
-            return true;
-        }
-        if ((int)$targetOrder->status !== 0) {
-            return false;
-        }
-        $targetOrderId = (int)$targetOrder->id;
-        $targetMerchantId = (int)$targetOrder->merchant_id;
-
-        try {
-            return DB::connection()->transaction(function () use (
-                $targetOrderId,
-                $targetMerchantId,
-                $reason
-            ): bool {
-                // 先锁商户再锁订单，与建单及核销保持一致的锁顺序。
-                $merchant = Merchant::where('id', $targetMerchantId)->lockForUpdate()->first();
-                $order = Order::where('id', $targetOrderId)->lockForUpdate()->first();
-                if (!$order) {
-                    return false;
-                }
-                if ((int)$order->status === 2) {
-                    return true;
-                }
-                if ((int)$order->status !== 0) {
-                    return false;
-                }
-
-                $fee = $this->normalizeMoney($order->fee_amount ?? 0);
-                if ((int)($order->fee_status ?? 0) === 1 && bccomp($fee, '0.00', 2) > 0) {
-                    $reservationStatus = (string)($order->fee_reservation_status ?? 'legacy');
-                    if ($reservationStatus === 'consumed') {
-                        $order->fee_status = 2;
-                    } elseif ($reservationStatus === 'released') {
-                        $order->fee_status = 3;
-                    } else {
-                        if (!$merchant) {
-                            throw new RuntimeException('订单所属商户不存在，无法释放手续费');
-                        }
-
-                        $before = $this->normalizeMoney($merchant->money);
-                        $beforeDiscount = $this->normalizeMoney($merchant->plan_fee_discount_balance ?? 0);
-                        if ($reservationStatus === 'reserved') {
-                            $cashRefund = $this->normalizeMoney($order->fee_reserved_cash ?? 0);
-                            $discountRefund = $this->normalizeMoney($order->fee_reserved_discount ?? 0);
-                        } else {
-                            $cashRefund = $fee;
-                            $discountRefund = '0.00';
-                            error_log('[FeeReservation] legacy refund trade_no=' . (string)$order->trade_no);
-                        }
-
-                        $after = bcadd($before, $cashRefund, 2);
-                        $afterDiscount = bcadd($beforeDiscount, $discountRefund, 2);
-                        $merchant->money = $after;
-                        $merchant->plan_fee_discount_balance = $afterDiscount;
-                        $merchant->save();
-                        UserMoneyLog::log(
-                            (int)$merchant->id,
-                            $cashRefund,
-                            $before,
-                            $after,
-                            "{$reason}，释放订单 {$order->trade_no} 手续费（现金 ¥{$cashRefund}，套餐抵扣金 ¥{$discountRefund}）"
-                        );
-                        $order->fee_status = 3;
-                        $order->fee_reservation_status = 'released';
-                    }
-                }
-
-                $order->status = 2;
-                // 关闭订单会终止可能仍在进行的支付初始化，后续驱动结果不得再写回。
-                if ((int)($order->pay_init_status ?? 0) === 1) {
-                    $order->pay_init_status = 3;
-                }
-                $order->save();
-                return true;
-            }, 3);
-        } catch (Throwable $e) {
-            error_log('[OrderService] 关闭订单失败 trade_no=' . $tradeNo . ' error=' . $e->getMessage());
-            return false;
-        }
+        return $this->closeOrderService->close($tradeNo, $reason);
     }
 
-    /**
-     * 优先按平台流水号定位；仅为旧接入保留商户订单号的唯一匹配兼容。
-     */
+    public function expirePendingOrders(int $limit = 500): int
+    {
+        return $this->closeOrderService->expire(max(1, min(2000, $limit)));
+    }
+
     private function findOrderForSettlement(string $orderNo, ?int $channelId): ?Order
     {
         $order = Order::where('trade_no', $orderNo)->first();
@@ -588,85 +251,9 @@ class OrderService
         return $legacyOrders->count() === 1 ? $legacyOrders->first() : null;
     }
 
-    /**
-     * 分批关闭超时订单，避免定时任务一次锁定过多记录。
-     */
-    public function expirePendingOrders(int $limit = 500): int
-    {
-        $limit = max(1, min(2000, $limit));
-        $tradeNumbers = Order::where('status', 0)
-            ->where('expire_time', '>', 0)
-            ->where('expire_time', '<=', time())
-            ->orderBy('id')
-            ->limit($limit)
-            ->pluck('trade_no');
-
-        $closed = 0;
-        foreach ($tradeNumbers as $tradeNo) {
-            if ($this->closePendingOrder((string)$tradeNo, '订单超时')) {
-                $closed++;
-            }
-        }
-        return $closed;
-    }
-
-    /**
-     * 商户级下单限频（Redis 滑动窗口：60秒内最多 30 次）。
-     * Redis 不可用时 fail-open 降级放行，避免缓存故障影响正常支付。
-     *
-     * @throws RuntimeException 超出限频时抛出
-     */
-    private function enforceOrderRateLimit(int $merchantId): void
-    {
-        /** 窗口时长（秒） */
-        $windowSeconds = 60;
-        /** 窗口内最大下单次数 */
-        $maxRequests = 30;
-
-        try {
-            $redis = \Webman\Redis\Client::connection();
-            $now   = (int)(microtime(true) * 1000); // 毫秒时间戳
-            $key   = 'cx:rate_limit:order:' . $merchantId;
-            $windowStart = $now - $windowSeconds * 1000;
-
-            // 移除窗口外的旧成员，加入当前时间戳，统计窗口内请求数
-            $redis->zRemRangeByScore($key, '-inf', (string)$windowStart);
-            $redis->zAdd($key, $now, $now . '_' . random_int(0, 9999));
-            $redis->expire($key, $windowSeconds * 2);
-            $count = $redis->zCard($key);
-
-            if ($count > $maxRequests) {
-                throw new RuntimeException(
-                    "下单频率超限，请稍后再试（单商户每分钟最多 {$maxRequests} 次）"
-                );
-            }
-        } catch (RuntimeException $e) {
-            // 限频异常直接向上抛出
-            throw $e;
-        } catch (\Throwable) {
-            // Redis 故障：fail-open，允许请求继续
-            error_log('[OrderService] 限频 Redis 不可用，降级放行 merchant_id=' . $merchantId);
-        }
-    }
-
     private function normalizeMoney(mixed $amount): string
     {
-        if (!is_numeric($amount)) {
-            return '0.00';
-        }
-        return number_format((float)$amount, 2, '.', '');
-    }
-
-    private function normalizeInputMoney(mixed $amount): string
-    {
-        if (!is_int($amount) && !is_float($amount) && !is_string($amount)) {
-            throw new RuntimeException('支付金额格式不合法');
-        }
-        $raw = trim((string)$amount);
-        if (!preg_match('/^\d{1,8}(?:\.\d{1,2})?$/', $raw)) {
-            throw new RuntimeException('支付金额最多8位整数和2位小数');
-        }
-        return number_format((float)$raw, 2, '.', '');
+        return is_numeric($amount) ? number_format((float)$amount, 2, '.', '') : '0.00';
     }
 
     private function quoteDecimal(string $amount): string
@@ -676,13 +263,5 @@ class OrderService
             throw new RuntimeException('金额格式不合法');
         }
         return $normalized;
-    }
-
-    private function isHttpUrl(string $url): bool
-    {
-        if (!filter_var($url, FILTER_VALIDATE_URL)) {
-            return false;
-        }
-        return in_array(strtolower((string)parse_url($url, PHP_URL_SCHEME)), ['http', 'https'], true);
     }
 }
