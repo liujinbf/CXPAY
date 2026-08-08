@@ -65,6 +65,17 @@ final class ReviewRepository
         return is_array($row) ? $row : null;
     }
 
+    /** @return array<string, mixed>|null */
+    public function findByPaymentEvent(int $paymentEventId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT * FROM review_events WHERE payment_event_id = :payment_event_id ORDER BY id DESC LIMIT 1'
+        );
+        $statement->execute([':payment_event_id' => $paymentEventId]);
+        $row = $statement->fetch();
+        return is_array($row) ? $row : null;
+    }
+
     public function recordResolution(
         int $id,
         string $status,
@@ -92,5 +103,27 @@ final class ReviewRepository
             ':id' => $id,
         ]);
         return $statement->rowCount() === 1;
+    }
+
+    public function recordResolutionByPaymentEvent(
+        int $paymentEventId,
+        string $status,
+        string $outTradeNo,
+        string $operator,
+        string $note,
+        ?int $resolvedAt = null
+    ): bool {
+        $review = $this->findByPaymentEvent($paymentEventId);
+        if ($review === null) {
+            return false;
+        }
+        return $this->recordResolution(
+            (int) $review['id'],
+            $status,
+            $outTradeNo,
+            $operator,
+            $note,
+            $resolvedAt
+        );
     }
 }

@@ -55,6 +55,30 @@ final class PaymentEventRepository
     }
 
     /** @return array<string, mixed>|null */
+    public function find(int $id): ?array
+    {
+        $statement = $this->pdo->prepare('SELECT * FROM payment_events WHERE id = :id LIMIT 1');
+        $statement->execute([':id' => $id]);
+        $row = $statement->fetch();
+        return is_array($row) ? $row : null;
+    }
+
+    public function markStatus(int $id, string $status, ?string $outTradeNo = null): bool
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+            UPDATE payment_events
+            SET status = :status, out_trade_no = :out_trade_no
+            WHERE id = :id
+            SQL);
+        $statement->execute([
+            ':status' => $status,
+            ':out_trade_no' => $outTradeNo,
+            ':id' => $id,
+        ]);
+        return $statement->rowCount() === 1;
+    }
+
+    /** @return array<string, mixed>|null */
     private function findBySource(string $accountId, string $sourceBillId): ?array
     {
         $statement = $this->pdo->prepare(<<<'SQL'

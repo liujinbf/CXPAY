@@ -81,6 +81,29 @@ final class OrderRepository
         return $statement->fetchAll() ?: [];
     }
 
+    public function markMatched(
+        string $outTradeNo,
+        int $paymentEventId,
+        string $sourceBillId,
+        int $matchedAt
+    ): bool {
+        $statement = $this->pdo->prepare(<<<'SQL'
+            UPDATE orders
+            SET status = 'MATCHED',
+                payment_event_id = :payment_event_id,
+                source_bill_id = :source_bill_id,
+                matched_at = :matched_at
+            WHERE out_trade_no = :out_trade_no AND status = 'PENDING'
+            SQL);
+        $statement->execute([
+            ':payment_event_id' => $paymentEventId,
+            ':source_bill_id' => $sourceBillId,
+            ':matched_at' => $matchedAt,
+            ':out_trade_no' => $outTradeNo,
+        ]);
+        return $statement->rowCount() === 1;
+    }
+
     /**
      * @param array<string, mixed> $existing
      * @return array{accepted: bool, idempotent: bool}

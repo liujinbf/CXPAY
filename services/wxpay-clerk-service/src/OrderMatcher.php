@@ -18,10 +18,33 @@ namespace WxpayClerk;
 final class OrderMatcher
 {
     public function __construct(
-        private readonly OrderStore $store,
-        private readonly int        $matchWindowSeconds,
-        private readonly bool       $autoReviewOnAmbiguous
+        private readonly ?OrderStore $store = null,
+        private readonly int         $matchWindowSeconds = 600,
+        private readonly bool        $autoReviewOnAmbiguous = true
     ) {}
+
+    /**
+     * @param list<array<string, mixed>> $candidates
+     * @return array{status: string, order: ?array, reason: string}
+     */
+    public function decide(array $candidates, string $remark): array
+    {
+        $outTradeNo = $this->extractOutTradeNoFromRemark(trim($remark));
+        if ($outTradeNo !== null) {
+            foreach ($candidates as $candidate) {
+                if (hash_equals((string) $candidate['out_trade_no'], $outTradeNo)) {
+                    return ['status' => 'MATCHED', 'order' => $candidate, 'reason' => '备注直接命中'];
+                }
+            }
+        }
+        if (count($candidates) === 1) {
+            return ['status' => 'MATCHED', 'order' => $candidates[0], 'reason' => '金额唯一命中'];
+        }
+        if (count($candidates) > 1) {
+            return ['status' => 'REVIEW_REQUIRED', 'order' => null, 'reason' => '存在多笔同金额候选订单'];
+        }
+        return ['status' => 'UNMATCHED', 'order' => null, 'reason' => '没有符合账号、金额和时间的候选订单'];
+    }
 
     /**
      * 匹配一条解析好的到账通知。
@@ -44,6 +67,9 @@ final class OrderMatcher
      */
     public function match(string $accountId, array $payment): array
     {
+        if ($this->store === null) {
+            throw new \LogicException('旧匹配接口缺少 OrderStore');
+        }
         $amount      = $payment['amount'];
         $occurredAt  = (int)$payment['occurred_at'];
         $remark      = trim((string)$payment['remark']);
@@ -93,19 +119,7 @@ final class OrderMatcher
             ];
         }
 
-        if (count($candidates) > 1 && !$this->autoReviewOnAmbiguous) {
-            // 策略 3a：多笔歧义时取最早一笔自动匹配
-            $order = $candidates[0];
-            $this->store->confirmOrder((string)$order['out_trade_no'], $sourceBillId, $occurredAt);
-            return [
-                'matched'        => true,
-                'out_trade_no'   => (string)$order['out_trade_no'],
-                'source_bill_id' => $sourceBillId,
-                'reason'         => '金额多笔，自动取最早订单',
-            ];
-        }
-
-        // 策略 3b / 策略 4：进入人工审核
+        // 策略 3 / 策略 4：一律进入人工审核，禁止歧义自动核销。
         $reason = count($candidates) > 1 ? "金额 {$amount} 元有 " . count($candidates) . " 笔候选订单，需人工审核" : "金额 {$amount} 元无匹配订单";
         $eventId = $this->store->createReviewEvent(
             $accountId, $amount, $payerName, $remark, $occurredAt, $sourceBillId
@@ -125,13 +139,13 @@ final class OrderMatcher
      */
     private function extractOutTradeNoFromRemark(string $remark): ?string
     {
-        // 精确匹配：备注就是 out_trade_no（常见于扫码支付）
-        if (preg_match('/^[A-Za-z0-9_.:-]{4,128}$/', $remark)) {
-            return $remark;
-        }
         // 从较长备注中提取：前缀 "cxpay:" 或 "ORDER:" 等
         if (preg_match('/(?:cxpay|order|trx)[:\-_]([A-Za-z0-9_.:-]{4,128})/i', $remark, $m)) {
             return $m[1];
+        }
+        // 精确匹配：备注就是 out_trade_no（常见于扫码支付）
+        if (preg_match('/^[A-Za-z0-9_.:-]{4,128}$/', $remark)) {
+            return $remark;
         }
         return null;
     }
