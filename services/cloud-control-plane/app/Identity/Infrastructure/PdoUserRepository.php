@@ -50,6 +50,16 @@ SQL);
         return $this->findByEmail($emailCanonical, true);
     }
 
+    public function findById(string $id): ?User
+    {
+        return $this->findByIdInternal($id, false);
+    }
+
+    public function findByIdForUpdate(string $id): ?User
+    {
+        return $this->findByIdInternal($id, true);
+    }
+
     public function save(User $user): void
     {
         $statement = $this->pdo->prepare(<<<'SQL'
@@ -84,6 +94,24 @@ SQL;
         }
         $statement = $this->pdo->prepare($sql);
         $statement->execute(['email_canonical' => $emailCanonical]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : self::map($row);
+    }
+
+    private function findByIdInternal(string $id, bool $forUpdate): ?User
+    {
+        $sql = <<<'SQL'
+SELECT id, email, display_name, password_hash, status,
+       email_verified_at, created_at, updated_at
+FROM cloud_users
+WHERE id = :id
+SQL;
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute(['id' => $id]);
         $row = $statement->fetch();
 
         return $row === false ? null : self::map($row);

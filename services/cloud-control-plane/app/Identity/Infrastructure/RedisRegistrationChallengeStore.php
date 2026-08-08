@@ -38,6 +38,9 @@ final readonly class RedisRegistrationChallengeStore implements RegistrationChal
             'expires_at' => $challenge->expiresAt->format(DATE_ATOM),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $this->redis->setex($this->key($challenge->token), $ttl, $payload);
+        $userKey = $this->userKey($challenge->userId);
+        $this->redis->sadd($userKey, [$this->key($challenge->token)]);
+        $this->redis->expire($userKey, $ttl);
     }
 
     public function find(string $rawToken): ?RegistrationChallenge
@@ -67,8 +70,23 @@ final readonly class RedisRegistrationChallengeStore implements RegistrationChal
         $this->redis->del([$this->key($rawToken)]);
     }
 
+    public function deleteForUser(string $userId): void
+    {
+        $userKey = $this->userKey($userId);
+        $keys = $this->redis->smembers($userKey);
+        if ($keys !== []) {
+            $this->redis->del($keys);
+        }
+        $this->redis->del([$userKey]);
+    }
+
     private function key(string $rawToken): string
     {
         return $this->prefix . hash_hmac('sha256', $rawToken, $this->hmacKey);
+    }
+
+    private function userKey(string $userId): string
+    {
+        return $this->prefix . 'user:' . hash_hmac('sha256', $userId, $this->hmacKey);
     }
 }

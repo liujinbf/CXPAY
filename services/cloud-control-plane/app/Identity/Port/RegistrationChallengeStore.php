@@ -11,4 +11,5 @@ interface RegistrationChallengeStore
     public function save(RegistrationChallenge $challenge): void;
     public function find(string $rawToken): ?RegistrationChallenge;
     public function delete(string $rawToken): void;
+    public function deleteForUser(string $userId): void;
 }

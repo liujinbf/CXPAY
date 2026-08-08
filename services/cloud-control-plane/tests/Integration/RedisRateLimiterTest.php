@@ -68,9 +68,20 @@ final class RedisRateLimiterTest extends TestCase
         $store->save($challenge);
         $keys = $this->redis->keys('cxpay-cloud-test:registration:*');
 
-        self::assertCount(1, $keys);
-        self::assertStringNotContainsString($challenge->token, $keys[0]);
-        self::assertStringNotContainsString($challenge->token, (string)$this->redis->get($keys[0]));
+        foreach ($keys as $key) {
+            self::assertStringNotContainsString($challenge->token, $key);
+        }
+        $dataKeys = array_values(array_filter(
+            $keys,
+            static fn (string $key): bool => !str_contains($key, ':user:')
+        ));
+        self::assertCount(1, $dataKeys);
+        self::assertStringNotContainsString(
+            $challenge->token,
+            (string)$this->redis->get($dataKeys[0])
+        );
         self::assertSame($challenge->userId, $store->find($challenge->token)?->userId);
+        $store->deleteForUser($challenge->userId);
+        self::assertNull($store->find($challenge->token));
     }
 }

@@ -324,7 +324,7 @@ interface OAuthProvider
 
 生产实现只有 `QqConnectOAuthProvider` 和 `WechatOpenPlatformOAuthProvider`。测试使用 `FakeOAuthProvider`，假实现只存在测试命名空间并且不能被生产配置加载。
 
-OAuth State 存 Redis，包含随机值摘要、用途 `REGISTER_BIND`/`ACCOUNT_BIND`/`LOGIN`、用户或注册会话 ID、回跳入口和过期时间。State 10 分钟有效，只能消费一次。回调必须先原子消费 State，再交换授权码。
+OAuth State 存 Redis，包含随机值摘要、服务端选定的 provider、用途 `REGISTER_BIND`/`ACCOUNT_BIND`/`LOGIN`、用户或注册会话 ID、回跳入口和过期时间。State 10 分钟有效，只能消费一次。回调必须先原子消费 State，再按 State 绑定的 provider 交换授权码，不能接受客户端切换提供商。
 
 Portal 与 Ops 使用不同 OAuth Redirect URI。`audience` 是服务端由路由确定的固定值，客户端不能通过请求体把 Portal 登录提升为 Ops 登录。
 

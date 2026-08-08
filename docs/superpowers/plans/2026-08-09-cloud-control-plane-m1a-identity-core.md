@@ -1017,6 +1017,7 @@ State 载荷固定为：
 ```php
 new OAuthState(
     digest: hash_hmac('sha256', $rawState, $stateHmacKey),
+    provider: IdentityProvider::QQ,
     audience: OAuthAudience::PORTAL,
     purpose: OAuthPurpose::REGISTER_BIND,
     subjectId: $registrationChallenge->userId,

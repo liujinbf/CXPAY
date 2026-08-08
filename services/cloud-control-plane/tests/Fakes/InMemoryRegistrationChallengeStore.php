@@ -26,4 +26,13 @@ final class InMemoryRegistrationChallengeStore implements RegistrationChallengeS
     {
         unset($this->challenges[$rawToken]);
     }
+
+    public function deleteForUser(string $userId): void
+    {
+        foreach ($this->challenges as $token => $challenge) {
+            if ($challenge->userId === $userId) {
+                unset($this->challenges[$token]);
+            }
+        }
+    }
 }

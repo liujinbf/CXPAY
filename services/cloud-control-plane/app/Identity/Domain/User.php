@@ -81,6 +81,19 @@ final class User
         $this->updatedAt = $now;
     }
 
+    public function activate(DateTimeImmutable $now): void
+    {
+        if ($this->status !== UserStatus::PENDING_IDENTITY) {
+            throw new CloudException(
+                ErrorCode::REGISTRATION_INCOMPLETE,
+                '当前账号不能激活',
+                409
+            );
+        }
+        $this->status = UserStatus::ACTIVE;
+        $this->updatedAt = $now;
+    }
+
     public function id(): string { return $this->id; }
     public function email(): EmailAddress { return $this->email; }
     public function emailCanonical(): string { return $this->email->canonical(); }

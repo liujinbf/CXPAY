@@ -98,6 +98,7 @@ final class EmailRegistrationPersistenceTest extends MySqlTestCase
             {
                 throw new RuntimeException('Redis 清理同样失败');
             }
+            public function deleteForUser(string $userId): void {}
         };
 
         try {
