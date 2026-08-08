@@ -45,7 +45,7 @@ final class AlipayAccountLogMonitorPluginTest extends TestCase
         self::assertSame('alipay_accountlog_monitor', $manifest->drivers()[0]['code']);
         self::assertSame(MonitorableDriverInterface::MODE_SERVER, $driver->monitorMode());
         self::assertInstanceOf(ServerPollingDriverInterface::class, $driver);
-        self::assertStringContainsString('免 CK 自动配置', $driver->getMeta()['title']);
+        self::assertStringContainsString('支付宝商家账单监控', $driver->getMeta()['title']);
         self::assertSame('notice', $driver->getMeta()['inputs'][0]['type']);
         self::assertStringContainsString(
             '自动配置',

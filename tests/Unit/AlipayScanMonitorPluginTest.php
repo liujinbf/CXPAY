@@ -21,7 +21,7 @@ final class AlipayScanMonitorPluginTest extends TestCase
         $manifest = PluginManifest::fromJson((string)$json);
 
         self::assertSame('cxpay.alipay.scan_monitor', $manifest->id());
-        self::assertSame('1.1.0', $manifest->version());
+        self::assertSame('1.2.0', $manifest->version());
         self::assertSame('alipay_scan_monitor', $manifest->drivers()[0]['code']);
         self::assertSame(MonitorableDriverInterface::MODE_CALLBACK, (new Driver())->monitorMode());
         self::assertInstanceOf(AccountAuthorizationInterface::class, new Driver());
@@ -48,12 +48,13 @@ final class AlipayScanMonitorPluginTest extends TestCase
 
     public function testRejectsEnablingChannelBeforeQrAuthorization(): void
     {
-        $result = (new Driver())->upchannel(['status' => 1], [
-            'qr_url' => 'https://qr.alipay.com/example',
-            'monitor_base_url' => 'https://example.com',
-            'account_id' => '',
-            'client_id' => 'cxpay-client-01',
-            'client_secret' => str_repeat('s', 32),
+        $driver = new Driver();
+        $result = $driver->upchannel(['status' => 1], [
+            'qr_url'          => 'https://qr.alipay.com/example',
+            'monitor_base_url'=> 'https://example.com',
+            'account_id'      => '',
+            'client_id'       => 'cxpay-client-01',
+            'client_secret'   => str_repeat('s', 32),
             'callback_secret' => str_repeat('c', 32),
         ]);
 
