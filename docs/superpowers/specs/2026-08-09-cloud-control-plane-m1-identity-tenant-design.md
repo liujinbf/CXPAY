@@ -212,7 +212,7 @@ LOCKED
 
 - `id`；
 - `email`、`email_canonical`；
-- `display_name`；
+- `display_name`，`PENDING_EMAIL` 阶段允许为空；
 - `password_hash`，`PENDING_EMAIL` 阶段允许为空；
 - `status`；
 - `email_verified_at`；
