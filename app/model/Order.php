@@ -16,4 +16,10 @@ class Order extends Model
     public $timestamps = false;
 
     protected $guarded = [];
+
+    protected $casts = [
+        'fee_amount' => 'decimal:2',
+        'fee_reserved_cash' => 'decimal:2',
+        'fee_reserved_discount' => 'decimal:2',
+    ];
 }
