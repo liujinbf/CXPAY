@@ -6,6 +6,7 @@ namespace app\controller\admin;
 
 use app\model\Channel;
 use app\payment\PaymentManager;
+use app\payment\Contracts\OperationsStatusInterface;
 use support\Authcode;
 use support\Log;
 use support\Response;
@@ -22,15 +23,12 @@ final class CloudMonitorAdminController
 
     public function status(): Response
     {
-        $services    = [];
-        $channels    = [];
-        $warnings    = [];
+        $services = [];
+        $channels = [];
+        $warnings = [];
         $globalStart = microtime(true);
-        // 单个云服务调用允许的最长耗时（秒）
-        // 注：ProviderClient 内 Guzzle 已设 connect_timeout=3/timeout=5，此处作额外保护
-        $perServiceTimeout = 6.0;
 
-        foreach (Channel::whereIn('c_type', ['wxpay_cloud_adapter', 'alipay_scan_monitor'])->orderBy('id')->get() as $channel) {
+        foreach (Channel::orderBy('id')->get() as $channel) {
             // 全局累计已超过 20 秒时，停止继续查询剩余通道
             if ((microtime(true) - $globalStart) > 20.0) {
                 $warnings[] = '⏱ 全局超时（20s），剩余通道已跳过';
@@ -38,15 +36,16 @@ final class CloudMonitorAdminController
             }
 
             try {
-                $config   = $this->channelConfig($channel);
-                $cacheKey = hash('sha256', (string)($config['monitor_base_url'] ?? '') . '|'
+                $driver = PaymentManager::make((string)$channel->c_type);
+                if (!$driver instanceof OperationsStatusInterface) {
+                    continue;
+                }
+                $config = $this->channelConfig($channel);
+                $cacheKey = hash('sha256', get_class($driver) . '|'
+                    . (string)($config['monitor_base_url'] ?? '') . '|'
                     . (string)($config['client_id'] ?? ''));
 
                 if (!isset($services[$cacheKey])) {
-                    $driver = PaymentManager::make((string)$channel->c_type);
-                    if (!method_exists($driver, 'operationsStatus')) {
-                        throw new \RuntimeException('已安装的云监控插件版本不支持运维状态接口，请升级插件');
-                    }
                     $t0 = microtime(true);
                     $services[$cacheKey] = $driver->operationsStatus($config);
                     $elapsed = round((microtime(true) - $t0) * 1000);

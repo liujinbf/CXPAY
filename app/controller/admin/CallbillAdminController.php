@@ -8,6 +8,7 @@ use app\model\Order;
 use app\model\Callbill;
 use app\model\Channel;
 use app\payment\PaymentManager;
+use app\payment\Contracts\PaymentEventReviewInterface;
 use app\service\OrderService;
 use support\Authcode;
 use support\Response;
@@ -134,15 +135,15 @@ class CallbillAdminController
 
         $cloudWarnings = [];
         $seenCloudEvents = [];
-        foreach (Channel::whereIn('c_type', ['wxpay_cloud_adapter', 'alipay_scan_monitor'])->get() as $channel) {
+        foreach (Channel::orderBy('id')->get() as $channel) {
             try {
                 $driver = PaymentManager::make((string)$channel->c_type);
-                if (!method_exists($driver, 'reviewEvents')) {
+                if (!$driver instanceof PaymentEventReviewInterface) {
                     continue;
                 }
                 $config = $this->channelConfig($channel);
                 $result = $driver->reviewEvents($config);
-                foreach ((array)($result['data'] ?? []) as $event) {
+                foreach ((array)($result['events'] ?? $result['data'] ?? []) as $event) {
                     if (!hash_equals((string)($config['account_id'] ?? ''), (string)($event['account_id'] ?? ''))) {
                         continue;
                     }
@@ -159,20 +160,17 @@ class CallbillAdminController
                         'create_time' => (int)($order['created_at'] ?? 0),
                         'expire_time' => (int)($order['expires_at'] ?? 0),
                     ], (array)($event['candidates'] ?? []));
+                    $meta = $driver->getMeta();
                     $rows[] = [
                         'source' => 'cloud',
-                        'id' => (string)($event['id'] ?? ''),
+                        'id' => (string)($event['payment_event_id'] ?? $event['id'] ?? ''),
                         'cloud_channel_id' => (int)$channel->id,
                         'channel_id' => (int)$channel->id,
-                        'app_name' => (string)$channel->c_type === 'alipay_scan_monitor'
-                            ? 'alipay-scan-monitor'
-                            : 'wx-monitor-cloud',
+                        'app_name' => (string)($meta['name'] ?? $channel->c_type),
                         'device_id' => (string)($event['account_id'] ?? ''),
                         'source_bill_id' => (string)($event['source_bill_id'] ?? ''),
                         'money' => (string)($event['amount'] ?? '0.00'),
-                        'remark' => (string)$channel->c_type === 'alipay_scan_monitor'
-                            ? '支付宝云监控异常账单'
-                            : '微信云监控异常账单',
+                        'remark' => (string)($meta['title'] ?? $channel->c_type) . '异常账单',
                         'occurred_at' => (int)($event['occurred_at'] ?? 0),
                         'status' => (string)($event['status'] ?? 'UNMATCHED'),
                         'review_note' => '',
@@ -241,13 +239,15 @@ class CallbillAdminController
     private function cloudReviewAction(\support\Request $request, string $action): Response
     {
         $channel = Channel::where('id', (int)$request->post('channel_id', 0))
-            ->whereIn('c_type', ['wxpay_cloud_adapter', 'alipay_scan_monitor'])
             ->first();
         $eventId = (int)$request->post('event_id', 0);
         if (!$channel || $eventId < 1) {
             return json(['code' => -1, 'msg' => '云监控通道或账单不存在']);
         }
         $driver = PaymentManager::make((string)$channel->c_type);
+        if (!$driver instanceof PaymentEventReviewInterface) {
+            return json(['code' => -1, 'msg' => '当前通道不支持云端账单复核']);
+        }
         $operator = preg_replace('/[^\p{L}\p{N}_.:@-]/u', '_', $this->operator($request)) ?: 'admin';
         $note = trim((string)$request->post('reason', $request->post('note', '')));
         $result = $action === 'match'
@@ -259,8 +259,10 @@ class CallbillAdminController
                 $note
             )
             : $driver->ignoreReviewEvent($this->channelConfig($channel), $eventId, $operator, $note);
+        $accepted = ($result['accepted'] ?? false) === true
+            || in_array((string)($result['status'] ?? ''), ['MATCHED', 'IGNORED'], true);
         return json([
-            'code' => ($result['accepted'] ?? false) ? 1 : -1,
+            'code' => $accepted ? 1 : -1,
             'msg' => $action === 'match' ? '云端账单已匹配，回调已进入可靠队列' : '云端账单已忽略',
         ]);
     }

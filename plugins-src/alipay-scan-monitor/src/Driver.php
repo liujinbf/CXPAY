@@ -7,12 +7,14 @@ namespace plugin\cxpay\alipay_scan_monitor;
 use app\payment\Contracts\AccountCapabilityDetectorInterface;
 use app\payment\Contracts\AccountAuthorizationInterface;
 use app\payment\Contracts\MonitorableDriverInterface;
+use app\payment\Contracts\OperationsStatusInterface;
 use app\payment\Contracts\PaymentDriverInterface;
+use app\payment\Contracts\PaymentEventReviewInterface;
 use support\UrlGuard;
 
 require_once __DIR__ . '/ProviderClient.php';
 
-final class Driver implements PaymentDriverInterface, MonitorableDriverInterface, AccountAuthorizationInterface, AccountCapabilityDetectorInterface
+final class Driver implements PaymentDriverInterface, MonitorableDriverInterface, AccountAuthorizationInterface, AccountCapabilityDetectorInterface, PaymentEventReviewInterface, OperationsStatusInterface
 {
     public function monitorMode(): string
     {

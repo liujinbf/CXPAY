@@ -49,7 +49,7 @@ jobs:
         run: |
           mkdir -p .ci-logs
           set -o pipefail
-          find app support config process tests -type f -name '*.php' -print0 \
+          find app support config process tests plugins-src services/wxpay-clerk-service -type f -name '*.php' -print0 \
             | xargs -0 -n1 php -l 2>&1 \
             | tee .ci-logs/php-syntax.log
 

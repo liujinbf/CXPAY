@@ -1,77 +1,60 @@
-version: "3.9"
-
 services:
-  # ─── gewe 微信 iPad 协议服务 ──────────────────────────────────────────────────
   gewe:
     image: registry.cn-chengdu.aliyuncs.com/tu1h/wechat-universal:latest
-    container_name: gewe
     restart: unless-stopped
-    ports:
-      - "2531:2531"   # gewe API 端口
-      - "2532:2532"   # gewe 管理面板端口（可选，建议仅内网访问）
     volumes:
-      - ./storage/gewe:/root/temp   # gewe 会话数据持久化
+      - gewe-data:/root/temp
     environment:
-      # gewe 将微信消息 Webhook 推送到本服务的内部地址
-      GEWE_CALLBACK_URL: "http://wxpay-clerk-service:8080/wechat/message"
-    networks:
-      - clerk-net
+      GEWE_CALLBACK_URL: "http://wxpay-clerk-service:8080/wechat/message/${WXCLERK_WEBHOOK_TOKEN:?请设置WXCLERK_WEBHOOK_TOKEN}"
+    expose:
+      - "2531"
+    networks: [clerk-net]
 
-  # ─── 微信店员核心服务（本仓库）─────────────────────────────────────────────────
   wxpay-clerk-service:
-    image: php:8.2-cli
-    container_name: wxpay-clerk-service
+    build: .
     restart: unless-stopped
     working_dir: /app
-    volumes:
-      - .:/app
-    command: >
-      sh -c "
-        apt-get update -q &&
-        docker-php-ext-install pdo pdo_sqlite &&
-        php -S 0.0.0.0:8080 /app/index.php
-      "
-    depends_on:
-      - gewe
+    command: php -S 0.0.0.0:8080 /app/index.php
+    env_file:
+      - path: .env
+        required: false
     environment:
-      # 容器内 gewe 地址（使用 Docker 内部网络）
-      GEWE_API_URL: "http://gewe:2531"
-    expose:
-      - "8080"
-    networks:
-      - clerk-net
+      GEWE_API_URL: http://gewe:2531
+      WXCLERK_SQLITE_PATH: /app/storage/clerk.sqlite
+    volumes:
+      - clerk-data:/app/storage
+    depends_on: [gewe]
+    expose: ["8080"]
+    networks: [clerk-net]
 
-  # ─── Nginx 反向代理（对外暴露 HTTPS） ─────────────────────────────────────────
+  outbox-worker:
+    build: .
+    restart: unless-stopped
+    working_dir: /app
+    command: php bin/dispatch-outbox.php
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      WXCLERK_SQLITE_PATH: /app/storage/clerk.sqlite
+    volumes:
+      - clerk-data:/app/storage
+    depends_on: [wxpay-clerk-service]
+    networks: [clerk-net]
+
   nginx:
     image: nginx:alpine
-    container_name: clerk-nginx
     restart: unless-stopped
-    ports:
-      - "443:443"
-      - "80:80"
+    ports: ["443:443"]
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro   # Certbot SSL 证书
-    depends_on:
-      - wxpay-clerk-service
-    networks:
-      - clerk-net
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on: [wxpay-clerk-service]
+    networks: [clerk-net]
+
+volumes:
+  gewe-data:
+  clerk-data:
 
 networks:
   clerk-net:
-    driver: bridge
-
-# ─── 参考 nginx.conf ──────────────────────────────────────────────────────────
-# server {
-#   listen 443 ssl;
-#   server_name your-domain.example.com;
-#   ssl_certificate     /etc/letsencrypt/live/your-domain.example.com/fullchain.pem;
-#   ssl_certificate_key /etc/letsencrypt/live/your-domain.example.com/privkey.pem;
-#
-#   location / {
-#     proxy_pass http://wxpay-clerk-service:8080;
-#     proxy_set_header Host $host;
-#     proxy_set_header X-Real-IP $remote_addr;
-#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#   }
-# }
