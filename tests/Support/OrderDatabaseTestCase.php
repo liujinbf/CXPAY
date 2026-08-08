@@ -66,6 +66,9 @@ abstract class OrderDatabaseTestCase extends TestCase
             $table->string('pay_type')->default('alipay');
             $table->string('business_type')->default('payment');
             $table->decimal('fee_amount', 10, 2)->default(0);
+            $table->decimal('fee_reserved_cash', 10, 2)->default(0);
+            $table->decimal('fee_reserved_discount', 10, 2)->default(0);
+            $table->string('fee_reservation_status', 16)->default('legacy');
             $table->integer('fee_status')->default(0);
             $table->decimal('amount', 10, 2);
             $table->decimal('price', 10, 2);
