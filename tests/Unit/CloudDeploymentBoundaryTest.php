@@ -43,6 +43,11 @@ final class CloudDeploymentBoundaryTest extends TestCase
         self::assertContains('/api/admin/plugin/cloud_download', self::$paths);
     }
 
+    public function testPaymentRuntimeDoesNotShipEmbeddedCloudPortalPage(): void
+    {
+        self::assertFileDoesNotExist(public_path('cloud_auth.html'));
+    }
+
     public function testCloudPortalUsesDedicatedConfiguration(): void
     {
         self::assertSame('payment', config('deployment.role'));
