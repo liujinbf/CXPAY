@@ -50,7 +50,8 @@
 
 ### 测试基础设施
 
-- `composer.json`：增加 `Tests\` 的开发环境 PSR-4 自动加载。
+- `tests/bootstrap.php`：在 Composer 自动加载器上注册 `Tests\` 命名空间。
+- `phpunit.xml`：使用测试专用引导文件。
 - `tests/Integration/OrderFeeReservationTest.php`：迁移到新的测试基类并在拆分完成后删除已迁移用例。
 
 ---
@@ -63,7 +64,8 @@
 - Create: `tests/Integration/OrderCreationServiceTest.php`
 - Create: `tests/Integration/OrderClosingServiceTest.php`
 - Create: `tests/Integration/PaymentInitializationServiceTest.php`
-- Modify: `composer.json`
+- Create: `tests/bootstrap.php`
+- Modify: `phpunit.xml`
 - Modify: `tests/Integration/OrderFeeReservationTest.php`
 
 **Interfaces:**
@@ -81,25 +83,17 @@ php vendor/bin/phpunit tests/Integration/OrderFeeReservationTest.php
 
 Expected: 现有订单集成测试全部通过，并记录测试数和断言数。
 
-- [ ] **Step 2: 为测试命名空间增加开发自动加载**
+- [ ] **Step 2: 为测试命名空间增加专用引导文件**
 
-在 `composer.json` 增加：
-
-```json
-"autoload-dev": {
-  "psr-4": {
-    "Tests\\": "tests/"
-  }
-}
-```
+创建 `tests/bootstrap.php`，加载 `vendor/autoload.php` 后调用 Composer `ClassLoader::addPsr4('Tests\\', __DIR__ . '/')`；将 `phpunit.xml` 的 `bootstrap` 改为 `tests/bootstrap.php`。
 
 Run:
 
 ```powershell
-composer dump-autoload
+php vendor/bin/phpunit --list-tests
 ```
 
-Expected: 自动加载生成成功。
+Expected: PHPUnit 能发现原测试和拆分后的测试，且不修改 `vendor` 生成文件。
 
 - [ ] **Step 3: 提取共享测试基类**
 
@@ -195,7 +189,6 @@ abstract class OrderDatabaseTestCase extends TestCase
 Run:
 
 ```powershell
-composer dump-autoload
 php vendor/bin/phpunit tests/Integration/OrderCreationServiceTest.php tests/Integration/OrderClosingServiceTest.php tests/Integration/PaymentInitializationServiceTest.php tests/Integration/OrderFeeReservationTest.php
 ```
 
@@ -204,7 +197,7 @@ Expected: 测试数和断言语义与拆分前一致，0 failure，0 error。
 - [ ] **Step 6: 提交测试结构调整**
 
 ```powershell
-git add composer.json tests/Support/OrderDatabaseTestCase.php tests/Integration/OrderCreationServiceTest.php tests/Integration/OrderClosingServiceTest.php tests/Integration/PaymentInitializationServiceTest.php tests/Integration/OrderFeeReservationTest.php
+git add phpunit.xml tests/bootstrap.php tests/Support/OrderDatabaseTestCase.php tests/Integration/OrderCreationServiceTest.php tests/Integration/OrderClosingServiceTest.php tests/Integration/PaymentInitializationServiceTest.php tests/Integration/OrderFeeReservationTest.php docs/superpowers/plans/2026-08-08-order-creation-reliability.md
 git commit -m "test: split order lifecycle integration tests"
 ```
 
