@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CloudControl\Identity\Application;
 
 use CloudControl\Identity\Domain\IdentityProvider;
+use CloudControl\Identity\Domain\OAuthAudience;
 use CloudControl\Identity\Domain\OAuthCallback;
 use CloudControl\Identity\Domain\OAuthPurpose;
 use CloudControl\Identity\Domain\UserStatus;
@@ -74,7 +75,13 @@ final class CompleteOAuth
             $this->users->save($user);
             $tenantId = $this->tenants->provisionCustomer($user, $now);
 
-            return new IdentityCompletion($user->id(), $state->audience, $tenantId, $now);
+            return new IdentityCompletion(
+                $user->id(),
+                $state->audience,
+                $tenantId,
+                $state->audience === OAuthAudience::OPS,
+                $now
+            );
         });
         try {
             $this->registrationChallenges->deleteForUser((string)$state->subjectId);
@@ -105,7 +112,13 @@ final class CompleteOAuth
             );
         }
 
-        return new IdentityCompletion($userId, $audience, $tenantId, $this->clock->now());
+        return new IdentityCompletion(
+            $userId,
+            $audience,
+            $tenantId,
+            $audience === OAuthAudience::OPS,
+            $this->clock->now()
+        );
     }
 
     private function provider(IdentityProvider $provider): OAuthProvider
