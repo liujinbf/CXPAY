@@ -6,6 +6,7 @@ namespace app\controller\admin;
 
 use app\model\Channel;
 use app\payment\PaymentManager;
+use app\payment\Contracts\OperationsStatusInterface;
 use support\Authcode;
 use support\Log;
 use support\Response;
@@ -25,16 +26,17 @@ final class CloudMonitorAdminController
         $services = [];
         $channels = [];
         $warnings = [];
-        foreach (Channel::whereIn('c_type', ['wxpay_cloud_adapter', 'alipay_scan_monitor'])->orderBy('id')->get() as $channel) {
+        foreach (Channel::orderBy('id')->get() as $channel) {
             try {
+                $driver = PaymentManager::make((string)$channel->c_type);
+                if (!$driver instanceof OperationsStatusInterface) {
+                    continue;
+                }
                 $config = $this->channelConfig($channel);
-                $cacheKey = hash('sha256', (string)($config['monitor_base_url'] ?? '') . '|'
+                $cacheKey = hash('sha256', get_class($driver) . '|'
+                    . (string)($config['monitor_base_url'] ?? '') . '|'
                     . (string)($config['client_id'] ?? ''));
                 if (!isset($services[$cacheKey])) {
-                    $driver = PaymentManager::make((string)$channel->c_type);
-                    if (!method_exists($driver, 'operationsStatus')) {
-                        throw new \RuntimeException('已安装的云监控插件版本不支持运维状态接口，请升级插件');
-                    }
                     $services[$cacheKey] = $driver->operationsStatus($config);
                 }
                 $service = $services[$cacheKey];

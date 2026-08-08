@@ -7,7 +7,9 @@ namespace plugin\cxpay\wxpay_clerk_adapter;
 use app\payment\Contracts\AccountCapabilityDetectorInterface;
 use app\payment\Contracts\AccountAuthorizationInterface;
 use app\payment\Contracts\MonitorableDriverInterface;
+use app\payment\Contracts\OperationsStatusInterface;
 use app\payment\Contracts\PaymentDriverInterface;
+use app\payment\Contracts\PaymentEventReviewInterface;
 use support\UrlGuard;
 
 require_once __DIR__ . '/ProviderClient.php';
@@ -16,7 +18,7 @@ require_once __DIR__ . '/ProviderClient.php';
  * 微信店员到账通知适配器。
  * 依赖独立 Gewe/iPad 协议服务，账号风控和协议兼容性需由使用者评估。
  */
-final class Driver implements PaymentDriverInterface, MonitorableDriverInterface, AccountCapabilityDetectorInterface, AccountAuthorizationInterface
+final class Driver implements PaymentDriverInterface, MonitorableDriverInterface, AccountCapabilityDetectorInterface, AccountAuthorizationInterface, PaymentEventReviewInterface, OperationsStatusInterface
 {
     private ProviderClient $provider;
 
