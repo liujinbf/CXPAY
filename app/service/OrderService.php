@@ -9,12 +9,12 @@ use app\model\Merchant;
 use app\model\Order;
 use app\model\UserMoneyLog;
 use app\payment\PaymentManager;
+use app\service\order\OrderNumberGenerator;
 use app\service\AlertNotificationService;
 use Illuminate\Database\Capsule\Manager as DB;
 use RuntimeException;
 use support\Authcode;
 use support\Sign;
-use support\SnowFlake;
 use support\IpWhitelist;
 use Throwable;
 
@@ -29,12 +29,14 @@ class OrderService
     private MerchantNotifyService $notifyService;
     private RiskGuardService $riskGuard;
     private PollService $pollService;
+    private OrderNumberGenerator $orderNumberGenerator;
 
-    public function __construct()
+    public function __construct(?OrderNumberGenerator $orderNumberGenerator = null)
     {
         $this->notifyService = new MerchantNotifyService();
         $this->riskGuard = new RiskGuardService();
         $this->pollService = new PollService();
+        $this->orderNumberGenerator = $orderNumberGenerator ?? new OrderNumberGenerator();
     }
 
     /**
@@ -132,7 +134,7 @@ class OrderService
         }
 
         $now = time();
-        $tradeNo = 'CX' . SnowFlake::makeId();
+        $tradeNo = $this->orderNumberGenerator->generate();
         $merchantId = (int)$merchant->id;
         $channelId = (int)$selectedChannel->id;
 

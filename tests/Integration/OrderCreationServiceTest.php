@@ -37,6 +37,7 @@ final class OrderCreationServiceTest extends OrderDatabaseTestCase
         $first = $service->createOrder($params, 'https://pay.example.com', 'payment', '203.0.113.8');
         $second = $service->createOrder($params, 'https://pay.example.com', 'payment', '203.0.113.8');
 
+        self::assertMatchesRegularExpression('/^CX\d{14}[A-F0-9]{20}$/', $first['trade_no']);
         self::assertSame($first['trade_no'], $second['trade_no']);
         self::assertSame('9.00', number_format((float)$merchant->fresh()->money, 2, '.', ''));
         self::assertSame(1, Order::count());
