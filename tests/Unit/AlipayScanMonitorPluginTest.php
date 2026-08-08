@@ -21,7 +21,7 @@ final class AlipayScanMonitorPluginTest extends TestCase
         $manifest = PluginManifest::fromJson((string)$json);
 
         self::assertSame('cxpay.alipay.scan_monitor', $manifest->id());
-        self::assertSame('1.1.0', $manifest->version());
+        self::assertSame('1.2.0', $manifest->version());
         self::assertSame('alipay_scan_monitor', $manifest->drivers()[0]['code']);
         self::assertSame(MonitorableDriverInterface::MODE_CALLBACK, (new Driver())->monitorMode());
         self::assertInstanceOf(AccountAuthorizationInterface::class, new Driver());
