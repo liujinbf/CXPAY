@@ -6,12 +6,38 @@ namespace Tests\Integration;
 
 use app\model\Order;
 use app\model\UserMoneyLog;
+use app\service\order\ChannelRoutingService;
 use app\service\OrderService;
+use app\service\PollService;
+use app\service\RiskGuardService;
 use support\Sign;
 use Tests\Support\OrderDatabaseTestCase;
 
 final class OrderCreationServiceTest extends OrderDatabaseTestCase
 {
+    public function testChannelRouterUsesConfiguredFallbackWhenPrimaryDriverIsUnavailable(): void
+    {
+        $fallback = $this->channel(['title' => '备用通道']);
+        $primary = $this->channel([
+            'title' => '主通道',
+            'c_type' => 'missing_driver',
+            'fallback_channel_id' => $fallback->id,
+        ]);
+
+        $router = $this->channelRouterReturning((int)$primary->id);
+
+        self::assertSame((int)$fallback->id, (int)$router->select(0, 'alipay', '100.00')->id);
+    }
+
+    public function testChannelRouterRejectsRequestWhenNoChannelIsAvailable(): void
+    {
+        $router = $this->channelRouterReturning(999999);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('暂无满足条件的可用支付通道');
+        $router->select(0, 'alipay', '100.00');
+    }
+
     public function testCreateOrderReservesFeeAndIdempotentRetryDoesNotDeductAgain(): void
     {
         $merchant = $this->merchant('9.75', ['plan_fee_discount_balance' => '0.25']);
@@ -80,5 +106,25 @@ final class OrderCreationServiceTest extends OrderDatabaseTestCase
         self::assertSame('0.50', number_format((float)$merchant->fresh()->money, 2, '.', ''));
         self::assertSame(0, Order::count());
         self::assertSame(0, UserMoneyLog::count());
+    }
+
+    private function channelRouterReturning(int $channelId): ChannelRoutingService
+    {
+        if (!class_exists(ChannelRoutingService::class)) {
+            self::fail('通道路由服务尚未实现');
+        }
+
+        $pollService = new class($channelId) extends PollService {
+            public function __construct(private readonly int $channelId)
+            {
+            }
+
+            public function selectChannel(int $merchantId, string $payType, float $amount): array
+            {
+                return ['channel_id' => $this->channelId];
+            }
+        };
+
+        return new ChannelRoutingService($pollService, new RiskGuardService());
     }
 }

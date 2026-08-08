@@ -101,6 +101,7 @@ abstract class OrderDatabaseTestCase extends TestCase
             $table->decimal('single_max', 10, 2)->default(0);
             $table->decimal('day_max', 10, 2)->default(0);
             $table->integer('online_status')->default(1);
+            $table->integer('fallback_channel_id')->default(0);
             $table->integer('status')->default(1);
         });
         $schema->create('cx_user_money_log', function (Blueprint $table): void {

@@ -8,13 +8,13 @@ use app\model\Channel;
 use app\model\Merchant;
 use app\model\Order;
 use app\model\UserMoneyLog;
-use app\payment\PaymentManager;
+use app\service\order\ChannelRoutingService;
 use app\service\order\FeeReservationService;
 use app\service\order\OrderNumberGenerator;
+use app\service\order\PaymentInitializationService;
 use app\service\AlertNotificationService;
 use Illuminate\Database\Capsule\Manager as DB;
 use RuntimeException;
-use support\Authcode;
 use support\Sign;
 use support\IpWhitelist;
 use Throwable;
@@ -29,19 +29,23 @@ class OrderService
 
     private MerchantNotifyService $notifyService;
     private RiskGuardService $riskGuard;
-    private PollService $pollService;
     private OrderNumberGenerator $orderNumberGenerator;
     private FeeReservationService $feeReservationService;
+    private ChannelRoutingService $channelRoutingService;
+    private PaymentInitializationService $paymentInitializationService;
 
     public function __construct(
         ?OrderNumberGenerator $orderNumberGenerator = null,
         ?FeeReservationService $feeReservationService = null,
+        ?ChannelRoutingService $channelRoutingService = null,
+        ?PaymentInitializationService $paymentInitializationService = null,
     ) {
         $this->notifyService = new MerchantNotifyService();
         $this->riskGuard = new RiskGuardService();
-        $this->pollService = new PollService();
         $this->orderNumberGenerator = $orderNumberGenerator ?? new OrderNumberGenerator();
         $this->feeReservationService = $feeReservationService ?? new FeeReservationService();
+        $this->channelRoutingService = $channelRoutingService ?? new ChannelRoutingService();
+        $this->paymentInitializationService = $paymentInitializationService ?? new PaymentInitializationService();
     }
 
     /**
@@ -112,7 +116,7 @@ class OrderService
                 || (string)($existing->business_type ?? 'payment') !== $businessType) {
                 throw new RuntimeException('商户订单号已存在且订单属性不一致');
             }
-            return $this->preparePayment($existing, $params, $gatewayBaseUrl);
+            return $this->paymentInitializationService->prepare($existing, $params, $gatewayBaseUrl);
         }
 
         if (!empty($merchant->packvip_time) && (int)$merchant->packvip_time < time()) {
@@ -121,8 +125,8 @@ class OrderService
 
         // 余额充值只能进入平台公共通道，不能用商户自己的收款码给自己增加余额。
         $channelOwnerId = $businessType === 'recharge' ? 0 : (int)$merchant->id;
-        $selectedChannel = $this->selectChannel($channelOwnerId, $type, (float)$money);
-        $this->assertChannelReady($selectedChannel);
+        $selectedChannel = $this->channelRoutingService->select($channelOwnerId, $type, $money);
+        $this->channelRoutingService->assertReady($selectedChannel);
         $basePrice = $money;
         if (bccomp((string)($merchant->pay_float_max ?? '0.00'), '0.00', 2) > 0) {
             $floated = $this->riskGuard->generateSmartFloatMoney(
@@ -281,7 +285,7 @@ class OrderService
             ]);
         }, 3);
 
-        return $this->preparePayment($order, $params, $gatewayBaseUrl);
+        return $this->paymentInitializationService->prepare($order, $params, $gatewayBaseUrl);
     }
 
     /**
@@ -606,183 +610,6 @@ class OrderService
         return $closed;
     }
 
-    private function selectChannel(int $merchantId, string $type, float $money): Channel
-    {
-        try {
-            $result = $this->pollService->selectChannel($merchantId, $type, $money);
-            $channel = Channel::find($result['channel_id']);
-        } catch (Throwable) {
-            $channel = null;
-        }
-
-        // 主通道不可用时，尝试 fallback_channel_id（主备通道自动故障转移）
-        if (!$channel
-            || !PaymentManager::has((string)$channel->c_type)
-            || !$this->riskGuard->validateRisk($channel, $money)) {
-
-            $fallback = null;
-            if ($channel && (int)($channel->fallback_channel_id ?? 0) > 0) {
-                $fallbackCandidate = Channel::find((int)$channel->fallback_channel_id);
-                if ($fallbackCandidate
-                    && (int)$fallbackCandidate->status === 1
-                    && (int)$fallbackCandidate->online_status === 1
-                    && PaymentManager::has((string)$fallbackCandidate->c_type)
-                    && $this->riskGuard->validateRisk($fallbackCandidate, $money)) {
-                    $fallback = $fallbackCandidate;
-                }
-            }
-
-            if ($fallback) {
-                $channel = $fallback;
-            } else {
-                // T12：兜底改用权重加权随机，与 PollService::weightedRandom 算法一致，
-                // 避免全部流量压向权重最高的单一通道（原 orderBy+first 行为）。
-                $candidates = Channel::where(function ($query) use ($merchantId) {
-                        $query->where('merchant_id', $merchantId)->orWhere('merchant_id', 0);
-                    })
-                    ->where(function ($query) use ($type) {
-                        $query->where('c_type', 'LIKE', $type . '%')->orWhere('pay_category', $type);
-                    })
-                    ->where('status', 1)
-                    ->where('online_status', 1)
-                    ->get()
-                    ->filter(fn(Channel $candidate) => PaymentManager::has((string)$candidate->c_type)
-                        && $this->riskGuard->validateRisk($candidate, $money))
-                    ->values()
-                    ->all();
-
-                $channel = !empty($candidates)
-                    ? $this->pollService->weightedRandom($candidates)
-                    : null;
-            }
-        }
-
-        if (!$channel) {
-            throw new RuntimeException('暂无满足条件的可用支付通道');
-        }
-        return $channel;
-    }
-
-    private function assertChannelReady(Channel $channel): void
-    {
-        if (!PaymentManager::has((string)$channel->c_type)) {
-            throw new RuntimeException('支付通道驱动不存在');
-        }
-        $config = $this->decryptChannelConfig($channel);
-        $validated = PaymentManager::make((string)$channel->c_type)
-            ->upchannel($channel->toArray(), $config);
-        if (isset($validated['code']) && (int)$validated['code'] !== 1) {
-            throw new RuntimeException((string)($validated['msg'] ?? '支付通道配置不完整'));
-        }
-    }
-
-    private function formatOrderResult(Order $order): array
-    {
-        return [
-            'trade_no' => (string)$order->trade_no,
-            'money' => $this->normalizeMoney($order->amount),
-            'price' => $this->normalizeMoney($order->price),
-            'pay_type' => (string)$order->pay_type,
-            'business_type' => (string)($order->business_type ?? 'payment'),
-            'status' => (int)$order->status,
-            'pay_url' => (string)($order->pay_url ?? ''),
-            'pay_mode' => (string)($order->pay_mode ?? 'qrcode'),
-        ];
-    }
-
-    /**
-     * 调用订单绑定的支付驱动并持久化出码结果，重复请求复用已有结果。
-     */
-    private function preparePayment(Order $order, array $originalParams, string $gatewayBaseUrl): array
-    {
-        [$order, $claimed, $claimTime] = DB::connection()->transaction(function () use ($order): array {
-            $lockedOrder = Order::where('id', $order->id)->lockForUpdate()->first();
-            if (!$lockedOrder) {
-                throw new RuntimeException('订单不存在');
-            }
-            if ((string)($lockedOrder->pay_url ?? '') !== '' || (int)$lockedOrder->status !== 0) {
-                return [$lockedOrder, false, 0];
-            }
-
-            $initStatus = (int)($lockedOrder->pay_init_status ?? 0);
-            $initTime = (int)($lockedOrder->pay_init_time ?? 0);
-            if ($initStatus === 1 && $initTime > time() - 30) {
-                throw new RuntimeException('订单正在初始化支付通道，请稍后重试查询');
-            }
-            $claimTime = time();
-            $lockedOrder->pay_init_status = 1;
-            $lockedOrder->pay_init_time = $claimTime;
-            $lockedOrder->save();
-            return [$lockedOrder, true, $claimTime];
-        }, 3);
-
-        if (!$claimed) {
-            return $this->formatOrderResult($order);
-        }
-
-        try {
-            $channel = Channel::find($order->channel_id);
-            if (!$channel || (int)$channel->status !== 1 || !PaymentManager::has((string)$channel->c_type)) {
-                throw new RuntimeException('订单绑定的支付驱动不可用');
-            }
-
-            $config = $this->decryptChannelConfig($channel);
-            $config['channel_id'] = (int)$channel->id;
-            $baseUrl = rtrim($gatewayBaseUrl, '/');
-            if ($baseUrl === '') {
-                throw new RuntimeException('支付网关地址未配置');
-            }
-
-            // 上游订单号统一使用平台流水号，确保回调可以精确定位本平台订单。
-            $driverParams = $originalParams;
-            $driverParams['trade_no'] = (string)$order->trade_no;
-            $driverParams['out_trade_no'] = (string)$order->trade_no;
-            $driverParams['merchant_out_trade_no'] = (string)$order->out_trade_no;
-            $driverParams['money'] = $this->normalizeMoney($order->price);
-            $driverParams['expire_time'] = (int)$order->expire_time;
-            $driverParams['name'] = (string)$order->subject;
-            $driverParams['notify_url'] = $baseUrl . '/notify/' . rawurlencode((string)$channel->c_type);
-            $driverParams['return_url'] = (string)$order->return_url;
-
-            $payResult = PaymentManager::make((string)$channel->c_type)->pay($driverParams, $config);
-            $payUrl = trim((string)($payResult['pay_url'] ?? ''));
-            $payMode = trim((string)($payResult['type'] ?? 'qrcode'));
-            if ($payUrl === '' || !in_array($payMode, ['url', 'qrcode'], true)) {
-                throw new RuntimeException('支付驱动未返回有效的支付地址');
-            }
-
-            $order = DB::connection()->transaction(function () use ($order, $payUrl, $payMode, $claimTime): Order {
-                $lockedOrder = Order::where('id', $order->id)->lockForUpdate()->first();
-                if (!$lockedOrder) {
-                    throw new RuntimeException('订单不存在');
-                }
-                if ((int)$lockedOrder->status === 0 && (string)($lockedOrder->pay_url ?? '') === '') {
-                    if (
-                        (int)($lockedOrder->pay_init_status ?? 0) !== 1
-                        || (int)($lockedOrder->pay_init_time ?? 0) !== $claimTime
-                    ) {
-                        throw new RuntimeException('支付初始化已由其他请求接管，请稍后查询');
-                    }
-                    $lockedOrder->pay_url = $payUrl;
-                    $lockedOrder->pay_mode = $payMode;
-                    $lockedOrder->pay_init_status = 2;
-                    $lockedOrder->save();
-                }
-                return $lockedOrder;
-            }, 3);
-            return $this->formatOrderResult($order);
-        } catch (Throwable $e) {
-            try {
-                Order::where('id', $order->id)
-                    ->where('pay_init_status', 1)
-                    ->where('pay_init_time', $claimTime)
-                    ->update(['pay_init_status' => 3]);
-            } catch (Throwable) {
-            }
-            throw $e;
-        }
-    }
-
     /**
      * 商户级下单限频（Redis 滑动窗口：60秒内最多 30 次）。
      * Redis 不可用时 fail-open 降级放行，避免缓存故障影响正常支付。
@@ -820,20 +647,6 @@ class OrderService
             // Redis 故障：fail-open，允许请求继续
             error_log('[OrderService] 限频 Redis 不可用，降级放行 merchant_id=' . $merchantId);
         }
-    }
-
-    private function decryptChannelConfig(Channel $channel): array
-    {
-        $raw = is_string($channel->config)
-            ? (json_decode($channel->config, true) ?: [])
-            : (array)$channel->config;
-        $authcode = new Authcode();
-        foreach ($raw as $key => $value) {
-            if (is_string($value)) {
-                $raw[$key] = $authcode->decryptStored($value);
-            }
-        }
-        return $raw;
     }
 
     private function normalizeMoney(mixed $amount): string
