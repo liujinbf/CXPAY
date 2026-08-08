@@ -1,30 +1,29 @@
-# 微信云端店员免挂适配器
+# 微信店员到账适配器
 
-这是 CXPAY 面向微信个人收款码/赞赏码的官方店员模式免挂适配插件。商户只需将服务商的统一店员接收号添加为收款店员，即可完成全自动免挂机回调。
+该插件连接独立 `wxpay-clerk-service`，适用于个人微信收款码或赞赏码的店员到账通知场景。
 
-## 优势与特性
+## 能力
 
-- **零挂机**：商户不需要在自己的电脑或手机上后台运行微信。
-- **零风险**：商户不需要在云端登录微信主号，完全使用微信官方店员授权，无封号风险。
-- **广兼容**：完美支持个人收款码、赞赏码与小账本。
-- **安全校验**：到账回调采用 HMAC-SHA256 签名，支持密钥无缝轮换和防重放校验。
+- HMAC 签名订单登记，只有服务返回 `accepted=true` 才展示收款码。
+- 订单主动查询，可在异步回调故障期间恢复已支付订单。
+- 签名到账回调与新旧密钥轮换。
+- 店员账号扫码授权和在线能力检查。
+- 未匹配到账人工复核与运维状态接口。
 
-## 到账回调
+## 风险边界
 
-回调地址：`/notify/wxpay_clerk_adapter`
+本通道依赖个人微信店员账号和 Gewe/iPad 协议，不是微信官方商户支付接口。商户主账号无需在云端登录，但店员账号仍存在平台风控、协议升级、消息格式变化和服务中断风险。使用者应确认账号授权、平台规则和当地合规要求，并保留人工复核方案。
 
-请求参数包括：
-- `source_bill_id`：云监控服务的稳定账单号；
-- `out_trade_no`：CXPAY 平台流水号；
-- `money`：两位小数的实际到账金额；
-- `occurred_at`：到账 Unix 时间戳；
-- `timestamp`：推送时间；
-- `nonce`：随机串；
-- `sign`：HMAC-SHA256 签名。
+## 安全要求
 
-## 插件构建
+- `monitor_base_url` 必须是可解析的公网 HTTPS 地址，客户端禁止跟随重定向。
+- `client_secret` 与 `callback_secret` 必须分别使用 32–128 位随机密钥。
+- 回调校验账单号、订单号、金额、到账时间、推送时间和 nonce；只接受 7 天内且不晚于未来 300 秒的到账事实。
+- 服务端 Gewe Webhook 必须同时配置不可猜测路径令牌和来源 IP 白名单。
 
-构建插件安装包（需准备离线 RSA 私钥）：
+回调地址为 `/notify/wxpay_clerk_adapter`，字段包括 `source_bill_id`、`out_trade_no`、`money`、`occurred_at`、`timestamp`、`nonce` 和 `sign`。
+
+## 构建
 
 ```bash
 php tools/plugin/build.php plugins-src/wxpay-clerk-adapter /secure/private.pem dist/wxpay-clerk-adapter.cxpay-plugin

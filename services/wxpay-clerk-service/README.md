@@ -1,118 +1,85 @@
-# 微信云端店员免挂服务（wxpay-clerk-service）
+# 微信店员到账服务
 
-个人微信号作为收款店员的云端托管接入服务，与 CXPAY `wxpay-clerk-adapter` 插件配合使用。
+`wxpay-clerk-service` 通过个人微信店员账号与 Gewe/iPad 协议接收到账消息，并与 CXPAY 的 `wxpay-clerk-adapter` 配合完成订单核销。
 
-## 工作原理
+这不是微信官方商户支付接口。店员账号仍可能遇到平台风控、协议变化、消息格式变化或第三方服务中断；上线后必须保留人工复核和小额灰度策略。
 
-```
-商户 → 将服务商微信号添加为【收款店员】
-        ↓ 微信官方推送
-gewe 容器（iPad 协议）
-        ↓ Webhook
-本服务（wxpay-clerk-service）
-  ├── 解析到账通知消息
-  ├── 匹配 CXPAY 已登记订单
-  └── HMAC 签名回调 → CXPAY → 自动结算
-```
+## 可靠性流程
 
-## 快速部署
-
-### 前置条件
-
-- Docker + Docker Compose
-- 一个公网域名（用于 HTTPS，gewe Webhook 和 CXPAY 回调必须 HTTPS）
-- 一个专用个人微信号（建议注册时间 > 3 个月的微信号）
-
-### 1. 克隆并配置
-
-```bash
-cd services/wxpay-clerk-service
-cp config.example.php config.php
-vim config.php  # 填写以下必填项：
-                # client_id / client_secret / callback_secret
-                # base_url（本服务对外地址）
-                # cxpay_notify_url（CXPAY 实例地址）
+```text
+Gewe Webhook
+  → 路径令牌 + 来源 IP 校验
+  → 到账事件幂等持久化
+  → 事务内匹配订单、写复核审计和 callback_outbox
+  → 独立 outbox-worker 租约领取、指数退避
+  → CXPAY 插件验签并统一结算
 ```
 
-### 2. 安装依赖
+Webhook 请求不再同步调用 CXPAY。回调暂时失败时，`GET /v1/orders/{out_trade_no}` 仍可返回可信的 `paid=true`，供主站主动查询恢复。
 
-```bash
-composer install --no-dev -o
-```
+## 部署
 
-### 3. 启动服务
+1. 复制配置和 Compose 文件。
 
-```bash
-cp docker-compose.example.yml docker-compose.yml
-vim docker-compose.yml  # 修改域名等配置
-docker-compose up -d
-```
+   ```bash
+   cp config.example.php config.php
+   cp docker-compose.example.yml docker-compose.yml
+   ```
 
-### 4. 绑定微信店员账号
+2. 创建 `.env`，至少设置：
 
-在 CXPAY 后台打开通道配置，点击「微信添加店员绑定」，用手机微信扫码完成登录。
+   ```dotenv
+   WXCLERK_CLIENT_ID=client-id
+   WXCLERK_CLIENT_SECRET=至少32位随机密钥
+   WXCLERK_CALLBACK_SECRET=至少32位独立随机密钥
+   WXCLERK_WEBHOOK_TOKEN=至少32位不可猜测随机令牌
+   WXCLERK_BASE_URL=https://clerk.example.com
+   CXPAY_NOTIFY_URL=https://pay.example.com
+   WXCLERK_GEWE_ALLOWED_IPS=gewe容器实际来源IP或CIDR
+   ```
 
-登录成功后，account_id 将自动写入通道配置。
+3. 配置 Nginx TLS，公网只开放 HTTPS 443。Gewe 应通过 Docker 内网访问 `/wechat/message/{token}`，不要把 Gewe 管理端口暴露到公网。
 
-### 5. 商户操作
+4. 启动并检查两个进程。
 
-商户进入 **微信 → 我 → 支付 → 收款码 → 收款小账本 → 店员管理**，添加您的服务商微信号为收款店员。
+   ```bash
+   docker compose up -d --build
+   docker compose ps
+   docker compose logs wxpay-clerk-service outbox-worker
+   ```
 
-完成后，所有向该收款码的付款将同时通知到店员账号，触发自动结算。
+Web 服务与 `outbox-worker` 必须共享同一个 SQLite 数据卷。不得只启动 Web 服务，否则到账可以匹配但回调不会投递。
 
----
+## API
 
-## 目录结构
+除健康检查与 Gewe Webhook 外，所有 `/v1` 请求都使用 HMAC、300 秒时间窗和持久化 nonce 防重放。
 
-```
-├── index.php                         服务入口路由
-├── config.example.php                配置模板
-├── composer.json                     PHP 依赖
-├── docker-compose.example.yml        Docker 部署参考
-└── src/
-    ├── SignatureHelper.php            HMAC-SHA256 双向签名
-    ├── OrderStore.php                 SQLite 数据层（订单/审核/账号/会话）
-    ├── PaymentNotificationParser.php  解析微信到账通知消息
-    ├── OrderMatcher.php               四级优先匹配策略
-    ├── CxpayCallback.php              带签名的 CXPAY 回调发送
-    ├── GeweApiClient.php              gewe HTTP API 客户端
-    ├── AuthSessionManager.php         微信登录会话管理
-    ├── WechatWebhookHandler.php       gewe Webhook 分发处理
-    └── ApiServer.php                  CXPAY 插件 API 服务端
-```
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/health` | 健康检查 |
+| POST | `/v1/orders` | 幂等登记订单，成功返回 `accepted=true` |
+| GET | `/v1/orders/{out_trade_no}` | 查询可信支付和回调状态 |
+| POST | `/v1/auth-sessions` | 创建店员账号登录会话 |
+| GET | `/v1/auth-sessions/{id}` | 查询登录会话 |
+| GET | `/v1/accounts/{id}/capabilities` | 查询账号在线能力 |
+| GET | `/v1/review/events` | 查询待复核到账 |
+| POST | `/v1/review/events/{event_id}/match` | 人工匹配并创建可靠回调 |
+| POST | `/v1/review/events/{event_id}/ignore` | 带原因忽略到账 |
+| GET | `/v1/ops/status` | 账号和发件箱运维状态 |
+| POST | `/wechat/message/{token}` | Gewe 内网 Webhook |
 
----
+## 匹配规则
 
-## API 端点
+- 备注命中前仍验证账号、金额、订单状态、创建时间和有效期。
+- 同账号同金额只有一个候选时自动匹配。
+- 多个候选始终进入人工复核，不存在“自动取最早订单”配置。
+- 缺少稳定微信消息号的事件使用原始摘要幂等，但绝不自动核销。
+- 自动匹配和人工匹配都在同一事务内更新事件、订单、审计和发件箱。
 
-| 方法 | 路径 | 调用方 | 说明 |
-|------|------|--------|------|
-| GET | `/health` | 监控 | 无需签名健康检查 |
-| POST | `/v1/orders` | CXPAY | 登记待匹配订单 |
-| POST | `/v1/auth-sessions` | CXPAY | 创建微信登录会话 |
-| GET | `/v1/auth-sessions/{id}` | CXPAY | 轮询登录/绑定状态 |
-| GET | `/v1/accounts/{id}/capabilities` | CXPAY | 账号在线能力检测 |
-| GET | `/v1/ops/status` | CXPAY | 全局运维状态 |
-| GET | `/v1/review/events` | CXPAY | 待人工审核事件 |
-| POST | `/v1/review/events/{id}/match` | CXPAY | 手动关联到账 |
-| POST | `/v1/review/events/{id}/ignore` | CXPAY | 忽略审核事件 |
-| POST | `/wechat/message` | gewe（内部） | 微信消息 Webhook |
+## 运维与恢复
 
----
-
-## 订单匹配策略
-
-到账通知到达后按以下优先级匹配：
-
-1. **备注直接命中**：备注内容为 `out_trade_no` 格式 → 100% 置信度自动结算
-2. **金额唯一命中**：该账号下同金额 PENDING 订单唯一 → 自动结算
-3. **金额多笔歧义**：配置 `auto_review_on_ambiguous=true` → 进入人工审核
-4. **无匹配订单** → 创建审核事件，可在 CXPAY 后台手动关联
-
----
-
-## 安全注意事项
-
-- `config.php` 中的 `gewe_allowed_ips` 务必设置为 gewe 容器 IP，防止外部伪造到账通知
-- CXPAY API 端点建议设置 `allowed_ips` 白名单
-- 所有对外端点必须通过 HTTPS，防止 HMAC 签名被截获
+- 监控 `/v1/ops/status` 的 `outbox.pending_count`、`failed_count`、`oldest_pending_at` 和 `last_error`。
+- `FAILED` 表示已达到最大投递次数，应先排查 CXPAY HTTPS、证书、插件密钥和响应正文，再由受控运维流程重新排队。
+- 定期备份 `storage/clerk.sqlite`。建议使用 SQLite 在线备份或短暂停写后复制数据库及 WAL/SHM，恢复演练必须在测试环境完成。
+- 发布前导入历史数据库验证迁移；先做小额灰度，观察账号在线率、未匹配事件和回调积压后再扩大使用。
+- 日志不得记录 Cookie、密钥、完整原始微信消息或数据库连接信息。

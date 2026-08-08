@@ -39,7 +39,7 @@ final class WxpayClerkDatabaseTest extends WxpayClerkDatabaseTestCase
                 created_at INTEGER NOT NULL
             );
             INSERT INTO orders(account_id, channel_id, out_trade_no, amount, expires_at, created_at, status)
-            VALUES('acc_1', 'ch_1', 'CX1001', '12.30', 4102444800, 1700000000, 'PENDING');
+            VALUES('acc_1', 'ch_1', 'CX1001', '12.30', 4102444800, 1700000000, 'CONFIRMED');
             INSERT INTO accounts(id, nickname, gewe_app_id, status, created_at)
             VALUES('acc_1', '店员', 'gewe_1', 'ONLINE', 1700000000);
             SQL);
@@ -48,6 +48,7 @@ final class WxpayClerkDatabaseTest extends WxpayClerkDatabaseTestCase
         $database = new Database($this->databasePath);
 
         self::assertSame('CX1001', $database->pdo()->query('SELECT out_trade_no FROM orders')->fetchColumn());
+        self::assertSame('MATCHED', $database->pdo()->query('SELECT status FROM orders')->fetchColumn());
         self::assertSame('gewe_1', $database->pdo()->query('SELECT gewe_app_id FROM accounts')->fetchColumn());
         self::assertSame(1, (int) $database->pdo()->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn());
         self::assertSame(

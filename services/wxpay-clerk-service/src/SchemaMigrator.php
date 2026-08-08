@@ -108,6 +108,7 @@ final class SchemaMigrator
 
         $this->addColumnIfMissing($pdo, 'orders', 'payment_event_id', 'INTEGER');
         $this->addColumnIfMissing($pdo, 'review_events', 'payment_event_id', 'INTEGER');
+        $pdo->exec("UPDATE orders SET status = 'MATCHED' WHERE status = 'CONFIRMED'");
 
         $pdo->exec(<<<'SQL'
             CREATE INDEX IF NOT EXISTS idx_orders_lookup
