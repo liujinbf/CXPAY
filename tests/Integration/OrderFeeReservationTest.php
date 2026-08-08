@@ -48,6 +48,7 @@ final class OrderFeeReservationTest extends OrderDatabaseTestCase
         self::assertSame('9.00', number_format((float)$merchant->fresh()->money, 2, '.', ''));
         self::assertSame(1, (int)$order->fresh()->status);
         self::assertSame(2, (int)$order->fresh()->fee_status);
+        self::assertSame('consumed', (string)$order->fresh()->fee_reservation_status);
         self::assertSame(2, (int)$order->fresh()->pay_init_status);
         self::assertSame(0, UserMoneyLog::count());
         self::assertSame('100.00', number_format((float)$channel->fresh()->today_money, 2, '.', ''));

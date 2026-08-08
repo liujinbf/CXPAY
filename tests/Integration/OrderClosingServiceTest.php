@@ -10,6 +10,49 @@ use Tests\Support\OrderDatabaseTestCase;
 
 final class OrderClosingServiceTest extends OrderDatabaseTestCase
 {
+    public function testClosingOrderReturnsCashAndDiscountToOriginalSourcesExactlyOnce(): void
+    {
+        $merchant = $this->merchant('8.00', ['plan_fee_discount_balance' => '0.00']);
+        $channel = $this->channel();
+        $order = $this->order($merchant, $channel, [
+            'fee_amount' => '3.00',
+            'fee_reserved_cash' => '1.75',
+            'fee_reserved_discount' => '1.25',
+            'fee_reservation_status' => 'reserved',
+            'fee_status' => 1,
+        ]);
+        $service = new OrderService();
+
+        self::assertTrue($service->closePendingOrder((string)$order->trade_no, '测试关闭'));
+        self::assertTrue($service->closePendingOrder((string)$order->trade_no, '重复关闭'));
+
+        $merchant->refresh();
+        self::assertSame('9.75', (string)$merchant->money);
+        self::assertSame('1.25', (string)$merchant->plan_fee_discount_balance);
+        self::assertSame('released', (string)$order->fresh()->fee_reservation_status);
+    }
+
+    public function testClosingOrderDoesNotRefundConsumedReservation(): void
+    {
+        $merchant = $this->merchant('8.00', ['plan_fee_discount_balance' => '0.00']);
+        $channel = $this->channel();
+        $order = $this->order($merchant, $channel, [
+            'fee_amount' => '3.00',
+            'fee_reserved_cash' => '1.75',
+            'fee_reserved_discount' => '1.25',
+            'fee_reservation_status' => 'consumed',
+            'fee_status' => 1,
+        ]);
+
+        self::assertTrue((new OrderService())->closePendingOrder((string)$order->trade_no, '测试关闭'));
+
+        $merchant->refresh();
+        self::assertSame('8', (string)$merchant->money);
+        self::assertSame('0', (string)$merchant->plan_fee_discount_balance);
+        self::assertSame('consumed', (string)$order->fresh()->fee_reservation_status);
+        self::assertSame(2, (int)$order->fresh()->fee_status);
+    }
+
     public function testClosingPendingOrderRefundsReservedFeeExactlyOnce(): void
     {
         $merchant = $this->merchant('9.00');

@@ -9,6 +9,7 @@ use app\model\Merchant;
 use app\model\Order;
 use app\model\UserMoneyLog;
 use app\payment\PaymentManager;
+use app\service\order\FeeReservationService;
 use app\service\order\OrderNumberGenerator;
 use app\service\AlertNotificationService;
 use Illuminate\Database\Capsule\Manager as DB;
@@ -30,13 +31,17 @@ class OrderService
     private RiskGuardService $riskGuard;
     private PollService $pollService;
     private OrderNumberGenerator $orderNumberGenerator;
+    private FeeReservationService $feeReservationService;
 
-    public function __construct(?OrderNumberGenerator $orderNumberGenerator = null)
-    {
+    public function __construct(
+        ?OrderNumberGenerator $orderNumberGenerator = null,
+        ?FeeReservationService $feeReservationService = null,
+    ) {
         $this->notifyService = new MerchantNotifyService();
         $this->riskGuard = new RiskGuardService();
         $this->pollService = new PollService();
         $this->orderNumberGenerator = $orderNumberGenerator ?? new OrderNumberGenerator();
+        $this->feeReservationService = $feeReservationService ?? new FeeReservationService();
     }
 
     /**
@@ -214,6 +219,9 @@ class OrderService
 
             $fee = '0.00';
             $feeStatus = 0;
+            $feeReservedCash = '0.00';
+            $feeReservedDiscount = '0.00';
+            $feeReservationStatus = 'consumed';
             if ($businessType === 'payment') {
                 // 差异化费率：优先按支付类型从 rate_config 取费率，不存在则回退全局 rate
                 $rateConfig = json_decode((string)($lockedMerchant->rate_config ?? ''), true);
@@ -223,49 +231,26 @@ class OrderService
                 $fee = bcmul($money, $effectiveRate, 2);
                 $discountBalance = $this->normalizeMoney($lockedMerchant->plan_fee_discount_balance ?? 0);
                 $moneyBalance    = $this->normalizeMoney($lockedMerchant->money ?? 0);
-                $totalAvailable  = bcadd($discountBalance, $moneyBalance, 2);
-
-                if (bccomp($totalAvailable, $fee, 2) < 0) {
-                    throw new RuntimeException("商户可用余额不足（需手续费 ¥{$fee}，充值余额 ¥{$moneyBalance}，套餐抵扣金 ¥{$discountBalance}），请先充值或购买套餐");
-                }
 
                 if (bccomp($fee, '0.00', 2) > 0) {
-                    $useDiscount = '0.00';
-                    $useMoney    = '0.00';
+                    $reservation = $this->feeReservationService->allocate($fee, $moneyBalance, $discountBalance);
+                    $feeReservedCash = $reservation->cash;
+                    $feeReservedDiscount = $reservation->discount;
+                    $feeReservationStatus = 'reserved';
 
-                    if (bccomp($discountBalance, $fee, 2) >= 0) {
-                        // 抵扣金足够全额抵扣
-                        $useDiscount = $fee;
-                        $newDiscount = bcsub($discountBalance, $fee, 2);
-                        $lockedMerchant->plan_fee_discount_balance = $newDiscount;
-                        $lockedMerchant->save();
+                    $newMoney = bcsub($moneyBalance, $reservation->cash, 2);
+                    $newDiscount = bcsub($discountBalance, $reservation->discount, 2);
+                    $lockedMerchant->money = $newMoney;
+                    $lockedMerchant->plan_fee_discount_balance = $newDiscount;
+                    $lockedMerchant->save();
 
-                        UserMoneyLog::log(
-                            $merchantId,
-                            '0.00',
-                            $moneyBalance,
-                            $moneyBalance,
-                            "支付订单 {$tradeNo} 手续费预占（从套餐抵扣金抵扣 ¥{$useDiscount}，剩余抵扣金 ¥{$newDiscount}）"
-                        );
-                    } else {
-                        // 抵扣金部分抵扣，剩余扣除通用余额
-                        $useDiscount = $discountBalance;
-                        $remainFee   = bcsub($fee, $useDiscount, 2);
-                        $useMoney    = $remainFee;
-
-                        $newMoney = bcsub($moneyBalance, $useMoney, 2);
-                        $lockedMerchant->plan_fee_discount_balance = '0.00';
-                        $lockedMerchant->money = $newMoney;
-                        $lockedMerchant->save();
-
-                        UserMoneyLog::log(
-                            $merchantId,
-                            '-' . $useMoney,
-                            $moneyBalance,
-                            $newMoney,
-                            "支付订单 {$tradeNo} 手续费预占（套餐抵扣金抵扣 ¥{$useDiscount}，账户余额预扣 ¥{$useMoney}）"
-                        );
-                    }
+                    UserMoneyLog::log(
+                        $merchantId,
+                        bccomp($reservation->cash, '0.00', 2) > 0 ? '-' . $reservation->cash : '0.00',
+                        $moneyBalance,
+                        $newMoney,
+                        "支付订单 {$tradeNo} 手续费预占（套餐抵扣金 ¥{$reservation->discount}，账户余额 ¥{$reservation->cash}）"
+                    );
                     $feeStatus = 1;
                 }
             }
@@ -278,6 +263,9 @@ class OrderService
                 'pay_type' => $type,
                 'business_type' => $businessType,
                 'fee_amount' => $fee,
+                'fee_reserved_cash' => $feeReservedCash,
+                'fee_reserved_discount' => $feeReservedDiscount,
+                'fee_reservation_status' => $feeReservationStatus,
                 'fee_status' => $feeStatus,
                 'amount' => $money,
                 'price' => $finalPrice,
@@ -390,6 +378,7 @@ class OrderService
                     }
                     $order->fee_amount = $fee;
                     $order->fee_status = 2;
+                    $order->fee_reservation_status = 'consumed';
                 }
 
                 if (bccomp($change, '0.00', 2) !== 0) {
@@ -524,21 +513,42 @@ class OrderService
 
                 $fee = $this->normalizeMoney($order->fee_amount ?? 0);
                 if ((int)($order->fee_status ?? 0) === 1 && bccomp($fee, '0.00', 2) > 0) {
-                    if (!$merchant) {
-                        throw new RuntimeException('订单所属商户不存在，无法释放手续费');
+                    $reservationStatus = (string)($order->fee_reservation_status ?? 'legacy');
+                    if ($reservationStatus === 'consumed') {
+                        $order->fee_status = 2;
+                    } elseif ($reservationStatus === 'released') {
+                        $order->fee_status = 3;
+                    } else {
+                        if (!$merchant) {
+                            throw new RuntimeException('订单所属商户不存在，无法释放手续费');
+                        }
+
+                        $before = $this->normalizeMoney($merchant->money);
+                        $beforeDiscount = $this->normalizeMoney($merchant->plan_fee_discount_balance ?? 0);
+                        if ($reservationStatus === 'reserved') {
+                            $cashRefund = $this->normalizeMoney($order->fee_reserved_cash ?? 0);
+                            $discountRefund = $this->normalizeMoney($order->fee_reserved_discount ?? 0);
+                        } else {
+                            $cashRefund = $fee;
+                            $discountRefund = '0.00';
+                            error_log('[FeeReservation] legacy refund trade_no=' . (string)$order->trade_no);
+                        }
+
+                        $after = bcadd($before, $cashRefund, 2);
+                        $afterDiscount = bcadd($beforeDiscount, $discountRefund, 2);
+                        $merchant->money = $after;
+                        $merchant->plan_fee_discount_balance = $afterDiscount;
+                        $merchant->save();
+                        UserMoneyLog::log(
+                            (int)$merchant->id,
+                            $cashRefund,
+                            $before,
+                            $after,
+                            "{$reason}，释放订单 {$order->trade_no} 手续费（现金 ¥{$cashRefund}，套餐抵扣金 ¥{$discountRefund}）"
+                        );
+                        $order->fee_status = 3;
+                        $order->fee_reservation_status = 'released';
                     }
-                    $before = $this->normalizeMoney($merchant->money);
-                    $after = bcadd($before, $fee, 2);
-                    $merchant->money = $after;
-                    $merchant->save();
-                    UserMoneyLog::log(
-                        (int)$merchant->id,
-                        $fee,
-                        $before,
-                        $after,
-                        "{$reason}，释放订单 {$order->trade_no} 手续费"
-                    );
-                    $order->fee_status = 3;
                 }
 
                 $order->status = 2;
