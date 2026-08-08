@@ -2,6 +2,12 @@
 
 use Webman\Route;
 
+if ((string)config('deployment.role', 'payment') !== 'payment') {
+    throw new RuntimeException('CXPAY 主应用只支持 payment 运行角色，云端控制面必须独立部署');
+}
+
+Route::disableDefaultRoute(app\controller\api\CloudLicenseController::class);
+
 // 一键安装向导路由 (自动安装检测与已安装防护)
 // 注意：直接用 file_get_contents 输出 HTML，与 /doc 路由保持一致，
 // 避免 redirect 到静态文件路径因服务器配置差异导致 PageNotFoundException。
@@ -38,40 +44,14 @@ Route::get('/doc', function () {
     $content = file_get_contents(base_path() . '/public/doc.html');
     return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
 });
-// 云端·授权中心 专属路由与 API
-Route::get('/cloud', function () {
-    $content = file_get_contents(base_path() . '/public/cloud_auth.html');
-    return response($content, 200, ['Content-Type' => 'text/html; charset=utf-8']);
+// 云端授权、购买与下载由独立控制面提供，支付节点只负责跳转。
+Route::get('/cloud', static function () {
+    return redirect((string)config('cloud.portal_url', 'https://cloud.cxpay.com'));
 });
 
 // 系统在线更新管理页面（重定向至后台 Git 更新选项卡）
 Route::get('/admin/system_update', function () {
     return redirect('/admin/index.html#system-update');
-})->middleware([app\middleware\AdminAuthMiddleware::class]);
-
-Route::group('/api/cloud', function () {
-    Route::get('/site_info', [app\controller\api\CloudLicenseController::class, 'getSiteInfo']);
-    // 尚未接入真实供应商时，这些入口会明确返回“未配置”，不会伪造登录成功。
-    Route::get('/qq_login_qr', [app\controller\api\CloudLicenseController::class, 'getQqLoginQr']);
-    Route::any('/poll_qq_login', [app\controller\api\CloudLicenseController::class, 'pollQqLogin']);
-    Route::post('/send_email_code', [app\controller\api\CloudLicenseController::class, 'sendEmailCode']);
-    Route::post('/bind_qq', [app\controller\api\CloudLicenseController::class, 'bindQq']);
-    Route::get('/wx_login_qr', [app\controller\api\CloudLicenseController::class, 'getWxLoginQr']);
-    Route::any('/poll_wx_login', [app\controller\api\CloudLicenseController::class, 'pollWxLogin']);
-
-    // 云端支付插件商城与下载 API
-    Route::get('/plugin/market_list', [app\controller\api\CloudLicenseController::class, 'pluginMarketList']);
-    Route::post('/plugin/buy', [app\controller\api\CloudLicenseController::class, 'pluginBuy']);
-    Route::get('/plugin/download', [app\controller\api\CloudLicenseController::class, 'pluginDownload']);
-});
-
-// 授权变更、下载和泄漏封禁属于后台管理能力，必须由管理员操作。
-Route::group('/api/cloud', function () {
-    Route::post('/renew_module', [app\controller\api\CloudLicenseController::class, 'renewModule']);
-    Route::post('/reset_key', [app\controller\api\CloudLicenseController::class, 'resetKey']);
-    Route::post('/change_domain', [app\controller\api\CloudLicenseController::class, 'changeDomain']);
-    Route::get('/download_package', [app\controller\api\CloudLicenseController::class, 'downloadPackage']);
-    Route::post('/trace_leaked', [app\controller\api\CloudLicenseController::class, 'traceLeaked']);
 })->middleware([app\middleware\AdminAuthMiddleware::class]);
 
 // 动态首页路由控制

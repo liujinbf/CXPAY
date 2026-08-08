@@ -82,7 +82,7 @@ final class CloudDeploymentBoundaryTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        Route::load([base_path() . '/config/route.php']);
+        Route::load([base_path() . '/config']);
         self::$paths = array_values(array_map(
             static fn($route): string => $route->getPath(),
             Route::getRoutes()
