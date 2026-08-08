@@ -42,3 +42,10 @@ tests/pc/flaui-smoke/
 
 # 本地隔离开发工作区
 /.worktrees/
+
+# 独立云端控制面构建产物
+/services/cloud-control-plane/vendor/
+/services/cloud-control-plane/node_modules/
+/services/cloud-control-plane/runtime/
+/services/cloud-control-plane/frontend/*/dist/
+/services/cloud-control-plane/.phpunit.cache/

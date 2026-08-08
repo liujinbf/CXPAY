@@ -6,12 +6,13 @@
 
 **Architecture:** 在 `services/cloud-control-plane/` 创建独立 Webman 2 子项目，使用模块化应用服务、仓储接口、PDO MySQL 实现和 Redis 短期状态存储。M1A 不签发正式 Portal/Ops Session，而是输出一次性 `IdentityCompletion`，由 M1B 的会话服务消费；这样身份事务不依赖尚未实现的会话层。
 
-**Tech Stack:** PHP 8.2、Webman Framework 2.2、PDO MySQL 8、Redis 7、Libsodium、Guzzle 7、PHPMailer 7、Ramsey UUID 4、PHPUnit 10.5。
+**Tech Stack:** PHP 8.2、Webman Framework 2.2、PDO MySQL 8、Redis 7（Predis 客户端）、Libsodium（开发环境允许 sodium_compat，生产就绪要求原生扩展）、Guzzle 7、PHPMailer 7、Ramsey UUID 4、PHPUnit 10.5。
 
 ## Global Constraints
 
 - 必须遵守 `docs/superpowers/specs/2026-08-09-cloud-control-plane-m1-identity-tenant-design.md`。
 - 云端子项目不得加载 CXPAY 根项目的 Composer、配置、数据库、Redis、Session 或密钥。
+- 开发与测试环境允许使用 `symfony/polyfill-intl-idn` 和 `paragonie/sodium_compat`；生产环境 `/ready` 必须检查 `extension_loaded('sodium')`，缺失时不得进入就绪状态。
 - 生产命名空间固定为 `CloudControl\`；测试假实现只能位于 `CloudControl\Tests\`。
 - 邮箱必须验证，且至少绑定一个 QQ 或微信后用户才能变为 `ACTIVE`。
 - QQ/微信登录不能自动注册；未配置官方凭据必须返回稳定错误，不得模拟成功。
@@ -109,22 +110,23 @@ Expected: 输出 `False`。此时不能借用根目录 PHPUnit 把测试伪装�
 ```json
 {
   "name": "cxpay/cloud-control-plane",
+  "description": "CXPAY 独立部署的云端授权、账户与交付控制面",
   "type": "project",
   "license": "proprietary",
   "require": {
     "php": ">=8.2",
     "ext-json": "*",
-    "ext-intl": "*",
     "ext-mbstring": "*",
     "ext-openssl": "*",
     "ext-pdo": "*",
     "ext-pdo_mysql": "*",
-    "ext-redis": "*",
-    "ext-sodium": "*",
     "guzzlehttp/guzzle": "^7.10",
     "monolog/monolog": "^3.0",
+    "paragonie/sodium_compat": "^2.1",
     "phpmailer/phpmailer": "^7.1",
+    "predis/predis": "^2.3 || ^3.0",
     "ramsey/uuid": "^4.9",
+    "symfony/polyfill-intl-idn": "^1.33",
     "vlucas/phpdotenv": "^5.6",
     "workerman/webman-framework": "^2.2"
   },
