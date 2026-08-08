@@ -23,6 +23,15 @@ final class LegacyCloudControllerRetirementTest extends TestCase
             ['pollQqLogin', true],
             ['sendEmailCode', true],
             ['bindQq', true],
+            ['downloadPackage', true],
+            ['traceLeaked', true],
+            ['getSiteInfo', true],
+            ['renewModule', true],
+            ['resetKey', true],
+            ['changeDomain', true],
+            ['pluginMarketList', true],
+            ['pluginBuy', true],
+            ['pluginDownload', true],
         ];
 
         foreach ($actions as [$method, $needsRequest]) {
