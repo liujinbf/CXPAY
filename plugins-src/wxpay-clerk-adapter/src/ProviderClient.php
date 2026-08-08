@@ -5,11 +5,19 @@ declare(strict_types=1);
 namespace plugin\cxpay\wxpay_clerk_adapter;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
 use RuntimeException;
 use support\UrlGuard;
 
 final class ProviderClient
 {
+    private ClientInterface $http;
+
+    public function __construct(?ClientInterface $http = null)
+    {
+        $this->http = $http ?? new Client();
+    }
+
     public function capabilities(array $config): array
     {
         $accountId = (string)($config['account_id'] ?? '');
@@ -84,8 +92,10 @@ final class ProviderClient
             (string)($config['callback_secret_previous'] ?? ''),
         ], static fn (string $secret): bool => strlen($secret) >= 32 && strlen($secret) <= 128));
 
-        if (UrlGuard::resolve($baseUrl) === null) {
-            throw new RuntimeException('店员免挂云服务地址不可用或不是公网 HTTP(S) 地址');
+        $target = UrlGuard::resolve($baseUrl);
+        if (strtolower((string)parse_url($baseUrl, PHP_URL_SCHEME)) !== 'https'
+            || $target === null || $target['port'] !== 443) {
+            throw new RuntimeException('店员服务地址必须是可解析的公网 HTTPS 地址');
         }
 
         $body = $payload === [] ? '' : json_encode(
@@ -97,13 +107,13 @@ final class ProviderClient
         $canonical = implode("\n", [strtoupper($method), $path, $timestamp, $nonce, hash('sha256', $body)]);
         $signature = hash_hmac('sha256', $canonical, $clientSecret);
 
-        $response = (new Client([
-            'base_uri'        => $baseUrl,
-            'timeout'         => 5.0,
+        $response = $this->http->request($method, $baseUrl . $path, [
+            'timeout' => 5.0,
             'connect_timeout' => 3.0,
-            'verify'          => true,
-            'http_errors'     => false,
-        ]))->request($method, $path, ['headers' => [
+            'verify' => true,
+            'http_errors' => false,
+            'allow_redirects' => false,
+            'headers' => [
             'Accept'            => 'application/json',
             'Content-Type'      => 'application/json',
             'X-CXPAY-Client'    => $clientId,

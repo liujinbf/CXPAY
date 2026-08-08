@@ -3,9 +3,9 @@
   "id": "cxpay.wxpay.clerk_adapter",
   "slug": "wxpay_clerk_adapter",
   "name": "微信云端店员免挂适配器",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "cxpay.official",
-  "description": "通过添加云端店员号接收微信官方到账通知，免商户手机/PC挂机，零封号风险，支持个人码与赞赏码。",
+  "description": "通过个人微信店员账号与独立 Gewe/iPad 协议服务接收到账通知；无需商户设备常驻，但存在账号风控和协议变化风险。",
   "payment_type": "wxpay",
   "collection_mode": "personal_qr",
   "monitor_mode": "callback",
@@ -23,7 +23,7 @@
     "operations_status": true
   },
   "permissions": {
-    "outbound_domains": ["由管理员配置的 WX Monitor Cloud 店员服务地址"],
+    "outbound_domains": ["由管理员配置的公网 HTTPS 店员服务地址"],
     "callbacks": ["/notify/wxpay_clerk_adapter"],
     "scheduled_tasks": false,
     "secret_config": ["client_secret", "callback_secret", "callback_secret_previous"]
