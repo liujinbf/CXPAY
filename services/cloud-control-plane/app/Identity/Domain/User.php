@@ -7,6 +7,7 @@ namespace CloudControl\Identity\Domain;
 use CloudControl\Shared\Error\CloudException;
 use CloudControl\Shared\Error\ErrorCode;
 use DateTimeImmutable;
+use CloudControl\Shared\Security\EncryptedSecret;
 
 final class User
 {
@@ -18,7 +19,9 @@ final class User
         private UserStatus $status,
         private ?DateTimeImmutable $emailVerifiedAt,
         private readonly DateTimeImmutable $createdAt,
-        private DateTimeImmutable $updatedAt
+        private DateTimeImmutable $updatedAt,
+        private ?EncryptedSecret $totpSecret = null,
+        private ?DateTimeImmutable $totpEnabledAt = null
     ) {
     }
 
@@ -47,7 +50,9 @@ final class User
         UserStatus $status,
         ?DateTimeImmutable $emailVerifiedAt,
         DateTimeImmutable $createdAt,
-        DateTimeImmutable $updatedAt
+        DateTimeImmutable $updatedAt,
+        ?EncryptedSecret $totpSecret = null,
+        ?DateTimeImmutable $totpEnabledAt = null
     ): self {
         return new self(
             $id,
@@ -57,7 +62,9 @@ final class User
             $status,
             $emailVerifiedAt,
             $createdAt,
-            $updatedAt
+            $updatedAt,
+            $totpSecret,
+            $totpEnabledAt
         );
     }
 
@@ -94,6 +101,20 @@ final class User
         $this->updatedAt = $now;
     }
 
+    public function enableTotp(EncryptedSecret $secret, DateTimeImmutable $now): void
+    {
+        $this->totpSecret = $secret;
+        $this->totpEnabledAt = $now;
+        $this->updatedAt = $now;
+    }
+
+    public function disableTotp(DateTimeImmutable $now): void
+    {
+        $this->totpSecret = null;
+        $this->totpEnabledAt = null;
+        $this->updatedAt = $now;
+    }
+
     public function id(): string { return $this->id; }
     public function email(): EmailAddress { return $this->email; }
     public function emailCanonical(): string { return $this->email->canonical(); }
@@ -103,4 +124,7 @@ final class User
     public function emailVerifiedAt(): ?DateTimeImmutable { return $this->emailVerifiedAt; }
     public function createdAt(): DateTimeImmutable { return $this->createdAt; }
     public function updatedAt(): DateTimeImmutable { return $this->updatedAt; }
+    public function totpSecret(): ?EncryptedSecret { return $this->totpSecret; }
+    public function totpEnabledAt(): ?DateTimeImmutable { return $this->totpEnabledAt; }
+    public function totpEnabled(): bool { return $this->totpSecret !== null && $this->totpEnabledAt !== null; }
 }

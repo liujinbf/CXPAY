@@ -68,6 +68,9 @@ SET display_name = :display_name,
     password_hash = :password_hash,
     status = :status,
     email_verified_at = :email_verified_at,
+    totp_secret_ciphertext = :totp_secret_ciphertext,
+    totp_secret_nonce = :totp_secret_nonce,
+    totp_enabled_at = :totp_enabled_at,
     updated_at = :updated_at
 WHERE id = :id
 SQL);
@@ -76,6 +79,9 @@ SQL);
             'password_hash' => $user->passwordHash(),
             'status' => $user->status()->value,
             'email_verified_at' => self::formatNullable($user->emailVerifiedAt()),
+            'totp_secret_ciphertext' => $user->totpSecret()?->ciphertext,
+            'totp_secret_nonce' => $user->totpSecret()?->nonce,
+            'totp_enabled_at' => self::formatNullable($user->totpEnabledAt()),
             'updated_at' => self::format($user->updatedAt()),
             'id' => $user->id(),
         ]);
@@ -85,7 +91,8 @@ SQL);
     {
         $sql = <<<'SQL'
 SELECT id, email, display_name, password_hash, status,
-       email_verified_at, created_at, updated_at
+       email_verified_at, created_at, updated_at,
+       totp_secret_ciphertext, totp_secret_nonce, totp_enabled_at
 FROM cloud_users
 WHERE email_canonical = :email_canonical
 SQL;
@@ -103,7 +110,8 @@ SQL;
     {
         $sql = <<<'SQL'
 SELECT id, email, display_name, password_hash, status,
-       email_verified_at, created_at, updated_at
+       email_verified_at, created_at, updated_at,
+       totp_secret_ciphertext, totp_secret_nonce, totp_enabled_at
 FROM cloud_users
 WHERE id = :id
 SQL;
@@ -128,7 +136,14 @@ SQL;
             UserStatus::from((string)$row['status']),
             self::dateNullable($row['email_verified_at']),
             self::date((string)$row['created_at']),
-            self::date((string)$row['updated_at'])
+            self::date((string)$row['updated_at']),
+            $row['totp_secret_ciphertext'] === null || $row['totp_secret_nonce'] === null
+                ? null
+                : new \CloudControl\Shared\Security\EncryptedSecret(
+                    (string)$row['totp_secret_ciphertext'],
+                    (string)$row['totp_secret_nonce']
+                ),
+            self::dateNullable($row['totp_enabled_at'])
         );
     }
 
