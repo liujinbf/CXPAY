@@ -575,7 +575,7 @@ Expected: FAIL，`MigrationRunner` 尚不存在；MySQL healthcheck 必须成功
 2. 创建 `cloud_schema_migrations(version VARCHAR(191) PRIMARY KEY, checksum CHAR(64), executed_at DATETIME(6))`；
 3. 按文件名字典序读取 `*.sql`；
 4. 对已执行文件比较 SHA-256，变化则拒绝；
-5. 未执行文件在事务中执行并写版本；
+5. 未执行文件在命名锁保护下执行；由于 MySQL DDL 会隐式提交，建表语句使用 `IF NOT EXISTS` 支持失败后重入，全部成功后再以独立事务写入版本；
 6. `finally` 调用 `RELEASE_LOCK`。
 
 任何失败都保留原迁移文件名，但对外消息不包含 DSN、用户名或 SQL 内容。
@@ -585,7 +585,7 @@ Expected: FAIL，`MigrationRunner` 尚不存在；MySQL healthcheck 必须成功
 `001_m1_identity_tenant.sql` 必须创建：
 
 ```sql
-CREATE TABLE cloud_users (
+CREATE TABLE IF NOT EXISTS cloud_users (
   id CHAR(36) PRIMARY KEY,
   email VARCHAR(320) NOT NULL,
   email_canonical VARCHAR(320) NOT NULL,
@@ -605,7 +605,7 @@ CREATE TABLE cloud_users (
   UNIQUE KEY uq_cloud_users_email (email_canonical)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE cloud_user_identities (
+CREATE TABLE IF NOT EXISTS cloud_user_identities (
   id CHAR(36) PRIMARY KEY,
   user_id CHAR(36) NOT NULL,
   provider VARCHAR(16) NOT NULL,
@@ -625,7 +625,7 @@ CREATE TABLE cloud_user_identities (
 同一迁移继续使用以下明确结构：
 
 ```sql
-CREATE TABLE cloud_email_verifications (
+CREATE TABLE IF NOT EXISTS cloud_email_verifications (
   id CHAR(36) PRIMARY KEY,
   email_canonical VARCHAR(320) NOT NULL,
   purpose VARCHAR(32) NOT NULL,
@@ -639,7 +639,7 @@ CREATE TABLE cloud_email_verifications (
   KEY idx_email_verification_lookup (email_canonical, purpose, delivery_status, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE cloud_tenants (
+CREATE TABLE IF NOT EXISTS cloud_tenants (
   id CHAR(36) PRIMARY KEY,
   type VARCHAR(16) NOT NULL,
   name VARCHAR(150) NOT NULL,
@@ -651,7 +651,7 @@ CREATE TABLE cloud_tenants (
   KEY idx_tenant_type_status (type, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE cloud_tenant_members (
+CREATE TABLE IF NOT EXISTS cloud_tenant_members (
   id CHAR(36) PRIMARY KEY,
   tenant_id CHAR(36) NOT NULL,
   user_id CHAR(36) NOT NULL,
@@ -666,7 +666,7 @@ CREATE TABLE cloud_tenant_members (
   KEY idx_member_user_status (user_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE cloud_tenant_relations (
+CREATE TABLE IF NOT EXISTS cloud_tenant_relations (
   id CHAR(36) PRIMARY KEY,
   agent_tenant_id CHAR(36) NOT NULL,
   customer_tenant_id CHAR(36) NOT NULL,
@@ -684,7 +684,7 @@ CREATE TABLE cloud_tenant_relations (
   KEY idx_relation_agent_status (agent_tenant_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE cloud_agent_profiles (
+CREATE TABLE IF NOT EXISTS cloud_agent_profiles (
   tenant_id CHAR(36) PRIMARY KEY,
   status VARCHAR(16) NOT NULL,
   level_code VARCHAR(32) NULL,
@@ -694,7 +694,7 @@ CREATE TABLE cloud_agent_profiles (
   CONSTRAINT fk_agent_profile_tenant FOREIGN KEY (tenant_id) REFERENCES cloud_tenants(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE cloud_sessions (
+CREATE TABLE IF NOT EXISTS cloud_sessions (
   id CHAR(36) PRIMARY KEY,
   token_digest CHAR(64) NOT NULL,
   user_id CHAR(36) NOT NULL,
@@ -714,7 +714,7 @@ CREATE TABLE cloud_sessions (
   KEY idx_session_user_active (user_id, revoked_at, absolute_expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE cloud_invitations (
+CREATE TABLE IF NOT EXISTS cloud_invitations (
   id CHAR(36) PRIMARY KEY,
   tenant_id CHAR(36) NOT NULL,
   email_canonical VARCHAR(320) NOT NULL,
@@ -731,7 +731,7 @@ CREATE TABLE cloud_invitations (
   KEY idx_invitation_email_status (email_canonical, status, expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE cloud_audit_events (
+CREATE TABLE IF NOT EXISTS cloud_audit_events (
   id CHAR(36) PRIMARY KEY,
   occurred_at DATETIME(6) NOT NULL,
   actor_user_id CHAR(36) NULL,

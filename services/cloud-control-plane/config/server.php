@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use CloudControl\Shared\Config\Environment;
+
 return [
-    'listen' => 'http://' . env('CLOUD_HOST', '127.0.0.1') . ':' . env('CLOUD_PORT', '8890'),
+    'listen' => 'http://' . Environment::get('CLOUD_HOST', '127.0.0.1') . ':' . Environment::get('CLOUD_PORT', '8890'),
     'transport' => 'tcp',
     'context' => [],
     'name' => 'CXPAY Cloud Control Plane',
-    'count' => (int)env('CLOUD_WEBMAN_WORKERS', 4),
+    'count' => (int)Environment::get('CLOUD_WEBMAN_WORKERS', 4),
     'user' => '',
     'group' => '',
     'reusePort' => false,
