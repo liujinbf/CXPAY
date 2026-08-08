@@ -38,7 +38,8 @@
             "support\\": "support/",
             "process\\": "process/",
             "WxMonitorCloud\\": "services/wx-monitor-cloud/src/",
-            "WxCollector\\": "agents/wx-collector/src/"
+            "WxCollector\\": "agents/wx-collector/src/",
+            "WxpayClerk\\": "services/wxpay-clerk-service/src/"
         },
         "files": [
             "support/helpers.php"
