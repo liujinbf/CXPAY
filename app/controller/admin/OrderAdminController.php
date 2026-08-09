@@ -6,6 +6,7 @@ namespace app\controller\admin;
 
 use app\model\Order;
 use app\service\OrderService;
+use support\AuditLog;
 
 /**
  * 管理员后台订单高级查询、强制补单与手动退款控制器
@@ -81,5 +82,50 @@ class OrderAdminController
         }
 
         return json_encode(['code' => 1, 'msg' => '订单已成功手动作废关闭'], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * 管理员强制补单
+     */
+    public function forceNotifyOrder(\support\Request $request): string
+    {
+        $params   = $request->post();
+        $tradeNo  = $params['trade_no'] ?? '';
+        $operator = AuditLog::currentOperator();
+        $ip       = AuditLog::currentIp();
+
+        $order = Order::where('trade_no', $tradeNo)->first();
+        if (!$order) {
+            AuditLog::record($operator, 'force_pay', ['trade_no' => $tradeNo, 'reason' => '订单不存在'], 'fail', $ip);
+            return json_encode(['code' => -1, 'msg' => '订单不存在'], JSON_UNESCAPED_UNICODE);
+        }
+
+        if ((int)$order->status === 1) {
+            AuditLog::record($operator, 'resend_notify', ['trade_no' => $tradeNo], 'success', $ip);
+            return json_encode($this->orderService->resendNotify((string)$order->trade_no), JSON_UNESCAPED_UNICODE);
+        }
+
+        $success = $this->orderService->markAsPaid(
+            (string)$order->trade_no,
+            'MANUAL_' . time(),
+            (float)$order->price,
+            (int)$order->channel_id,
+            false
+        );
+
+        AuditLog::record($operator, 'force_pay', [
+            'trade_no'   => $tradeNo,
+            'amount'     => (string)$order->price,
+            'channel_id' => (int)$order->channel_id,
+        ], $success ? 'success' : 'fail', $ip);
+
+        if (!$success) {
+            return json_encode(['code' => -1, 'msg' => '补单失败，订单状态不允许核销'], JSON_UNESCAPED_UNICODE);
+        }
+
+        return json_encode([
+            'code' => 1,
+            'msg'  => '订单已按统一结算流程补单，商户通知已进入队列',
+        ], JSON_UNESCAPED_UNICODE);
     }
 }

@@ -148,7 +148,7 @@ Route::group('/api/admin', function () {
     Route::post('/bill-source/rotate-token', [app\controller\api\BillSourceManageController::class, 'adminRotate']);
     Route::get('/merchant/list', [app\controller\admin\AdminMerchantController::class, 'listMerchants']);
     Route::post('/merchant/save', [app\controller\admin\AdminMerchantController::class, 'saveMerchant']);
-    Route::post('/order/force_notify', [app\controller\admin\AdminController::class, 'forceNotifyOrder']);
+    Route::post('/order/force_notify', [app\controller\admin\OrderAdminController::class, 'forceNotifyOrder']);
     Route::post('/template/save', [app\controller\admin\MerchantTemplateController::class, 'saveTemplate']);
     
     // 订单高级检索与人工补单 API

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use app\controller\admin\AdminAuthController;
+use Illuminate\Database\Capsule\Manager as DB;
+use Illuminate\Database\Schema\Blueprint;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
@@ -82,6 +84,44 @@ final class AdminControllerApiContractTest extends TestCase
 
         self::assertSame(-1, $payload['code']);
         self::assertSame('主页模板不存在或名称不合法', $payload['msg']);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testForceNotifyReturnsNotFoundForUnknownOrder(): void
+    {
+        $class = \app\controller\admin\OrderAdminController::class;
+        self::assertTrue(method_exists($class, 'forceNotifyOrder'), '人工补单尚未迁移');
+
+        $db = new DB();
+        $db->addConnection(['driver' => 'sqlite', 'database' => ':memory:']);
+        $db->setAsGlobal();
+        $db->bootEloquent();
+        $db->schema()->create('cx_order', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->string('trade_no')->unique();
+            $table->unsignedTinyInteger('status')->default(0);
+            $table->decimal('price', 12, 2)->default(0);
+            $table->unsignedInteger('channel_id')->default(0);
+        });
+        $db->schema()->create('cx_audit_log', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->string('operator');
+            $table->string('action');
+            $table->text('context');
+            $table->string('result');
+            $table->string('ip');
+            $table->unsignedInteger('created_at');
+        });
+
+        $payload = $this->decode((new $class())->forceNotifyOrder(
+            $this->postRequest(['trade_no' => 'ADMIN-MISSING'])
+        ));
+
+        self::assertSame(-1, $payload['code']);
+        self::assertSame('订单不存在', $payload['msg']);
+        self::assertSame('force_pay', $db->table('cx_audit_log')->value('action'));
+        self::assertSame('fail', $db->table('cx_audit_log')->value('result'));
     }
 
     private function postRequest(array $data): Request

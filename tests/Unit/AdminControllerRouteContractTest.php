@@ -90,6 +90,31 @@ final class AdminControllerRouteContractTest extends TestCase
         );
     }
 
+    public function testForceNotifyUsesExistingOrderController(): void
+    {
+        $this->assertRoute(
+            'POST',
+            '/api/admin/order/force_notify',
+            [\app\controller\admin\OrderAdminController::class, 'forceNotifyOrder'],
+            $this->adminMiddleware()
+        );
+    }
+
+    public function testNoRegisteredRouteUsesLegacyAdminController(): void
+    {
+        foreach (Route::getRoutes() as $route) {
+            $callback = $route->getCallback();
+            if (!is_array($callback)) {
+                continue;
+            }
+            self::assertNotSame(
+                'app\controller\admin\AdminController',
+                $callback[0] ?? null,
+                $route->getPath() . ' 仍回调旧控制器'
+            );
+        }
+    }
+
     private function assertRoute(
         string $method,
         string $path,
