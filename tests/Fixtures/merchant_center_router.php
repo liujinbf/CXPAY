@@ -30,10 +30,70 @@ if (str_starts_with($path, '/api/merchant/')) {
         '/api/merchant/plan/list' => [
             'merchant_money' => '100.00',
             'plan_fee_discount_balance' => '0.00',
+            'current_plan_id' => 1,
             'current_plan_name' => '默认基础套餐',
+            'plan_expire_time' => time() + 86400,
             'plan_expire_format' => '无到期限制',
             'list' => [],
         ],
+        '/api/merchant/channel/list' => [[
+            'id' => 7,
+            'title' => '微信店员测试通道',
+            'pay_category' => 'wxpay',
+            'c_type' => 'wxpay_recpt_afk_pc',
+            'remark' => 'Playwright 冒烟测试',
+            'status' => 1,
+            'online_status' => 1,
+            'today_money' => '12.34',
+            'today_count' => 2,
+            'total_money' => '123.45',
+            'config' => ['qr_url' => 'wxp://fixture'],
+            'configured' => ['account_cookie' => true],
+            'supports_account_authorization' => true,
+            'authorization_label' => '微信扫码授权',
+            'supports_account_capability_detection' => true,
+        ]],
+        '/api/merchant/channel/drivers' => [
+            'wxpay' => [[
+                'c_type' => 'wxpay_recpt_afk_pc',
+                'name' => '微信店员模式（PC）',
+                'inputs' => [
+                    ['name' => 'account_cookie', 'title' => '授权 Cookie', 'type' => 'textarea', 'required' => true],
+                    ['name' => 'qr_url', 'title' => '收款码地址', 'type' => 'text', 'required' => false],
+                ],
+            ]],
+            'alipay' => [[
+                'c_type' => 'alipay_personal',
+                'name' => '支付宝个人码',
+                'inputs' => [[
+                    'name' => 'qr_url', 'title' => '收款码地址', 'type' => 'text', 'required' => true,
+                ]],
+            ]],
+            'qqpay' => [],
+        ],
+        '/api/merchant/channel/capabilities' => [
+            'status' => 'RECEIPT_AVAILABLE',
+            'message' => '测试账号已开通收款单功能',
+        ],
+        '/api/merchant/channel/authorization/start' => [
+            'session_id' => 'fixture-auth-session',
+        ],
+        '/api/merchant/channel/authorization/poll' => [
+            'status' => 'WAITING',
+            'qr_url' => 'https://fixture.example/authorize',
+            'expires_at' => time() + 300,
+        ],
+        '/api/merchant/bill-source/status' => [
+            'configured' => true,
+            'collector_id' => 'ANDROID_PHONE_01',
+            'ingest_ip_white' => '',
+        ],
+        '/api/merchant/bill-source/rotate-token' => [
+            'token' => 'fixture-' . ($_POST['scope'] ?? 'unknown') . '-token',
+        ],
+        '/api/merchant/channel/save',
+        '/api/merchant/channel/toggle',
+        '/api/merchant/channel/delete' => [],
         default => [],
     };
 

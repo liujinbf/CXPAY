@@ -77,7 +77,7 @@ globalThis.window = {
 globalThis.fetch = async () => ({ status: 401 });
 
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v2') {
+if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v3') {
     throw new Error('资源 URL 版本错误');
 }
 
@@ -137,6 +137,74 @@ JS;
         }
         self::assertStringContainsString('/api/merchant/change_password', $profile);
         self::assertStringContainsString('/api/merchant/reset_key', $apiKeys);
+    }
+
+    public function testChannelModulesExistAndKeepApiContracts(): void
+    {
+        $paths = [
+            self::MERCHANT . '/views/channels.html',
+            self::MERCHANT . '/assets/features/channels.js',
+            self::MERCHANT . '/assets/features/channel-editor.js',
+            self::MERCHANT . '/assets/features/channel-authorization.js',
+        ];
+        $combined = '';
+        foreach ($paths as $path) {
+            self::assertFileExists($path);
+            $source = (string) file_get_contents($path);
+            self::assertLessThanOrEqual(400, substr_count($source, "\n") + 1, $path);
+            $combined .= $source;
+        }
+        self::assertStringContainsString('data-feature="channels"', (string) file_get_contents($paths[0]));
+        foreach ([
+            '/api/merchant/channel/list',
+            '/api/merchant/channel/save',
+            '/api/merchant/channel/toggle',
+            '/api/merchant/channel/delete',
+            '/api/merchant/channel/capabilities',
+            '/api/merchant/channel/authorization/start',
+            '/api/merchant/channel/authorization/poll',
+            '/api/merchant/channel/drivers',
+            '/api/merchant/bill-source/status',
+            '/api/merchant/bill-source/rotate-token',
+        ] as $api) {
+            self::assertStringContainsString($api, $combined);
+        }
+    }
+
+    public function testChannelAuthorizationStopsPollingWhenParentSignalAborts(): void
+    {
+        $script = <<<'JS'
+import { pathToFileURL } from 'node:url';
+
+const parent = new AbortController();
+let pollCount = 0;
+const api = {
+    merchantFetch: async (url) => {
+        if (url.endsWith('/start')) {
+            return { json: async () => ({ code: 1, data: { session_id: 'session-1' } }) };
+        }
+        if (url.endsWith('/poll')) {
+            pollCount += 1;
+            parent.abort();
+            return { json: async () => ({ code: 1, data: { status: 'WAITING' } }) };
+        }
+        throw new Error(`意外请求 ${url}`);
+    },
+};
+const ui = { showToast: () => {}, showConfirm: async () => true };
+const { createChannelAuthorization } = await import(pathToFileURL(process.argv[1]).href);
+const controller = createChannelAuthorization({ root: {}, api, ui, signal: parent.signal });
+await controller.start(7, '微信');
+await new Promise((resolve) => setTimeout(resolve, 20));
+if (pollCount !== 1) throw new Error(`中止后仍继续轮询：${pollCount}`);
+controller.dispose();
+JS;
+
+        [$exitCode, $output] = $this->runNode($script, [
+            self::MERCHANT . '/assets/features/channel-authorization.js',
+        ]);
+
+        self::assertSame(0, $exitCode, $output);
     }
 
     /** @return iterable<string, array{0: string, 1: list<string>}> */
