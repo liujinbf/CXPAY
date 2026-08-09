@@ -2,5 +2,5 @@
 
 return [
     'enable' => true,
-    'middleware' => [],
+    'middleware' => [app\middleware\AdminAssetCacheMiddleware::class],
 ];
