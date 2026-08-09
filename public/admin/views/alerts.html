@@ -1,0 +1,345 @@
+<section data-feature="alerts" class="space-y-6">
+<div class="flex items-center justify-between border-b border-slate-200 pb-4">
+    <div>
+        <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+            <i data-lucide="sliders" class="w-6 h-6 text-blue-600"></i> 系统运营参数与告警通知
+        </h2>
+        <p class="text-xs text-slate-400 mt-1">设置新注册用户体验赠送余额、系统统一收单PID以及管理告警通知渠道</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <button data-action="save-system-config" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1">
+            <i data-lucide="save" class="w-3.5 h-3.5"></i> 保存运营配置
+        </button>
+        <button data-action="save-alert-config" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1">
+            <i data-lucide="bell" class="w-3.5 h-3.5"></i> 保存告警通知
+        </button>
+    </div>
+</div>
+
+<!-- 1. 核心运营配置卡片：注册赠送体验余额 & 系统收款PID -->
+<div class="glass-panel p-6 rounded-2xl space-y-4 border-l-4 border-l-blue-600 shadow-sm">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+            <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                <i data-lucide="gift" class="w-4 h-4 text-blue-600"></i> 平台核心运营与商户收单设置
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">控制新商户注册时自动赠送的服务费体验金及平台统一收单与充值 PID 账号</p>
+        </div>
+        <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">运营必备</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+        <!-- 新用户注册赠送体验余额 -->
+        <div class="p-4 bg-blue-50/50 rounded-xl border border-blue-100 space-y-2">
+            <label class="block font-bold text-slate-700 flex items-center justify-between">
+                <span>🎁 新注册商户赠送体验服务费余额 (元)</span>
+                <span class="text-[10px] text-blue-600 font-normal">注册即生效</span>
+            </label>
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold font-mono">¥</span>
+                <input id="sys-register-grant-balance" type="number" step="0.01" min="0" value="10.00" placeholder="10.00" class="w-full pl-7 pr-3 py-2 border border-blue-200 rounded-xl font-mono font-bold text-blue-800 bg-white text-xs">
+            </div>
+            <p class="text-[11px] text-slate-400">新商户在线自主注册成功后，系统自动注入该数额的体验余额，可用于抵扣收单交易手续费。</p>
+        </div>
+
+        <!-- 平台系统统一收单 / 充值 PID -->
+        <div class="p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2">
+            <label class="block font-bold text-slate-700 flex items-center justify-between">
+                <span>💳 平台统一收单 / 余额充值 PID 账号</span>
+                <span class="text-[10px] text-emerald-600 font-bold">内置系统账号</span>
+            </label>
+            <div class="relative">
+                <input id="sys-recharge-pid" type="text" value="1000" placeholder="1000" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono font-bold text-slate-800 bg-white text-xs">
+            </div>
+            <p class="text-[11px] text-slate-400">商户在后台发起余额充值或购买高阶套餐时，系统使用的统一服务费收单目标 PID。</p>
+        </div>
+    </div>
+</div>
+
+<!-- 全局开关与事件订阅 -->
+<div class="glass-panel p-6 rounded-2xl space-y-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h3 class="text-sm font-extrabold text-slate-800">通知全局总开关</h3>
+            <p class="text-xs text-slate-400">关闭后将停止所有消息分发</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="alert-admin-enabled" class="sr-only peer">
+            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+        </label>
+    </div>
+
+    <div class="border-t border-slate-100 pt-4">
+        <h4 class="text-xs font-bold text-slate-600 mb-3">事件订阅（触发时机）</h4>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <label class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                <input type="checkbox" id="alert-event-admin_login" class="rounded text-rose-600">
+                <div>
+                    <div class="font-bold text-slate-700">管理员登录</div>
+                    <div class="text-[10px] text-slate-400">管理员账号成功登录</div>
+                </div>
+            </label>
+            <label class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                <input type="checkbox" id="alert-event-merchant_login" class="rounded text-rose-600">
+                <div>
+                    <div class="font-bold text-slate-700">商户登录</div>
+                    <div class="text-[10px] text-slate-400">任意商户登录控制台</div>
+                </div>
+            </label>
+            <label class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                <input type="checkbox" id="alert-event-order_paid" class="rounded text-rose-600">
+                <div>
+                    <div class="font-bold text-slate-700">账单到账</div>
+                    <div class="text-[10px] text-slate-400">订单成功支付核销</div>
+                </div>
+            </label>
+            <label class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer">
+                <input type="checkbox" id="alert-event-channel_offline" class="rounded text-rose-600">
+                <div>
+                    <div class="font-bold text-slate-700">通道掉线 ⚠️</div>
+                    <div class="text-[10px] text-slate-400">收款通道心跳超时</div>
+                </div>
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- 渠道配置：三列 -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- 1. SMTP 邮件通知 -->
+    <div class="glass-panel p-5 rounded-2xl space-y-4 border-t-4 border-t-blue-500">
+        <div class="flex items-center justify-between">
+            <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                <i data-lucide="mail" class="w-4 h-4 text-blue-500"></i> SMTP 邮件通知
+            </h3>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="alert-email-enabled" class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+        </div>
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block font-bold text-slate-600 mb-1 flex items-center justify-between">
+                    <span>快捷选择国内服务商</span>
+                    <span class="text-[10px] text-blue-600 font-normal">自动填充端口配置</span>
+                </label>
+                <select data-action="smtp-preset" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-blue-50/50 font-bold text-blue-900 cursor-pointer">
+                    <option value="">-- 手动自定义 / 请选择常用邮箱 --</option>
+                    <option value="qq">QQ 邮箱 (smtp.qq.com - SSL 465)</option>
+                    <option value="163">163 网易邮箱 (smtp.163.com - SSL 465)</option>
+                    <option value="126">126 网易邮箱 (smtp.126.com - SSL 465)</option>
+                    <option value="tencent_biz">腾讯企业邮 / 微信企业邮 (smtp.exmail.qq.com - SSL 465)</option>
+                    <option value="ali_biz">阿里企业邮 (smtp.mxhichina.com - SSL 465)</option>
+                    <option value="163_biz">网易企业邮 (smtp.qiye.163.com - SSL 465)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-600 mb-1">SMTP 服务器</label>
+                <input type="text" id="alert-email-host" placeholder="smtp.qq.com" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">端口</label>
+                    <input type="number" id="alert-email-port" value="465" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">加密方式</label>
+                    <select id="alert-email-encryption" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                        <option value="ssl">SSL (465)</option>
+                        <option value="tls">STARTTLS (587)</option>
+                        <option value="">明文 (25)</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-600 mb-1">SMTP 账号</label>
+                <input type="text" id="alert-email-username" placeholder="your@email.com" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-600 mb-1">SMTP 授权码 / 密码</label>
+                <input type="password" id="alert-email-password" placeholder="未修改留空" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-600 mb-1">接收邮箱（多邮箱逗号隔开）</label>
+                <input type="text" id="alert-email-to" placeholder="admin@example.com" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+            </div>
+            <button data-action="test-alert" data-channel="email" class="w-full py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold text-xs">
+                发送测试邮件
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. 企业微信 Webhook -->
+    <div class="glass-panel p-5 rounded-2xl space-y-4 border-t-4 border-t-emerald-500">
+        <div class="flex items-center justify-between">
+            <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                <i data-lucide="message-square" class="w-4 h-4 text-emerald-500"></i> 企业微信机器人
+            </h3>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="alert-wxwork-enabled" class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+            </label>
+        </div>
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block font-bold text-slate-600 mb-1">Webhook URL</label>
+                <textarea id="alert-wxwork-url" rows="4" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                <p class="text-[10px] text-slate-400 mt-1">企业微信群内部机器人提供的 Webhook 地址</p>
+            </div>
+            <button data-action="test-alert" data-channel="wxwork" class="w-full py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl font-bold text-xs">
+                发送测试微聊
+            </button>
+        </div>
+    </div>
+
+    <!-- 3. 通用 Webhook -->
+    <div class="glass-panel p-5 rounded-2xl space-y-4 border-t-4 border-t-purple-500">
+        <div class="flex items-center justify-between">
+            <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                <i data-lucide="webhook" class="w-4 h-4 text-purple-500"></i> 通用 HTTP Webhook
+            </h3>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="alert-webhook-enabled" class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+        </div>
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block font-bold text-slate-600 mb-1">Webhook URL</label>
+                <input type="text" id="alert-webhook-url" placeholder="https://api.day.app/your_bark_key" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs">
+                <p class="text-[10px] text-slate-400 mt-1">支持 Bark、飞书、钉钉等第三方 Webhook</p>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-600 mb-1">额外 Headers (每行一个)</label>
+                <textarea id="alert-webhook-headers" rows="2" placeholder="Authorization: Bearer xxx" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs"></textarea>
+            </div>
+            <button data-action="test-alert" data-channel="webhook" class="w-full py-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl font-bold text-xs">
+                发送测试 Webhook
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<!-- 📢 自定义通知消息模板面板 -->
+<div class="glass-panel p-6 rounded-2xl space-y-5 border-t-4 border-t-indigo-600 bg-white">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+            <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                <i data-lucide="message-square" class="w-4.5 h-4.5 text-indigo-600"></i> 📢 自定义通知消息模板配置
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">支持为所有系统及商户告警事件配置个性化通知标题与正文模版（留空则恢复全局默认模版）</p>
+        </div>
+        <button type="button" data-action="reset-alert-templates" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer">
+            恢复默认模版
+        </button>
+    </div>
+
+    <!-- 动态通用变量指示提示 -->
+    <div class="p-3.5 bg-indigo-50/60 rounded-xl border border-indigo-100 text-xs text-indigo-900 space-y-1">
+        <div class="font-bold flex items-center gap-1"><i data-lucide="info" class="w-4 h-4 text-indigo-600"></i> 可用模板通用占位符变量：</div>
+        <div class="text-[11px] text-indigo-700 font-mono flex flex-wrap gap-x-3 gap-y-1 pt-1">
+            <span>{site_name} 站点名称</span>
+            <span>{time} 事件产生时间</span>
+            <span>{ip} 客户端IP</span>
+            <span>{pid} 商户PID</span>
+            <span>{trade_no} 平台流水号</span>
+            <span>{amount} 到账金额</span>
+            <span>{channel_title} 掉线通道</span>
+            <span>{balance} 账户余额</span>
+            <span>{threshold} 预警阈值</span>
+        </div>
+    </div>
+
+    <!-- 5 大核心事件模板配置项 -->
+    <div class="space-y-6 pt-2">
+        <!-- 1. 通道掉线告警 -->
+        <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+            <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-rose-500"></span> 1. 通道掉线告警模版 (channel_offline)
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">通知标题</label>
+                    <input type="text" id="template-title-channel_offline" placeholder="【{site_name}】⚠️ 通道掉线告警" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-bold text-slate-600 mb-1">通知正文内容</label>
+                    <textarea id="template-body-channel_offline" rows="3" placeholder="检测到支付通道已掉线，请及时处理！&#10;&#10;通道名称：{channel_title}&#10;时间：{time}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 账单成功到账 -->
+        <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+            <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 2. 账单/订单成功到账模版 (order_paid)
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">通知标题</label>
+                    <input type="text" id="template-title-order_paid" placeholder="【{site_name}】账单到账通知 ¥{amount}" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-bold text-slate-600 mb-1">通知正文内容</label>
+                    <textarea id="template-body-order_paid" rows="3" placeholder="订单已成功核销到账！&#10;&#10;平台流水号：{trade_no}&#10;商户 PID：{pid}&#10;到账金额：¥{amount}&#10;时间：{time}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 管理员登录通知 -->
+        <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+            <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-blue-500"></span> 3. 管理员登录安全通知模版 (admin_login)
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">通知标题</label>
+                    <input type="text" id="template-title-admin_login" placeholder="【{site_name}】管理员登录通知" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-bold text-slate-600 mb-1">通知正文内容</label>
+                    <textarea id="template-body-admin_login" rows="2" placeholder="管理员账号已成功登录。&#10;&#10;IP 地址：{ip}&#10;时间：{time}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. 商户登录通知 -->
+        <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+            <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-purple-500"></span> 4. 商户控制台登录模版 (merchant_login)
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">通知标题</label>
+                    <input type="text" id="template-title-merchant_login" placeholder="【{site_name}】商户登录通知" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-bold text-slate-600 mb-1">通知正文内容</label>
+                    <textarea id="template-body-merchant_login" rows="2" placeholder="商户 PID：{pid} 已登录控制台。&#10;&#10;IP 地址：{ip}&#10;时间：{time}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. 余额不足预警 -->
+        <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+            <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span> 5. 服务费余额不足预警模版 (low_balance)
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">通知标题</label>
+                    <input type="text" id="template-title-low_balance" placeholder="【{site_name}】⚠️ 服务费余额不足预警" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-bold text-slate-600 mb-1">通知正文内容</label>
+                    <textarea id="template-body-low_balance" rows="3" placeholder="您的商户服务费余额已低于预警阈值！&#10;&#10;当前服务费余额：¥{balance}&#10;预警触发线：¥{threshold}&#10;请及时充值，以免影响订单轮询与正常收款。&#10;时间：{time}" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono"></textarea>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+</section>
+

@@ -206,6 +206,24 @@ JS;
         yield 'plans' => ['plans', '/api/admin/packvip/', 'plan-editor'];
     }
 
+    #[DataProvider('transactionFeatureProvider')]
+    public function testTransactionFeatureKeepsApiContract(string $id, string $api): void
+    {
+        $view = self::ADMIN . '/views/' . $id . '.html';
+        $module = self::ADMIN . '/assets/features/' . $id . '.js';
+        self::assertFileExists($view);
+        self::assertFileExists($module);
+        self::assertStringContainsString($api, (string) file_get_contents($module));
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function transactionFeatureProvider(): iterable
+    {
+        yield 'orders' => ['orders', '/api/admin/order/'];
+        yield 'callbill' => ['callbill', '/api/admin/callbill/'];
+        yield 'alerts' => ['alerts', '/api/admin/alert/'];
+    }
+
     public function testVersionAndUiModulesKeepTheirRuntimeContract(): void
     {
         $script = <<<'JS'
@@ -213,7 +231,7 @@ import { pathToFileURL } from 'node:url';
 
 globalThis.window = { location: { origin: 'https://admin.example.test' } };
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v5') {
+if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v6') {
     throw new Error('资源版本 URL 不符合约定');
 }
 

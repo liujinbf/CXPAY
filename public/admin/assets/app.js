@@ -15,6 +15,9 @@ definitions.set('channel-config', { view: 'channels.html', module: 'channels.js'
 definitions.set('plugin-market', { view: 'plugins.html', module: 'plugins.js' });
 definitions.set('merchant-mgmt', { view: 'merchants.html', module: 'merchants.js' });
 definitions.set('plan-mgmt', { view: 'plans.html', module: 'plans.js' });
+definitions.set('order-list', { view: 'orders.html', module: 'orders.js' });
+definitions.set('callbill-review', { view: 'callbill.html', module: 'callbill.js' });
+definitions.set('alert-config', { view: 'alerts.html', module: 'alerts.js' });
 const tabTitles = {
     dashboard: '控制台仪表盘',
     'channel-config': '收款通道配置',
@@ -54,12 +57,6 @@ function activateLegacy(requestedId) {
     ui.safeCreateIcons();
 
     const legacyLoaders = {
-        'order-list': () => window.loadOrders(),
-        'callbill-review': () => window.loadCallbillReviews(),
-        'alert-config': () => Promise.all([
-            window.loadAdminAlertConfig(),
-            window.loadSystemOpConfig(),
-        ]),
     };
 
     return legacyLoaders[id]?.();

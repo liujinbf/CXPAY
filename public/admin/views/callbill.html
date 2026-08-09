@@ -1,0 +1,28 @@
+<section data-feature="callbill" class="glass-panel rounded-2xl p-6 space-y-4">
+<div class="flex items-center justify-between gap-4">
+    <div>
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="scan-search" class="w-5 h-5 text-amber-600"></i> 到账账单人工复核
+        </h3>
+        <p class="text-xs text-slate-400 mt-1">仅允许匹配同一通道、相同实付金额且仍待支付的订单。</p>
+    </div>
+    <button data-action="refresh-callbill" class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">刷新</button>
+</div>
+<div class="overflow-x-auto">
+    <table class="w-full text-left text-xs text-slate-600">
+        <thead class="bg-slate-50 uppercase font-semibold border-b">
+            <tr>
+                <th class="p-3">账单/来源</th>
+                <th class="p-3">到账信息</th>
+                <th class="p-3">候选订单</th>
+                <th class="p-3">状态</th>
+                <th class="p-3 text-right">操作</th>
+            </tr>
+        </thead>
+        <tbody id="callbill-review-body" class="divide-y divide-slate-100">
+            <tr><td colspan="5" class="p-6 text-center text-slate-400">正在加载待复核账单...</td></tr>
+        </tbody>
+    </table>
+</div>
+</section>
+

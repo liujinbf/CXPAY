@@ -1,4 +1,4 @@
-export const ASSET_VERSION = 'admin-modules-v5';
+export const ASSET_VERSION = 'admin-modules-v6';
 
 export function assetUrl(path) {
     const url = new URL(path, window.location.origin);

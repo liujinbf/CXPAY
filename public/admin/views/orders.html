@@ -1,0 +1,37 @@
+<section data-feature="orders" class="glass-panel rounded-2xl p-6 space-y-4">
+<div class="flex items-center justify-between gap-4">
+    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+        <i data-lucide="receipt" class="w-5 h-5 text-sky-600"></i> 交易订单检索与补单重发
+    </h3>
+    <div class="flex gap-2 text-xs">
+        <input id="admin-order-search" type="search" placeholder="搜索平台单号/商户单号" class="px-3 py-2 border border-slate-200 rounded-xl">
+        <select id="admin-order-status" class="px-3 py-2 border border-slate-200 rounded-xl">
+            <option value="">全部状态</option>
+            <option value="0">待支付</option>
+            <option value="1">已支付</option>
+            <option value="2">已关闭/超时</option>
+            <option value="3">已退款</option>
+        </select>
+        <button data-action="search-orders" class="px-3 py-2 bg-blue-600 text-white rounded-xl font-bold">检索</button>
+    </div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs text-slate-600">
+    <thead class="bg-slate-50 uppercase font-semibold border-b">
+        <tr>
+            <th class="p-3">订单号</th>
+            <th class="p-3">商户 PID</th>
+            <th class="p-3">金额</th>
+            <th class="p-3">状态</th>
+            <th class="p-3">创建时间</th>
+            <th class="p-3">支付时间</th>
+            <th class="p-3 text-right">操作</th>
+        </tr>
+    </thead>
+    <tbody id="order-table-body" class="divide-y divide-slate-100">
+        <tr><td colspan="7" class="p-6 text-center text-slate-400">正在加载订单数据...</td></tr>
+    </tbody>
+</table>
+</div>
+</section>
+
