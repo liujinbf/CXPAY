@@ -1127,28 +1127,6 @@
     <script>
         lucide.createIcons();
 
-        async function loadMerchantDashboardData() {
-            try {
-                const response = await fetch('/api/merchant/dashboard');
-                const payload = await response.json();
-                if (payload.code === 1 && payload.data) {
-                    const data = payload.data;
-                    document.getElementById('dashboard-today-amount').textContent = `¥ ${data.today_amount}`;
-                    document.getElementById('dashboard-today-count-sub').textContent = `今日交易 ${data.today_count} 笔`;
-                    document.getElementById('dashboard-today-count').textContent = `${data.today_count} 笔`;
-                    document.getElementById('dashboard-success-rate').textContent = `成功率 ${data.today_success_rate}%`;
-                    document.getElementById('dashboard-channel-count').textContent = `${data.running_channel_count} 个`;
-                    document.getElementById('dashboard-merchant-balance').textContent = `¥ ${data.money}`;
-                    if (document.getElementById('dashboard-discount-balance-sub')) {
-                        document.getElementById('dashboard-discount-balance-sub').textContent = `套餐抵扣金 ¥ ${data.plan_fee_discount_balance || '0.00'}`;
-                    }
-                    document.getElementById('dashboard-merchant-rate').textContent = `当前套餐扣率 ${(Number(data.rate) * 100).toFixed(2)}%`;
-                }
-            } catch (e) {
-                console.error('加载商户 Dashboard 数据失败', e);
-            }
-        }
-
         async function loadMerchantOrderList() {
             const tbody = document.getElementById('order-table-body');
             if (!tbody) return;
