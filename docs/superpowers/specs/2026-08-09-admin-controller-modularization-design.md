@@ -132,9 +132,9 @@
 
 ## 10. 测试策略
 
-1. 新增路由契约测试，冻结 14 条 URL 映射、HTTP 方法和 `AdminAuthMiddleware` 分组关系。
-2. 新增模块结构测试，证明 `AdminController.php` 已删除、目标方法只属于一个资源 Controller、旧 Git 更新方法不再存在。
-3. 为无需数据库即可触发的输入校验补充控制器行为测试，冻结关键错误响应。
+1. 新增真实路由注册表测试，冻结 14 条 URL 映射、HTTP 方法、回调类和 `AdminAuthMiddleware` 分组关系。
+2. 遍历 Webman 注册路由，证明没有回调指向旧 `AdminController`；旧文件删除和文件规模由验收命令检查。
+3. 使用真实 `Request` 和内存 SQLite 补充控制器行为测试，冻结关键错误、降级响应和人工补单失败审计。
 4. 对认证、通道、商户、安全设置和人工补单继续运行现有全量测试，确保拆分不影响相关模型和服务。
 5. 对所有新增和修改的 PHP 文件执行 `php -l`，并执行 `git diff --check`。
 6. 执行根 PHPUnit；测试数量不得低于拆分前基线 321 个，且必须 0 failure、0 error。
@@ -162,3 +162,24 @@
 6. PHPUnit 不少于 321 个测试且全部通过；新增路由、结构和关键校验测试通过。
 7. `php -l`、`git diff --check` 和工作树状态检查通过。
 8. `OrderService` 可靠性工作树、其他现有工作树和 `CXPAY.rar` 均未被修改或提交。
+
+## 13. 实施记录
+
+- 2026-08-09：完成 `AdminController` 资源化拆分，原 959 行文件已删除；无路由的旧 Git 更新实现随旧类一并移除，现有 `SystemUpdateController` 保持唯一更新入口。
+- 3 条公开认证路由和 11 条管理员认证组路由均通过 Webman 真实注册表验证，HTTP 方法、回调动作和 `AdminAuthMiddleware` 边界保持不变。
+- 新增行为测试使用真实表单 `Request` 验证空凭据、仪表盘基础设施故障降级、永久移除驱动、非法商户数据、短验证码和模板路径穿越；人工补单测试使用内存 SQLite 验证未知订单响应及失败审计落库。
+
+| 生产文件 | 实际行数 |
+| --- | ---: |
+| `AdminChannelConfigController.php` | 287 |
+| `AdminAuthController.php` | 234 |
+| `AdminDashboardController.php` | 136 |
+| `OrderAdminController.php` | 131 |
+| `AdminMerchantController.php` | 121 |
+| `AdminSecurityController.php` | 120 |
+| `MerchantTemplateController.php` | 34 |
+
+- 10 个新增或修改的 PHP 文件全部通过 `php -l`。
+- 管理员专项、通道前端及页面模块契约共 39 个测试、352 个断言，全部通过。
+- 根 PHPUnit 共 335 个测试、2669 个断言，0 failure、0 error。
+- `git diff --check` 无输出，实施工作树无未提交文件；其他既有工作树和主工作区中的 `CXPAY.rar` 未进入本分支。
