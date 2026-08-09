@@ -10,6 +10,7 @@ const featureRoot = document.getElementById('merchant-feature-root');
 const definitions = new Map();
 definitions.set('dashboard', { view: 'dashboard.html', module: 'dashboard.js' });
 definitions.set('profile', { view: 'profile.html', module: 'profile.js' });
+definitions.set('notice-config', { view: 'alerts.html', module: 'alerts.js' });
 definitions.set('channel-list', { view: 'channels.html', module: 'channels.js' });
 definitions.set('channel-config', { view: 'cashier.html', module: 'cashier.js' });
 definitions.set('poll-group', { view: 'poll-groups.html', module: 'poll-groups.js' });
@@ -17,18 +18,6 @@ definitions.set('order-list', { view: 'orders.html', module: 'orders.js' });
 definitions.set('finance-log', { view: 'finance.html', module: 'finance.js' });
 definitions.set('plan-buy', { view: 'plans.html', module: 'plans.js' });
 definitions.set('api-keys', { view: 'api-keys.html', module: 'api-keys.js' });
-const knownIds = new Set([
-    'dashboard',
-    'profile',
-    'notice-config',
-    'channel-list',
-    'channel-config',
-    'poll-group',
-    'order-list',
-    'finance-log',
-    'plan-buy',
-    'api-keys',
-]);
 const tabTitles = {
     dashboard: '首页概览',
     profile: '账户设置',
@@ -91,35 +80,7 @@ function updateNavigation(id) {
     setText('current-tab-title', tabTitles[id] || '首页概览');
 }
 
-function activateLegacy(id) {
-    featureRoot.classList.add('hidden');
-    featureRoot.innerHTML = '';
-    document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
-    document.getElementById(`tab-${id}`)?.classList.add('active');
-    updateNavigation(id);
-    ui.safeCreateIcons();
-
-    const legacyLoaders = {
-        dashboard: async () => {
-            await window.loadMerchantDashboardData?.();
-            await window.initMerchantTrendChart?.();
-        },
-        profile: () => window.loadMerchantProfile?.(),
-        'channel-list': () => window.loadMerchantChannels?.(),
-        'channel-config': () => window.loadCashierConfig?.(),
-        'poll-group': () => window.loadPollGroups?.(),
-        'order-list': () => window.loadMerchantOrderList?.(),
-        'finance-log': () => window.loadMerchantFinanceLogs?.(),
-        'plan-buy': () => window.loadMerchantPlans?.(),
-        'api-keys': () => window.loadMerchantProfile?.(),
-        'notice-config': () => window.loadMerchantAlertConfig?.(),
-    };
-
-    return legacyLoaders[id]?.();
-}
-
 function activateFeature(id) {
-    document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
     featureRoot.classList.remove('hidden');
     updateNavigation(id);
 }
@@ -127,13 +88,35 @@ function activateFeature(id) {
 const router = routerModule.createRouter({
     container: featureRoot,
     definitions,
-    knownIds,
     context: { api, ui, shell, getMerchantProfile },
-    activateLegacy,
     activateFeature,
 });
 
 window.CXMerchant = Object.freeze({ navigate: router.navigate });
+
+document.getElementById('app').addEventListener('click', async (event) => {
+    const tab = event.target.closest('[data-tab]');
+    if (tab) {
+        event.preventDefault();
+        router.navigate(tab.dataset.tab);
+        return;
+    }
+    const navigation = event.target.closest('[data-navigate]');
+    if (navigation) {
+        event.preventDefault();
+        router.navigate(navigation.dataset.navigate);
+        return;
+    }
+    if (event.target.closest('[data-action="logout-merchant"]')) {
+        try {
+            await api.merchantFetch('/api/merchant/logout', { method: 'POST' });
+        } catch {
+            // 退出接口失败时仍清理当前页面会话状态。
+        } finally {
+            window.location.assign('/merchant_login.html');
+        }
+    }
+});
 
 try {
     await getMerchantProfile();
@@ -143,6 +126,8 @@ try {
 
 let hashTab = (location.hash || '').replace('#', '').trim();
 if (hashTab.includes('?')) hashTab = hashTab.split('?')[0];
-const initialTab = window.CXMerchantPendingTab || hashTab || 'dashboard';
-delete window.CXMerchantPendingTab;
+const initialTab = hashTab || 'dashboard';
 router.navigate(initialTab);
+window.addEventListener('hashchange', () => {
+    router.navigate((location.hash || '').replace('#', '') || 'dashboard');
+});

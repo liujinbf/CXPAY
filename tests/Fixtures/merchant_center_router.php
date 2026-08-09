@@ -67,6 +67,22 @@ if (str_starts_with($path, '/api/merchant/')) {
             'after' => '99.98',
             'memo' => '测试订单服务费',
         ]],
+        '/api/merchant/alert/config' => [
+            'enabled' => true,
+            'low_balance_threshold' => 20,
+            'events' => [
+                'merchant_login' => true,
+                'order_paid' => true,
+                'channel_offline' => true,
+                'low_balance' => true,
+            ],
+            'email_config' => [
+                'enabled' => true,
+                'to_addrs' => ['fixture@example.test'],
+            ],
+            'wxwork_config' => ['enabled' => false, 'webhook_url' => ''],
+            'webhook_config' => ['enabled' => false, 'url' => ''],
+        ],
         '/api/merchant/channel/list' => [[
             'id' => 7,
             'title' => '微信店员测试通道',
@@ -125,7 +141,9 @@ if (str_starts_with($path, '/api/merchant/')) {
         '/api/merchant/channel/save',
         '/api/merchant/channel/toggle',
         '/api/merchant/channel/delete',
-        '/api/merchant/plan/buy' => [],
+        '/api/merchant/plan/buy',
+        '/api/merchant/alert/config/save',
+        '/api/merchant/alert/test' => [],
         default => [],
     };
 

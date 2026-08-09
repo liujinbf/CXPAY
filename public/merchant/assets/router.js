@@ -8,9 +8,7 @@ export function resolveFeatureId(requestedId, definitions, knownIds = definition
 export function createRouter({
     container,
     definitions,
-    knownIds,
     context,
-    activateLegacy,
     activateFeature = () => {},
 }) {
     const fragmentCache = new Map();
@@ -19,7 +17,7 @@ export function createRouter({
     let navigation = 0;
 
     async function navigate(requestedId) {
-        const id = resolveFeatureId(requestedId, definitions, knownIds);
+        const id = resolveFeatureId(requestedId, definitions);
         const currentNavigation = ++navigation;
 
         activeController?.abort();
@@ -30,7 +28,6 @@ export function createRouter({
         activeFeature = null;
 
         const definition = definitions.get(id);
-        if (!definition) return activateLegacy(id);
 
         activateFeature(id);
         activeController = new AbortController();

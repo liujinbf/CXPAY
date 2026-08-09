@@ -329,3 +329,15 @@ export const feature = {
 8. 每个迁移阶段有独立提交，可按提交边界审查。
 9. `CXPAY.rar` 不被修改或提交。
 10. 完成本阶段后再进入 `AdminController` 和 `OrderService` 拆分，不混合实施。
+
+## 16. 实施记录（2026-08-09）
+
+- `public/merchant_center.html` 从 2550 行拆分为 114 行，仅保留页面壳和一个 ES Module 入口；
+- 十个哈希标签均已迁移为独立 view/feature，最大视图为 `cashier.html` 254 行，最大功能模块为 `channel-editor.js` 238 行；
+- 公共请求、资源版本、UI、会话资料和路由各保留一个实现来源，最终资源版本为 `merchant-modules-v6`；
+- 十标签逐项验证均保持原哈希且只有一个活动 `[data-feature]`，快速执行通道、套餐、订单导航后最终只显示订单；
+- 通道授权轮询在离开标签后停止，收银台配置完整保存 `cx_cashier_config`，套餐购买保持 URL 编码 `plan_id`，通知保存保持既有 JSON 请求契约；
+- 通知片段模拟 404 时显示错误卡片，解除拦截后点击重试恢复；除刻意制造的 404、既有 favicon 404 和 Tailwind CDN 提示外，没有应用脚本错误；
+- 187 个 PHP 文件通过语法检查，全部 JavaScript 模块通过 `node --check`，根 PHPUnit 为 321 个测试、2470 个断言且全部通过；
+- `git diff --check` 通过，主工作区未跟踪的 `CXPAY.rar` 未修改、未暂存、未提交；
+- 本阶段未拆分 `AdminController`、`OrderService` 或其他后端超长文件，后续应继续按独立计划和提交边界处理。

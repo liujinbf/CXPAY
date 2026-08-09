@@ -77,7 +77,7 @@ globalThis.window = {
 globalThis.fetch = async () => ({ status: 401 });
 
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v5') {
+if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v6') {
     throw new Error('资源 URL 版本错误');
 }
 
@@ -294,6 +294,51 @@ JS;
             self::MERCHANT . '/assets/features/orders.js',
         ]);
         self::assertSame(0, $exitCode, $output);
+    }
+
+    public function testAlertFeatureKeepsApiContracts(): void
+    {
+        $view = self::MERCHANT . '/views/alerts.html';
+        $module = self::MERCHANT . '/assets/features/alerts.js';
+        self::assertFileExists($view);
+        self::assertFileExists($module);
+        $viewSource = (string) file_get_contents($view);
+        $moduleSource = (string) file_get_contents($module);
+        self::assertStringContainsString('data-feature="alerts"', $viewSource);
+        foreach ([
+            '/api/merchant/alert/config',
+            '/api/merchant/alert/config/save',
+            '/api/merchant/alert/test',
+        ] as $api) {
+            self::assertStringContainsString($api, $moduleSource);
+        }
+    }
+
+    public function testFinalShellHasNoInlineBusinessCode(): void
+    {
+        $html = (string) file_get_contents(self::MERCHANT_CENTER);
+        self::assertLessThanOrEqual(500, substr_count($html, "\n") + 1);
+        self::assertDoesNotMatchRegularExpression('/<script(?![^>]*\bsrc=)[^>]*>/si', $html);
+        self::assertStringNotContainsString('onclick=', $html);
+        self::assertStringNotContainsString('onchange=', $html);
+        self::assertStringNotContainsString('class="tab-panel', $html);
+    }
+
+    public function testAllMerchantFeaturesStayWithinSizeLimit(): void
+    {
+        $paths = array_merge(
+            glob(self::MERCHANT . '/assets/features/*') ?: [],
+            glob(self::MERCHANT . '/views/*') ?: []
+        );
+        foreach ($paths as $path) {
+            if (is_file($path)) {
+                self::assertLessThanOrEqual(
+                    400,
+                    substr_count((string) file_get_contents($path), "\n") + 1,
+                    $path
+                );
+            }
+        }
     }
 
     /** @return iterable<string, array{0: string, 1: list<string>}> */
