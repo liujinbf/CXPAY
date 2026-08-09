@@ -11,6 +11,8 @@ const definitions = new Map();
 definitions.set('dashboard', { view: 'dashboard.html', module: 'dashboard.js' });
 definitions.set('system-update', { view: 'system-update.html', module: 'system-update.js' });
 definitions.set('cloud-monitor', { view: 'cloud-monitor.html', module: 'cloud-monitor.js' });
+definitions.set('channel-config', { view: 'channels.html', module: 'channels.js' });
+definitions.set('plugin-market', { view: 'plugins.html', module: 'plugins.js' });
 const tabTitles = {
     dashboard: '控制台仪表盘',
     'channel-config': '收款通道配置',
@@ -50,16 +52,10 @@ function activateLegacy(requestedId) {
     ui.safeCreateIcons();
 
     const legacyLoaders = {
-        'channel-config': () => {
-            const status = document.getElementById('channel-stat-active-count');
-            if (status) status.textContent = '读取中...';
-            return window.loadAdminChannels();
-        },
         'merchant-mgmt': () => window.loadMerchants(),
         'plan-mgmt': () => window.loadPlans(),
         'order-list': () => window.loadOrders(),
         'callbill-review': () => window.loadCallbillReviews(),
-        'plugin-market': () => window.loadInstalledPlugins(),
         'alert-config': () => Promise.all([
             window.loadAdminAlertConfig(),
             window.loadSystemOpConfig(),

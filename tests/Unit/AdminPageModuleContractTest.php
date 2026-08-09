@@ -147,6 +147,44 @@ JS;
         }
     }
 
+    #[DataProvider('commerceFeatureProvider')]
+    public function testCommerceFeatureHasViewAndModule(string $id): void
+    {
+        $view = self::ADMIN . '/views/' . $id . '.html';
+        $module = self::ADMIN . '/assets/features/' . $id . '.js';
+        self::assertFileExists($view);
+        self::assertFileExists($module);
+        self::assertStringContainsString('data-feature="' . $id . '"', (string) file_get_contents($view));
+        self::assertStringContainsString('export const feature', (string) file_get_contents($module));
+    }
+
+    public function testCommerceFeaturesReplaceAllLegacyImplementations(): void
+    {
+        $html = (string) file_get_contents(self::ADMIN . '/index.html');
+        $app = (string) file_get_contents(self::ADMIN . '/assets/app.js');
+        self::assertStringContainsString(
+            "definitions.set('channel-config', { view: 'channels.html', module: 'channels.js' });",
+            $app
+        );
+        self::assertStringContainsString(
+            "definitions.set('plugin-market', { view: 'plugins.html', module: 'plugins.js' });",
+            $app
+        );
+        foreach (['tab-channel-config', 'tab-plugin-market', 'channel-config-editor'] as $id) {
+            self::assertStringNotContainsString('id="' . $id . '"', $html);
+        }
+        foreach (['loadAdminChannels', 'loadInstalledPlugins', 'loadPluginMarket', 'editAdminChannel'] as $function) {
+            self::assertStringNotContainsString('function ' . $function . '(', $html);
+        }
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function commerceFeatureProvider(): iterable
+    {
+        yield 'channels' => ['channels'];
+        yield 'plugins' => ['plugins'];
+    }
+
     public function testVersionAndUiModulesKeepTheirRuntimeContract(): void
     {
         $script = <<<'JS'
@@ -154,7 +192,7 @@ import { pathToFileURL } from 'node:url';
 
 globalThis.window = { location: { origin: 'https://admin.example.test' } };
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v3') {
+if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v4') {
     throw new Error('资源版本 URL 不符合约定');
 }
 
