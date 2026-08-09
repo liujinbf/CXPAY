@@ -146,8 +146,8 @@ Route::group('/api/admin', function () {
     Route::post('/channel/config/save', [app\controller\admin\AdminChannelConfigController::class, 'saveChannelConfig']);
     Route::get('/bill-source/status', [app\controller\api\BillSourceManageController::class, 'adminStatus']);
     Route::post('/bill-source/rotate-token', [app\controller\api\BillSourceManageController::class, 'adminRotate']);
-    Route::get('/merchant/list', [app\controller\admin\AdminController::class, 'listMerchants']);
-    Route::post('/merchant/save', [app\controller\admin\AdminController::class, 'saveMerchant']);
+    Route::get('/merchant/list', [app\controller\admin\AdminMerchantController::class, 'listMerchants']);
+    Route::post('/merchant/save', [app\controller\admin\AdminMerchantController::class, 'saveMerchant']);
     Route::post('/order/force_notify', [app\controller\admin\AdminController::class, 'forceNotifyOrder']);
     Route::post('/template/save', [app\controller\admin\AdminController::class, 'saveTemplate']);
     

@@ -59,6 +59,14 @@ final class AdminControllerRouteContractTest extends TestCase
         }
     }
 
+    public function testMerchantRoutesUseDedicatedController(): void
+    {
+        $class = \app\controller\admin\AdminMerchantController::class;
+        $middleware = $this->adminMiddleware();
+        $this->assertRoute('GET', '/api/admin/merchant/list', [$class, 'listMerchants'], $middleware);
+        $this->assertRoute('POST', '/api/admin/merchant/save', [$class, 'saveMerchant'], $middleware);
+    }
+
     private function assertRoute(
         string $method,
         string $path,

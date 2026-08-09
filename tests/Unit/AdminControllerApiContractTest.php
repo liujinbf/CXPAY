@@ -48,6 +48,18 @@ final class AdminControllerApiContractTest extends TestCase
         self::assertSame('该支付驱动已永久移除，不能创建或修改通道', $payload['msg']);
     }
 
+    public function testMerchantSaveRejectsInvalidNameAndRate(): void
+    {
+        $class = \app\controller\admin\AdminMerchantController::class;
+        self::assertTrue(class_exists($class), '商户管理控制器尚未迁移');
+        $payload = $this->decode((new $class())->saveMerchant(
+            $this->postRequest(['name' => ' ', 'rate' => '2'])
+        ));
+
+        self::assertSame(-1, $payload['code']);
+        self::assertSame('商户名称、密钥或费率格式不合法', $payload['msg']);
+    }
+
     private function postRequest(array $data): Request
     {
         $body = http_build_query($data);
