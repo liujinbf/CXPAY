@@ -1,10 +1,14 @@
 import { assetUrl } from './version.js';
 
+export function resolveFeatureId(requestedId, definitions) {
+    const requested = String(requestedId || 'dashboard');
+    return definitions.has(requested) ? requested : 'dashboard';
+}
+
 export function createRouter({
     container,
     definitions,
     context,
-    activateLegacy,
     activateFeature = () => {},
 }) {
     const fragmentCache = new Map();
@@ -13,7 +17,7 @@ export function createRouter({
     let navigation = 0;
 
     async function navigate(requestedId) {
-        const id = String(requestedId || 'dashboard');
+        const id = resolveFeatureId(requestedId, definitions);
         const currentNavigation = ++navigation;
 
         activeController?.abort();
@@ -24,9 +28,6 @@ export function createRouter({
         activeFeature = null;
 
         const definition = definitions.get(id);
-        if (!definition) {
-            return activateLegacy(id);
-        }
 
         activateFeature(id);
         activeController = new AbortController();

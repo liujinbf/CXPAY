@@ -13,8 +13,6 @@
         .glass-panel { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px -2px rgba(0,0,0,0.03); }
         .nav-group-title { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px 4px; }
         .nav-link-active { background-color: #eff6ff !important; color: #2563eb !important; font-weight: 700 !important; }
-        .tab-panel { display: none; }
-        .tab-panel.active { display: block; }
     </style>
 </head>
 
@@ -37,46 +35,46 @@
                 <nav class="space-y-1 text-xs">
                     <!-- 1. 数据概览 -->
                     <div class="nav-group-title">数据概览</div>
-                    <a onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn nav-link-active flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                    <a data-tab="dashboard" id="nav-dashboard" class="nav-btn nav-link-active flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="layout-dashboard" class="w-4 h-4 text-blue-500"></i> 控制台仪表盘
                     </a>
 
                     <!-- 2. 通道与轮询 -->
                     <div class="nav-group-title">通道与轮询管理</div>
-                    <a onclick="switchTab('channel-config')" id="nav-channel-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                    <a data-tab="channel-config" id="nav-channel-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="settings-2" class="w-4 h-4 text-indigo-500"></i> 收款通道配置
                     </a>
-                    <a onclick="switchTab('plugin-market')" id="nav-plugin-market" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                    <a data-tab="plugin-market" id="nav-plugin-market" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="package-check" class="w-4 h-4 text-amber-500"></i> 已安装支付驱动
                     </a>
-                    <a onclick="switchTab('cloud-monitor')" id="nav-cloud-monitor" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                    <a data-tab="cloud-monitor" id="nav-cloud-monitor" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="cloud-cog" class="w-4 h-4 text-cyan-500"></i> 个人码云监控运维
                     </a>
 
                     <!-- 3. 商户与应用 -->
                     <div class="nav-group-title">商户与会员</div>
-                    <a onclick="switchTab('merchant-mgmt')" id="nav-merchant-mgmt" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                    <a data-tab="merchant-mgmt" id="nav-merchant-mgmt" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="users" class="w-4 h-4 text-purple-500"></i> 商户账号与费率
                     </a>
-                    <a onclick="switchTab('plan-mgmt')" id="nav-plan-mgmt" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                    <a data-tab="plan-mgmt" id="nav-plan-mgmt" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="gem" class="w-4 h-4 text-pink-500"></i> 套餐设置与配额
                     </a>
 
                     <!-- 4. 订单与财务结算 -->
                     <div class="nav-group-title">订单与财务结算</div>
-                    <a onclick="switchTab('order-list')" id="nav-order-list" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                    <a data-tab="order-list" id="nav-order-list" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="receipt" class="w-4 h-4 text-sky-500"></i> 交易订单与补单
                     </a>
-                    <a onclick="switchTab('callbill-review')" id="nav-callbill-review" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                    <a data-tab="callbill-review" id="nav-callbill-review" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="scan-search" class="w-4 h-4 text-amber-500"></i> 到账账单复核
                     </a>
 
                     <!-- 5. 系统设置与通知 -->
                     <div class="nav-group-title">系统配置</div>
-                    <a onclick="switchTab('system-update')" id="nav-system-update" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                    <a data-tab="system-update" id="nav-system-update" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="git-branch" class="w-4 h-4 text-emerald-500"></i> 系统 Git 一键更新
                     </a>
-                    <a onclick="switchTab('alert-config')" id="nav-alert-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
+                    <a data-tab="alert-config" id="nav-alert-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
                         <i data-lucide="bell" class="w-4 h-4 text-rose-500"></i> 系统告警与通知
                     </a>
                 </nav>
@@ -84,7 +82,7 @@
 
             <div class="text-[11px] text-slate-400 px-3 py-2 border-t border-slate-100 flex items-center justify-between">
                 <span>管理安全控制</span>
-                <button onclick="logoutAdmin()" class="text-rose-500 hover:text-rose-600 font-bold flex items-center gap-1 cursor-pointer">
+                <button data-action="logout-admin" class="text-rose-500 hover:text-rose-600 font-bold flex items-center gap-1 cursor-pointer">
                     <i data-lucide="power" class="w-3.5 h-3.5"></i>
                     <span>安全退出</span>
                 </button>
@@ -103,7 +101,7 @@
                     <span class="text-slate-400 hidden sm:inline">访问状态: <strong class="text-emerald-600 inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 管理员会话已认证</strong></span>
                     <div class="flex items-center gap-2 border-l border-slate-200 pl-3">
                         <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-extrabold flex items-center justify-center text-xs shadow-sm">Admin</div>
-                        <button onclick="logoutAdmin()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-bold transition-all border border-slate-200 hover:border-rose-200">
+                        <button data-action="logout-admin" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-bold transition-all border border-slate-200 hover:border-rose-200">
                             <i data-lucide="log-out" class="w-3.5 h-3.5 text-rose-500"></i>
                             <span>退出登录</span>
                         </button>
@@ -114,87 +112,11 @@
             <!-- 视图列表 -->
             <div class="p-6 space-y-6 flex-1 overflow-y-auto min-h-0">
                 <div id="admin-feature-root" class="hidden"></div>
-
-                <!-- 1. Dashboard 控制台 (默认 active) -->
-
-                <!-- 6. 系统 Git 一键更新 System Update -->
-
-                <!-- 2. 全局收款通道配置 (tab-channel-config) -->
-
-                <!-- 4. 插件商城 -->
-
-                <!-- 5. 商户管理 -->
-
-                <!-- 套餐设置与配额管理 -->
-
-                <!-- 6. 订单检索与补单 -->
-
-
-
-                <!-- 5.5 系统在线更新模块 -->
-
-                <!-- 6. 告警通知配置与系统运营参数 -->
             </div>
         </main>
     </div>
 
-    <!-- 添加 / 编辑套餐 Modal 弹窗 (严格符合截图设计) -->
-
-
-    <!-- 平台全局通道通信参数编辑 Modal 弹窗 -->
-
     <script type="module" src="/admin/assets/app.js"></script>
-    <script>
-
-        function escapeHtml(value) {
-            return window.CXAdmin.ui.escapeHtml(value);
-        }
-
-        function safeCreateIcons() {
-            return window.CXAdmin.ui.safeCreateIcons();
-        }
-
-        function adminFetch(...args) {
-            return window.CXAdmin.api.adminFetch(...args);
-        }
-
-        function switchTab(tabId) {
-            if (!window.CXAdmin) {
-                window.CXAdminPendingTab = tabId;
-                return;
-            }
-            return window.CXAdmin.navigate(tabId);
-        }
-
-
-
-
-
-        function showToast(message, type = 'success') {
-            return window.CXAdmin.ui.showToast(message, type);
-        }
-
-        function showCustomConfirm(title, message, isDanger = false) {
-            return window.CXAdmin.ui.showConfirm(title, message, isDanger);
-        }
-
-
-
-
-
-
-
-
-
-        async function logoutAdmin() {
-            try {
-                await adminFetch('/api/admin/logout', { method: 'POST' });
-                localStorage.removeItem('cx_admin_token');
-            } catch (e) {}
-            window.location.href = '/admin_login.html';
-        }
-
-    </script>
 </body>
 
 </html>

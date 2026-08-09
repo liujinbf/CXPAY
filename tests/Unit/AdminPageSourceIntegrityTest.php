@@ -17,26 +17,12 @@ final class AdminPageSourceIntegrityTest extends TestCase
         $this->html = $html;
     }
 
-    public function testInlineApplicationScriptIsValidJavaScript(): void
+    public function testApplicationEntryIsValidJavaScript(): void
     {
-        self::assertSame(
-            1,
-            preg_match('/<script>\s*(.*?)\s*<\/script>\s*<\/body>/si', $this->html, $matches),
-            '管理页必须保留一个可提取验证的内联应用脚本'
-        );
-
-        $temporary = tempnam(sys_get_temp_dir(), 'cxpay-admin-js-');
-        self::assertIsString($temporary);
-        $script = $temporary . '.js';
-        self::assertTrue(rename($temporary, $script));
-        file_put_contents($script, $matches[1]);
-
-        try {
-            [$exitCode, $output] = $this->runNodeSyntaxCheck($script);
-            self::assertSame(0, $exitCode, $output);
-        } finally {
-            @unlink($script);
-        }
+        $script = dirname(__DIR__, 2) . '/public/admin/assets/app.js';
+        self::assertFileExists($script);
+        [$exitCode, $output] = $this->runNodeSyntaxCheck($script);
+        self::assertSame(0, $exitCode, $output);
     }
 
     public function testStaticMarkupIdsAreUnique(): void

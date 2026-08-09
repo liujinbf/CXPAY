@@ -11,6 +11,22 @@ final class AdminPageModuleContractTest extends TestCase
 {
     private const ADMIN = __DIR__ . '/../../public/admin';
 
+    public function testFinalAdminShellIsSmallAndContainsNoInlineBusinessScript(): void
+    {
+        $html = (string) file_get_contents(self::ADMIN . '/index.html');
+        self::assertLessThanOrEqual(500, substr_count($html, "\n") + 1);
+        self::assertDoesNotMatchRegularExpression('/<script(?![^>]*\bsrc=)[^>]*>/si', $html);
+        self::assertStringNotContainsString('onclick=', $html);
+    }
+
+    public function testAllAdminFeaturesStayWithinSizeLimit(): void
+    {
+        foreach (glob(self::ADMIN . '/{assets/features,views}/*', GLOB_BRACE) ?: [] as $path) {
+            $source = (string) file_get_contents($path);
+            self::assertLessThanOrEqual(400, substr_count($source, "\n") + 1, $path);
+        }
+    }
+
     /**
      * @param list<string> $exports
      */
@@ -28,13 +44,13 @@ final class AdminPageModuleContractTest extends TestCase
         }
     }
 
-    public function testAdminPageUsesThinCompatibilityWrappers(): void
+    public function testApplicationNamespaceOwnsPublicCompatibilitySurface(): void
     {
         $html = file_get_contents(self::ADMIN . '/index.html');
         self::assertIsString($html);
-        self::assertStringContainsString('return window.CXAdmin.api.adminFetch(...args);', $html);
-        self::assertStringContainsString('return window.CXAdmin.ui.escapeHtml(value);', $html);
-        self::assertStringContainsString('return window.CXAdmin.ui.showConfirm(title, message, isDanger);', $html);
+        self::assertStringNotContainsString('function adminFetch(', $html);
+        self::assertStringNotContainsString('function escapeHtml(', $html);
+        self::assertStringNotContainsString('function showCustomConfirm(', $html);
 
         $app = file_get_contents(self::ADMIN . '/assets/app.js');
         self::assertIsString($app);
@@ -59,23 +75,19 @@ final class AdminPageModuleContractTest extends TestCase
         self::assertStringContainsString("import(assetUrl('/admin/assets/router.js'))", $app);
     }
 
-    public function testRouterFallsBackToLegacyForFeaturesNotMigratedYet(): void
+    public function testRouterFallsBackToDashboardForUnknownFeatures(): void
     {
         $script = <<<'JS'
 import { pathToFileURL } from 'node:url';
 
 globalThis.window = { location: { origin: 'https://admin.example.test' } };
-const { createRouter } = await import(pathToFileURL(process.argv[1]).href);
-let activated = null;
-const router = createRouter({
-    container: {},
-    definitions: new Map(),
-    context: {},
-    activateLegacy: (id) => { activated = id; return 'legacy-result'; },
-});
-const result = await router.navigate('dashboard');
-if (activated !== 'dashboard' || result !== 'legacy-result') {
-    throw new Error('未迁移标签没有回退到旧实现');
+const { resolveFeatureId } = await import(pathToFileURL(process.argv[1]).href);
+const definitions = new Map([['dashboard', {}], ['orders', {}]]);
+if (resolveFeatureId('orders', definitions) !== 'orders') {
+    throw new Error('已注册功能未按原 ID 路由');
+}
+if (resolveFeatureId('unknown', definitions) !== 'dashboard') {
+    throw new Error('未知功能没有回退到仪表盘');
 }
 JS;
 
@@ -91,7 +103,8 @@ JS;
         self::assertIsString($html);
         self::assertIsString($app);
         self::assertStringNotContainsString("document.addEventListener('DOMContentLoaded'", $html);
-        self::assertStringContainsString('window.CXAdminPendingTab = tabId;', $html);
+        self::assertStringNotContainsString('CXAdminPendingTab', $html);
+        self::assertStringNotContainsString('CXAdminPendingTab', $app);
         self::assertMatchesRegularExpression(
             '/window\.CXAdmin\s*=.*?;[\s\S]+?router\.navigate\(initialTab\);/',
             $app
@@ -231,7 +244,7 @@ import { pathToFileURL } from 'node:url';
 
 globalThis.window = { location: { origin: 'https://admin.example.test' } };
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v6') {
+if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v7') {
     throw new Error('资源版本 URL 不符合约定');
 }
 

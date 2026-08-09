@@ -45,25 +45,7 @@ function updateNavigation(id) {
     if (title) title.innerText = tabTitles[id] || id.toUpperCase();
 }
 
-function activateLegacy(requestedId) {
-    const panel = document.getElementById(`tab-${requestedId}`);
-    if (!panel) return router.navigate('dashboard');
-    const id = requestedId;
-    featureRoot.classList.add('hidden');
-    featureRoot.innerHTML = '';
-    document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
-    document.getElementById(`tab-${id}`)?.classList.add('active');
-    updateNavigation(id);
-    ui.safeCreateIcons();
-
-    const legacyLoaders = {
-    };
-
-    return legacyLoaders[id]?.();
-}
-
 function activateFeature(id) {
-    document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
     featureRoot.classList.remove('hidden');
     updateNavigation(id);
 }
@@ -72,14 +54,38 @@ const router = routerModule.createRouter({
     container: featureRoot,
     definitions,
     context: { api, ui },
-    activateLegacy,
     activateFeature,
 });
 
 window.CXAdmin = Object.freeze({ api, ui, navigate: router.navigate });
 
+document.getElementById('app')?.addEventListener('click', (event) => {
+    const target = event.target.closest?.('[data-tab], [data-action]');
+    if (!target) return;
+
+    const tab = target.dataset.tab;
+    if (tab) {
+        event.preventDefault();
+        void router.navigate(tab);
+        return;
+    }
+
+    if (target.dataset.action === 'logout-admin') {
+        void logoutAdmin();
+    }
+});
+
+async function logoutAdmin() {
+    try {
+        await api.adminFetch('/api/admin/logout', { method: 'POST' });
+    } catch {
+        // 服务端会话清理失败时，仍需清除本地凭据并退出管理页。
+    }
+    localStorage.removeItem('cx_admin_token');
+    window.location.assign('/admin_login.html');
+}
+
 let hashTab = (location.hash || '').replace('#', '').trim();
 if (hashTab.includes('?')) hashTab = hashTab.split('?')[0];
-const initialTab = window.CXAdminPendingTab || hashTab || 'dashboard';
-delete window.CXAdminPendingTab;
+const initialTab = hashTab || 'dashboard';
 router.navigate(initialTab);
