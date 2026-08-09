@@ -106,6 +106,7 @@
             </header>
 
             <div class="p-8 space-y-6 flex-1 overflow-y-auto min-h-0">
+                <div id="merchant-feature-root" class="hidden"></div>
 
                 <!-- 1. 首页概览 Dashboard -->
                 <div id="tab-dashboard" class="tab-panel active space-y-6">
@@ -1189,45 +1190,11 @@
         }
 
         function switchTab(tabId) {
-            let targetTab = document.getElementById('tab-' + tabId);
-            if (!targetTab) tabId = 'dashboard';
-
-            document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('nav-link-active'));
-            
-            targetTab = document.getElementById('tab-' + tabId);
-            const targetNav = document.getElementById('nav-' + tabId);
-            
-            if (targetTab) targetTab.classList.add('active');
-            if (targetNav) targetNav.classList.add('nav-link-active');
-
-            if (location.hash !== '#' + tabId) {
-                history.replaceState(null, '', '#' + tabId);
+            if (!window.CXMerchant) {
+                window.CXMerchantPendingTab = tabId;
+                return;
             }
-
-            const titleMap = {
-                'dashboard': '首页概览',
-                'profile': '账户设置',
-                'notice-config': '通知设置 · 预警偏好',
-                'channel-list': '通道管理 · 我的收款通道',
-                'channel-config': '通道配置 · 收银台设置',
-                'poll-group': '通道轮询组',
-                'order-list': '订单记录 · 交易明细',
-                'finance-log': '财务管理 · 服务费明细',
-                'plan-buy': '套餐订阅与套餐广场',
-                'api-keys': '开发与对接 · API 密钥管理'
-            };
-            document.getElementById('current-tab-title').innerText = titleMap[tabId] || 'DASHBOARD';
-
-            if (tabId === 'dashboard')    { loadMerchantDashboardData(); initMerchantTrendChart(); }
-            if (tabId === 'channel-list') { loadMerchantChannels(); }
-            if (tabId === 'order-list')   { loadMerchantOrderList(); }
-            if (tabId === 'finance-log')  { loadMerchantFinanceLogs(); }
-            if (tabId === 'plan-buy')     { loadMerchantPlans(); }
-            if (tabId === 'poll-group')   { loadPollGroups(); }
-            if (tabId === 'channel-config') { loadCashierConfig(); }
-            if (tabId === 'api-keys')       { loadMerchantProfile(); }
-            if (tabId === 'notice-config')  { loadMerchantAlertConfig(); }
+            return window.CXMerchant.navigate(tabId);
         }
 
         // ==================== 商户套餐订阅广场 ====================
@@ -2515,14 +2482,7 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            if (window.lucide && typeof lucide.createIcons === 'function') {
-                lucide.createIcons();
-            }
-            loadMerchantProfile();
-            const currentTab = (location.hash || '').replace('#', '').trim() || 'dashboard';
-            switchTab(currentTab);
-        });
     </script>
+    <script type="module" src="/merchant/assets/app.js"></script>
 </body>
 </html>

@@ -10,6 +10,41 @@ use PHPUnit\Framework\TestCase;
 final class MerchantCenterModuleContractTest extends TestCase
 {
     private const MERCHANT = __DIR__ . '/../../public/merchant';
+    private const MERCHANT_CENTER = __DIR__ . '/../../public/merchant_center.html';
+
+    public function testPageLoadsOneMerchantApplicationEntry(): void
+    {
+        $html = (string) file_get_contents(self::MERCHANT_CENTER);
+
+        self::assertSame(1, substr_count($html, 'type="module" src="/merchant/assets/app.js"'));
+        self::assertFileExists(self::MERCHANT . '/assets/app.js');
+        self::assertFileExists(self::MERCHANT . '/assets/router.js');
+    }
+
+    public function testRouterKeepsKnownFeaturesAndFallsBackToDashboard(): void
+    {
+        $script = <<<'JS'
+import { pathToFileURL } from 'node:url';
+
+globalThis.window = { location: { origin: 'https://merchant.example.test' } };
+const { resolveFeatureId } = await import(pathToFileURL(process.argv[1]).href);
+const definitions = new Map([['dashboard', {}], ['order-list', {}]]);
+const knownIds = new Set(['dashboard', 'profile', 'order-list']);
+if (resolveFeatureId('order-list', definitions, knownIds) !== 'order-list') {
+    throw new Error('已注册标签未保持原 ID');
+}
+if (resolveFeatureId('profile', definitions, knownIds) !== 'profile') {
+    throw new Error('未迁移的已知标签未保持原 ID');
+}
+if (resolveFeatureId('unknown', definitions, knownIds) !== 'dashboard') {
+    throw new Error('未知标签未回退首页');
+}
+JS;
+
+        [$exitCode, $output] = $this->runNode($script, [self::MERCHANT . '/assets/router.js']);
+
+        self::assertSame(0, $exitCode, $output);
+    }
 
     /**
      * @param list<string> $exports
