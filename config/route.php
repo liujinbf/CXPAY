@@ -149,7 +149,7 @@ Route::group('/api/admin', function () {
     Route::get('/merchant/list', [app\controller\admin\AdminMerchantController::class, 'listMerchants']);
     Route::post('/merchant/save', [app\controller\admin\AdminMerchantController::class, 'saveMerchant']);
     Route::post('/order/force_notify', [app\controller\admin\AdminController::class, 'forceNotifyOrder']);
-    Route::post('/template/save', [app\controller\admin\AdminController::class, 'saveTemplate']);
+    Route::post('/template/save', [app\controller\admin\MerchantTemplateController::class, 'saveTemplate']);
     
     // 订单高级检索与人工补单 API
     Route::get('/order/list', [app\controller\admin\OrderAdminController::class, 'list']);
@@ -204,8 +204,8 @@ Route::group('/api/admin', function () {
     Route::post('/alert/test',         [app\controller\admin\AlertConfigController::class, 'sendTest']);
 
     // 管理员安全设置 API（二次验证码配置）
-    Route::get('/security/config',       [app\controller\admin\AdminController::class, 'getSecurityConfig']);
-    Route::post('/security/config/save', [app\controller\admin\AdminController::class, 'saveSecurityConfig']);
+    Route::get('/security/config',       [app\controller\admin\AdminSecurityController::class, 'getSecurityConfig']);
+    Route::post('/security/config/save', [app\controller\admin\AdminSecurityController::class, 'saveSecurityConfig']);
     // 管理员报表 API
     Route::get('/report/trend',        [app\controller\admin\ReportController::class, 'trend']);
     Route::get('/report/channel_dist', [app\controller\admin\ReportController::class, 'channelDist']);

@@ -60,6 +60,30 @@ final class AdminControllerApiContractTest extends TestCase
         self::assertSame('商户名称、密钥或费率格式不合法', $payload['msg']);
     }
 
+    public function testSecuritySaveRejectsShortVerificationCode(): void
+    {
+        $class = \app\controller\admin\AdminSecurityController::class;
+        self::assertTrue(class_exists($class), '安全设置控制器尚未迁移');
+        $payload = $this->decode((new $class())->saveSecurityConfig(
+            $this->postRequest(['verify_code' => '123'])
+        ));
+
+        self::assertSame(-1, $payload['code']);
+        self::assertSame('验证码长度须在4至32位之间', $payload['msg']);
+    }
+
+    public function testTemplateSaveRejectsTraversalName(): void
+    {
+        $class = \app\controller\admin\MerchantTemplateController::class;
+        self::assertTrue(class_exists($class), '主页模板控制器尚未迁移');
+        $payload = $this->decode((new $class())->saveTemplate(
+            $this->postRequest(['template' => '../bad'])
+        ));
+
+        self::assertSame(-1, $payload['code']);
+        self::assertSame('主页模板不存在或名称不合法', $payload['msg']);
+    }
+
     private function postRequest(array $data): Request
     {
         $body = http_build_query($data);
