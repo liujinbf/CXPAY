@@ -647,7 +647,7 @@ $ git pull 2>&1
                 </div>
 
                 <!-- 5.5 系统在线更新模块 -->
-                <div id="tab-system-update" class="tab-panel space-y-6">
+                <div id="tab-system-update-legacy" class="tab-panel space-y-6">
                     <div class="flex items-center justify-between border-b border-slate-200 pb-4">
                         <div>
                             <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
@@ -1358,7 +1358,7 @@ $ git pull 2>&1
             if (tabId === 'callbill-review') loadCallbillReviews();
             if (tabId === 'plugin-market') loadInstalledPlugins();
             if (tabId === 'cloud-monitor') loadCloudMonitorStatus();
-            if (tabId === 'system-update') { checkSystemUpdate(); loadVersionHistory(); }
+            if (tabId === 'system-update') { checkGitUpdate(); loadGitVersionHistory(); }
             if (tabId === 'alert-config') { loadAdminAlertConfig(); loadSystemOpConfig(); }
         }
 
@@ -2261,7 +2261,6 @@ $ git pull 2>&1
             }
         }
 
-<<<<<<< HEAD
         async function loadAdminChannelsLegacyCards() {
             const container = document.getElementById('admin-channel-list');
             if (!container) return;
@@ -2356,9 +2355,6 @@ $ git pull 2>&1
                 container.innerHTML = `<div class="p-8 text-center text-xs text-rose-500 col-span-full font-bold">无法读取通道列表: ${escapeHtml(e.message)}</div>`;
             }
         }
-=======
->>>>>>> gitee/main
-
         async function toggleAdminChannel(code, enabled) {
             try {
                 const res = await adminFetch('/api/admin/channel/save', {
@@ -2452,12 +2448,12 @@ $ git pull 2>&1
             }
         }
 
-        function closeChannelConfigEditor() {
+        function closeChannelConfigEditorLegacy() {
             const modal = document.getElementById('channel-config-editor');
             if (modal) modal.classList.add('hidden');
         }
 
-        async function submitChannelConfig(event) {
+        async function submitChannelConfigLegacy(event) {
             event.preventDefault();
             const form = event.target;
             const cType = document.getElementById('channel-config-ctype').value;
@@ -2900,7 +2896,7 @@ $ git pull 2>&1
             }
         }
 
-        async function installPluginPackage(input) {
+        async function installPluginPackageLegacy(input) {
             const file = input.files && input.files[0];
             if (!file) return;
             if (!file.name.toLowerCase().endsWith('.cxpay-plugin')) {
@@ -2946,7 +2942,7 @@ $ git pull 2>&1
             if (payload.code === 1) await loadPluginMarket();
         }
 
-        async function uninstallPlugin(pluginId) {
+        async function uninstallPluginLegacy(pluginId) {
             if (!confirm(`确定卸载插件 ${pluginId} 的全部已安装版本吗？历史订单不会被删除。`)) return;
             const response = await adminFetch('/api/admin/plugin/uninstall', {
                 method: 'POST',
@@ -2957,7 +2953,6 @@ $ git pull 2>&1
             if (payload.code === 1) await loadPluginMarket();
         }
 
-<<<<<<< HEAD
         async function loadAdminChannelsLegacyReadOnly() {
             const container = document.getElementById('admin-channel-list');
             try {
@@ -2978,9 +2973,6 @@ $ git pull 2>&1
                 container.innerHTML = `<div class="p-5 text-center text-xs text-rose-500">${escapeHtml(e.message || '平台通道加载失败')}</div>`;
             }
         }
-=======
->>>>>>> gitee/main
-
         async function loadAdminAlertConfig() {
             try {
                 const res = await adminFetch('/api/admin/alert/config');
