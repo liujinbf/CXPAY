@@ -113,6 +113,7 @@
 
             <!-- 视图列表 -->
             <div class="p-6 space-y-6 flex-1 overflow-y-auto min-h-0">
+                <div id="admin-feature-root" class="hidden"></div>
 
                 <!-- 1. Dashboard 控制台 (默认 active) -->
                 <div id="tab-dashboard" class="tab-panel active space-y-6">
@@ -1271,11 +1272,7 @@ $ git pull 2>&1
         </form>
     </div>
 
-    <script type="module">
-        import * as api from '/admin/assets/api.js';
-        import * as ui from '/admin/assets/ui.js';
-        window.CXAdmin = Object.freeze({ api, ui });
-    </script>
+    <script type="module" src="/admin/assets/app.js"></script>
     <script>
         const merchantRecords = new Map();
 
@@ -1292,62 +1289,11 @@ $ git pull 2>&1
         }
 
         function switchTab(tabId) {
-            // 避免无效 tabId
-            var targetPanel = document.getElementById('tab-' + tabId);
-            if (!targetPanel) tabId = 'dashboard';
-
-            // Hide all tab panels
-            var panels = document.querySelectorAll('.tab-panel');
-            panels.forEach(function(p) { p.classList.remove('active'); });
-
-            // Deactivate all nav buttons
-            var btns = document.querySelectorAll('.nav-btn');
-            btns.forEach(function(b) { b.classList.remove('nav-link-active'); });
-
-            // Activate target panel and btn
-            targetPanel = document.getElementById('tab-' + tabId);
-            if (targetPanel) { targetPanel.classList.add('active'); }
-
-            var targetBtn = document.getElementById('nav-' + tabId);
-            if (targetBtn) { targetBtn.classList.add('nav-link-active'); }
-
-            // 保持 URL hash 锚点状态，实现刷新页面停留在当前 tab
-            if (location.hash !== '#' + tabId) {
-                history.replaceState(null, '', '#' + tabId);
+            if (!window.CXAdmin) {
+                window.CXAdminPendingTab = tabId;
+                return;
             }
-
-            var titleEl = document.getElementById('current-tab-title');
-            const tabTitles = {
-                'dashboard': '控制台仪表盘',
-                'channel-config': '收款通道配置',
-                'plugin-market': '已安装支付驱动',
-                'cloud-monitor': '个人码云监控运维',
-                'merchant-mgmt': '商户账号与费率',
-                'plan-mgmt': '套餐设置与配额',
-                'order-list': '交易订单与补单',
-                'callbill-review': '到账账单复核',
-                'system-update': '系统 Git 一键更新',
-                'alert-config': '系统告警与通知',
-            };
-            if (titleEl) { titleEl.innerText = tabTitles[tabId] || tabId.toUpperCase(); }
-
-            safeCreateIcons();
-
-            // 根据当前切换到的选项卡按需加载真实数据
-            if (tabId === 'dashboard') loadDashboard();
-            if (tabId === 'channel-config') {
-                const sEl = document.getElementById('channel-stat-active-count');
-                if (sEl) sEl.textContent = '读取中...';
-                loadAdminChannels();
-            }
-            if (tabId === 'merchant-mgmt') loadMerchants();
-            if (tabId === 'plan-mgmt') loadPlans();
-            if (tabId === 'order-list') loadOrders();
-            if (tabId === 'callbill-review') loadCallbillReviews();
-            if (tabId === 'plugin-market') loadInstalledPlugins();
-            if (tabId === 'cloud-monitor') loadCloudMonitorStatus();
-            if (tabId === 'system-update') { checkGitUpdate(); loadGitVersionHistory(); }
-            if (tabId === 'alert-config') { loadAdminAlertConfig(); loadSystemOpConfig(); }
+            return window.CXAdmin.navigate(tabId);
         }
 
         // ==================== 系统在线更新模块 ====================
@@ -3080,15 +3026,6 @@ $ git pull 2>&1
             window.location.href = '/admin_login.html';
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            safeCreateIcons();
-            let rawHash = (location.hash || '').replace('#', '').trim();
-            if (rawHash.includes('?')) {
-                rawHash = rawHash.split('?')[0];
-            }
-            const currentTab = rawHash || 'dashboard';
-            switchTab(currentTab);
-        });
     </script>
 </body>
 

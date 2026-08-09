@@ -28,16 +28,74 @@ final class AdminPageModuleContractTest extends TestCase
         }
     }
 
-    public function testAdminPageLoadsCoreModulesBeforeCompatibilityWrappers(): void
+    public function testAdminPageUsesThinCompatibilityWrappers(): void
     {
         $html = file_get_contents(self::ADMIN . '/index.html');
         self::assertIsString($html);
-        self::assertStringContainsString("import * as api from '/admin/assets/api.js';", $html);
-        self::assertStringContainsString("import * as ui from '/admin/assets/ui.js';", $html);
-        self::assertStringContainsString('window.CXAdmin = Object.freeze({ api, ui });', $html);
         self::assertStringContainsString('return window.CXAdmin.api.adminFetch(...args);', $html);
         self::assertStringContainsString('return window.CXAdmin.ui.escapeHtml(value);', $html);
         self::assertStringContainsString('return window.CXAdmin.ui.showConfirm(title, message, isDanger);', $html);
+
+        $app = file_get_contents(self::ADMIN . '/assets/app.js');
+        self::assertIsString($app);
+        self::assertStringContainsString(
+            'window.CXAdmin = Object.freeze({ api, ui, navigate: router.navigate });',
+            $app
+        );
+    }
+
+    public function testAdminPageLoadsOneApplicationEntry(): void
+    {
+        $html = file_get_contents(self::ADMIN . '/index.html');
+        self::assertIsString($html);
+        self::assertSame(1, substr_count($html, 'type="module" src="/admin/assets/app.js"'));
+        self::assertFileExists(self::ADMIN . '/assets/router.js');
+        self::assertFileExists(self::ADMIN . '/assets/app.js');
+
+        $app = file_get_contents(self::ADMIN . '/assets/app.js');
+        self::assertIsString($app);
+        self::assertStringContainsString("import(assetUrl('/admin/assets/api.js'))", $app);
+        self::assertStringContainsString("import(assetUrl('/admin/assets/ui.js'))", $app);
+        self::assertStringContainsString("import(assetUrl('/admin/assets/router.js'))", $app);
+    }
+
+    public function testRouterFallsBackToLegacyForFeaturesNotMigratedYet(): void
+    {
+        $script = <<<'JS'
+import { pathToFileURL } from 'node:url';
+
+globalThis.window = { location: { origin: 'https://admin.example.test' } };
+const { createRouter } = await import(pathToFileURL(process.argv[1]).href);
+let activated = null;
+const router = createRouter({
+    container: {},
+    definitions: new Map(),
+    context: {},
+    activateLegacy: (id) => { activated = id; return 'legacy-result'; },
+});
+const result = await router.navigate('dashboard');
+if (activated !== 'dashboard' || result !== 'legacy-result') {
+    throw new Error('未迁移标签没有回退到旧实现');
+}
+JS;
+
+        [$exitCode, $output] = $this->runNode($script, [self::ADMIN . '/assets/router.js']);
+
+        self::assertSame(0, $exitCode, $output);
+    }
+
+    public function testApplicationOwnsInitialNavigationAfterNamespaceIsReady(): void
+    {
+        $html = file_get_contents(self::ADMIN . '/index.html');
+        $app = file_get_contents(self::ADMIN . '/assets/app.js');
+        self::assertIsString($html);
+        self::assertIsString($app);
+        self::assertStringNotContainsString("document.addEventListener('DOMContentLoaded'", $html);
+        self::assertStringContainsString('window.CXAdminPendingTab = tabId;', $html);
+        self::assertMatchesRegularExpression(
+            '/window\.CXAdmin\s*=.*?;[\s\S]+?router\.navigate\(initialTab\);/',
+            $app
+        );
     }
 
     public function testVersionAndUiModulesKeepTheirRuntimeContract(): void
@@ -47,7 +105,7 @@ import { pathToFileURL } from 'node:url';
 
 globalThis.window = { location: { origin: 'https://admin.example.test' } };
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v1') {
+if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v2') {
     throw new Error('资源版本 URL 不符合约定');
 }
 
