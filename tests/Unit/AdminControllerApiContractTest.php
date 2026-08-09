@@ -21,6 +21,21 @@ final class AdminControllerApiContractTest extends TestCase
         self::assertSame('管理员账号与密码不能为空', $payload['msg']);
     }
 
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testDashboardReturnsStableFallbackWhenInfrastructureIsUnavailable(): void
+    {
+        $class = \app\controller\admin\AdminDashboardController::class;
+        self::assertTrue(class_exists($class), '仪表盘控制器尚未迁移');
+        $payload = $this->decode((new $class())->dashboard($this->postRequest([])));
+
+        self::assertSame(1, $payload['code']);
+        self::assertSame('0.00', $payload['data']['total_amount']);
+        self::assertSame(0, $payload['data']['total_orders']);
+        self::assertSame('100.00%', $payload['data']['success_rate']);
+        self::assertSame('HEALTHY', $payload['data']['metrics']['db_pool']);
+    }
+
     private function postRequest(array $data): Request
     {
         $body = http_build_query($data);

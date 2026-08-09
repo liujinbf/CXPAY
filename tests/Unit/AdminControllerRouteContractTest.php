@@ -28,6 +28,20 @@ final class AdminControllerRouteContractTest extends TestCase
         $this->assertRoute('POST', '/api/admin/logout', [AdminAuthController::class, 'logout']);
     }
 
+    public function testDashboardRouteUsesDedicatedController(): void
+    {
+        $route = $this->assertRoute(
+            'GET',
+            '/api/admin/dashboard',
+            [\app\controller\admin\AdminDashboardController::class, 'dashboard'],
+            $this->adminMiddleware()
+        );
+        self::assertSame(
+            ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
+            $route->getMethods()
+        );
+    }
+
     private function assertRoute(
         string $method,
         string $path,

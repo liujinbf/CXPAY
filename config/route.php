@@ -138,7 +138,7 @@ Route::group('/api/merchant', function () {
 
 // 管理员后台与插件商城 API
 Route::group('/api/admin', function () {
-    Route::any('/dashboard', [app\controller\admin\AdminController::class, 'dashboard']);
+    Route::any('/dashboard', [app\controller\admin\AdminDashboardController::class, 'dashboard']);
     Route::get('/channel/list', [app\controller\admin\AdminController::class, 'listChannels']);
     Route::post('/channel/save', [app\controller\admin\AdminController::class, 'saveChannelConfig']);
     Route::get('/channel/get', [app\controller\admin\AdminController::class, 'getChannelConfig']);
