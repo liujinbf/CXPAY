@@ -4,9 +4,9 @@
 
 **Goal:** 在不改变管理员 API 契约的前提下删除 959 行的 `AdminController`，将有效接口迁移到单一业务资源 Controller。
 
-**Architecture:** 先用方法源码哈希冻结当前有效实现，再按认证、仪表盘、平台通道、商户、安全与模板、订单六个边界逐组迁移路由。迁移阶段保留旧类作为尚未迁移方法的来源，最后一个任务一次性删除旧类及无路由的旧 Git 更新实现，不保留门面或 Trait。
+**Architecture:** 通过 Webman 的真实路由注册表冻结 URL、HTTP 方法、回调和中间件，通过真实 `Request` 与内存 SQLite 冻结关键响应，再按认证、仪表盘、平台通道、商户、安全与模板、订单六个边界逐组迁移。最后删除旧类及无路由的旧 Git 更新实现，不保留门面或 Trait。
 
-**Tech Stack:** PHP 8.1、Webman 2.1、Illuminate Database 10、PHPUnit 10、PowerShell、Git。
+**Tech Stack:** PHP 8.1、Webman 2.1、Illuminate Database 10、SQLite、PHPUnit 10、PowerShell、Git。
 
 ## Global Constraints
 
@@ -45,8 +45,8 @@
 
 ### 新增测试文件
 
-- `tests/Unit/AdminControllerBehaviorContractTest.php`：用标准化方法源码 SHA-256 冻结 16 个有效方法，确保迁移只改变所属类。
-- `tests/Unit/AdminControllerRouteContractTest.php`：冻结公开路由、管理员认证组路由、方法所有权、旧类删除和文件规模。
+- `tests/Unit/AdminControllerRouteContractTest.php`：加载 Webman 真实路由表，验证路径、HTTP 方法、回调和中间件。
+- `tests/Unit/AdminControllerApiContractTest.php`：以真实 HTTP 请求和内存数据库验证关键错误及降级响应。
 
 ### 更新文档
 
@@ -54,109 +54,19 @@
 
 ---
 
-### Task 1: 冻结方法行为并迁移管理员认证
+### Task 1: 建立真实路由测试并迁移管理员认证
 
 **Files:**
-- Create: `tests/Unit/AdminControllerBehaviorContractTest.php`
 - Create: `tests/Unit/AdminControllerRouteContractTest.php`
+- Create: `tests/Unit/AdminControllerApiContractTest.php`
 - Create: `app/controller/admin/AdminAuthController.php`
 - Modify: `config/route.php:101-103`
 
 **Interfaces:**
-- Consumes: `support\Request`、`support\Authcode`、`support\LoginRateLimiter`、`app\service\AlertNotificationService` 和现有 Session API。
+- Consumes: Webman 路由注册表、`support\Request`、`Authcode`、`LoginRateLimiter`、`AlertNotificationService` 和 Session API。
 - Produces: `AdminAuthController::login(Request): string`、`verifyLoginCode(Request): string`、`logout(Request): string`；私有 `issueAdminToken(Request, string): string`。
 
-- [ ] **Step 1: 写入方法源码冻结测试**
-
-创建 `tests/Unit/AdminControllerBehaviorContractTest.php`。候选类顺序固定为“目标类优先、旧类兜底”，因此每组方法一旦迁移，测试会立即校验新文件，而不会被旧实现掩盖：
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Tests\Unit;
-
-use PHPUnit\Framework\TestCase;
-use ReflectionClass;
-use ReflectionMethod;
-
-final class AdminControllerBehaviorContractTest extends TestCase
-{
-    private const CONTRACTS = [
-        'login' => ['app\\controller\\admin\\AdminAuthController', 'c9683d20f46dd27caf6f879eff73319541a3cdba458fcae6ee60247151c8b51f'],
-        'verifyLoginCode' => ['app\\controller\\admin\\AdminAuthController', '5269ccdf9bcd0278f4896597a0f7d531df5b0ce5ecb7086c7838fe0197b34a42'],
-        'issueAdminToken' => ['app\\controller\\admin\\AdminAuthController', '90e5d83e7b6165342bacee51341095e71da2cf270bdea4179f377c7ec9ee092e'],
-        'logout' => ['app\\controller\\admin\\AdminAuthController', 'eff041e8bfd17a0247f63abcacf8cdc3b6312ee010b1feb6a4da01944bdb5a38'],
-        'dashboard' => ['app\\controller\\admin\\AdminDashboardController', 'ee4ff2ef10877fca15446f1f51b7432771e96d8aa9cf895730d95a50ff638236'],
-        'getDashboardStats' => ['app\\controller\\admin\\AdminDashboardController', 'd13a143de2e93f39c5e93e8777728e0d626696c1051e407a4a14867cf3711164'],
-        'getChannelConfig' => ['app\\controller\\admin\\AdminChannelConfigController', 'ccb5e183c59d33d462e1b598d42e94589f976921070d9f6bdb6a9e1c5e782024'],
-        'listChannels' => ['app\\controller\\admin\\AdminChannelConfigController', '35a7a9eb3931e08e3e877cd0bce0d29a4a548d036bfde9575b0ae2371b86c562'],
-        'saveChannelConfig' => ['app\\controller\\admin\\AdminChannelConfigController', '9df9fd12b1b39d88575ce964898d44442e61e4fa97be5ca0975499be9cc76f2b'],
-        'isSensitiveConfigName' => ['app\\controller\\admin\\AdminChannelConfigController', '36898c06146a10cb2e1b0f13f6ccfaa47bfd8741294191345d372ff4a15a4dc8'],
-        'listMerchants' => ['app\\controller\\admin\\AdminMerchantController', 'dce010fe66551412253c22dc33c8265d3b2c62cf05456ab8780e4c408a0a1c12'],
-        'saveMerchant' => ['app\\controller\\admin\\AdminMerchantController', '0e56fb6fa890c0a26b58f7ddd941bc30148ef1d24a97c0ee765f9c91da90dafe'],
-        'getSecurityConfig' => ['app\\controller\\admin\\AdminSecurityController', 'c16ded961f21bc8ed26206201dd5a9120dac36763c01cf412c03c3829e31bde0'],
-        'saveSecurityConfig' => ['app\\controller\\admin\\AdminSecurityController', 'a4036ae3cccd5e1b5664d268362738179d2c38c840ec29629cf06e417195ae25'],
-        'saveTemplate' => ['app\\controller\\admin\\MerchantTemplateController', '88f11895f2418adaf5cbc07222a6e5a81d7f7e17f925bb69dcaa58a5dd2a5b4a'],
-        'forceNotifyOrder' => ['app\\controller\\admin\\OrderAdminController', '005dacd74288906a81e9f870dfb8fc1498261bd6dc8f79fa7ef41d4c600b40ef'],
-    ];
-
-    public function testMigratedMethodsRetainFrozenSourceSemantics(): void
-    {
-        foreach (self::CONTRACTS as $method => [$targetClass, $expectedHash]) {
-            $reflection = $this->findMethod($targetClass, $method);
-            self::assertSame(
-                $expectedHash,
-                hash('sha256', $this->normalizedSource($reflection)),
-                "{$targetClass}::{$method} 的实现发生了非等价修改"
-            );
-        }
-    }
-
-    private function findMethod(string $targetClass, string $method): ReflectionMethod
-    {
-        foreach ([$targetClass, 'app\\controller\\admin\\AdminController'] as $candidate) {
-            if (!class_exists($candidate)) {
-                continue;
-            }
-            $class = new ReflectionClass($candidate);
-            if (!$class->hasMethod($method)) {
-                continue;
-            }
-            $reflection = $class->getMethod($method);
-            if ($reflection->getDeclaringClass()->getName() === $candidate) {
-                return $reflection;
-            }
-        }
-
-        self::fail("找不到冻结方法 {$method}");
-    }
-
-    private function normalizedSource(ReflectionMethod $method): string
-    {
-        $file = $method->getFileName();
-        self::assertIsString($file);
-        $lines = file($file);
-        self::assertIsArray($lines);
-        $source = implode('', array_slice(
-            $lines,
-            $method->getStartLine() - 1,
-            $method->getEndLine() - $method->getStartLine() + 1
-        ));
-
-        return str_replace(["\r\n", "\r"], "\n", $source);
-    }
-}
-```
-
-- [ ] **Step 2: 运行源码冻结测试并确认旧实现基线通过**
-
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerBehaviorContractTest.php`
-
-Expected: PASS，1 test，16 组方法哈希全部匹配当前 `AdminController`。
-
-- [ ] **Step 3: 写入认证路由的失败测试**
+- [ ] **Step 1: 写入真实路由注册表测试基类和认证期望**
 
 创建 `tests/Unit/AdminControllerRouteContractTest.php`：
 
@@ -167,52 +77,119 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use app\controller\admin\AdminAuthController;
+use app\middleware\AdminAuthMiddleware;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
+use Webman\Route;
+use Webman\Route\Route as RouteObject;
 
+#[RunTestsInSeparateProcesses]
+#[PreserveGlobalState(false)]
 final class AdminControllerRouteContractTest extends TestCase
 {
-    private string $routes;
-
     protected function setUp(): void
     {
-        $routes = file_get_contents(dirname(__DIR__, 2) . '/config/route.php');
-        self::assertIsString($routes);
-        $this->routes = $routes;
+        Route::load([dirname(__DIR__, 2) . '/config']);
     }
 
     public function testPublicAuthenticationRoutesUseDedicatedController(): void
     {
-        $expected = [
-            "Route::post('/api/admin/login',        [app\\controller\\admin\\AdminAuthController::class, 'login']);",
-            "Route::post('/api/admin/login/verify', [app\\controller\\admin\\AdminAuthController::class, 'verifyLoginCode']);",
-            "Route::post('/api/admin/logout',       [app\\controller\\admin\\AdminAuthController::class, 'logout']);",
-        ];
-
-        foreach ($expected as $route) {
-            self::assertStringContainsString($route, $this->routes);
-        }
+        $this->assertRoute('POST', '/api/admin/login', [AdminAuthController::class, 'login']);
+        $this->assertRoute('POST', '/api/admin/login/verify', [AdminAuthController::class, 'verifyLoginCode']);
+        $this->assertRoute('POST', '/api/admin/logout', [AdminAuthController::class, 'logout']);
     }
 
-    private function adminGroup(): string
-    {
-        $start = strpos($this->routes, "Route::group('/api/admin'");
-        $endMarker = '})->middleware([app\\middleware\\AdminAuthMiddleware::class]);';
-        $end = strpos($this->routes, $endMarker, $start === false ? 0 : $start);
-        self::assertNotFalse($start);
-        self::assertNotFalse($end);
+    private function assertRoute(
+        string $method,
+        string $path,
+        array $callback,
+        array $middleware = []
+    ): RouteObject {
+        $route = $this->route($method, $path);
+        self::assertSame($callback, $route->getCallback());
+        self::assertSame($middleware, $route->getMiddleware());
 
-        return substr($this->routes, $start, $end - $start + strlen($endMarker));
+        return $route;
+    }
+
+    private function route(string $method, string $path): RouteObject
+    {
+        foreach (Route::getRoutes() as $route) {
+            if ($route->getPath() === $path && in_array($method, $route->getMethods(), true)) {
+                return $route;
+            }
+        }
+
+        self::fail("未注册路由 {$method} {$path}");
+    }
+
+    private function adminMiddleware(): array
+    {
+        return [AdminAuthMiddleware::class];
     }
 }
 ```
 
-- [ ] **Step 4: 运行认证路由测试并确认按预期失败**
+该测试的具体破坏模型是：URL 仍存在，但回调类、动作、HTTP 方法或中间件发生错误。
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php --filter PublicAuthenticationRoutes`
+- [ ] **Step 2: 写入真实空凭据响应测试**
 
-Expected: FAIL，路由仍指向 `AdminController`。
+创建 `tests/Unit/AdminControllerApiContractTest.php`：
 
-- [ ] **Step 5: 创建认证 Controller 并迁移冻结方法**
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
+use app\controller\admin\AdminAuthController;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
+use PHPUnit\Framework\TestCase;
+use support\Request;
+
+final class AdminControllerApiContractTest extends TestCase
+{
+    public function testAuthenticationRejectsEmptyCredentials(): void
+    {
+        self::assertTrue(class_exists(AdminAuthController::class), '认证控制器尚未迁移');
+        $payload = $this->decode((new AdminAuthController())->login($this->postRequest([])));
+
+        self::assertSame(-1, $payload['code']);
+        self::assertSame('管理员账号与密码不能为空', $payload['msg']);
+    }
+
+    private function postRequest(array $data): Request
+    {
+        $body = http_build_query($data);
+        return new Request(
+            "POST / HTTP/1.1\r\n"
+            . "Host: pay.example.com\r\n"
+            . "Content-Type: application/x-www-form-urlencoded\r\n"
+            . 'Content-Length: ' . strlen($body) . "\r\n\r\n"
+            . $body
+        );
+    }
+
+    private function decode(string $json): array
+    {
+        return json_decode($json, true, 32, JSON_THROW_ON_ERROR);
+    }
+}
+```
+
+该测试的具体破坏模型是：拆分时遗漏空输入校验或改变错误码、中文文案。
+
+- [ ] **Step 3: 运行两项测试并观察正确红灯**
+
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php`
+
+Expected: FAIL；路由回调仍是 `AdminController`，API 测试显示“认证控制器尚未迁移”，不是语法或环境错误。
+
+- [ ] **Step 4: 创建认证 Controller 并迁移完整安全边界**
 
 创建文件头和唯一依赖：
 
@@ -239,16 +216,9 @@ final class AdminAuthController
 }
 ```
 
-从 `AdminController.php` 原样剪切以下完整方法，不调整空白、变量、异常捕获或返回值：
+从旧类原样迁移 `login()`（原 45-117 行）、`verifyLoginCode()`（124-190）、`issueAdminToken()`（196-236）和 `logout()`（242-248）。不得改变账号迁移、限频、pending Session、Token HMAC、Token 版本、Session ID 更新和登录告警顺序。
 
-- `login()`：原 45-117 行；
-- `verifyLoginCode()`：原 124-190 行；
-- `issueAdminToken()`：原 196-236 行；
-- `logout()`：原 242-248 行。
-
-将它们插入 `AdminAuthController` 构造器后。方法源码哈希必须继续等于 Step 1 中的四个固定值。
-
-- [ ] **Step 6: 只替换三条公开认证路由的类名**
+- [ ] **Step 5: 只替换三条公开认证路由**
 
 ```php
 Route::post('/api/admin/login',        [app\controller\admin\AdminAuthController::class, 'login']);
@@ -256,25 +226,24 @@ Route::post('/api/admin/login/verify', [app\controller\admin\AdminAuthController
 Route::post('/api/admin/logout',       [app\controller\admin\AdminAuthController::class, 'logout']);
 ```
 
-- [ ] **Step 7: 验证认证迁移**
+- [ ] **Step 6: 验证绿灯并提交**
 
 Run: `php -l app/controller/admin/AdminAuthController.php`
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerBehaviorContractTest.php tests/Unit/AdminControllerRouteContractTest.php`
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php`
 
-Expected: PASS；认证方法由目标类提供且源码哈希不变。
-
-- [ ] **Step 8: 提交认证边界**
+Expected: PASS。
 
 ```powershell
-git add -- tests/Unit/AdminControllerBehaviorContractTest.php tests/Unit/AdminControllerRouteContractTest.php app/controller/admin/AdminAuthController.php config/route.php
+git add -- tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php app/controller/admin/AdminAuthController.php config/route.php
 git commit -m "refactor: extract admin authentication controller"
 ```
 
-### Task 2: 迁移仪表盘统计与降级
+### Task 2: 迁移仪表盘统计与稳定降级
 
 **Files:**
 - Modify: `tests/Unit/AdminControllerRouteContractTest.php`
+- Modify: `tests/Unit/AdminControllerApiContractTest.php`
 - Create: `app/controller/admin/AdminDashboardController.php`
 - Modify: `config/route.php:141`
 
@@ -282,54 +251,58 @@ git commit -m "refactor: extract admin authentication controller"
 - Consumes: `MonitorService::getMetrics()`、Redis `cx:dashboard_stats`、`cx_order`、`cx_merchant`、`cx_channel`。
 - Produces: `AdminDashboardController::dashboard(Request): string`；私有 `getDashboardStats(): array`。
 
-- [ ] **Step 1: 增加受保护仪表盘路由测试**
+- [ ] **Step 1: 增加路由与真实降级响应测试**
 
-在路由测试类增加：
+路由测试增加：
 
 ```php
-public function testDashboardRouteUsesDedicatedControllerInsideAdminGroup(): void
+public function testDashboardRouteUsesDedicatedController(): void
 {
-    self::assertStringContainsString(
-        "Route::any('/dashboard', [app\\controller\\admin\\AdminDashboardController::class, 'dashboard']);",
-        $this->adminGroup()
+    $route = $this->assertRoute(
+        'GET',
+        '/api/admin/dashboard',
+        [\app\controller\admin\AdminDashboardController::class, 'dashboard'],
+        $this->adminMiddleware()
+    );
+    self::assertSame(
+        ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
+        $route->getMethods()
     );
 }
 ```
 
-- [ ] **Step 2: 运行测试并确认失败**
-
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php --filter DashboardRoute`
-
-Expected: FAIL，仪表盘仍由旧类提供。
-
-- [ ] **Step 3: 创建仪表盘 Controller**
-
-文件头固定为：
+API 测试增加：
 
 ```php
-<?php
-
-declare(strict_types=1);
-
-namespace app\controller\admin;
-
-use app\service\MonitorService;
-use Illuminate\Database\Capsule\Manager as DB;
-
-final class AdminDashboardController
+#[RunInSeparateProcess]
+#[PreserveGlobalState(false)]
+public function testDashboardReturnsStableFallbackWhenInfrastructureIsUnavailable(): void
 {
-    protected MonitorService $monitorService;
+    $class = \app\controller\admin\AdminDashboardController::class;
+    self::assertTrue(class_exists($class), '仪表盘控制器尚未迁移');
+    $payload = $this->decode((new $class())->dashboard($this->postRequest([])));
 
-    public function __construct()
-    {
-        $this->monitorService = new MonitorService();
-    }
+    self::assertSame(1, $payload['code']);
+    self::assertSame('0.00', $payload['data']['total_amount']);
+    self::assertSame(0, $payload['data']['total_orders']);
+    self::assertSame('100.00%', $payload['data']['success_rate']);
+    self::assertSame('HEALTHY', $payload['data']['metrics']['db_pool']);
 }
 ```
 
-从旧类原样剪切 `dashboard()`（原 253-285 行）和 `getDashboardStats()`（原 291-359 行），插入构造器后。不得改变 Redis TTL、聚合 SQL、成功率公式、监控降级或外层零值响应。
+具体破坏模型是：迁移遗漏外层异常降级，导致后台首页在无数据库或 Redis 时抛异常。
 
-- [ ] **Step 4: 替换并验证仪表盘路由**
+- [ ] **Step 2: 运行专项测试并观察红灯**
+
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php --filter Dashboard`
+
+Expected: FAIL，目标 Controller 尚不存在且路由仍指向旧类。
+
+- [ ] **Step 3: 创建仪表盘 Controller**
+
+文件使用 `MonitorService` 和 `Illuminate\Database\Capsule\Manager as DB`，构造器只创建 `MonitorService`。原样迁移 `dashboard()`（原 253-285）和 `getDashboardStats()`（291-359），不得改变 Redis TTL、聚合 SQL、成功率公式或零值响应。
+
+- [ ] **Step 4: 替换路由、验证并提交**
 
 ```php
 Route::any('/dashboard', [app\controller\admin\AdminDashboardController::class, 'dashboard']);
@@ -337,14 +310,12 @@ Route::any('/dashboard', [app\controller\admin\AdminDashboardController::class, 
 
 Run: `php -l app/controller/admin/AdminDashboardController.php`
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerBehaviorContractTest.php tests/Unit/AdminControllerRouteContractTest.php`
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php`
 
 Expected: PASS。
 
-- [ ] **Step 5: 提交仪表盘边界**
-
 ```powershell
-git add -- tests/Unit/AdminControllerRouteContractTest.php app/controller/admin/AdminDashboardController.php config/route.php
+git add -- tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php app/controller/admin/AdminDashboardController.php config/route.php
 git commit -m "refactor: extract admin dashboard controller"
 ```
 
@@ -352,6 +323,7 @@ git commit -m "refactor: extract admin dashboard controller"
 
 **Files:**
 - Modify: `tests/Unit/AdminControllerRouteContractTest.php`
+- Modify: `tests/Unit/AdminControllerApiContractTest.php`
 - Create: `app/controller/admin/AdminChannelConfigController.php`
 - Modify: `config/route.php:142-146`
 
@@ -359,80 +331,75 @@ git commit -m "refactor: extract admin dashboard controller"
 - Consumes: `Channel`、`PaymentManager`、`RemovedPaymentDrivers`、`Authcode` 和支付驱动 `getMeta()/upchannel()`。
 - Produces: `getChannelConfig(Request): string`、`listChannels(): string`、`saveChannelConfig(Request): string`；私有 `isSensitiveConfigName(string): bool`。
 
-- [ ] **Step 1: 增加四条通道实例路由测试**
+- [ ] **Step 1: 增加四条真实路由断言和永久移除驱动响应测试**
+
+路由测试增加一个表驱动方法，逐项调用 `assertRoute()`：
 
 ```php
-public function testPlatformChannelRoutesUseConfigControllerInsideAdminGroup(): void
+public function testPlatformChannelRoutesUseConfigController(): void
 {
-    $group = $this->adminGroup();
-    $expected = [
-        "Route::get('/channel/list', [app\\controller\\admin\\AdminChannelConfigController::class, 'listChannels']);",
-        "Route::post('/channel/save', [app\\controller\\admin\\AdminChannelConfigController::class, 'saveChannelConfig']);",
-        "Route::get('/channel/get', [app\\controller\\admin\\AdminChannelConfigController::class, 'getChannelConfig']);",
-        "Route::post('/channel/config/save', [app\\controller\\admin\\AdminChannelConfigController::class, 'saveChannelConfig']);",
-        "Route::get('/channel/inputs', [app\\controller\\admin\\ChannelAdminController::class, 'getConfigInputs']);",
+    $class = \app\controller\admin\AdminChannelConfigController::class;
+    $middleware = $this->adminMiddleware();
+    $routes = [
+        ['GET', '/api/admin/channel/list', [$class, 'listChannels']],
+        ['POST', '/api/admin/channel/save', [$class, 'saveChannelConfig']],
+        ['GET', '/api/admin/channel/get', [$class, 'getChannelConfig']],
+        ['POST', '/api/admin/channel/config/save', [$class, 'saveChannelConfig']],
+        ['GET', '/api/admin/channel/inputs', [\app\controller\admin\ChannelAdminController::class, 'getConfigInputs']],
     ];
 
-    foreach ($expected as $route) {
-        self::assertStringContainsString($route, $group);
+    foreach ($routes as [$method, $path, $callback]) {
+        $this->assertRoute($method, $path, $callback, $middleware);
     }
 }
 ```
 
-- [ ] **Step 2: 运行测试并确认失败**
+API 测试增加：
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php --filter PlatformChannelRoutes`
+```php
+public function testChannelSaveRejectsPermanentlyRemovedDriver(): void
+{
+    $class = \app\controller\admin\AdminChannelConfigController::class;
+    self::assertTrue(class_exists($class), '平台通道配置控制器尚未迁移');
+    $payload = $this->decode((new $class())->saveChannelConfig(
+        $this->postRequest(['c_type' => 'alipay_official'])
+    ));
 
-Expected: FAIL，四条实例配置路由仍指向旧类；`/channel/inputs` 断言继续通过。
+    self::assertSame(-1, $payload['code']);
+    self::assertSame('该支付驱动已永久移除，不能创建或修改通道', $payload['msg']);
+}
+```
+
+具体破坏模型是：拆分后旧驱动绕过永久移除检查，或两个保存入口映射到不同实现。
+
+- [ ] **Step 2: 运行专项测试并观察红灯**
+
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php --filter 'PlatformChannel|ChannelSave'`
+
+Expected: FAIL，目标类尚不存在。
 
 - [ ] **Step 3: 创建平台通道配置 Controller**
 
-```php
-<?php
+文件只导入 `Channel`、`PaymentManager`、`RemovedPaymentDrivers`、`Authcode`。构造器只创建 `Authcode`。原样迁移 `getChannelConfig()`（397-435）、`listChannels()`（441-488）、`saveChannelConfig()`（494-650）和 `isSensitiveConfigName()`（896-899）。
 
-declare(strict_types=1);
+不得改变敏感字段空值、`configured` 标记、备用通道校验、驱动字段白名单、`upchannel()` 调用或加密顺序。
 
-namespace app\controller\admin;
+- [ ] **Step 4: 替换四条平台通道实例路由**
 
-use app\model\Channel;
-use app\payment\PaymentManager;
-use app\payment\RemovedPaymentDrivers;
-use support\Authcode;
+`/channel/inputs` 继续指向 `ChannelAdminController::getConfigInputs`；其余四条改为 `AdminChannelConfigController`。
 
-final class AdminChannelConfigController
-{
-    protected Authcode $authcode;
-
-    public function __construct()
-    {
-        $this->authcode = new Authcode();
-    }
-}
-```
-
-原样迁移：
-
-- `getChannelConfig()`：原 397-435 行；
-- `listChannels()`：原 441-488 行；
-- `saveChannelConfig()`：原 494-650 行；
-- `isSensitiveConfigName()`：原 896-899 行。
-
-不得合并两个保存路由，不得修改敏感字段空值语义、备用通道校验、驱动白名单或 Authcode 加密顺序。
-
-- [ ] **Step 4: 替换四条实例配置路由并验证**
+- [ ] **Step 5: 验证文件规模、绿灯并提交**
 
 Run: `php -l app/controller/admin/AdminChannelConfigController.php`
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerBehaviorContractTest.php tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminChannelFrontendContractTest.php`
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php tests/Unit/AdminChannelFrontendContractTest.php`
 
 Run: `(Get-Content -LiteralPath 'app/controller/admin/AdminChannelConfigController.php' -ReadCount 0).Count`
 
-Expected: 全部 PASS；通道 Controller 不超过 300 行。
-
-- [ ] **Step 5: 提交通道边界**
+Expected: 全部 PASS；文件不超过 300 行。
 
 ```powershell
-git add -- tests/Unit/AdminControllerRouteContractTest.php app/controller/admin/AdminChannelConfigController.php config/route.php
+git add -- tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php app/controller/admin/AdminChannelConfigController.php config/route.php
 git commit -m "refactor: extract admin channel config controller"
 ```
 
@@ -440,6 +407,7 @@ git commit -m "refactor: extract admin channel config controller"
 
 **Files:**
 - Modify: `tests/Unit/AdminControllerRouteContractTest.php`
+- Modify: `tests/Unit/AdminControllerApiContractTest.php`
 - Create: `app/controller/admin/AdminMerchantController.php`
 - Modify: `config/route.php:149-150`
 
@@ -447,56 +415,58 @@ git commit -m "refactor: extract admin channel config controller"
 - Consumes: `Merchant` 和 `IpWhitelist::normalize()`。
 - Produces: `listMerchants(Request): string`、`saveMerchant(Request): string`。
 
-- [ ] **Step 1: 增加商户路由失败测试**
+- [ ] **Step 1: 增加真实路由和非法商户输入测试**
+
+路由测试增加：
 
 ```php
-public function testMerchantRoutesUseDedicatedControllerInsideAdminGroup(): void
+public function testMerchantRoutesUseDedicatedController(): void
 {
-    $group = $this->adminGroup();
-    self::assertStringContainsString(
-        "Route::get('/merchant/list', [app\\controller\\admin\\AdminMerchantController::class, 'listMerchants']);",
-        $group
-    );
-    self::assertStringContainsString(
-        "Route::post('/merchant/save', [app\\controller\\admin\\AdminMerchantController::class, 'saveMerchant']);",
-        $group
-    );
+    $class = \app\controller\admin\AdminMerchantController::class;
+    $middleware = $this->adminMiddleware();
+    $this->assertRoute('GET', '/api/admin/merchant/list', [$class, 'listMerchants'], $middleware);
+    $this->assertRoute('POST', '/api/admin/merchant/save', [$class, 'saveMerchant'], $middleware);
 }
 ```
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php --filter MerchantRoutes`
+API 测试增加：
+
+```php
+public function testMerchantSaveRejectsInvalidNameAndRate(): void
+{
+    $class = \app\controller\admin\AdminMerchantController::class;
+    self::assertTrue(class_exists($class), '商户管理控制器尚未迁移');
+    $payload = $this->decode((new $class())->saveMerchant(
+        $this->postRequest(['name' => ' ', 'rate' => '2'])
+    ));
+
+    self::assertSame(-1, $payload['code']);
+    self::assertSame('商户名称、密钥或费率格式不合法', $payload['msg']);
+}
+```
+
+具体破坏模型是：迁移遗漏商户名称和费率边界，非法数据进入数据库。
+
+- [ ] **Step 2: 运行测试并观察红灯**
+
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php --filter Merchant`
 
 Expected: FAIL。
 
-- [ ] **Step 2: 创建商户 Controller 并原样迁移方法**
+- [ ] **Step 3: 创建商户 Controller 并迁移**
 
-```php
-<?php
+文件只导入 `Merchant` 和 `IpWhitelist`，原样迁移 `listMerchants()`（368-391）与 `saveMerchant()`（656-727）。不得下发 `key`、`password_hash`，不得改变 PID、密钥、初始密码和 bcrypt cost 12。
 
-declare(strict_types=1);
-
-namespace app\controller\admin;
-
-use app\model\Merchant;
-use support\IpWhitelist;
-
-final class AdminMerchantController
-{
-}
-```
-
-原样迁移 `listMerchants()`（原 368-391 行）和 `saveMerchant()`（原 656-727 行）。不得下发 `key`、`password_hash`，不得改变 PID、密钥、初始密码和 bcrypt cost 12 的生成规则。
-
-- [ ] **Step 3: 替换路由、验证并提交**
+- [ ] **Step 4: 替换两条路由、验证并提交**
 
 Run: `php -l app/controller/admin/AdminMerchantController.php`
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerBehaviorContractTest.php tests/Unit/AdminControllerRouteContractTest.php`
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php`
 
 Expected: PASS。
 
 ```powershell
-git add -- tests/Unit/AdminControllerRouteContractTest.php app/controller/admin/AdminMerchantController.php config/route.php
+git add -- tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php app/controller/admin/AdminMerchantController.php config/route.php
 git commit -m "refactor: extract admin merchant controller"
 ```
 
@@ -504,6 +474,7 @@ git commit -m "refactor: extract admin merchant controller"
 
 **Files:**
 - Modify: `tests/Unit/AdminControllerRouteContractTest.php`
+- Modify: `tests/Unit/AdminControllerApiContractTest.php`
 - Create: `app/controller/admin/AdminSecurityController.php`
 - Create: `app/controller/admin/MerchantTemplateController.php`
 - Modify: `config/route.php:152,207-208`
@@ -512,85 +483,89 @@ git commit -m "refactor: extract admin merchant controller"
 - Consumes: `Authcode`、`DB`、管理员 Session 和 `base_path()`。
 - Produces: `getSecurityConfig(Request): string`、`saveSecurityConfig(Request): string`、`saveTemplate(Request): string`。
 
-- [ ] **Step 1: 增加安全与模板路由失败测试**
+- [ ] **Step 1: 增加三条真实路由和两个独立错误响应测试**
+
+路由测试增加：
 
 ```php
 public function testSecurityAndTemplateRoutesUseDedicatedControllers(): void
 {
-    $group = $this->adminGroup();
-    $expected = [
-        "Route::post('/template/save', [app\\controller\\admin\\MerchantTemplateController::class, 'saveTemplate']);",
-        "Route::get('/security/config',       [app\\controller\\admin\\AdminSecurityController::class, 'getSecurityConfig']);",
-        "Route::post('/security/config/save', [app\\controller\\admin\\AdminSecurityController::class, 'saveSecurityConfig']);",
-    ];
-
-    foreach ($expected as $route) {
-        self::assertStringContainsString($route, $group);
-    }
+    $middleware = $this->adminMiddleware();
+    $this->assertRoute(
+        'POST',
+        '/api/admin/template/save',
+        [\app\controller\admin\MerchantTemplateController::class, 'saveTemplate'],
+        $middleware
+    );
+    $this->assertRoute(
+        'GET',
+        '/api/admin/security/config',
+        [\app\controller\admin\AdminSecurityController::class, 'getSecurityConfig'],
+        $middleware
+    );
+    $this->assertRoute(
+        'POST',
+        '/api/admin/security/config/save',
+        [\app\controller\admin\AdminSecurityController::class, 'saveSecurityConfig'],
+        $middleware
+    );
 }
 ```
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php --filter SecurityAndTemplateRoutes`
+API 测试分别增加：
+
+```php
+public function testSecuritySaveRejectsShortVerificationCode(): void
+{
+    $class = \app\controller\admin\AdminSecurityController::class;
+    self::assertTrue(class_exists($class), '安全设置控制器尚未迁移');
+    $payload = $this->decode((new $class())->saveSecurityConfig(
+        $this->postRequest(['verify_code' => '123'])
+    ));
+
+    self::assertSame(-1, $payload['code']);
+    self::assertSame('验证码长度须在4至32位之间', $payload['msg']);
+}
+
+public function testTemplateSaveRejectsTraversalName(): void
+{
+    $class = \app\controller\admin\MerchantTemplateController::class;
+    self::assertTrue(class_exists($class), '主页模板控制器尚未迁移');
+    $payload = $this->decode((new $class())->saveTemplate(
+        $this->postRequest(['template' => '../bad'])
+    ));
+
+    self::assertSame(-1, $payload['code']);
+    self::assertSame('主页模板不存在或名称不合法', $payload['msg']);
+}
+```
+
+具体破坏模型分别是：短验证码被保存、模板名称可越界访问文件。
+
+- [ ] **Step 2: 运行测试并观察红灯**
+
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php --filter 'Security|Template'`
 
 Expected: FAIL。
 
-- [ ] **Step 2: 创建安全设置 Controller**
+- [ ] **Step 3: 创建安全设置与模板 Controller**
 
-```php
-<?php
+`AdminSecurityController` 只导入 `DB` 和 `Authcode`，构造器创建 `Authcode`，原样迁移 `getSecurityConfig()`（803-826）与 `saveSecurityConfig()`（834-891）。
 
-declare(strict_types=1);
+`MerchantTemplateController` 只导入 `DB`，原样迁移 `saveTemplate()`（779-797）。
 
-namespace app\controller\admin;
-
-use Illuminate\Database\Capsule\Manager as DB;
-use support\Authcode;
-
-final class AdminSecurityController
-{
-    protected Authcode $authcode;
-
-    public function __construct()
-    {
-        $this->authcode = new Authcode();
-    }
-}
-```
-
-原样迁移 `getSecurityConfig()`（原 803-826 行）和 `saveSecurityConfig()`（原 834-891 行）。当前密码校验、Token 版本递增和 Session 清除顺序不得改变。
-
-- [ ] **Step 3: 创建主页模板 Controller**
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace app\controller\admin;
-
-use Illuminate\Database\Capsule\Manager as DB;
-
-final class MerchantTemplateController
-{
-}
-```
-
-原样迁移 `saveTemplate()`（原 779-797 行），继续同时验证模板名称正则和实际文件存在。
-
-- [ ] **Step 4: 替换三条路由并验证**
+- [ ] **Step 4: 替换三条路由、验证并提交**
 
 Run: `php -l app/controller/admin/AdminSecurityController.php`
 
 Run: `php -l app/controller/admin/MerchantTemplateController.php`
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerBehaviorContractTest.php tests/Unit/AdminControllerRouteContractTest.php`
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php`
 
 Expected: PASS。
 
-- [ ] **Step 5: 提交安全与模板边界**
-
 ```powershell
-git add -- tests/Unit/AdminControllerRouteContractTest.php app/controller/admin/AdminSecurityController.php app/controller/admin/MerchantTemplateController.php config/route.php
+git add -- tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php app/controller/admin/AdminSecurityController.php app/controller/admin/MerchantTemplateController.php config/route.php
 git commit -m "refactor: extract admin security and template controllers"
 ```
 
@@ -598,86 +573,99 @@ git commit -m "refactor: extract admin security and template controllers"
 
 **Files:**
 - Modify: `tests/Unit/AdminControllerRouteContractTest.php`
+- Modify: `tests/Unit/AdminControllerApiContractTest.php`
 - Modify: `app/controller/admin/OrderAdminController.php`
 - Modify: `config/route.php:151`
 - Delete: `app/controller/admin/AdminController.php`
 
 **Interfaces:**
-- Consumes: `OrderService::markAsPaid()`、`resendNotify()` 和 `AuditLog`。
-- Produces: `OrderAdminController::forceNotifyOrder(Request): string`；删除全部 `AdminController` 类引用。
+- Consumes: `OrderService::markAsPaid()`、`resendNotify()`、`AuditLog` 和内存 SQLite。
+- Produces: `OrderAdminController::forceNotifyOrder(Request): string`；真实路由表中不再存在旧类回调。
 
-- [ ] **Step 1: 增加人工补单和旧类退休失败测试**
+- [ ] **Step 1: 增加补单路由和内存数据库响应测试**
+
+路由测试增加：
 
 ```php
 public function testForceNotifyUsesExistingOrderController(): void
 {
-    self::assertStringContainsString(
-        "Route::post('/order/force_notify', [app\\controller\\admin\\OrderAdminController::class, 'forceNotifyOrder']);",
-        $this->adminGroup()
+    $this->assertRoute(
+        'POST',
+        '/api/admin/order/force_notify',
+        [\app\controller\admin\OrderAdminController::class, 'forceNotifyOrder'],
+        $this->adminMiddleware()
     );
 }
 
-public function testLegacyAdminControllerIsRetired(): void
+public function testNoRegisteredRouteUsesLegacyAdminController(): void
 {
-    $root = dirname(__DIR__, 2);
-    self::assertFileDoesNotExist($root . '/app/controller/admin/AdminController.php');
-    self::assertStringNotContainsString(
-        'app\\controller\\admin\\AdminController::class',
-        $this->routes
-    );
-    self::assertStringNotContainsString('getSystemUpdateStatus', $this->productionAdminSources());
-    self::assertStringNotContainsString('executeSystemUpdate', $this->productionAdminSources());
-}
-
-public function testTargetControllersStayWithinSizeLimit(): void
-{
-    $root = dirname(__DIR__, 2);
-    $files = [
-        'AdminAuthController.php',
-        'AdminDashboardController.php',
-        'AdminChannelConfigController.php',
-        'AdminMerchantController.php',
-        'AdminSecurityController.php',
-        'MerchantTemplateController.php',
-        'OrderAdminController.php',
-    ];
-
-    foreach ($files as $file) {
-        $lines = file($root . '/app/controller/admin/' . $file);
-        self::assertIsArray($lines);
-        self::assertLessThanOrEqual(300, count($lines), "{$file} 超过 300 行");
+    foreach (Route::getRoutes() as $route) {
+        $callback = $route->getCallback();
+        if (!is_array($callback)) {
+            continue;
+        }
+        self::assertNotSame(
+            'app\\controller\\admin\\AdminController',
+            $callback[0] ?? null,
+            $route->getPath() . ' 仍回调旧控制器'
+        );
     }
-}
-
-private function productionAdminSources(): string
-{
-    $directory = dirname(__DIR__, 2) . '/app/controller/admin';
-    $sources = '';
-    foreach (glob($directory . '/*.php') ?: [] as $file) {
-        $source = file_get_contents($file);
-        self::assertIsString($source);
-        $sources .= $source;
-    }
-
-    return $sources;
 }
 ```
 
-- [ ] **Step 2: 运行退休测试并确认失败**
+API 测试导入 `Illuminate\Database\Capsule\Manager as DB` 和 `Illuminate\Database\Schema\Blueprint`，增加：
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php --filter 'ForceNotify|LegacyAdminController|SizeLimit'`
+```php
+#[RunInSeparateProcess]
+#[PreserveGlobalState(false)]
+public function testForceNotifyReturnsNotFoundForUnknownOrder(): void
+{
+    $class = \app\controller\admin\OrderAdminController::class;
+    self::assertTrue(method_exists($class, 'forceNotifyOrder'), '人工补单尚未迁移');
 
-Expected: FAIL，补单仍属于旧类且旧文件仍存在。
+    $db = new DB();
+    $db->addConnection(['driver' => 'sqlite', 'database' => ':memory:']);
+    $db->setAsGlobal();
+    $db->bootEloquent();
+    $db->schema()->create('cx_order', function (Blueprint $table): void {
+        $table->increments('id');
+        $table->string('trade_no')->unique();
+        $table->unsignedTinyInteger('status')->default(0);
+        $table->decimal('price', 12, 2)->default(0);
+        $table->unsignedInteger('channel_id')->default(0);
+    });
+    $db->schema()->create('cx_audit_log', function (Blueprint $table): void {
+        $table->increments('id');
+        $table->string('operator');
+        $table->string('action');
+        $table->text('context');
+        $table->string('result');
+        $table->string('ip');
+        $table->unsignedInteger('created_at');
+    });
+
+    $payload = $this->decode((new $class())->forceNotifyOrder(
+        $this->postRequest(['trade_no' => 'ADMIN-MISSING'])
+    ));
+
+    self::assertSame(-1, $payload['code']);
+    self::assertSame('订单不存在', $payload['msg']);
+    self::assertSame('force_pay', $db->table('cx_audit_log')->value('action'));
+    self::assertSame('fail', $db->table('cx_audit_log')->value('result'));
+}
+```
+
+具体破坏模型是：补单路由未迁移、未知订单未拒绝，或失败审计丢失。
+
+- [ ] **Step 2: 运行测试并观察红灯**
+
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php --filter 'ForceNotify|Legacy'`
+
+Expected: FAIL，`OrderAdminController` 尚无补单方法且路由仍指向旧类。
 
 - [ ] **Step 3: 将人工补单原样迁入现有订单 Controller**
 
-在 `OrderAdminController.php` 增加：
-
-```php
-use support\AuditLog;
-```
-
-把旧类的 `forceNotifyOrder()`（原 734-772 行）完整复制到 `close()` 后，不修改审计动作名、外部订单号前缀、结算参数或响应。
+增加 `use support\AuditLog;`，把旧类 `forceNotifyOrder()`（734-772）完整迁移到 `close()` 后。不得改变审计动作名、`MANUAL_` 外部单号前缀、结算参数或响应。
 
 - [ ] **Step 4: 替换补单路由并删除旧类**
 
@@ -685,20 +673,20 @@ use support\AuditLog;
 Route::post('/order/force_notify', [app\controller\admin\OrderAdminController::class, 'forceNotifyOrder']);
 ```
 
-确认 `config/route.php` 已没有 `AdminController::class` 后，删除 `app/controller/admin/AdminController.php`。其中 `getSystemUpdateStatus()` 和 `executeSystemUpdate()` 没有路由且已有独立 `SystemUpdateController`，不得迁移到其他类。
+确认真实路由测试覆盖的 14 条路由全部已迁移后，删除 `app/controller/admin/AdminController.php`。无路由的 `getSystemUpdateStatus()` 和 `executeSystemUpdate()` 不迁移。
 
-- [ ] **Step 5: 验证全部迁移方法、路由和文件规模**
+- [ ] **Step 5: 验证绿灯、文件规模并提交**
 
 Run: `php -l app/controller/admin/OrderAdminController.php`
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerBehaviorContractTest.php tests/Unit/AdminControllerRouteContractTest.php`
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php`
 
-Expected: PASS；16 个有效方法全部从目标类读取，旧类和旧更新方法不存在。
+Run: `Get-ChildItem app/controller/admin/*Controller.php | Where-Object Name -in @('AdminAuthController.php','AdminDashboardController.php','AdminChannelConfigController.php','AdminMerchantController.php','AdminSecurityController.php','MerchantTemplateController.php','OrderAdminController.php') | ForEach-Object { [PSCustomObject]@{File=$_.Name;Lines=(Get-Content -LiteralPath $_.FullName -ReadCount 0).Count} }`
 
-- [ ] **Step 6: 提交旧类退休**
+Expected: PASS；目标文件均不超过 300 行；路由表不存在旧类回调。
 
 ```powershell
-git add -- tests/Unit/AdminControllerRouteContractTest.php app/controller/admin/OrderAdminController.php config/route.php
+git add -- tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php app/controller/admin/OrderAdminController.php config/route.php
 git add -u -- app/controller/admin/AdminController.php
 git commit -m "refactor: retire monolithic admin controller"
 ```
@@ -712,9 +700,7 @@ git commit -m "refactor: retire monolithic admin controller"
 - Consumes: 前六个任务的全部生产代码和测试提交。
 - Produces: 可审计的最终文件规模、测试数量和合并前验证记录。
 
-- [ ] **Step 1: 对所有目标 PHP 文件执行语法检查**
-
-Run:
+- [ ] **Step 1: 对全部目标 PHP 文件执行语法检查**
 
 ```powershell
 $files = @(
@@ -726,8 +712,8 @@ $files = @(
   'app/controller/admin/MerchantTemplateController.php',
   'app/controller/admin/OrderAdminController.php',
   'config/route.php',
-  'tests/Unit/AdminControllerBehaviorContractTest.php',
-  'tests/Unit/AdminControllerRouteContractTest.php'
+  'tests/Unit/AdminControllerRouteContractTest.php',
+  'tests/Unit/AdminControllerApiContractTest.php'
 )
 foreach ($file in $files) {
   php -l $file
@@ -739,7 +725,7 @@ Expected: 每个文件均输出 `No syntax errors detected`。
 
 - [ ] **Step 2: 运行相关契约测试**
 
-Run: `php vendor/bin/phpunit tests/Unit/AdminControllerBehaviorContractTest.php tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminChannelFrontendContractTest.php tests/Unit/AdminPageModuleContractTest.php`
+Run: `php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php tests/Unit/AdminControllerApiContractTest.php tests/Unit/AdminChannelFrontendContractTest.php tests/Unit/AdminPageModuleContractTest.php`
 
 Expected: PASS，0 failure，0 error。
 
@@ -749,9 +735,7 @@ Run: `php vendor/bin/phpunit`
 
 Expected: 不少于 321 tests，0 failure，0 error。
 
-- [ ] **Step 4: 检查文件规模、旧引用和差异质量**
-
-Run:
+- [ ] **Step 4: 检查文件规模、旧路由回调和差异质量**
 
 ```powershell
 Get-ChildItem -LiteralPath 'app/controller/admin' -File -Filter '*.php' |
@@ -768,18 +752,16 @@ Get-ChildItem -LiteralPath 'app/controller/admin' -File -Filter '*.php' |
     [PSCustomObject]@{ File = $_.Name; Lines = (Get-Content -LiteralPath $_.FullName -ReadCount 0).Count }
   } |
   Sort-Object Lines -Descending
-git grep -n -F 'app\controller\admin\AdminController::class' -- config app tests
+php vendor/bin/phpunit tests/Unit/AdminControllerRouteContractTest.php
 git diff --check
 git status --short
 ```
 
-Expected: 每个目标文件不超过 300 行；`git grep` 无匹配；`git diff --check` 无输出；状态中不包含 `CXPAY.rar` 的变更或暂存记录。
+Expected: 每个目标文件不超过 300 行；真实路由测试通过；`git diff --check` 无输出；`CXPAY.rar` 没有变更或暂存记录。
 
-- [ ] **Step 5: 更新设计文档实施记录**
+- [ ] **Step 5: 更新设计文档实施记录并提交**
 
-在设计文档末尾新增“实施记录”，写入实际七个文件行数、根 PHPUnit 测试数、断言数、语法检查和旧引用扫描结果。所有数字必须来自 Step 1-4 的真实输出。
-
-- [ ] **Step 6: 提交最终验证记录**
+在设计文档末尾新增“实施记录”，写入 Step 1-4 真实输出中的七个文件行数、根 PHPUnit 测试数、断言数、语法检查和路由测试结果。
 
 ```powershell
 git add -- docs/superpowers/specs/2026-08-09-admin-controller-modularization-design.md
@@ -787,6 +769,6 @@ git diff --cached --check
 git commit -m "test: verify modular admin controllers"
 ```
 
-- [ ] **Step 7: 按分支完成规范执行集成**
+- [ ] **Step 6: 按分支完成集成**
 
-使用 `superpowers:verification-before-completion` 复核证据，再使用 `superpowers:finishing-a-development-branch` 选择本地合并。按用户既定要求先确保功能分支全部提交，再快进合并到 `main`；合并后在 `main` 重跑 `php vendor/bin/phpunit`、`git diff --check` 和 `git status --short`，最后只移除本轮新建的工作树和临时分支。
+使用 `superpowers:verification-before-completion` 复核证据，再使用 `superpowers:finishing-a-development-branch` 选择本地合并。按用户要求先确保功能分支全部提交，再快进合并到 `main`；合并后在 `main` 重跑 `php vendor/bin/phpunit`、`git diff --check` 和 `git status --short`，最后只移除本轮新建的工作树和临时分支。
