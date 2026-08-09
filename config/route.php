@@ -139,11 +139,11 @@ Route::group('/api/merchant', function () {
 // 管理员后台与插件商城 API
 Route::group('/api/admin', function () {
     Route::any('/dashboard', [app\controller\admin\AdminDashboardController::class, 'dashboard']);
-    Route::get('/channel/list', [app\controller\admin\AdminController::class, 'listChannels']);
-    Route::post('/channel/save', [app\controller\admin\AdminController::class, 'saveChannelConfig']);
-    Route::get('/channel/get', [app\controller\admin\AdminController::class, 'getChannelConfig']);
+    Route::get('/channel/list', [app\controller\admin\AdminChannelConfigController::class, 'listChannels']);
+    Route::post('/channel/save', [app\controller\admin\AdminChannelConfigController::class, 'saveChannelConfig']);
+    Route::get('/channel/get', [app\controller\admin\AdminChannelConfigController::class, 'getChannelConfig']);
     Route::get('/channel/inputs', [app\controller\admin\ChannelAdminController::class, 'getConfigInputs']);
-    Route::post('/channel/config/save', [app\controller\admin\AdminController::class, 'saveChannelConfig']);
+    Route::post('/channel/config/save', [app\controller\admin\AdminChannelConfigController::class, 'saveChannelConfig']);
     Route::get('/bill-source/status', [app\controller\api\BillSourceManageController::class, 'adminStatus']);
     Route::post('/bill-source/rotate-token', [app\controller\api\BillSourceManageController::class, 'adminRotate']);
     Route::get('/merchant/list', [app\controller\admin\AdminController::class, 'listMerchants']);

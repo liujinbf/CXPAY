@@ -36,6 +36,18 @@ final class AdminControllerApiContractTest extends TestCase
         self::assertSame('HEALTHY', $payload['data']['metrics']['db_pool']);
     }
 
+    public function testChannelSaveRejectsPermanentlyRemovedDriver(): void
+    {
+        $class = \app\controller\admin\AdminChannelConfigController::class;
+        self::assertTrue(class_exists($class), '平台通道配置控制器尚未迁移');
+        $payload = $this->decode((new $class())->saveChannelConfig(
+            $this->postRequest(['c_type' => 'alipay_official'])
+        ));
+
+        self::assertSame(-1, $payload['code']);
+        self::assertSame('该支付驱动已永久移除，不能创建或修改通道', $payload['msg']);
+    }
+
     private function postRequest(array $data): Request
     {
         $body = http_build_query($data);

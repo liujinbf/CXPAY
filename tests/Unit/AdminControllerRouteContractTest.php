@@ -42,6 +42,23 @@ final class AdminControllerRouteContractTest extends TestCase
         );
     }
 
+    public function testPlatformChannelRoutesUseConfigController(): void
+    {
+        $class = \app\controller\admin\AdminChannelConfigController::class;
+        $middleware = $this->adminMiddleware();
+        $routes = [
+            ['GET', '/api/admin/channel/list', [$class, 'listChannels']],
+            ['POST', '/api/admin/channel/save', [$class, 'saveChannelConfig']],
+            ['GET', '/api/admin/channel/get', [$class, 'getChannelConfig']],
+            ['POST', '/api/admin/channel/config/save', [$class, 'saveChannelConfig']],
+            ['GET', '/api/admin/channel/inputs', [\app\controller\admin\ChannelAdminController::class, 'getConfigInputs']],
+        ];
+
+        foreach ($routes as [$method, $path, $callback]) {
+            $this->assertRoute($method, $path, $callback, $middleware);
+        }
+    }
+
     private function assertRoute(
         string $method,
         string $path,
