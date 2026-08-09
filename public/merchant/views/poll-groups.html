@@ -1,0 +1,20 @@
+<section data-feature="poll-groups" class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-extrabold text-slate-800">多通道轮询组设置</h2>
+            <p class="text-xs text-slate-400 mt-1">绑定多个收款账号进行多卡轮询与单日额度熔断分流，有效降低封号风险</p>
+        </div>
+        <button data-action="refresh-poll-groups" class="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i> 刷新
+        </button>
+    </div>
+
+    <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-700 flex items-start gap-2">
+        <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+        <span>轮询调度器尚未接入当前通道系统，轮询组配置仅供查阅历史记录，不影响实际通道权重分配。</span>
+    </div>
+
+    <div id="poll-group-container" class="space-y-4">
+        <div class="glass-card rounded-2xl p-6 text-center text-xs text-slate-400">正在加载轮询组配置...</div>
+    </div>
+</section>

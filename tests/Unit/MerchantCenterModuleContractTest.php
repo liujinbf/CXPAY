@@ -77,7 +77,7 @@ globalThis.window = {
 globalThis.fetch = async () => ({ status: 401 });
 
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v3') {
+if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v4') {
     throw new Error('资源 URL 版本错误');
 }
 
@@ -204,6 +204,55 @@ JS;
             self::MERCHANT . '/assets/features/channel-authorization.js',
         ]);
 
+        self::assertSame(0, $exitCode, $output);
+    }
+
+    public function testCashierAndPollGroupFeaturesKeepContracts(): void
+    {
+        foreach (['cashier', 'poll-groups'] as $name) {
+            $view = self::MERCHANT . '/views/' . $name . '.html';
+            $module = self::MERCHANT . '/assets/features/' . $name . '.js';
+            self::assertFileExists($view);
+            self::assertFileExists($module);
+            self::assertLessThanOrEqual(400, substr_count((string) file_get_contents($view), "\n") + 1, $view);
+            self::assertLessThanOrEqual(400, substr_count((string) file_get_contents($module), "\n") + 1, $module);
+        }
+
+        $cashier = (string) file_get_contents(self::MERCHANT . '/assets/features/cashier.js');
+        $pollGroups = (string) file_get_contents(self::MERCHANT . '/assets/features/poll-groups.js');
+        self::assertStringContainsString('cx_cashier_config', $cashier);
+        self::assertStringContainsString('/api/merchant/channel/list', $pollGroups);
+    }
+
+    public function testCashierConfigDefaultsAndTimeoutValidation(): void
+    {
+        $script = <<<'JS'
+import { pathToFileURL } from 'node:url';
+
+const { readCashierConfig, normalizeCashierConfig, validateCashierConfig } = await import(
+    pathToFileURL(process.argv[1]).href
+);
+const defaults = readCashierConfig({ getItem: () => null });
+const expected = {
+    notice: '', timeout: 180, redirect: 'return_url', custom_url: '',
+    tts_enabled: true, mapi_mode: 'qrcode', float_min: '0.00',
+    float_max: '0.09', theme: 'classic_blue',
+};
+if (JSON.stringify(defaults) !== JSON.stringify(expected)) {
+    throw new Error(`默认配置不兼容：${JSON.stringify(defaults)}`);
+}
+const normalized = normalizeCashierConfig({ ...expected, timeout: '180', tts_enabled: 1 });
+if (normalized.timeout !== 180 || normalized.tts_enabled !== true) {
+    throw new Error('配置类型归一化失败');
+}
+if (!validateCashierConfig({ ...expected, timeout: 59 })) throw new Error('59 秒未返回验证错误');
+if (!validateCashierConfig({ ...expected, timeout: 301 })) throw new Error('301 秒未返回验证错误');
+if (validateCashierConfig(expected) !== null) throw new Error('合法超时被错误拒绝');
+JS;
+
+        [$exitCode, $output] = $this->runNode($script, [
+            self::MERCHANT . '/assets/features/cashier.js',
+        ]);
         self::assertSame(0, $exitCode, $output);
     }
 

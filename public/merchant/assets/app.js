@@ -11,6 +11,8 @@ const definitions = new Map();
 definitions.set('dashboard', { view: 'dashboard.html', module: 'dashboard.js' });
 definitions.set('profile', { view: 'profile.html', module: 'profile.js' });
 definitions.set('channel-list', { view: 'channels.html', module: 'channels.js' });
+definitions.set('channel-config', { view: 'cashier.html', module: 'cashier.js' });
+definitions.set('poll-group', { view: 'poll-groups.html', module: 'poll-groups.js' });
 definitions.set('api-keys', { view: 'api-keys.html', module: 'api-keys.js' });
 const knownIds = new Set([
     'dashboard',

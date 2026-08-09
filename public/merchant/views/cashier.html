@@ -1,0 +1,254 @@
+<section data-feature="cashier" class="space-y-6">
+    <!-- 顶部标题与说明 -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                <i data-lucide="sliders" class="w-6 h-6 text-blue-600"></i> 收银台与交易匹配设置
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">个性化收银台外观风格、订单微浮动去重参数与超时跳转逻辑设置</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button data-action="reset-cashier" class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-slate-400"></i> 重置恢复
+            </button>
+            <button data-action="save-cashier" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center gap-1.5">
+                <i data-lucide="save" class="w-4 h-4"></i> 保存收银台配置
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 左侧 2/3 列：CXPAY 业务表单 -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- 板块一：收银台公告与客户端交互 -->
+            <div class="glass-card rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-5 bg-white">
+                <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+                    <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="megaphone" class="w-4 h-4 text-blue-600"></i> 收银台公告与提示
+                    </h3>
+                    <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-full">客户端前端展现</span>
+                </div>
+
+                <div class="space-y-4 text-xs">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                            <span>收银台加载弹窗公告</span>
+                            <span class="text-[10px] text-slate-400 font-mono"><span id="notice-char-count">0</span> / 300 字</span>
+                        </label>
+                        <textarea id="cfg-notice" rows="3" maxlength="300" data-action="notice-input" placeholder="例如：请务必按照页面显示的实际金额付款（含小数），切勿修改金额，否则无法自动完成核销销账！" class="w-full p-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50"></textarea>
+                        <p class="text-[11px] text-slate-400 mt-1">付款人在进入收银台页面时将首先以醒目 Modal 弹窗形式向其呈现该说明（留空则不弹出）。</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <!-- 超时时间快捷设定 -->
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1.5">支付有效超时时长</label>
+                            <div class="flex items-center gap-2">
+                                <div class="inline-flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden shrink-0">
+                                    <button type="button" data-action="adjust-timeout" data-delta="-10" class="px-3 py-2 text-slate-600 hover:bg-slate-200 font-bold transition-colors cursor-pointer">-</button>
+                                    <input id="cfg-timeout" type="number" value="180" min="60" max="300" class="w-16 py-2 text-center bg-white border-x border-slate-200 font-bold font-mono text-slate-800 text-xs focus:outline-none">
+                                    <button type="button" data-action="adjust-timeout" data-delta="10" class="px-3 py-2 text-slate-600 hover:bg-slate-200 font-bold transition-colors cursor-pointer">+</button>
+                                </div>
+                                <span class="font-bold text-slate-600 shrink-0">秒</span>
+                                <div class="flex items-center gap-1 ml-auto">
+                                    <button type="button" data-action="set-timeout" data-seconds="120" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-600">2分钟</button>
+                                    <button type="button" data-action="set-timeout" data-seconds="180" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 rounded-lg text-[10px] font-bold text-blue-600">3分钟</button>
+                                    <button type="button" data-action="set-timeout" data-seconds="300" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-600">5分钟</button>
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-1.5">订单倒计时结束自动关闭，防恶刷及占位号。</p>
+                        </div>
+
+                        <!-- 超时跳转目的地址 -->
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1.5">超时跳转逻辑</label>
+                            <select id="cfg-redirect-select" data-action="change-redirect" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white cursor-pointer">
+                                <option value="return_url">返回商户网站 (return_url)</option>
+                                <option value="custom">重定向至自定义 URL</option>
+                                <option value="stay">留在收银台（显示订单过期提示）</option>
+                            </select>
+                            <div id="custom-url-wrapper" class="hidden mt-2">
+                                <input type="text" id="cfg-custom-url" placeholder="https://yourdomain.com/expire" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 新增：收银台语音播报提示控制开关 -->
+                    <div class="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2.5 mt-2">
+                        <div class="flex items-center justify-between">
+                            <div class="font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="volume-2" class="w-4 h-4 text-emerald-600"></i> 收银台智能语音播报
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="cfg-tts-enabled" checked class="sr-only peer">
+                                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </label>
+                        </div>
+                        <p class="text-[11px] text-slate-500 leading-relaxed">
+                            开启后，用户在收银台付款成功时，收银台页面将使用 HTML5 Web Speech 语音引擎自动播报：<strong>“支付宝/微信支付收款到账 XX 元”</strong>。
+                        </p>
+                        <div class="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                            <span class="text-[10px] text-slate-400">支持原生浏览器语音（无需额外服务费）</span>
+                            <button type="button" data-action="test-tts" class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> 试听语音效果
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 板块二：CXPAY 聚合与金额去重引擎设置 -->
+            <div class="glass-card rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-5 bg-white">
+                <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+                    <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="cpu" class="w-4 h-4 text-purple-600"></i> CXPAY 聚合出码与去重微浮动引擎
+                    </h3>
+                    <span class="text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">核心交易逻辑</span>
+                </div>
+
+                <div class="space-y-5 text-xs">
+                    <!-- 1. mapi 接口返回值类型选择 -->
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">MAPI 接口返回模式 (`/mapi.php` 出码类型)</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label class="p-3.5 rounded-xl border border-slate-200 flex items-start gap-3 cursor-pointer hover:border-blue-400 transition-all bg-slate-50/50">
+                                <input type="radio" name="cfg_mapi_mode" value="qrcode" checked class="mt-0.5 text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <div class="font-bold text-slate-800 text-xs flex items-center gap-1">
+                                        <span>二维码原生文本 (qrcode)</span>
+                                        <span class="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono">推荐 API</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400 mt-1 leading-relaxed">返回原生支付二维码内容链接（如 `wxp://` 或微信 URL），由商户系统/网站前端自行渲染生成二维码或直接调起。</div>
+                                </div>
+                            </label>
+
+                            <label class="p-3.5 rounded-xl border border-slate-200 flex items-start gap-3 cursor-pointer hover:border-blue-400 transition-all bg-slate-50/50">
+                                <input type="radio" name="cfg_mapi_mode" value="payurl" class="mt-0.5 text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <div class="font-bold text-slate-800 text-xs">收银台独立页面 (payurl)</div>
+                                    <div class="text-[11px] text-slate-400 mt-1 leading-relaxed">返回 CXPAY 托管收银台页面地址（如 `/pay/xxx`），直接跳转到本平台的高质感收银台界面展示。</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 2. 微浮动去重金额配置 -->
+                    <div class="p-4 rounded-xl bg-purple-50/40 border border-purple-100/80 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="font-extrabold text-slate-800 flex items-center gap-1.5">
+                                <i data-lucide="sparkles" class="w-4 h-4 text-purple-600"></i> 下单金额微浮动去重区间 (分/元)
+                            </div>
+                            <span class="text-[10px] text-purple-700 font-bold">高并发防冲单销账</span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-purple-200 shadow-xs">
+                                <span class="text-slate-400 text-[11px]">最小上浮</span>
+                                <span class="font-bold font-mono text-purple-700">¥</span>
+                                <input id="cfg-float-min" type="number" step="0.01" value="0.00" class="w-16 font-mono font-bold text-slate-800 text-xs text-center border-none focus:outline-none">
+                            </div>
+                            <span class="text-purple-300 font-bold">~</span>
+                            <div class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-purple-200 shadow-xs">
+                                <span class="text-slate-400 text-[11px]">最大上浮</span>
+                                <span class="font-bold font-mono text-purple-700">¥</span>
+                                <input id="cfg-float-max" type="number" step="0.01" value="0.09" class="w-16 font-mono font-bold text-slate-800 text-xs text-center border-none focus:outline-none">
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-purple-700/80 leading-relaxed">
+                            <strong>作用原理：</strong> 当多个用户同时提交相同金额订单时，系统在设定的微浮动区间内（如 <code>0.01~0.09</code> 元）生成离散金额，帮助个人扫码/协议助手在没有任何单号备注的情况下，<strong>100% 精确区分到账通知并自动完成毫秒级销账</strong>。（填 0.00~0.00 则关闭浮动）。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧 1/3 列：收银台主题风格选卡 -->
+        <div class="space-y-6">
+            <div class="glass-card rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4 bg-white">
+                <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+                    <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="palette" class="w-4 h-4 text-blue-600"></i> 收银台皮肤风格
+                    </h3>
+                    <span class="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full">实时响应</span>
+                </div>
+
+                <div class="space-y-3">
+                    <!-- 1. 经典蓝 -->
+                    <div data-action="select-theme" data-theme="classic_blue" id="theme-card-classic_blue" class="border-2 border-blue-500 bg-blue-50/20 rounded-2xl p-3.5 cursor-pointer transition-all relative">
+                        <div class="bg-gradient-to-br from-slate-50 to-blue-50/60 rounded-xl p-4 text-center space-y-1 border border-blue-100 mb-2.5 shadow-xs">
+                            <div class="text-[10px] text-slate-400">网络充值服务</div>
+                            <div class="text-base font-black text-blue-600 font-mono">¥ 100.00</div>
+                            <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center mx-auto mt-1.5 text-[9px] font-bold">QR</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-extrabold text-xs text-slate-800 flex items-center gap-1">
+                                    <span>经典蓝</span>
+                                    <span class="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded">推荐</span>
+                                </div>
+                                <div class="text-[10px] text-slate-400 mt-0.5">清新亮色，适配全终端</div>
+                            </div>
+                            <div id="theme-check-classic_blue" class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 尊享金 (VIP 专属风格) -->
+                    <div data-action="select-theme" data-theme="vip_gold" id="theme-card-vip_gold" class="border border-slate-200 rounded-2xl p-3.5 cursor-pointer hover:border-amber-400 transition-all relative">
+                        <div class="bg-gradient-to-br from-amber-950 via-slate-900 to-amber-900 rounded-xl p-4 text-center space-y-1 border border-amber-500/30 mb-2.5 shadow-xs">
+                            <div class="text-[10px] text-amber-200/70">VIP 尊享订单</div>
+                            <div class="text-base font-black text-amber-300 font-mono">¥ 888.00</div>
+                            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 flex items-center justify-center mx-auto mt-1.5 text-[9px] font-bold">VIP</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-extrabold text-xs text-slate-800">VIP 尊享黑金</div>
+                                <div class="text-[10px] text-slate-400 mt-0.5">高端黑金渐变，高端大气</div>
+                            </div>
+                            <div id="theme-check-vip_gold" class="hidden w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. 暗黑风 -->
+                    <div data-action="select-theme" data-theme="dark" id="theme-card-dark" class="border border-slate-200 rounded-2xl p-3.5 cursor-pointer hover:border-blue-400 transition-all relative">
+                        <div class="bg-slate-900 rounded-xl p-4 text-center space-y-1 border border-slate-800 mb-2.5 shadow-xs">
+                            <div class="text-[10px] text-slate-400">商品付款卡片</div>
+                            <div class="text-base font-black text-white font-mono">¥ 6.66</div>
+                            <div class="w-7 h-7 rounded-lg bg-slate-800 text-cyan-400 border border-slate-700 flex items-center justify-center mx-auto mt-1.5 text-[9px] font-bold">DARK</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-extrabold text-xs text-slate-800">科技暗黑</div>
+                                <div class="text-[10px] text-slate-400 mt-0.5">深色夜间模式，护眼沉浸</div>
+                            </div>
+                            <div id="theme-check-dark" class="hidden w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. 简约白 -->
+                    <div data-action="select-theme" data-theme="simple_white" id="theme-card-simple_white" class="border border-slate-200 rounded-2xl p-3.5 cursor-pointer hover:border-blue-400 transition-all relative">
+                        <div class="bg-white rounded-xl p-4 text-center space-y-1 border border-slate-100 mb-2.5 shadow-xs">
+                            <div class="text-[10px] text-slate-400">付款页面</div>
+                            <div class="text-base font-black text-emerald-600 font-mono">¥ 50.00</div>
+                            <div class="w-7 h-7 rounded-lg bg-slate-50 text-emerald-600 border border-slate-200 flex items-center justify-center mx-auto mt-1.5 text-[9px] font-bold">PURE</div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-extrabold text-xs text-slate-800">极简纯白</div>
+                                <div class="text-[10px] text-slate-400 mt-0.5">极简干净，专注于高效扫码</div>
+                            </div>
+                            <div id="theme-check-simple_white" class="hidden w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
