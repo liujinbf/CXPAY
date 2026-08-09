@@ -1,0 +1,53 @@
+<section data-feature="merchants" class="glass-panel rounded-2xl p-6 space-y-4">
+<div class="flex items-center justify-between gap-4">
+    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+        <i data-lucide="users" class="w-5 h-5 text-purple-600"></i> 商户账号列表与配置
+    </h3>
+    <div class="flex gap-2">
+        <input id="merchant-search" type="search" placeholder="搜索 PID / 名称" class="px-3 py-2 border border-slate-200 rounded-xl text-xs">
+        <button data-action="search-merchants" class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">搜索</button>
+        <button data-action="open-merchant" class="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">新增商户</button>
+    </div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs text-slate-600">
+    <thead class="bg-slate-50 uppercase font-semibold border-b">
+        <tr>
+            <th class="p-3">商户 PID</th>
+            <th class="p-3">商户名称</th>
+            <th class="p-3">服务费余额</th>
+            <th class="p-3">费率</th>
+            <th class="p-3">状态</th>
+            <th class="p-3">注册时间</th>
+            <th class="p-3 text-right">操作</th>
+        </tr>
+    </thead>
+    <tbody id="merchant-table-body" class="divide-y divide-slate-100">
+        <tr><td colspan="7" class="p-6 text-center text-slate-400">正在加载商户数据...</td></tr>
+    </tbody>
+</table>
+</div>
+    <div id="merchant-editor" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm items-center justify-center p-4">
+        <form data-role="merchant-form" class="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 id="merchant-editor-title" class="font-extrabold text-slate-800">新增商户</h3>
+                <button type="button" data-action="close-merchant" class="text-slate-400 hover:text-slate-700">关闭</button>
+            </div>
+            <input id="merchant-id" type="hidden" value="0">
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <label class="space-y-1"><span class="font-bold">商户名称 *</span><input id="merchant-name" required maxlength="100" class="w-full px-3 py-2 border rounded-xl"></label>
+                <label class="space-y-1"><span class="font-bold">商户 PID</span><input id="merchant-pid" maxlength="32" placeholder="新增时可留空自动生成" class="w-full px-3 py-2 border rounded-xl font-mono"></label>
+                <label class="space-y-1"><span class="font-bold">费率（0～1）*</span><input id="merchant-rate" required type="number" min="0" max="1" step="0.0001" value="0.0200" class="w-full px-3 py-2 border rounded-xl"></label>
+                <label class="space-y-1"><span class="font-bold">状态</span><select id="merchant-status" class="w-full px-3 py-2 border rounded-xl"><option value="1">启用</option><option value="0">停用</option></select></label>
+            </div>
+            <label class="block space-y-1 text-xs"><span class="font-bold">登录密码</span><input id="merchant-password" type="password" minlength="6" maxlength="200" autocomplete="new-password" placeholder="新增留空自动生成；编辑留空保持不变" class="w-full px-3 py-2 border rounded-xl"></label>
+            <label class="block space-y-1 text-xs"><span class="font-bold">API 密钥</span><input id="merchant-api-key" minlength="32" maxlength="64" autocomplete="off" placeholder="新增留空自动生成；编辑填写即轮换" class="w-full px-3 py-2 border rounded-xl font-mono"></label>
+            <label class="block space-y-1 text-xs"><span class="font-bold">API IP 白名单</span><textarea id="merchant-ip-white" rows="2" placeholder="留空不限制；多个地址按逗号或换行分隔" class="w-full px-3 py-2 border rounded-xl font-mono"></textarea></label>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" data-action="close-merchant" class="px-4 py-2 border rounded-xl text-xs font-bold">取消</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">保存商户</button>
+            </div>
+        </form>
+    </div>
+</section>
+

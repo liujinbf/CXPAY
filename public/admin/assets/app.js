@@ -13,6 +13,8 @@ definitions.set('system-update', { view: 'system-update.html', module: 'system-u
 definitions.set('cloud-monitor', { view: 'cloud-monitor.html', module: 'cloud-monitor.js' });
 definitions.set('channel-config', { view: 'channels.html', module: 'channels.js' });
 definitions.set('plugin-market', { view: 'plugins.html', module: 'plugins.js' });
+definitions.set('merchant-mgmt', { view: 'merchants.html', module: 'merchants.js' });
+definitions.set('plan-mgmt', { view: 'plans.html', module: 'plans.js' });
 const tabTitles = {
     dashboard: '控制台仪表盘',
     'channel-config': '收款通道配置',
@@ -52,8 +54,6 @@ function activateLegacy(requestedId) {
     ui.safeCreateIcons();
 
     const legacyLoaders = {
-        'merchant-mgmt': () => window.loadMerchants(),
-        'plan-mgmt': () => window.loadPlans(),
         'order-list': () => window.loadOrders(),
         'callbill-review': () => window.loadCallbillReviews(),
         'alert-config': () => Promise.all([

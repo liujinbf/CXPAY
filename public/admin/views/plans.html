@@ -1,0 +1,153 @@
+<section data-feature="plans" class="glass-panel rounded-2xl p-6 space-y-4">
+<div class="flex items-center justify-between gap-4">
+    <div>
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="gem" class="w-5 h-5 text-pink-600"></i> 套餐设置与商户配额
+        </h3>
+        <p class="text-xs text-slate-400 mt-1">设置套餐有效天数、费率%、通道配额及 0 元免费试用套餐</p>
+    </div>
+    <button data-action="open-plan" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm">
+        <i data-lucide="plus" class="w-4 h-4"></i> 添加套餐
+    </button>
+</div>
+<div class="overflow-x-auto">
+    <table class="w-full text-left text-xs text-slate-600">
+        <thead class="bg-slate-50 uppercase font-semibold border-b border-slate-200">
+            <tr>
+                <th class="p-3">ID / 排序</th>
+                <th class="p-3">套餐名称</th>
+                <th class="p-3">价格 (元)</th>
+                <th class="p-3">有效天数</th>
+                <th class="p-3">扣除费率 %</th>
+                <th class="p-3">最低费率</th>
+                <th class="p-3">通道配额</th>
+                <th class="p-3">用户限购</th>
+                <th class="p-3">状态</th>
+                <th class="p-3 text-right">操作</th>
+            </tr>
+        </thead>
+        <tbody id="plan-table-body" class="divide-y divide-slate-100">
+            <tr><td colspan="10" class="p-6 text-center text-slate-400">正在加载套餐数据...</td></tr>
+        </tbody>
+    </table>
+</div>
+    <div id="plan-editor" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm items-center justify-center p-4">
+        <form data-role="plan-form" class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+                <h3 id="plan-editor-title" class="text-base font-bold text-slate-800">添加套餐</h3>
+                <button type="button" data-action="close-plan" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Body (可滑动) -->
+            <div class="p-6 space-y-4 overflow-y-auto text-xs text-slate-700 flex-1">
+                <input id="plan-id" type="hidden" value="0">
+
+                <!-- 1. 套餐名称 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600"><span class="text-rose-500 font-bold">*</span> 套餐名称</label>
+                    <div class="col-span-9">
+                        <input id="plan-name" required type="text" placeholder="请输入套餐名称" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 2. 套餐天数 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">套餐天数</label>
+                    <div class="col-span-9">
+                        <input id="plan-days" type="number" min="0" placeholder="例如：30 天，0 表示永久" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 3. 费率(%) -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">费率(%)</label>
+                    <div class="col-span-9">
+                        <input id="plan-rate" type="number" step="0.01" min="0" max="100" placeholder="百分比，如 3 表示 3%" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 4. 最低费率 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">最低费率</label>
+                    <div class="col-span-9">
+                        <input id="plan-min-rate" type="number" step="0.01" min="0" max="100" placeholder="最低费率，留空或 0 表示不限" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 5. 通道配额 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">通道配额</label>
+                    <div class="col-span-9">
+                        <input id="plan-channel-quota" type="number" min="0" placeholder="允许增加的收款通道数量，0 为不限制" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 6. 绑定通道 (动态读取已安装驱动) -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">绑定通道</label>
+                    <div class="col-span-9">
+                        <select id="plan-allowed-channels" multiple class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs h-24 focus:outline-none focus:border-blue-500">
+                            <option value="" disabled class="text-slate-400">正在读取已安装支付插件驱动...</option>
+                        </select>
+                        <span class="text-[10px] text-slate-400 mt-1 block">按住 Ctrl / Command 键可按需选择该套餐支持的支付驱动插件</span>
+                    </div>
+                </div>
+
+                <!-- 7. 套餐价格 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">套餐价格</label>
+                    <div class="col-span-9">
+                        <input id="plan-price" type="number" step="0.01" min="0" placeholder="0 表示免费/零元试用套餐" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 8. 限购数 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">限购数</label>
+                    <div class="col-span-9">
+                        <input id="plan-limit-count" type="number" min="0" placeholder="每个用户限购数量，0 不限" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 9. 注释 -->
+                <div class="grid grid-cols-12 items-start gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600 pt-2">注释</label>
+                    <div class="col-span-9">
+                        <textarea id="plan-memo" rows="3" placeholder="套餐说明或优惠注释..." class="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs"></textarea>
+                    </div>
+                </div>
+
+                <!-- 10. 排序 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">排序</label>
+                    <div class="col-span-9">
+                        <input id="plan-sort-order" type="number" value="0" placeholder="数字越小越靠前" class="w-full px-3.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-xs">
+                    </div>
+                </div>
+
+                <!-- 11. 状态 -->
+                <div class="grid grid-cols-12 items-center gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600">状态</label>
+                    <div class="col-span-9 flex items-center gap-4">
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 border border-slate-200 rounded-lg">
+                            <input type="radio" name="plan_status" value="0" class="accent-blue-600"> 禁用
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 border border-blue-200 bg-blue-50 rounded-lg text-blue-700 font-bold">
+                            <input type="radio" name="plan_status" value="1" checked class="accent-blue-600"> 启用
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
+                <button type="button" data-action="close-plan" class="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-600 transition-colors">取消</button>
+                <button type="submit" class="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">保存</button>
+            </div>
+        </form>
+    </div>
+</section>
+

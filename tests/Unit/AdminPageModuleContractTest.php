@@ -185,6 +185,27 @@ JS;
         yield 'plugins' => ['plugins'];
     }
 
+    #[DataProvider('accountFeatureProvider')]
+    public function testAccountFeatureKeepsApiAndEditorContract(
+        string $id,
+        string $apiPrefix,
+        string $editorId
+    ): void {
+        $viewPath = self::ADMIN . '/views/' . $id . '.html';
+        $modulePath = self::ADMIN . '/assets/features/' . $id . '.js';
+        self::assertFileExists($viewPath);
+        self::assertFileExists($modulePath);
+        self::assertStringContainsString('id="' . $editorId . '"', (string) file_get_contents($viewPath));
+        self::assertStringContainsString($apiPrefix, (string) file_get_contents($modulePath));
+    }
+
+    /** @return iterable<string, array{string, string, string}> */
+    public static function accountFeatureProvider(): iterable
+    {
+        yield 'merchants' => ['merchants', '/api/admin/merchant/', 'merchant-editor'];
+        yield 'plans' => ['plans', '/api/admin/packvip/', 'plan-editor'];
+    }
+
     public function testVersionAndUiModulesKeepTheirRuntimeContract(): void
     {
         $script = <<<'JS'
@@ -192,7 +213,7 @@ import { pathToFileURL } from 'node:url';
 
 globalThis.window = { location: { origin: 'https://admin.example.test' } };
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v4') {
+if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v5') {
     throw new Error('资源版本 URL 不符合约定');
 }
 
