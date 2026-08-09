@@ -8,6 +8,9 @@ const [api, ui, routerModule] = await Promise.all([
 
 const featureRoot = document.getElementById('merchant-feature-root');
 const definitions = new Map();
+definitions.set('dashboard', { view: 'dashboard.html', module: 'dashboard.js' });
+definitions.set('profile', { view: 'profile.html', module: 'profile.js' });
+definitions.set('api-keys', { view: 'api-keys.html', module: 'api-keys.js' });
 const knownIds = new Set([
     'dashboard',
     'profile',

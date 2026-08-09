@@ -52,8 +52,11 @@ final class MerchantCenterSourceIntegrityTest extends TestCase
 
     public function testEffectiveDashboardKeepsRecentOrdersAndPlanSummary(): void
     {
-        self::assertStringContainsString('/api/merchant/order/list?page_size=5', $this->html);
-        self::assertStringContainsString('dashboard-plan-name', $this->html);
-        self::assertStringContainsString('dashboard-recent-orders-tbody', $this->html);
+        $view = (string) file_get_contents(dirname(__DIR__, 2) . '/public/merchant/views/dashboard.html');
+        $module = (string) file_get_contents(dirname(__DIR__, 2) . '/public/merchant/assets/features/dashboard.js');
+
+        self::assertStringContainsString('/api/merchant/order/list?page_size=5', $module);
+        self::assertStringContainsString('dashboard-plan-name', $view);
+        self::assertStringContainsString('dashboard-recent-orders-tbody', $view);
     }
 }

@@ -77,7 +77,7 @@ globalThis.window = {
 globalThis.fetch = async () => ({ status: 401 });
 
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v1') {
+if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v2') {
     throw new Error('资源 URL 版本错误');
 }
 
@@ -107,6 +107,38 @@ JS;
         self::assertSame(0, $exitCode, $output);
     }
 
+    #[DataProvider('identityFeatureProvider')]
+    public function testIdentityFeaturePairExists(string $file, string $feature): void
+    {
+        $view = self::MERCHANT . '/views/' . $file . '.html';
+        $module = self::MERCHANT . '/assets/features/' . $file . '.js';
+
+        self::assertFileExists($view);
+        self::assertFileExists($module);
+        self::assertStringContainsString(
+            'data-feature="' . $feature . '"',
+            (string) file_get_contents($view)
+        );
+        self::assertStringContainsString('export const feature', (string) file_get_contents($module));
+    }
+
+    public function testIdentityFeaturesKeepMerchantApiContracts(): void
+    {
+        $dashboard = (string) file_get_contents(self::MERCHANT . '/assets/features/dashboard.js');
+        $profile = (string) file_get_contents(self::MERCHANT . '/assets/features/profile.js');
+        $apiKeys = (string) file_get_contents(self::MERCHANT . '/assets/features/api-keys.js');
+
+        foreach ([
+            '/api/merchant/dashboard',
+            '/api/merchant/order/list?page_size=5',
+            '/api/merchant/order/list?page_size=200&status=1',
+        ] as $api) {
+            self::assertStringContainsString($api, $dashboard);
+        }
+        self::assertStringContainsString('/api/merchant/change_password', $profile);
+        self::assertStringContainsString('/api/merchant/reset_key', $apiKeys);
+    }
+
     /** @return iterable<string, array{0: string, 1: list<string>}> */
     public static function coreModuleProvider(): iterable
     {
@@ -119,6 +151,14 @@ JS;
             'function showConfirm',
             'async function copyText',
         ]];
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function identityFeatureProvider(): iterable
+    {
+        yield '仪表盘' => ['dashboard', 'dashboard'];
+        yield '账户设置' => ['profile', 'profile'];
+        yield 'API 密钥' => ['api-keys', 'api-keys'];
     }
 
     /**
