@@ -98,9 +98,9 @@ Route::post('/api/merchant/login', [app\controller\api\MerchantApiController::cl
 Route::post('/api/merchant/logout', [app\controller\api\MerchantApiController::class, 'logout']);
 
 // 管理员登录与注销公开 API
-Route::post('/api/admin/login',        [app\controller\admin\AdminController::class, 'login']);
-Route::post('/api/admin/login/verify', [app\controller\admin\AdminController::class, 'verifyLoginCode']);
-Route::post('/api/admin/logout',       [app\controller\admin\AdminController::class, 'logout']);
+Route::post('/api/admin/login',        [app\controller\admin\AdminAuthController::class, 'login']);
+Route::post('/api/admin/login/verify', [app\controller\admin\AdminAuthController::class, 'verifyLoginCode']);
+Route::post('/api/admin/logout',       [app\controller\admin\AdminAuthController::class, 'logout']);
 
 // 商户侧控制台 API
 Route::group('/api/merchant', function () {
