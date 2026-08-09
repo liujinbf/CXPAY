@@ -1,0 +1,70 @@
+<section data-feature="system-update" class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="git-branch" class="w-6 h-6 text-emerald-600"></i> 系统 Git 在线更新与热加载
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-1">代码推送到远端 Git 仓库后，在此处一键拉取最新代码并平滑重启 Webman 服务</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button data-action="check-update" class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="search" class="w-3.5 h-3.5 text-blue-500"></i> 检查远端更新
+                            </button>
+                            <button data-action="execute-update" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="download-cloud" class="w-4 h-4"></i> 🚀 一键拉取最新代码并热重启
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Git 状态仪表卡片 (3 列) -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white space-y-1">
+                            <div class="text-xs font-bold text-slate-400 uppercase">当前 Git 分支</div>
+                            <div id="git-branch-name" class="text-xl font-black text-slate-800 font-mono">main</div>
+                            <div class="text-[11px] text-slate-400">已连接 Gitee / GitHub 主仓</div>
+                        </div>
+
+                        <div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white space-y-1">
+                            <div class="text-xs font-bold text-slate-400 uppercase">当前 Commit 哈希</div>
+                            <div id="git-commit-hash" class="text-xl font-black text-blue-600 font-mono">--</div>
+                            <div id="git-commit-msg" class="text-[11px] text-slate-500 truncate mt-0.5">正在读取最后一次提交记录...</div>
+                        </div>
+
+                        <div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white space-y-1">
+                            <div class="text-xs font-bold text-slate-400 uppercase">远端更新状态</div>
+                            <div id="git-behind-status" class="text-xl font-black text-emerald-600 font-mono">已是最新代码</div>
+                            <div id="git-behind-desc" class="text-[11px] text-slate-400">无需重复拉取</div>
+                        </div>
+                    </div>
+
+                    <!-- 控制台终端输出窗口与 Commit 历史 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- 左 2 列：执行终端日志框 -->
+                        <div class="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-200/80 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="text-xs font-extrabold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="terminal" class="w-4 h-4 text-emerald-600"></i> Git Pull 执行终端输出日志
+                                </div>
+                                <button data-action="clear-terminal" class="text-[11px] text-slate-400 hover:text-slate-600">清空终端</button>
+                            </div>
+
+                            <div class="p-4 bg-slate-950 text-emerald-400 font-mono text-xs rounded-xl h-64 overflow-y-auto leading-relaxed select-all border border-slate-800" id="git-terminal-output">
+$ git pull 2>&1
+> 等待点击【一键拉取最新代码并热重启】按钮...
+                            </div>
+                        </div>
+
+                        <!-- 右 1 列：近 10 次 Commit 历史记录 -->
+                        <div class="glass-panel p-6 rounded-2xl border border-slate-200/80 space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                                    <i data-lucide="history" class="w-4 h-4 text-purple-600"></i> 最近 10 次代码提交历史
+                                </div>
+                            </div>
+                            <div id="git-version-history-list" class="space-y-2.5 max-h-64 overflow-y-auto pr-1 text-xs">
+                                <div class="text-slate-400 text-center py-6 font-bold">正在获取版本历史...</div>
+                            </div>
+                        </div>
+                    </div>
+</section>
+

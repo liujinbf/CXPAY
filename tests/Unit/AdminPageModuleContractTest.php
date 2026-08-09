@@ -98,6 +98,55 @@ JS;
         );
     }
 
+    #[DataProvider('firstFeatureProvider')]
+    public function testFirstFeatureHasFocusedViewAndModule(string $id): void
+    {
+        $viewPath = self::ADMIN . '/views/' . $id . '.html';
+        $modulePath = self::ADMIN . '/assets/features/' . $id . '.js';
+        self::assertFileExists($viewPath);
+        self::assertFileExists($modulePath);
+
+        $view = file_get_contents($viewPath);
+        $module = file_get_contents($modulePath);
+        self::assertIsString($view);
+        self::assertIsString($module);
+        self::assertStringContainsString('data-feature="' . $id . '"', $view);
+        self::assertStringNotContainsString('onclick=', $view);
+        self::assertStringContainsString('export const feature', $module);
+        self::assertLessThanOrEqual(400, substr_count($module, "\n") + 1);
+    }
+
+    public function testFirstFeaturesAreRegisteredAndRemovedFromLegacyPage(): void
+    {
+        $html = file_get_contents(self::ADMIN . '/index.html');
+        $app = file_get_contents(self::ADMIN . '/assets/app.js');
+        self::assertIsString($html);
+        self::assertIsString($app);
+
+        foreach (self::firstFeatureIds() as $id) {
+            self::assertStringContainsString(
+                "definitions.set('{$id}', { view: '{$id}.html', module: '{$id}.js' });",
+                $app
+            );
+            self::assertStringNotContainsString('id="tab-' . $id . '"', $html);
+        }
+        self::assertStringNotContainsString('id="tab-system-update-legacy"', $html);
+        foreach ([
+            'loadDashboard',
+            'loadDashboardRecentOrders',
+            'initAdminTrendChart',
+            'checkGitUpdate',
+            'executeGitUpdate',
+            'loadGitVersionHistory',
+            'checkSystemUpdate',
+            'doSystemUpdate',
+            'loadVersionHistory',
+            'loadCloudMonitorStatus',
+        ] as $function) {
+            self::assertStringNotContainsString('function ' . $function . '(', $html);
+        }
+    }
+
     public function testVersionAndUiModulesKeepTheirRuntimeContract(): void
     {
         $script = <<<'JS'
@@ -105,7 +154,7 @@ import { pathToFileURL } from 'node:url';
 
 globalThis.window = { location: { origin: 'https://admin.example.test' } };
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v2') {
+if (version.assetUrl('/admin/assets/app.js') !== 'https://admin.example.test/admin/assets/app.js?v=admin-modules-v3') {
     throw new Error('资源版本 URL 不符合约定');
 }
 
@@ -177,6 +226,20 @@ JS;
             'function showToast',
             'function showConfirm',
         ]];
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function firstFeatureProvider(): iterable
+    {
+        foreach (self::firstFeatureIds() as $id) {
+            yield $id => [$id];
+        }
+    }
+
+    /** @return list<string> */
+    private static function firstFeatureIds(): array
+    {
+        return ['dashboard', 'system-update', 'cloud-monitor'];
     }
 
     /**

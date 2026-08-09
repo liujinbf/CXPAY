@@ -8,6 +8,9 @@ const [api, ui, routerModule] = await Promise.all([
 
 const featureRoot = document.getElementById('admin-feature-root');
 const definitions = new Map();
+definitions.set('dashboard', { view: 'dashboard.html', module: 'dashboard.js' });
+definitions.set('system-update', { view: 'system-update.html', module: 'system-update.js' });
+definitions.set('cloud-monitor', { view: 'cloud-monitor.html', module: 'cloud-monitor.js' });
 const tabTitles = {
     dashboard: '控制台仪表盘',
     'channel-config': '收款通道配置',
@@ -36,7 +39,9 @@ function updateNavigation(id) {
 }
 
 function activateLegacy(requestedId) {
-    const id = document.getElementById(`tab-${requestedId}`) ? requestedId : 'dashboard';
+    const panel = document.getElementById(`tab-${requestedId}`);
+    if (!panel) return router.navigate('dashboard');
+    const id = requestedId;
     featureRoot.classList.add('hidden');
     featureRoot.innerHTML = '';
     document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
@@ -45,7 +50,6 @@ function activateLegacy(requestedId) {
     ui.safeCreateIcons();
 
     const legacyLoaders = {
-        dashboard: () => window.loadDashboard(),
         'channel-config': () => {
             const status = document.getElementById('channel-stat-active-count');
             if (status) status.textContent = '读取中...';
@@ -56,11 +60,6 @@ function activateLegacy(requestedId) {
         'order-list': () => window.loadOrders(),
         'callbill-review': () => window.loadCallbillReviews(),
         'plugin-market': () => window.loadInstalledPlugins(),
-        'cloud-monitor': () => window.loadCloudMonitorStatus(),
-        'system-update': () => Promise.all([
-            window.checkGitUpdate(),
-            window.loadGitVersionHistory(),
-        ]),
         'alert-config': () => Promise.all([
             window.loadAdminAlertConfig(),
             window.loadSystemOpConfig(),
