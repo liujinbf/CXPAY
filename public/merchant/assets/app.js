@@ -13,6 +13,9 @@ definitions.set('profile', { view: 'profile.html', module: 'profile.js' });
 definitions.set('channel-list', { view: 'channels.html', module: 'channels.js' });
 definitions.set('channel-config', { view: 'cashier.html', module: 'cashier.js' });
 definitions.set('poll-group', { view: 'poll-groups.html', module: 'poll-groups.js' });
+definitions.set('order-list', { view: 'orders.html', module: 'orders.js' });
+definitions.set('finance-log', { view: 'finance.html', module: 'finance.js' });
+definitions.set('plan-buy', { view: 'plans.html', module: 'plans.js' });
 definitions.set('api-keys', { view: 'api-keys.html', module: 'api-keys.js' });
 const knownIds = new Set([
     'dashboard',

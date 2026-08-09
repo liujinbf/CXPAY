@@ -1,0 +1,38 @@
+<section data-feature="orders" class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                <i data-lucide="receipt" class="w-6 h-6 text-emerald-600"></i> 订单明细与交易记录
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">展示包含发起测试订单与系统所有接收到的充值与收款交易订单</p>
+        </div>
+        <button data-action="refresh-orders" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 刷新订单记录
+        </button>
+    </div>
+
+    <div class="glass-card rounded-2xl p-6 space-y-4">
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+                <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                    <tr>
+                        <th class="p-3">平台单号</th>
+                        <th class="p-3">商户单号</th>
+                        <th class="p-3">商品 / 说明</th>
+                        <th class="p-3">支付方式</th>
+                        <th class="p-3">订单金额</th>
+                        <th class="p-3">实付/浮动</th>
+                        <th class="p-3">状态</th>
+                        <th class="p-3">创建时间</th>
+                        <th class="p-3">完成/核销时间</th>
+                    </tr>
+                </thead>
+                <tbody id="order-table-body" class="divide-y divide-slate-100">
+                    <tr>
+                        <td colspan="9" class="p-6 text-center text-slate-400 font-bold">正在加载最新订单数据...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

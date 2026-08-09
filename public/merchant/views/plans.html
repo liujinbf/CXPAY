@@ -1,0 +1,47 @@
+<section data-feature="plans" class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                <i data-lucide="gem" class="w-6 h-6 text-purple-600"></i> 套餐订阅与套餐广场
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">订阅高阶套餐可享受更低交易扣费率、更高通道配额及专属优先通道能力</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 shadow-sm flex items-center gap-2">
+                <span class="text-slate-400">服务费余额:</span>
+                <span id="plan-merchant-money" class="text-emerald-600 font-extrabold font-mono text-sm">¥ 0.00</span>
+            </div>
+            <button data-action="refresh-plans" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-600 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-500"></i> 刷新套餐
+            </button>
+        </div>
+    </div>
+
+    <!-- 当前生效套餐条 Banner -->
+    <div class="p-4 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center shrink-0">
+                <i data-lucide="crown" class="w-5 h-5 text-amber-300"></i>
+            </div>
+            <div>
+                <div class="text-xs text-purple-200 font-medium">当前生效套餐</div>
+                <div id="plan-current-name" class="text-lg font-black text-white mt-0.5">加载中...</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-6 text-xs text-purple-100">
+            <div>
+                <span class="text-purple-300">套餐抵扣金:</span>
+                <strong id="plan-current-discount" class="font-mono ml-1 text-amber-300 font-extrabold">¥ 0.00</strong>
+            </div>
+            <div>
+                <span class="text-purple-300">到期时间:</span>
+                <strong id="plan-current-expire" class="font-mono ml-1 text-white">--</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 套餐展示网格卡片容器 -->
+    <div id="merchant-plan-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="col-span-3 glass-card rounded-2xl p-8 text-center text-slate-400 font-bold">正在加载套餐广场...</div>
+    </div>
+</section>

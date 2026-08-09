@@ -1,4 +1,4 @@
-export const MERCHANT_ASSET_VERSION = 'merchant-modules-v4';
+export const MERCHANT_ASSET_VERSION = 'merchant-modules-v5';
 
 export function assetUrl(path) {
     const url = new URL(path, window.location.origin);

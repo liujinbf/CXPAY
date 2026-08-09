@@ -1,0 +1,29 @@
+<section data-feature="finance" class="space-y-6">
+    <h2 class="text-xl font-extrabold text-slate-800">财务管理 · 服务费明细与交易流水</h2>
+
+    <div class="glass-card rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div class="text-xs font-bold text-slate-700">平台服务费扣减变动明细</div>
+            <button data-action="contact-finance" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700">服务费余额充值</button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+                <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                    <tr>
+                        <th class="p-3">变动时间</th>
+                        <th class="p-3">关联单号</th>
+                        <th class="p-3">类型</th>
+                        <th class="p-3">变动金额</th>
+                        <th class="p-3">变动前</th>
+                        <th class="p-3">变动后</th>
+                        <th class="p-3">说明备注</th>
+                    </tr>
+                </thead>
+                <tbody id="finance-log-tbody" class="divide-y divide-slate-100 font-mono">
+                    <tr><td colspan="7" class="p-6 text-center text-slate-400">正在加载财务明细...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

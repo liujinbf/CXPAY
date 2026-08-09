@@ -77,7 +77,7 @@ globalThis.window = {
 globalThis.fetch = async () => ({ status: 401 });
 
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v4') {
+if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v5') {
     throw new Error('资源 URL 版本错误');
 }
 
@@ -252,6 +252,46 @@ JS;
 
         [$exitCode, $output] = $this->runNode($script, [
             self::MERCHANT . '/assets/features/cashier.js',
+        ]);
+        self::assertSame(0, $exitCode, $output);
+    }
+
+    public function testTransactionAndPlanFeaturesKeepApiContracts(): void
+    {
+        foreach (['orders', 'finance', 'plans'] as $name) {
+            $view = self::MERCHANT . '/views/' . $name . '.html';
+            $module = self::MERCHANT . '/assets/features/' . $name . '.js';
+            self::assertFileExists($view);
+            self::assertFileExists($module);
+            self::assertLessThanOrEqual(400, substr_count((string) file_get_contents($view), "\n") + 1, $view);
+            self::assertLessThanOrEqual(400, substr_count((string) file_get_contents($module), "\n") + 1, $module);
+        }
+
+        $orders = (string) file_get_contents(self::MERCHANT . '/assets/features/orders.js');
+        $finance = (string) file_get_contents(self::MERCHANT . '/assets/features/finance.js');
+        $plans = (string) file_get_contents(self::MERCHANT . '/assets/features/plans.js');
+        self::assertStringContainsString('/api/merchant/order/list', $orders);
+        self::assertStringContainsString('/api/merchant/finance_log', $finance);
+        self::assertStringContainsString('/api/merchant/plan/list', $plans);
+        self::assertStringContainsString('/api/merchant/plan/buy', $plans);
+        self::assertStringContainsString('plan_id', $plans);
+        self::assertStringContainsString('application/x-www-form-urlencoded', $plans);
+    }
+
+    public function testOrderStatusMappingStaysCompatible(): void
+    {
+        $script = <<<'JS'
+import { pathToFileURL } from 'node:url';
+const { getOrderStatus } = await import(pathToFileURL(process.argv[1]).href);
+const expected = { 0: '待支付', 1: '已完成', 2: '已超时/关闭', 3: '已退款' };
+for (const [status, label] of Object.entries(expected)) {
+    if (getOrderStatus(Number(status)).label !== label) {
+        throw new Error(`订单状态 ${status} 映射错误`);
+    }
+}
+JS;
+        [$exitCode, $output] = $this->runNode($script, [
+            self::MERCHANT . '/assets/features/orders.js',
         ]);
         self::assertSame(0, $exitCode, $output);
     }
