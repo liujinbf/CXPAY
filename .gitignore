@@ -49,3 +49,7 @@ tests/pc/flaui-smoke/
 /services/cloud-control-plane/runtime/
 /services/cloud-control-plane/frontend/*/dist/
 /services/cloud-control-plane/.phpunit.cache/
+
+# 插件驱动开发源码 — 不随授权包分发，仅在官方内部仓库维护
+# 下级站点通过插件商城下载加密安装包，不得获取驱动明文源码
+/plugins-src/
