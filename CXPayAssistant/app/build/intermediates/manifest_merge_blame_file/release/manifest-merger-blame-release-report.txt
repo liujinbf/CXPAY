@@ -1,0 +1,273 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.cxpay.assistant"
+4    android:versionCode="131"
+5    android:versionName="1.3.1" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="21"
+9        android:targetSdkVersion="34" />
+10
+11    <!-- 网络请求与保活权限 -->
+12    <uses-permission android:name="android.permission.INTERNET" />
+12-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:6:5-67
+12-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:6:22-64
+13    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+13-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:7:5-79
+13-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:7:22-76
+14    <uses-permission android:name="android.permission.WAKE_LOCK" />
+14-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:8:5-68
+14-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:8:22-65
+15    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+15-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:9:5-77
+15-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:9:22-74
+16    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+16-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:10:5-81
+16-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:10:22-78
+17    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+17-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:11:5-95
+17-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:11:22-92
+18
+19    <!-- 扫码一键配对摄像头权限 -->
+20    <uses-permission android:name="android.permission.CAMERA" />
+20-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:14:5-65
+20-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:14:22-62
+21    <!-- 自动热更新 APK 安装权限 -->
+22    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+22-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:16:5-83
+22-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:16:22-80
+23    <uses-permission
+23-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:17:5-107
+24        android:name="android.permission.READ_EXTERNAL_STORAGE"
+24-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:17:22-77
+25        android:maxSdkVersion="32" />
+25-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:17:78-104
+26    <uses-permission
+26-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:18:5-108
+27        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+27-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:18:22-78
+28        android:maxSdkVersion="28" />
+28-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:18:79-105
+29    <!-- Don't require camera, as this requires a rear camera. This allows it to work on the Nexus 7 -->
+30    <uses-feature
+30-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:25:5-27:36
+31        android:name="android.hardware.camera"
+31-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:26:9-47
+32        android:required="false" />
+32-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:27:9-33
+33    <uses-feature
+33-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:28:5-30:36
+34        android:name="android.hardware.camera.front"
+34-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:29:9-53
+35        android:required="false" /> <!-- TODO replace above two with next line after Android 4.2 -->
+35-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:30:9-33
+36    <!-- <uses-feature android:name="android.hardware.camera.any"/> -->
+37    <uses-feature
+37-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:33:5-35:36
+38        android:name="android.hardware.camera.autofocus"
+38-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:34:9-57
+39        android:required="false" />
+39-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:35:9-33
+40    <uses-feature
+40-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:36:5-38:36
+41        android:name="android.hardware.camera.flash"
+41-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:37:9-53
+42        android:required="false" />
+42-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:38:9-33
+43    <uses-feature
+43-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:39:5-41:36
+44        android:name="android.hardware.screen.landscape"
+44-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:40:9-57
+45        android:required="false" />
+45-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:41:9-33
+46    <uses-feature
+46-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:42:5-44:36
+47        android:name="android.hardware.wifi"
+47-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:43:9-45
+48        android:required="false" />
+48-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:44:9-33
+49
+50    <permission
+50-->[androidx.core:core:1.9.0] C:\Users\Administrator\.gradle\caches\transforms-3\a309491863f1cad1388d82071cb60f8c\transformed\core-1.9.0\AndroidManifest.xml:22:5-24:47
+51        android:name="com.cxpay.assistant.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+51-->[androidx.core:core:1.9.0] C:\Users\Administrator\.gradle\caches\transforms-3\a309491863f1cad1388d82071cb60f8c\transformed\core-1.9.0\AndroidManifest.xml:23:9-81
+52        android:protectionLevel="signature" />
+52-->[androidx.core:core:1.9.0] C:\Users\Administrator\.gradle\caches\transforms-3\a309491863f1cad1388d82071cb60f8c\transformed\core-1.9.0\AndroidManifest.xml:24:9-44
+53
+54    <uses-permission android:name="com.cxpay.assistant.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+54-->[androidx.core:core:1.9.0] C:\Users\Administrator\.gradle\caches\transforms-3\a309491863f1cad1388d82071cb60f8c\transformed\core-1.9.0\AndroidManifest.xml:26:5-97
+54-->[androidx.core:core:1.9.0] C:\Users\Administrator\.gradle\caches\transforms-3\a309491863f1cad1388d82071cb60f8c\transformed\core-1.9.0\AndroidManifest.xml:26:22-94
+55
+56    <application
+56-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:20:5-69:19
+57        android:allowBackup="true"
+57-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:21:9-35
+58        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+58-->[androidx.core:core:1.9.0] C:\Users\Administrator\.gradle\caches\transforms-3\a309491863f1cad1388d82071cb60f8c\transformed\core-1.9.0\AndroidManifest.xml:28:18-86
+59        android:extractNativeLibs="true"
+60        android:icon="@mipmap/ic_launcher"
+60-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:22:9-43
+61        android:label="CXPAY 手机助手"
+61-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:23:9-35
+62        android:roundIcon="@mipmap/ic_launcher"
+62-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:24:9-48
+63        android:supportsRtl="true"
+63-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:25:9-35
+64        android:theme="@style/Theme.CXPayAssistant"
+64-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:26:9-52
+65        android:usesCleartextTraffic="true" >
+65-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:27:9-44
+66        <activity
+66-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:29:9-39:20
+67            android:name="com.cxpay.assistant.MainActivity"
+67-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:30:13-41
+68            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+68-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:32:13-91
+69            android:exported="true"
+69-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:31:13-36
+70            android:launchMode="singleTop"
+70-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:34:13-43
+71            android:windowSoftInputMode="adjustResize" >
+71-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:33:13-55
+72            <intent-filter>
+72-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:35:13-38:29
+73                <action android:name="android.intent.action.MAIN" />
+73-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:36:17-69
+73-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:36:25-66
+74
+75                <category android:name="android.intent.category.LAUNCHER" />
+75-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:37:17-77
+75-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:37:27-74
+76            </intent-filter>
+77        </activity>
+78
+79        <!-- 通知使用权监听服务 (NotificationListenerService) -->
+80        <service
+80-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:42:9-50:19
+81            android:name="com.cxpay.assistant.service.NotificationMonitorService"
+81-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:43:13-63
+82            android:exported="true"
+82-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:44:13-36
+83            android:label="CXPAY 收款通知监听服务"
+83-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:45:13-43
+84            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" >
+84-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:46:13-87
+85            <intent-filter>
+85-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:47:13-49:29
+86                <action android:name="android.service.notification.NotificationListenerService" />
+86-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:48:17-99
+86-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:48:25-96
+87            </intent-filter>
+88        </service>
+89
+90        <!-- 前台保活与定时心跳服务 -->
+91        <service
+91-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:53:9-56:40
+92            android:name="com.cxpay.assistant.service.KeepAliveService"
+92-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:54:13-53
+93            android:enabled="true"
+93-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:55:13-35
+94            android:exported="false" />
+94-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:56:13-37
+95
+96        <!-- 自动更新 APK 安装 FileProvider -->
+97        <provider
+98            android:name="androidx.core.content.FileProvider"
+98-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:60:13-62
+99            android:authorities="com.cxpay.assistant.fileprovider"
+99-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:61:13-64
+100            android:exported="false"
+100-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:62:13-37
+101            android:grantUriPermissions="true" >
+101-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:63:13-47
+102            <meta-data
+102-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:64:13-66:54
+103                android:name="android.support.FILE_PROVIDER_PATHS"
+103-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:65:17-67
+104                android:resource="@xml/file_paths" />
+104-->C:\Users\Administrator\Desktop\CXPAY\CXPayAssistant\app\src\main\AndroidManifest.xml:66:17-51
+105        </provider>
+106
+107        <activity
+107-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:47:9-53:63
+108            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+108-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:48:13-74
+109            android:clearTaskOnLaunch="true"
+109-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:49:13-45
+110            android:screenOrientation="sensorLandscape"
+110-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:50:13-56
+111            android:stateNotNeeded="true"
+111-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:51:13-42
+112            android:theme="@style/zxing_CaptureTheme"
+112-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:52:13-54
+113            android:windowSoftInputMode="stateAlwaysHidden" />
+113-->[com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\b126a75da89920d6409b3173b4ed2c2b\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:53:13-60
+114
+115        <provider
+115-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Administrator\.gradle\caches\transforms-3\6db5aa862a49de8667f2a7b9b0bf2022\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:24:9-32:20
+116            android:name="androidx.startup.InitializationProvider"
+116-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Administrator\.gradle\caches\transforms-3\6db5aa862a49de8667f2a7b9b0bf2022\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:25:13-67
+117            android:authorities="com.cxpay.assistant.androidx-startup"
+117-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Administrator\.gradle\caches\transforms-3\6db5aa862a49de8667f2a7b9b0bf2022\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:26:13-68
+118            android:exported="false" >
+118-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Administrator\.gradle\caches\transforms-3\6db5aa862a49de8667f2a7b9b0bf2022\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:27:13-37
+119            <meta-data
+119-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Administrator\.gradle\caches\transforms-3\6db5aa862a49de8667f2a7b9b0bf2022\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:29:13-31:52
+120                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+120-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Administrator\.gradle\caches\transforms-3\6db5aa862a49de8667f2a7b9b0bf2022\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:30:17-75
+121                android:value="androidx.startup" />
+121-->[androidx.emoji2:emoji2:1.2.0] C:\Users\Administrator\.gradle\caches\transforms-3\6db5aa862a49de8667f2a7b9b0bf2022\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:31:17-49
+122            <meta-data
+122-->[androidx.lifecycle:lifecycle-process:2.6.1] C:\Users\Administrator\.gradle\caches\transforms-3\adfd241d31aa0dc8d9176e9f5dfaa47e\transformed\jetified-lifecycle-process-2.6.1\AndroidManifest.xml:29:13-31:52
+123                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+123-->[androidx.lifecycle:lifecycle-process:2.6.1] C:\Users\Administrator\.gradle\caches\transforms-3\adfd241d31aa0dc8d9176e9f5dfaa47e\transformed\jetified-lifecycle-process-2.6.1\AndroidManifest.xml:30:17-78
+124                android:value="androidx.startup" />
+124-->[androidx.lifecycle:lifecycle-process:2.6.1] C:\Users\Administrator\.gradle\caches\transforms-3\adfd241d31aa0dc8d9176e9f5dfaa47e\transformed\jetified-lifecycle-process-2.6.1\AndroidManifest.xml:31:17-49
+125            <meta-data
+125-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:29:13-31:52
+126                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+126-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:30:17-85
+127                android:value="androidx.startup" />
+127-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:31:17-49
+128        </provider>
+129
+130        <receiver
+130-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:34:9-52:20
+131            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+131-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:35:13-76
+132            android:directBootAware="false"
+132-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:36:13-44
+133            android:enabled="true"
+133-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:37:13-35
+134            android:exported="true"
+134-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:38:13-36
+135            android:permission="android.permission.DUMP" >
+135-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:39:13-57
+136            <intent-filter>
+136-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:40:13-42:29
+137                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+137-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:41:17-91
+137-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:41:25-88
+138            </intent-filter>
+139            <intent-filter>
+139-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:43:13-45:29
+140                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+140-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:44:17-85
+140-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:44:25-82
+141            </intent-filter>
+142            <intent-filter>
+142-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:46:13-48:29
+143                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+143-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:47:17-88
+143-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:47:25-85
+144            </intent-filter>
+145            <intent-filter>
+145-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:49:13-51:29
+146                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+146-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:50:17-95
+146-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\Administrator\.gradle\caches\transforms-3\0db8f035745ab68a2782efc838399652\transformed\jetified-profileinstaller-1.3.0\AndroidManifest.xml:50:25-92
+147            </intent-filter>
+148        </receiver>
+149    </application>
+150
+151</manifest>

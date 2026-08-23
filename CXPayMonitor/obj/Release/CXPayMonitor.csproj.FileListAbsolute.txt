@@ -18,3 +18,9 @@ C:\Users\Administrator\Desktop\CXPAY\CXPayMonitor\bin\normnfc.nlp
 C:\Users\Administrator\Desktop\CXPAY\CXPayMonitor\bin\normnfd.nlp
 C:\Users\Administrator\Desktop\CXPAY\CXPayMonitor\bin\normnfkc.nlp
 C:\Users\Administrator\Desktop\CXPAY\CXPayMonitor\bin\normnfkd.nlp
+c:\Users\Administrator\Desktop\CXPAY\CXPayMonitor\obj\Release\MainWindow.baml
+c:\Users\Administrator\Desktop\CXPAY\CXPayMonitor\obj\Release\App.baml
+c:\Users\Administrator\Desktop\CXPAY\CXPayMonitor\obj\Release\MainWindow.g.cs
+c:\Users\Administrator\Desktop\CXPAY\CXPayMonitor\obj\Release\App.g.cs
+c:\Users\Administrator\Desktop\CXPAY\CXPayMonitor\obj\Release\CXPayMonitor_MarkupCompile.cache
+c:\Users\Administrator\Desktop\CXPAY\CXPayMonitor\obj\Release\CXPayMonitor.g.resources

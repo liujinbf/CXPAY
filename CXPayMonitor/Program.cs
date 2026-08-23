@@ -12,6 +12,7 @@ namespace CXPayMonitor
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
             Application.Run(new MainForm());
         }
     }

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CXPAY PC 收款监控端</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "Plus Jakarta Sans", sans-serif;
+            user-select: none;
+            background-color: #f8fafc;
+        }
+        .custom-scroll::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .log-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .log-scroll::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        .glass-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+        }
+    </style>
+</head>
+
+<body class="h-screen w-screen flex flex-col overflow-hidden text-slate-800 bg-slate-50">
+
+    <!-- 顶部现代化 Titlebar / Header -->
+    <header class="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between flex-shrink-0 z-10 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md shadow-blue-500/20">
+                CX
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-extrabold text-slate-800 tracking-tight">CXPAY 桌面收款监控端</span>
+                    <span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-50 text-blue-600 font-mono">v2.3 Pro</span>
+                </div>
+                <span class="text-[11px] text-slate-400 block -mt-0.5">微信小账本与收款单本地 OCR 监听中枢</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4 text-xs">
+            <!-- 运行状态指示 -->
+            <div id="statusBadge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 font-bold transition-all">
+                <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                <span id="statusText">未启动</span>
+            </div>
+
+            <!-- 待上报队列 -->
+            <div id="queueBadge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 font-bold">
+                <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                <span id="queueText">待上报: 0</span>
+            </div>
+
+            <button onclick="minimizeToTray()" title="最小化到托盘" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                <i data-lucide="minus" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 中部主内容区 -->
+    <main class="flex-1 flex overflow-hidden p-5 gap-5 min-h-0">
+
+        <!-- 左侧核心配置卡片 (2 列网格) -->
+        <div class="w-7/12 flex flex-col gap-4 overflow-y-auto custom-scroll pr-1">
+            
+            <!-- 卡片 1: 服务网关与认证 -->
+            <div class="glass-card rounded-2xl p-5">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                    <div class="flex items-center gap-2 text-slate-800 font-bold text-xs">
+                        <i data-lucide="globe" class="w-4 h-4 text-blue-600"></i>
+                        <span>网关服务与设备认证</span>
+                    </div>
+                    <span class="text-[11px] text-slate-400">对接 CXPAY 支付主站</span>
+                </div>
+
+                <div class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block text-slate-600 font-semibold mb-1">CXPAY 主站服务地址</label>
+                        <input type="text" id="serverUrl" placeholder="如 https://cs.fcwan.cn" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-600 font-semibold mb-1">支付通道 ID (Channel ID)</label>
+                            <input type="number" id="channelId" value="1" min="1" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-semibold mb-1">绑定设备 ID (Device ID)</label>
+                            <input type="text" id="deviceId" placeholder="如 PC_WIN11_01" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-600 font-semibold mb-1">支付类型分类</label>
+                            <select id="payType" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors">
+                                <option value="wxpay">微信支付 (wxpay)</option>
+                                <option value="alipay">支付宝 (alipay)</option>
+                                <option value="qqpay">QQ 钱包 (qqpay)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-semibold mb-1">心跳 / 轮询间隔 (秒)</label>
+                            <input type="number" id="pollSeconds" value="5" min="2" max="300" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-600 font-semibold mb-1">账单上报密钥 (HMAC Secret)</label>
+                        <div class="relative">
+                            <input type="password" id="notifySecret" placeholder="与主站通道配置中的密钥保持一致" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors font-mono">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 卡片 2: 微信窗口与采集模式 -->
+            <div class="glass-card rounded-2xl p-5">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                    <div class="flex items-center gap-2 text-slate-800 font-bold text-xs">
+                        <i data-lucide="camera" class="w-4 h-4 text-indigo-600"></i>
+                        <span>微信窗口与采集模式</span>
+                    </div>
+                    <span class="text-[11px] text-slate-400">本地 OCR 无感抓取</span>
+                </div>
+
+                <div class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block text-slate-600 font-semibold mb-1">账单采集模式</label>
+                        <select id="captureMode" onchange="onModeChange()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors font-medium">
+                            <option value="0">微信收款单 / 小账本窗口 (本地 OCR 视觉抓取)</option>
+                            <option value="1">微信 Hook 极速模式 (后台免保持窗口)</option>
+                            <option value="2">授权账单源模式 (外部 API 轮询)</option>
+                        </select>
+                    </div>
+
+                    <div id="uiModeArea">
+                        <label class="block text-slate-600 font-semibold mb-1">目标微信记录窗口</label>
+                        <div class="flex gap-2">
+                            <select id="windowList" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors">
+                                <option value="">正在扫描可用微信窗口...</option>
+                            </select>
+                            <button onclick="refreshWindows()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold flex items-center gap-1 transition-colors">
+                                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                                <span>刷新</span>
+                            </button>
+                            <button onclick="inspectWindow()" class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold flex items-center gap-1 transition-colors">
+                                <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                                <span>智能诊断</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="feedModeArea" class="hidden space-y-3">
+                        <div>
+                            <label class="block text-slate-600 font-semibold mb-1">授权账单源 URL</label>
+                            <input type="text" id="feedUrl" placeholder="https://..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-semibold mb-1">账单源访问令牌 (Token)</label>
+                            <input type="password" id="feedToken" placeholder="Bearer Token" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 控制按钮条 -->
+            <div class="flex items-center gap-3 pt-1">
+                <button id="btnToggle" onclick="toggleEngine()" class="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all transform active:scale-95">
+                    <i data-lucide="play" class="w-4 h-4 fill-white"></i>
+                    <span>启动挂机监控</span>
+                </button>
+
+                <button onclick="saveConfig()" class="px-4 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all">
+                    <i data-lucide="save" class="w-3.5 h-3.5 text-slate-500"></i>
+                    <span>保存配置</span>
+                </button>
+
+                <button onclick="copyMiniLink()" class="px-4 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>复制小账本链接</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 右侧深色终端日志卡片 -->
+        <div class="w-5/12 flex flex-col glass-card rounded-2xl overflow-hidden">
+            <div class="h-11 bg-slate-900 px-4 flex items-center justify-between flex-shrink-0 border-b border-slate-800">
+                <div class="flex items-center gap-2 text-xs font-bold text-slate-300">
+                    <div class="flex gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
+                    </div>
+                    <span class="ml-2 font-mono text-slate-400">Live Monitor Audit Logs</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="clearLogs()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-mono transition-colors">
+                        Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- 日志展示容器 -->
+            <div id="logContainer" class="flex-1 bg-slate-950 p-4 font-mono text-xs overflow-y-auto log-scroll space-y-1 select-text">
+                <div class="text-slate-500">=== CXPAY 实时监控审计控制台已就绪 ===</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let isRunning = false;
+
+        async function init() {
+            lucide.createIcons();
+            await loadConfig();
+            await refreshWindows();
+            startPolling();
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const cfg = await res.json();
+                document.getElementById('serverUrl').value = cfg.server_url || 'https://cs.fcwan.cn';
+                document.getElementById('channelId').value = cfg.channel_id || 1;
+                document.getElementById('deviceId').value = cfg.device_id || '';
+                document.getElementById('payType').value = cfg.pay_type || 'wxpay';
+                document.getElementById('notifySecret').value = cfg.notify_secret || '';
+                document.getElementById('captureMode').value = cfg.capture_mode || '0';
+                document.getElementById('pollSeconds').value = cfg.poll_seconds || 5;
+                document.getElementById('feedUrl').value = cfg.feed_url || '';
+                document.getElementById('feedToken').value = cfg.feed_token || '';
+                onModeChange();
+            } catch (e) {
+                appendLog('加载配置失败: ' + e.message, 'err');
+            }
+        }
+
+        async function saveConfig() {
+            const cfg = {
+                server_url: document.getElementById('serverUrl').value.trim(),
+                channel_id: parseInt(document.getElementById('channelId').value) || 1,
+                device_id: document.getElementById('deviceId').value.trim(),
+                pay_type: document.getElementById('payType').value,
+                notify_secret: document.getElementById('notifySecret').value.trim(),
+                capture_mode: document.getElementById('captureMode').value,
+                poll_seconds: parseInt(document.getElementById('pollSeconds').value) || 5,
+                feed_url: document.getElementById('feedUrl').value.trim(),
+                feed_token: document.getElementById('feedToken').value.trim(),
+                window_selection: document.getElementById('windowList').value
+            };
+
+            const res = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cfg)
+            });
+            const data = await res.json();
+            if (data.success) {
+                appendLog('✅ 配置已保存成功，敏感密钥已加密', 'succ');
+            } else {
+                appendLog('❌ 保存失败: ' + data.message, 'err');
+            }
+        }
+
+        async function refreshWindows() {
+            const sel = document.getElementById('windowList');
+            sel.innerHTML = '<option value="">正在扫描窗口...</option>';
+            try {
+                const res = await fetch('/api/windows');
+                const list = await res.json();
+                sel.innerHTML = '';
+                if (list.length === 0) {
+                    sel.innerHTML = '<option value="">未发现打开的微信窗口</option>';
+                    return;
+                }
+                list.forEach(w => {
+                    const opt = document.createElement('option');
+                    opt.value = w.handle;
+                    opt.innerText = `${w.title} [PID: ${w.process_id}]`;
+                    sel.appendChild(opt);
+                });
+                appendLog(`🔍 扫描到 ${list.length} 个微信相关窗口`, 'info');
+            } catch (e) {
+                sel.innerHTML = '<option value="">扫描失败</option>';
+            }
+        }
+
+        async function inspectWindow() {
+            const handle = document.getElementById('windowList').value;
+            if (!handle) {
+                alert('请先选择一个微信记录窗口！');
+                return;
+            }
+            appendLog('⏳ 正在进行 OCR 智能诊断与可读性检测...', 'info');
+            const res = await fetch('/api/inspect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle })
+            });
+            const r = await res.json();
+            if (r.success) {
+                alert(r.report);
+                appendLog(`✅ 智能诊断完成：${r.report_summary}`, 'succ');
+            } else {
+                alert('诊断失败: ' + r.message);
+                appendLog(`❌ 诊断失败: ${r.message}`, 'err');
+            }
+        }
+
+        async function toggleEngine() {
+            const btn = document.getElementById('btnToggle');
+            if (!isRunning) {
+                await saveConfig();
+                const res = await fetch('/api/start', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    isRunning = true;
+                    updateRunningState(true);
+                    appendLog('🚀 监控引擎已成功启动！正在监听微信到账...', 'succ');
+                } else {
+                    alert('启动失败: ' + data.message);
+                    appendLog('❌ 启动失败: ' + data.message, 'err');
+                }
+            } else {
+                const res = await fetch('/api/stop', { method: 'POST' });
+                isRunning = false;
+                updateRunningState(false);
+                appendLog('⏹️ 监控引擎已安全停止', 'info');
+            }
+        }
+
+        function updateRunningState(running) {
+            const badge = document.getElementById('statusBadge');
+            const dot = document.getElementById('statusDot');
+            const txt = document.getElementById('statusText');
+            const btn = document.getElementById('btnToggle');
+
+            if (running) {
+                badge.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 font-bold';
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                txt.innerText = '● 正在运行 (实时监听)';
+                btn.className = 'flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-rose-500/25 transition-all';
+                btn.innerHTML = '<i data-lucide="square" class="w-4 h-4 fill-white"></i><span>停止挂机监控</span>';
+            } else {
+                badge.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 font-bold';
+                dot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                txt.innerText = '未启动';
+                btn.className = 'flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all';
+                btn.innerHTML = '<i data-lucide="play" class="w-4 h-4 fill-white"></i><span>启动挂机监控</span>';
+            }
+            lucide.createIcons();
+        }
+
+        function onModeChange() {
+            const mode = document.getElementById('captureMode').value;
+            const uiArea = document.getElementById('uiModeArea');
+            const feedArea = document.getElementById('feedModeArea');
+            if (mode === '2') {
+                uiArea.classList.add('hidden');
+                feedArea.classList.remove('hidden');
+            } else {
+                uiArea.classList.remove('hidden');
+                feedArea.classList.add('hidden');
+            }
+        }
+
+        function copyMiniLink() {
+            navigator.clipboard.writeText('#小程序://收款小账本/xXTEbezAZGgBEee');
+            appendLog('📋 小程序链接已复制到剪贴板，请发送至微信点击进入小账本收款记录', 'succ');
+            alert('已复制小程序链接！请粘贴至微信聊天窗口点击进入。');
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '<div class="text-slate-500">=== 日志已清空 ===</div>';
+        }
+
+        function appendLog(msg, type = 'info') {
+            const box = document.getElementById('logContainer');
+            const div = document.createElement('div');
+            const now = new Date().toTimeString().split(' ')[0];
+            let color = 'text-slate-300';
+            if (type === 'succ') color = 'text-emerald-400 font-semibold';
+            if (type === 'err') color = 'text-rose-400 font-semibold';
+            if (type === 'warn') color = 'text-amber-300';
+
+            div.className = `${color} leading-relaxed`;
+            div.innerText = `[${now}] ${msg}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function startPolling() {
+            setInterval(async () => {
+                try {
+                    const res = await fetch('/api/status');
+                    const st = await res.json();
+                    document.getElementById('queueText').innerText = `待上报: ${st.queue_count || 0}`;
+                    if (st.is_running !== isRunning) {
+                        isRunning = st.is_running;
+                        updateRunningState(isRunning);
+                    }
+                    if (st.logs && st.logs.length > 0) {
+                        st.logs.forEach(l => appendLog(l.msg, l.type));
+                    }
+                } catch (e) {}
+            }, 2000);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>

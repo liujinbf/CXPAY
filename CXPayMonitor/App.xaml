@@ -1,0 +1,18 @@
+<Application x:Class="CXPayMonitor.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <!-- 全局字体与颜色体系 -->
+        <FontFamily x:Key="AppFont">Segoe UI, Microsoft YaHei, sans-serif</FontFamily>
+        <FontFamily x:Key="CodeFont">Consolas, Lucida Console, Courier New</FontFamily>
+
+        <SolidColorBrush x:Key="PrimaryBrush" Color="#2563EB"/>
+        <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#1D4ED8"/>
+        <SolidColorBrush x:Key="TextMainBrush" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#64748B"/>
+        <SolidColorBrush x:Key="CardBgBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="WindowBgBrush" Color="#F8FAFC"/>
+    </Application.Resources>
+</Application>

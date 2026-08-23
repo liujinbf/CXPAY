@@ -1,0 +1,134 @@
+[
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_badge_online_bg.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/badge_online_bg.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_btn_stop_bg.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/btn_stop_bg.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_log_terminal_bg.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/log_terminal_bg.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/layout_activity_main.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/layout_dialog_keep_alive_guide.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/layout/dialog_keep_alive_guide.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_dialog_glass_bg.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/dialog_glass_bg.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_card_wechat.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/card_wechat.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_btn_save_bg.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/btn_save_bg.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_badge_guide_bg.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/badge_guide_bg.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_btn_guide_action_bg.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/btn_guide_action_bg.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_card_stat_sub.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/card_stat_sub.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_edit_bg.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/edit_bg.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/layout_dialog_app_update.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/layout/dialog_app_update.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/mipmap-xhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/mipmap-xxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_badge_device_bg.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/badge_device_bg.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_card_alipay.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/card_alipay.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_ic_shield.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/ic_shield.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_ic_wechat.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/ic_wechat.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/mipmap-xxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_bg_dark_gradient.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/bg_dark_gradient.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/mipmap-xxxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/mipmap-xxxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/mipmap-hdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/xml_file_paths.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/xml/file_paths.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_ic_alipay.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/ic_alipay.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_ic_app_logo.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/ic_app_logo.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/mipmap-mdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_card_glass.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/card_glass.xml"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "com.cxpay.assistant.app-main-34:/mipmap-hdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.cxpay.assistant.app-merged_res-32:/drawable_btn_start_bg.xml.flat",
+        "source": "com.cxpay.assistant.app-main-34:/drawable/btn_start_bg.xml"
+    }
+]
