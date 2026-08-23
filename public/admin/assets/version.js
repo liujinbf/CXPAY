@@ -1,4 +1,4 @@
-export const ASSET_VERSION = 'admin-modules-v7';
+export const ASSET_VERSION = 'admin-v20260822_2101_merchant_manager_upgrade';
 
 export function assetUrl(path) {
     const url = new URL(path, window.location.origin);

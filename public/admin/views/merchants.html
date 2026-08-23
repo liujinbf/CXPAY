@@ -1,53 +1,210 @@
 <section data-feature="merchants" class="glass-panel rounded-2xl p-6 space-y-4">
-<div class="flex items-center justify-between gap-4">
-    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-        <i data-lucide="users" class="w-5 h-5 text-purple-600"></i> 商户账号列表与配置
-    </h3>
-    <div class="flex gap-2">
-        <input id="merchant-search" type="search" placeholder="搜索 PID / 名称" class="px-3 py-2 border border-slate-200 rounded-xl text-xs">
-        <button data-action="search-merchants" class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">搜索</button>
-        <button data-action="open-merchant" class="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">新增商户</button>
+    <!-- 顶部标题与操作栏 -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                <i data-lucide="users" class="w-5 h-5 text-purple-600"></i> 商户账号列表与配置
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">管理入驻商户、签约套餐、交易费率、通道配额与对接安全密钥</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <input id="merchant-search" type="search" placeholder="搜索 PID / 名称" class="px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-purple-400 focus:outline-none w-44">
+            <button data-action="search-merchants" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors">搜索</button>
+            <button data-action="batch-clean-test" class="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors" title="清理所有无订单、无通道的闲置测试账号">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 清理测试账号
+            </button>
+            <button data-action="open-merchant" class="px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-purple-200 flex items-center gap-1.5 transition-all">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 新增商户
+            </button>
+        </div>
     </div>
-</div>
-<div class="overflow-x-auto">
-<table class="w-full text-left text-xs text-slate-600">
-    <thead class="bg-slate-50 uppercase font-semibold border-b">
-        <tr>
-            <th class="p-3">商户 PID</th>
-            <th class="p-3">商户名称</th>
-            <th class="p-3">服务费余额</th>
-            <th class="p-3">费率</th>
-            <th class="p-3">状态</th>
-            <th class="p-3">注册时间</th>
-            <th class="p-3 text-right">操作</th>
-        </tr>
-    </thead>
-    <tbody id="merchant-table-body" class="divide-y divide-slate-100">
-        <tr><td colspan="7" class="p-6 text-center text-slate-400">正在加载商户数据...</td></tr>
-    </tbody>
-</table>
-</div>
-    <div id="merchant-editor" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm items-center justify-center p-4">
-        <form data-role="merchant-form" class="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4">
-            <div class="flex items-center justify-between">
-                <h3 id="merchant-editor-title" class="font-extrabold text-slate-800">新增商户</h3>
-                <button type="button" data-action="close-merchant" class="text-slate-400 hover:text-slate-700">关闭</button>
+
+    <!-- 商户数据表格 -->
+    <div class="overflow-x-auto rounded-xl border border-slate-100">
+        <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50/80 uppercase font-bold text-slate-500 border-b border-slate-200/80">
+                <tr>
+                    <th class="p-3">商户 PID</th>
+                    <th class="p-3">商户名称</th>
+                    <th class="p-3">签约套餐</th>
+                    <th class="p-3">服务费余额</th>
+                    <th class="p-3">交易费率</th>
+                    <th class="p-3">通道 / 订单</th>
+                    <th class="p-3">状态</th>
+                    <th class="p-3">注册时间</th>
+                    <th class="p-3 text-right">操作</th>
+                </tr>
+            </thead>
+            <tbody id="merchant-table-body" class="divide-y divide-slate-100">
+                <tr><td colspan="9" class="p-8 text-center text-slate-400">正在加载商户数据...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 商户编辑 / 详情弹窗 -->
+    <div id="merchant-editor" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm items-center justify-center p-4">
+        <form data-role="merchant-form" class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/60">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center font-bold">
+                        <i data-lucide="user-cog" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 id="merchant-editor-title" class="font-extrabold text-slate-800 text-sm">编辑商户</h3>
+                        <p class="text-[11px] text-slate-400">配置商户基本信息、套餐权限、交易费率与安全对接凭据</p>
+                    </div>
+                </div>
+                <button type="button" data-action="close-merchant" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
             </div>
-            <input id="merchant-id" type="hidden" value="0">
-            <div class="grid grid-cols-2 gap-3 text-xs">
-                <label class="space-y-1"><span class="font-bold">商户名称 *</span><input id="merchant-name" required maxlength="100" class="w-full px-3 py-2 border rounded-xl"></label>
-                <label class="space-y-1"><span class="font-bold">商户 PID</span><input id="merchant-pid" maxlength="32" placeholder="新增时可留空自动生成" class="w-full px-3 py-2 border rounded-xl font-mono"></label>
-                <label class="space-y-1"><span class="font-bold">费率（0～1）*</span><input id="merchant-rate" required type="number" min="0" max="1" step="0.0001" value="0.0200" class="w-full px-3 py-2 border rounded-xl"></label>
-                <label class="space-y-1"><span class="font-bold">状态</span><select id="merchant-status" class="w-full px-3 py-2 border rounded-xl"><option value="1">启用</option><option value="0">停用</option></select></label>
+
+            <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+                <input id="merchant-id" type="hidden" value="0">
+
+                <!-- 第一组：基本信息 -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-bold text-slate-700 flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                        <i data-lucide="info" class="w-3.5 h-3.5 text-blue-500"></i> 基本信息
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <label class="space-y-1">
+                            <span class="font-bold text-slate-600">商户名称 *</span>
+                            <input id="merchant-name" required maxlength="100" placeholder="例如：测试旗舰店" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:outline-none">
+                        </label>
+                        <label class="space-y-1">
+                            <span class="font-bold text-slate-600">商户 PID</span>
+                            <input id="merchant-pid" maxlength="32" placeholder="新增时可留空自动分配" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-slate-700 bg-slate-50 focus:outline-none">
+                        </label>
+                        <label class="space-y-1">
+                            <span class="font-bold text-slate-600">交易费率 (0 ~ 1) *</span>
+                            <input id="merchant-rate" required type="number" min="0" max="1" step="0.0001" value="0.0200" placeholder="0.0200 代表 2%" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:outline-none">
+                        </label>
+                        <label class="space-y-1">
+                            <span class="font-bold text-slate-600">商户状态</span>
+                            <select id="merchant-status" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:outline-none bg-white">
+                                <option value="1">正常启用</option>
+                                <option value="0">停用冻结</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 第二组：套餐与配额 -->
+                <div class="space-y-3 pt-1">
+                    <h4 class="text-xs font-bold text-slate-700 flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                        <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-500"></i> 套餐签约与通道配额
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <label class="space-y-1">
+                            <span class="font-bold text-slate-600">绑定套餐</span>
+                            <select id="merchant-plan-id" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:outline-none bg-white">
+                                <option value="0">无套餐 / 默认基础</option>
+                            </select>
+                        </label>
+                        <label class="space-y-1">
+                            <span class="font-bold text-slate-600">套餐到期时间</span>
+                            <input id="merchant-plan-expire" type="date" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:outline-none" placeholder="留空代表永久有效">
+                        </label>
+                        <label class="space-y-1">
+                            <span class="font-bold text-slate-600">通道创建上限配额</span>
+                            <input id="merchant-channel-quota" type="number" min="0" max="999" value="0" placeholder="0 代表继承套餐设定" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:outline-none">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 第三组：安全与凭据管理 -->
+                <div class="space-y-3 pt-1">
+                    <h4 class="text-xs font-bold text-slate-700 flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i> 安全对接与凭据管理
+                    </h4>
+                    <div class="space-y-3 text-xs">
+                        <!-- 登录密码 -->
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-slate-600">商户登录密码</span>
+                                <button type="button" id="btn-generate-password" class="text-[11px] text-purple-600 hover:text-purple-800 font-bold">⚡ 随机生成密码</button>
+                            </div>
+                            <input id="merchant-password" type="text" minlength="6" maxlength="200" autocomplete="new-password" placeholder="新增留空自动生成随机高强度密码；编辑留空保持原密码不变" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:outline-none font-mono text-xs">
+                        </div>
+
+                        <!-- API 密钥 -->
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-slate-600">API 接口对接密钥 (KEY)</span>
+                                <div class="space-x-2">
+                                    <button type="button" id="btn-copy-key" class="text-[11px] text-blue-600 hover:text-blue-800 font-bold">📋 复制当前密钥</button>
+                                    <button type="button" id="btn-generate-key" class="text-[11px] text-purple-600 hover:text-purple-800 font-bold">⚡ 重新生成密钥</button>
+                                </div>
+                            </div>
+                            <input id="merchant-api-key" minlength="16" maxlength="64" autocomplete="off" placeholder="新增留空自动生成；编辑填写即轮换" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs text-slate-800 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-400 focus:outline-none">
+                        </div>
+
+                        <!-- IP 白名单 -->
+                        <label class="block space-y-1">
+                            <span class="font-bold text-slate-600">API 发起 IP 白名单</span>
+                            <textarea id="merchant-ip-white" rows="2" placeholder="留空不限制 IP；多个 IP 地址按逗号或换行分隔" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-purple-400 focus:outline-none"></textarea>
+                        </label>
+                    </div>
+                </div>
             </div>
-            <label class="block space-y-1 text-xs"><span class="font-bold">登录密码</span><input id="merchant-password" type="password" minlength="6" maxlength="200" autocomplete="new-password" placeholder="新增留空自动生成；编辑留空保持不变" class="w-full px-3 py-2 border rounded-xl"></label>
-            <label class="block space-y-1 text-xs"><span class="font-bold">API 密钥</span><input id="merchant-api-key" minlength="32" maxlength="64" autocomplete="off" placeholder="新增留空自动生成；编辑填写即轮换" class="w-full px-3 py-2 border rounded-xl font-mono"></label>
-            <label class="block space-y-1 text-xs"><span class="font-bold">API IP 白名单</span><textarea id="merchant-ip-white" rows="2" placeholder="留空不限制；多个地址按逗号或换行分隔" class="w-full px-3 py-2 border rounded-xl font-mono"></textarea></label>
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" data-action="close-merchant" class="px-4 py-2 border rounded-xl text-xs font-bold">取消</button>
-                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">保存商户</button>
+
+            <!-- 弹窗底部操作按钮 -->
+            <div class="flex items-center justify-end gap-2 px-6 py-3.5 border-t border-slate-100 bg-slate-50/50">
+                <button type="button" data-action="close-merchant" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors">取消</button>
+                <button type="submit" class="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-purple-200 transition-all">保存商户配置</button>
             </div>
         </form>
     </div>
-</section>
 
+    <!-- 余额调整弹窗 -->
+    <div id="balance-adjust-modal" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div class="flex items-center justify-between">
+                <h3 class="font-extrabold text-slate-800 flex items-center gap-2 text-sm">
+                    <i data-lucide="wallet" class="w-4 h-4 text-emerald-600"></i> 余额调整
+                </h3>
+                <button type="button" data-action="close-balance" class="text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="text-xs text-slate-500 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                商户：<strong id="balance-merchant-name" class="text-slate-800">--</strong>
+                <br>当前余额：<strong id="balance-current" class="text-emerald-700 font-mono text-sm">--</strong>
+            </div>
+            <input id="balance-merchant-id" type="hidden" value="0">
+            <div class="space-y-3 text-xs">
+                <label class="block space-y-1">
+                    <span class="font-bold text-slate-600">操作类型</span>
+                    <div class="flex gap-2">
+                        <label class="flex-1 flex items-center justify-center gap-2 p-2.5 border-2 border-emerald-200 bg-emerald-50 rounded-xl cursor-pointer">
+                            <input type="radio" name="balance-type" id="balance-type-add" value="add" checked class="accent-emerald-600">
+                            <span class="font-bold text-emerald-700">充值 (+)</span>
+                        </label>
+                        <label class="flex-1 flex items-center justify-center gap-2 p-2.5 border-2 border-rose-100 bg-rose-50 rounded-xl cursor-pointer">
+                            <input type="radio" name="balance-type" id="balance-type-sub" value="sub" class="accent-rose-500">
+                            <span class="font-bold text-rose-600">扣减 (-)</span>
+                        </label>
+                    </div>
+                </label>
+                <label class="block space-y-1">
+                    <span class="font-bold text-slate-600">调整金额（元）*</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400 font-bold">¥</span>
+                        <input id="balance-amount" type="number" step="0.01" min="0.01" max="999999.99" placeholder="0.00"
+                            class="flex-1 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 font-mono">
+                    </div>
+                </label>
+                <label class="block space-y-1">
+                    <span class="font-bold text-slate-600">备注 *（便于财务对账与审计追溯）</span>
+                    <input id="balance-memo" type="text" maxlength="200" placeholder="如：充值服务费、手动补偿等"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                </label>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" data-action="close-balance" class="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors">取消</button>
+                <button type="button" data-action="submit-balance" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors">确认调整</button>
+            </div>
+        </div>
+    </div>
+</section>

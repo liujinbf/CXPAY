@@ -1,0 +1,105 @@
+<section data-feature="report" class="space-y-6">
+<div class="flex items-center justify-between">
+    <div>
+        <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+            <i data-lucide="bar-chart-2" class="w-6 h-6 text-indigo-600"></i> 交易统计报表
+        </h2>
+        <p class="text-xs text-slate-400 mt-1">全平台收款趋势、通道分布与商户排行（最大查询范围 90 天）</p>
+    </div>
+    <div class="flex items-center gap-2 text-xs">
+        <input id="report-start" type="date" class="px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <span class="text-slate-400">至</span>
+        <input id="report-end" type="date" class="px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <select id="report-period" class="px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            <option value="day">按天汇总</option>
+            <option value="week">按周汇总</option>
+            <option value="month">按月汇总</option>
+        </select>
+        <button data-action="load-report" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1.5">
+            <i data-lucide="search" class="w-3.5 h-3.5"></i> 查询
+        </button>
+        <button data-action="export-csv" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center gap-1.5">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> 导出CSV
+        </button>
+    </div>
+</div>
+
+<!-- 汇总指标卡 -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white hover:shadow-md transition-all">
+        <div class="text-xs font-semibold text-slate-400">区间总流水</div>
+        <div id="report-total-amount" class="text-2xl font-black text-indigo-700 mt-1">--</div>
+    </div>
+    <div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white hover:shadow-md transition-all">
+        <div class="text-xs font-semibold text-slate-400">成功订单数</div>
+        <div id="report-paid-count" class="text-2xl font-black text-emerald-600 mt-1">--</div>
+    </div>
+    <div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white hover:shadow-md transition-all">
+        <div class="text-xs font-semibold text-slate-400">总手续费收入</div>
+        <div id="report-total-fee" class="text-2xl font-black text-amber-600 mt-1">--</div>
+    </div>
+    <div class="glass-panel p-5 rounded-2xl border border-slate-200/80 bg-white hover:shadow-md transition-all">
+        <div class="text-xs font-semibold text-slate-400">区间成功率</div>
+        <div id="report-success-rate" class="text-2xl font-black text-sky-600 mt-1">--</div>
+    </div>
+</div>
+
+<!-- 趋势图 -->
+<div class="glass-panel rounded-2xl p-5 border border-slate-200/80">
+    <div class="flex items-center justify-between mb-4">
+        <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="trending-up" class="w-4 h-4 text-indigo-600"></i> 收款趋势
+        </div>
+        <span id="report-trend-loading" class="text-xs text-slate-400">选择时间范围后点击查询</span>
+    </div>
+    <div id="report-trend-chart" style="width:100%;height:280px;"></div>
+</div>
+
+<!-- 通道分布 + 商户排行 -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <!-- 通道分布 -->
+    <div class="glass-panel rounded-2xl p-5 border border-slate-200/80 space-y-3">
+        <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="pie-chart" class="w-4 h-4 text-purple-600"></i> 通道分布
+        </div>
+        <div id="report-channel-chart" style="width:100%;height:220px;"></div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left text-slate-600">
+                <thead class="bg-slate-50 border-b text-slate-400 uppercase font-semibold">
+                    <tr>
+                        <th class="p-2">通道名称</th>
+                        <th class="p-2 text-right">成功笔数</th>
+                        <th class="p-2 text-right">成功金额</th>
+                    </tr>
+                </thead>
+                <tbody id="report-channel-table" class="divide-y divide-slate-100">
+                    <tr><td colspan="3" class="p-4 text-center text-slate-400">暂无数据</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 商户排行 -->
+    <div class="glass-panel rounded-2xl p-5 border border-slate-200/80 space-y-3">
+        <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="trophy" class="w-4 h-4 text-amber-500"></i> 商户排行 TOP 20
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left text-slate-600">
+                <thead class="bg-slate-50 border-b text-slate-400 uppercase font-semibold">
+                    <tr>
+                        <th class="p-2">排名</th>
+                        <th class="p-2">商户 PID</th>
+                        <th class="p-2 text-right">成功笔数</th>
+                        <th class="p-2 text-right">成功金额</th>
+                        <th class="p-2 text-right">手续费</th>
+                    </tr>
+                </thead>
+                <tbody id="report-merchant-table" class="divide-y divide-slate-100">
+                    <tr><td colspan="5" class="p-4 text-center text-slate-400">暂无数据</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</section>

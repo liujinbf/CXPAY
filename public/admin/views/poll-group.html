@@ -1,0 +1,272 @@
+<section data-feature="poll-group" class="space-y-6">
+    <!-- 顶部标题与操作栏 -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                <i data-lucide="layers" class="w-6 h-6 text-indigo-600"></i> 轮询组智能调度
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">将多个同类支付通道聚合为一个调度大池，按加权随机、顺序轮转或最小负载算法智能分流</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <button type="button" data-action="open-simulate-modal" class="px-4 py-2 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="zap" class="w-4 h-4 text-amber-300"></i> ⚡ 调度测试模拟器
+            </button>
+            <button type="button" data-action="create-poll-group" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i> 新建轮询组
+            </button>
+            <button type="button" data-action="reload-poll-groups" class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-500"></i> 刷新
+            </button>
+        </div>
+    </div>
+
+    <!-- 顶部核心指标卡片 -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="p-4 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                <i data-lucide="layers" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="text-xs text-slate-400 font-bold">总轮询组数</div>
+                <div id="stat-total-groups" class="text-lg font-black text-slate-800 mt-0.5">--</div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                <i data-lucide="activity" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="text-xs text-slate-400 font-bold">活跃调度中</div>
+                <div id="stat-active-groups" class="text-lg font-black text-emerald-600 mt-0.5">--</div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                <i data-lucide="git-fork" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="text-xs text-slate-400 font-bold">已纳管分流通道</div>
+                <div id="stat-bound-channels" class="text-lg font-black text-blue-600 mt-0.5">--</div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                <i data-lucide="cpu" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="text-xs text-slate-400 font-bold">核心调度引擎</div>
+                <div class="text-xs font-black text-purple-700 mt-1 flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 实时多策略分发
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 轮询组列表容器 -->
+    <div id="poll-group-list-container" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="col-span-full p-12 text-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200">
+            正在加载轮询组配置...
+        </div>
+    </div>
+
+    <!-- 💡 轮询算法与最佳实践说明卡片 -->
+    <div class="p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl space-y-3 shadow-md border border-slate-800">
+        <div class="flex items-center gap-2 text-xs font-extrabold text-amber-300">
+            <i data-lucide="lightbulb" class="w-4 h-4 text-amber-400"></i>
+            <span>💡 智能通道分流策略与风控说明</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300">
+            <div class="p-3 bg-white/5 border border-white/10 rounded-2xl space-y-1">
+                <div class="font-bold text-white flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-300 text-[10px]">算法 1</span> 加权随机分流
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                    依据分配的权重数值（如 80:20）按比例概率分发订单，适合主备通道分流与权重梯度引流。
+                </p>
+            </div>
+            <div class="p-3 bg-white/5 border border-white/10 rounded-2xl space-y-1">
+                <div class="font-bold text-white flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 text-[10px]">算法 2</span> 顺序平滑轮询
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                    使用原子计数器让各通道依次交替接单（1 ➔ 2 ➔ 3 ➔ 1），请求量极致均衡，单通道压力极小。
+                </p>
+            </div>
+            <div class="p-3 bg-white/5 border border-white/10 rounded-2xl space-y-1">
+                <div class="font-bold text-white flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-300 text-[10px]">算法 3</span> 最小负载优先
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                    优先将新订单分配给当日收款金额最少的通道，自动抹平各通道收益差距，防单号限额风控。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态弹窗 1：新建 / 编辑轮询组 -->
+    <div id="modal-poll-group-editor" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <form data-role="poll-group-form" class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            <div class="px-6 py-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center">
+                        <i data-lucide="layers" class="w-4 h-4 text-indigo-400"></i>
+                    </div>
+                    <h3 id="poll-group-modal-title" class="font-extrabold text-white text-sm">新建轮询调度组</h3>
+                </div>
+                <button type="button" data-action="close-editor-modal" class="text-slate-400 hover:text-white text-lg font-bold p-1">✕</button>
+            </div>
+
+            <div class="p-6 space-y-4 text-xs overflow-y-auto flex-1 custom-scrollbar">
+                <input type="hidden" id="pg-id-input" value="0">
+
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-slate-700 text-xs">
+                        轮询组名称 <span class="text-rose-500">*</span>
+                    </label>
+                    <input id="pg-name-input" required maxlength="50" placeholder="例如: 微信当面付高并发分流池" class="w-full px-3 py-2 border rounded-xl font-bold text-xs bg-slate-50 focus:bg-white">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-slate-700 text-xs">
+                        支付大类 <span class="text-rose-500">*</span>
+                    </label>
+                    <select id="pg-ctype-select" class="w-full px-3 py-2 border rounded-xl font-bold text-xs bg-slate-50 focus:bg-white">
+                        <option value="wxpay">微信支付 (wxpay)</option>
+                        <option value="alipay">支付宝 (alipay)</option>
+                        <option value="qqpay">QQ 钱包 (qqpay)</option>
+                        <option value="usdt">USDT 区块链 (usdt)</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-slate-700 text-xs">
+                        调度分流算法策略 <span class="text-rose-500">*</span>
+                    </label>
+                    <select id="pg-strategy-select" class="w-full px-3 py-2 border rounded-xl font-bold text-xs bg-slate-50 focus:bg-white">
+                        <option value="1">📊 权重加权随机 (Weighted Random) — 依各通道权重比例分配</option>
+                        <option value="2">🔄 顺序平滑轮询 (Round-Robin) — 各通道依次轮流交替接单</option>
+                        <option value="3">⚖️ 最小金额负载优先 (Least-Money) — 优先分流至今日收款最少通道</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-slate-700 text-xs">启用状态</label>
+                    <div class="flex items-center gap-4 pt-1">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="pg-status" value="1" checked class="text-indigo-600">
+                            <span class="font-bold text-emerald-600">启用 (参与调度)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="pg-status" value="0" class="text-slate-400">
+                            <span class="text-slate-500">停用</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 p-4 border-t border-slate-100 bg-slate-50/50 flex-shrink-0">
+                <button type="button" data-action="close-editor-modal" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
+                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="check" class="w-4 h-4"></i> 保存轮询组
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 模态弹窗 2：绑定通道与权重分配 -->
+    <div id="modal-poll-group-bind" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <form data-role="poll-bind-form" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            <div class="px-6 py-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center">
+                        <i data-lucide="git-fork" class="w-4 h-4 text-blue-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-white text-sm flex items-center gap-2">
+                            <span>绑定通道与权重分配</span>
+                            <span id="bind-modal-group-name" class="px-2 py-0.5 rounded-full bg-white/20 text-indigo-200 text-[10px]"></span>
+                        </h3>
+                    </div>
+                </div>
+                <button type="button" data-action="close-bind-modal" class="text-slate-400 hover:text-white text-lg font-bold p-1">✕</button>
+            </div>
+
+            <div class="p-6 space-y-4 text-xs overflow-y-auto flex-1 custom-scrollbar">
+                <input type="hidden" id="bind-group-id" value="0">
+                <div class="p-3 bg-blue-50/70 border border-blue-100 rounded-2xl text-blue-900 text-xs flex items-center justify-between">
+                    <span>勾选要加入此轮询组的通道并设定分流权重（权重越高分配概率越大）：</span>
+                    <span id="bind-total-weight-badge" class="font-bold font-mono px-2.5 py-0.5 bg-blue-600 text-white rounded-full text-[11px]">总权重: 0</span>
+                </div>
+
+                <div id="bind-channels-list" class="space-y-3">
+                    <div class="p-8 text-center text-slate-400">正在读取可用通道...</div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between p-4 border-t border-slate-100 bg-slate-50/50 flex-shrink-0">
+                <span class="text-[11px] text-slate-400">未勾选的通道将不会参与此轮询组的订单调度</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" data-action="close-bind-modal" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer">
+                        <i data-lucide="check" class="w-4 h-4"></i> 保存通道绑定
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- 模态弹窗 3：调度测试模拟器 -->
+    <div id="modal-poll-group-simulate" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            <div class="px-6 py-4 bg-gradient-to-r from-violet-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center">
+                        <i data-lucide="zap" class="w-4 h-4 text-amber-300"></i>
+                    </div>
+                    <h3 class="font-extrabold text-white text-sm">⚡ 智能通道调度测试模拟器</h3>
+                </div>
+                <button type="button" data-action="close-simulate-modal" class="text-slate-400 hover:text-white text-lg font-bold p-1">✕</button>
+            </div>
+
+            <div class="p-6 space-y-4 text-xs overflow-y-auto flex-1 custom-scrollbar">
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-slate-700 text-xs">测试支付分类</label>
+                    <select id="sim-ctype-select" class="w-full px-3 py-2 border rounded-xl font-bold text-xs bg-slate-50">
+                        <option value="wxpay">微信支付 (wxpay)</option>
+                        <option value="alipay">支付宝 (alipay)</option>
+                        <option value="qqpay">QQ 钱包 (qqpay)</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block font-bold text-slate-700 text-xs">模拟订单金额 (元)</label>
+                    <input id="sim-amount-input" type="number" step="0.01" min="0.01" value="10.00" class="w-full px-3 py-2 border rounded-xl font-mono font-bold text-xs bg-slate-50">
+                </div>
+
+                <button type="button" data-action="run-simulation" class="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer">
+                    <i data-lucide="play" class="w-4 h-4"></i> 立即执行单次测算分流
+                </button>
+
+                <div id="sim-result-box" class="hidden p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div class="font-bold text-slate-800 text-xs flex items-center justify-between">
+                        <span>测算命中结果：</span>
+                        <span id="sim-hit-badge" class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px]">命中成功</span>
+                    </div>
+                    <div class="space-y-1 text-slate-600 text-[11px]">
+                        <div>命中通道: <b id="sim-channel-title" class="text-indigo-600"></b></div>
+                        <div>通道ID: <span id="sim-channel-id" class="font-mono text-slate-800"></span></div>
+                        <div>所属驱动: <span id="sim-channel-driver" class="font-mono text-slate-800"></span></div>
+                        <div>调度机制: <span id="sim-dispatch-type" class="text-emerald-700 font-bold"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end p-4 border-t border-slate-100 bg-slate-50/50 flex-shrink-0">
+                <button type="button" data-action="close-simulate-modal" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold">关闭</button>
+            </div>
+        </div>
+    </div>
+</section>

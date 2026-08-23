@@ -1,16 +1,114 @@
-<section data-feature="cloud-monitor" class="space-y-4">
-<div class="glass-panel rounded-2xl p-6 flex items-center justify-between gap-4">
-    <div>
-        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-            <i data-lucide="cloud-cog" class="w-5 h-5 text-cyan-600"></i> 个人收款码云监控状态
-        </h3>
-        <p class="text-xs text-slate-400 mt-1">采集器超过 120 秒没有通过签名鉴权即显示离线；页面不会读取或显示任何密钥。</p>
+<section data-feature="cloud-monitor" class="space-y-6">
+    <!-- 顶部标题与操作栏 -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                <i data-lucide="cloud-cog" class="w-6 h-6 text-cyan-600"></i> 个人码云端监控运维
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">实时掌控安卓挂机助手、Cookie免挂与店员小账本等通道的心跳连线、今日流水与设备健康</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="/download/CXPayAssistant.apk" download class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="smartphone" class="w-4 h-4 text-emerald-200"></i> 📥 下载安卓监控端 APK
+            </a>
+            <button type="button" data-action="refresh-cloud-monitor" class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-500"></i> 刷新监控状态
+            </button>
+        </div>
     </div>
-    <button data-action="refresh-cloud-monitor" class="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold">刷新状态</button>
-</div>
-<div id="cloud-monitor-warnings" class="hidden p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-700"></div>
-<div id="cloud-monitor-list" class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-    <div class="glass-panel rounded-2xl p-6 text-center text-xs text-slate-400">正在读取云监控状态...</div>
-</div>
-</section>
 
+    <!-- 顶部核心指标统计大盘 -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="p-4 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center font-bold">
+                <i data-lucide="smartphone-charging" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="text-xs text-slate-400 font-bold">纳管监控通道</div>
+                <div id="stat-total-devices" class="text-lg font-black text-slate-800 mt-0.5">--</div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                <i data-lucide="wifi" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="text-xs text-slate-400 font-bold">实时在线监听</div>
+                <div id="stat-online-devices" class="text-lg font-black text-emerald-600 mt-0.5">--</div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                <i data-lucide="wifi-off" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="text-xs text-slate-400 font-bold">离线/心跳超时</div>
+                <div id="stat-offline-devices" class="text-lg font-black text-rose-600 mt-0.5">--</div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                <i data-lucide="coins" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="text-xs text-slate-400 font-bold">今日监控通道流水</div>
+                <div id="stat-today-money" class="text-lg font-black text-amber-600 mt-0.5">--</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 异常告警通知栏 -->
+    <div id="cloud-monitor-warnings" class="hidden p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-xs text-amber-800 space-y-1.5 shadow-xs"></div>
+
+    <!-- 筛选过滤工具条 -->
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-white rounded-2xl border border-slate-100 shadow-2xs">
+        <div class="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+            <button type="button" data-filter="all" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 filter-btn">全部通道</button>
+            <button type="button" data-filter="online" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 border border-transparent filter-btn">🟢 仅看在线</button>
+            <button type="button" data-filter="offline" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 border border-transparent filter-btn">🔴 仅看离线</button>
+            <button type="button" data-filter="wxpay" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 border border-transparent filter-btn">微信支付</button>
+            <button type="button" data-filter="alipay" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 border border-transparent filter-btn">支付宝</button>
+        </div>
+        <div class="w-full sm:w-64">
+            <input id="cloud-monitor-search" placeholder="搜索通道名称或ID..." class="w-full px-3 py-1.5 text-xs border rounded-xl bg-slate-50 focus:bg-white">
+        </div>
+    </div>
+
+    <!-- 监控卡片网格列表 -->
+    <div id="cloud-monitor-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div class="col-span-full p-12 text-center text-xs text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200">
+            正在读取云监控运行状态...
+        </div>
+    </div>
+
+    <!-- 📷 扫码免配置配对弹窗 -->
+    <div id="cloud-appasst-pair-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div class="px-6 py-4 bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center">
+                        <i data-lucide="qr-code" class="w-4 h-4 text-emerald-400"></i>
+                    </div>
+                    <h3 class="font-extrabold text-sm text-white">📷 手机助手免配置配对</h3>
+                </div>
+                <button type="button" data-action="close-pair-modal" class="text-slate-400 hover:text-white text-lg font-bold p-1">✕</button>
+            </div>
+            <div class="p-6 text-center space-y-4 text-xs">
+                <div class="text-slate-600 font-bold" id="cloud-pair-title">通道配对二维码</div>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center">
+                    <canvas id="cloud-pair-qrcode" class="rounded-xl shadow-xs"></canvas>
+                    <div class="mt-2 text-[10px] text-slate-400">请使用【CXPAY 挂机监控助手 App】首页点击右上角扫码</div>
+                </div>
+                <div class="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-[11px] text-left leading-relaxed">
+                    💡 <b>配对原理</b>：扫码后 App 将自动同步服务器域名、通道ID、设备鉴权密钥与加密通道，无需手动输入任何参数。
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50/50 border-t border-slate-100 flex justify-end">
+                <button type="button" data-action="close-pair-modal" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold">关闭</button>
+            </div>
+        </div>
+    </div>
+</section>

@@ -182,7 +182,7 @@
 
                         // 只有当 realQrUrl 是外部真实的收款码 URL 时（且不是收银台自身链接），才渲染 QR 二维码
                         const isCashierSelfUrl = window.realQrUrl && window.realQrUrl.includes('/cashier/index.html');
-                        if (window.realQrUrl && !isCashierSelfUrl && (window.realQrUrl.startsWith('http') || window.realQrUrl.startsWith('alipays://') || window.realQrUrl.startsWith('wxp://'))) {
+                        if (window.realQrUrl && !isCashierSelfUrl && (window.realQrUrl.startsWith('http') || window.realQrUrl.startsWith('alipays://') || window.realQrUrl.startsWith('wxp://') || window.realQrUrl.startsWith('data:image'))) {
                             renderQr(window.realQrUrl);
                         } else {
                             document.getElementById("qrcode").innerHTML = `
@@ -256,8 +256,13 @@
         }
 
         function renderQr(url) {
-            document.getElementById("qrcode").innerHTML = "";
-            new QRCode(document.getElementById("qrcode"), {
+            const container = document.getElementById("qrcode");
+            container.innerHTML = "";
+            if (url.startsWith('data:image') || url.startsWith('blob:') || /\.(png|jpg|jpeg|gif|webp)$/i.test(url)) {
+                container.innerHTML = `<img src="${url}" alt="收款码" class="w-44 h-44 object-contain rounded-xl shadow-inner mx-auto bg-white p-1" />`;
+                return;
+            }
+            new QRCode(container, {
                 text: url,
                 width: 176,
                 height: 176,

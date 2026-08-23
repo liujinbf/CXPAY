@@ -107,6 +107,21 @@ document.getElementById('app').addEventListener('click', async (event) => {
         router.navigate(navigation.dataset.navigate);
         return;
     }
+    const topRecharge = event.target.closest('[data-action="top-recharge"]');
+    if (topRecharge) {
+        event.preventDefault();
+        ui.showRechargeModal({
+            api,
+            ui,
+            onRecharged: async () => {
+                ui.showToast('服务费余额充值到账成功！', 'success');
+                await getMerchantProfile({ refresh: true });
+                router.navigate(location.hash.replace('#', '') || 'dashboard');
+            },
+        });
+        return;
+    }
+
     if (event.target.closest('[data-action="logout-merchant"]')) {
         try {
             await api.merchantFetch('/api/merchant/logout', { method: 'POST' });

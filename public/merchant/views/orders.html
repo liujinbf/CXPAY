@@ -6,9 +6,14 @@
             </h2>
             <p class="text-xs text-slate-400 mt-1">展示包含发起测试订单与系统所有接收到的充值与收款交易订单</p>
         </div>
-        <button data-action="refresh-orders" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 flex items-center gap-1.5 cursor-pointer">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 刷新订单记录
-        </button>
+        <div class="flex items-center gap-2.5">
+            <button data-action="batch-clean-orders" class="px-3.5 py-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-xl text-xs font-bold border border-rose-200 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 一键清理未完成订单
+            </button>
+            <button data-action="refresh-orders" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 刷新订单记录
+            </button>
+        </div>
     </div>
 
     <div class="glass-card rounded-2xl p-6 space-y-4">
@@ -24,12 +29,13 @@
                         <th class="p-3">实付/浮动</th>
                         <th class="p-3">状态</th>
                         <th class="p-3">创建时间</th>
-                        <th class="p-3">完成/核销时间</th>
+                        <th class="p-3">完成时间</th>
+                        <th class="p-3 text-center">操作</th>
                     </tr>
                 </thead>
                 <tbody id="order-table-body" class="divide-y divide-slate-100">
                     <tr>
-                        <td colspan="9" class="p-6 text-center text-slate-400 font-bold">正在加载最新订单数据...</td>
+                        <td colspan="10" class="p-6 text-center text-slate-400 font-bold">正在加载最新订单数据...</td>
                     </tr>
                 </tbody>
             </table>

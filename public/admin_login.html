@@ -124,7 +124,8 @@
                         });
                         const data = await res.json();
                         if (data.code === 1) {
-                            localStorage.removeItem('cx_admin_token');
+                            const token = data.data && data.data.token ? data.data.token : '';
+                            if (token) localStorage.setItem('cx_admin_token', token);
                             window.location.href = '/admin/index.html';
                         } else {
                             alert(data.msg || '登录失败，请检查账号密码');

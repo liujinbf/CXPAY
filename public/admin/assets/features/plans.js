@@ -6,11 +6,19 @@ export const feature = {
         const { root, ui, signal } = context;
         root.addEventListener('click', (event) => {
             const target = event.target.closest('[data-action]');
-            if (!target) return;
-            if (target.dataset.action === 'open-plan') void openPlanEditor(context, planRecords.get(Number(target.dataset.planId)));
-            if (target.dataset.action === 'delete-plan') void deletePlan(context, target.dataset.planId);
-            if (target.dataset.action === 'close-plan') closePlanEditor(root);
+            if (target) {
+                if (target.dataset.action === 'open-plan') void openPlanEditor(context, planRecords.get(Number(target.dataset.planId)));
+                if (target.dataset.action === 'delete-plan') void deletePlan(context, target.dataset.planId);
+                if (target.dataset.action === 'close-plan') closePlanEditor(root);
+            }
+            if (event.target.id === 'btn-plan-select-all') {
+                root.querySelectorAll('input[name="plan_channel_cb"]').forEach((cb) => { cb.checked = true; });
+            }
+            if (event.target.id === 'btn-plan-clear-all') {
+                root.querySelectorAll('input[name="plan_channel_cb"]').forEach((cb) => { cb.checked = false; });
+            }
         }, { signal });
+
         root.querySelector('[data-role="plan-form"]')
             ?.addEventListener('submit', (event) => void submitPlan(context, event), { signal });
         ui.safeCreateIcons();
@@ -52,35 +60,101 @@ function renderPlan(plan, ui) {
 }
 
 async function openPlanEditor({ root, api, ui, signal }, plan = null) {
-    const values = { id: plan?.id || 0, name: plan?.name || '', days: plan?.days ?? 30, rate: plan?.rate ?? 2.5,
-        'min-rate': plan?.min_rate || 0, 'channel-quota': plan?.channel_quota || 0, price: plan?.price || 0,
-        'limit-count': plan?.limit_count || 0, memo: plan?.memo || '', 'sort-order': plan?.sort_order || 0 };
+    const values = {
+        id: plan?.id || 0,
+        name: plan?.name || '',
+        days: plan?.days ?? 30,
+        rate: plan?.rate ?? 2.5,
+        'min-rate': plan?.min_rate || 0,
+        'channel-quota': plan?.channel_quota || 0,
+        price: plan?.price || 0,
+        'limit-count': plan?.limit_count || 0,
+        memo: plan?.memo || '',
+        'sort-order': plan?.sort_order || 0
+    };
     setText(root, 'plan-editor-title', plan ? '编辑套餐' : '添加套餐');
     Object.entries(values).forEach(([key, value]) => setValue(root, `plan-${key}`, value));
-    const selected = String(plan?.allowed_channels || '').split(',').map((item) => item.trim());
-    const select = root.querySelector('#plan-allowed-channels');
-    try {
-        const response = await api.adminFetch('/api/admin/plugin/market_list', { signal });
-        const payload = await response.json();
-        const drivers = Array.isArray(payload.data?.list) ? payload.data.list.filter((item) => item.c_type) : [];
-        select.innerHTML = drivers.length ? drivers.map((driver) => `<option value="${ui.escapeHtml(driver.c_type)}" ${selected.includes(driver.c_type) ? 'selected' : ''}>${ui.escapeHtml(driver.name || driver.c_type)} [${ui.escapeHtml(driver.c_type)}]</option>`).join('') : '<option disabled>暂无已安装的支付驱动</option>';
-    } catch (error) { select.innerHTML = `<option disabled>${ui.escapeHtml(error.message)}</option>`; }
+
+    const selectedRaw = String(plan?.allowed_channels || '').split(',').map((item) => item.trim()).filter(Boolean);
+    const container = root.querySelector('#plan-channels-grid');
+    if (container) {
+        container.innerHTML = '<div class="text-slate-400 text-xs text-center py-4">正在读取可用支付插件驱动...</div>';
+        try {
+            const response = await api.adminFetch('/api/admin/packvip/drivers', { signal });
+            const payload = await response.json();
+            const drivers = Array.isArray(payload.data) ? payload.data : [];
+            if (drivers.length === 0) {
+                container.innerHTML = '<div class="text-slate-400 text-xs text-center py-4">系统暂未安装或启用任何支付插件驱动</div>';
+            } else {
+                container.innerHTML = drivers.map((driver) => {
+                    // 判断是否已勾选：包含驱动标识、包含大类、或原本为空时默认勾选
+                    const isChecked = selectedRaw.length === 0 
+                        || selectedRaw.includes(driver.c_type)
+                        || selectedRaw.includes(driver.category)
+                        || selectedRaw.includes('*')
+                        || selectedRaw.includes('all');
+                    
+                    const badgeClass = driver.category === 'wxpay' 
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                        : (driver.category === 'alipay' 
+                            ? 'bg-blue-100 text-blue-800 border-blue-200' 
+                            : 'bg-purple-100 text-purple-800 border-purple-200');
+                    const badgeText = driver.category === 'wxpay' ? '微信'
+                        : (driver.category === 'alipay' ? '支付宝'
+                        : (driver.category === 'qqpay' ? 'QQ' : '其他'));
+
+                    return `
+                        <label class="flex items-center justify-between p-2.5 bg-white hover:bg-blue-50/50 border border-slate-200 rounded-lg cursor-pointer transition-colors select-none group">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <input type="checkbox" name="plan_channel_cb" value="${ui.escapeHtml(driver.c_type)}" ${isChecked ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+                                <div class="truncate">
+                                    <span class="font-bold text-slate-700 text-xs">${ui.escapeHtml(driver.name || driver.c_type)}</span>
+                                    <span class="block text-[10px] text-slate-400 font-mono">${ui.escapeHtml(driver.c_type)}</span>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded border ${badgeClass} flex-shrink-0">${badgeText}</span>
+                        </label>
+                    `;
+                }).join('');
+            }
+        } catch (error) {
+            container.innerHTML = `<div class="text-rose-500 text-xs text-center py-4">${ui.escapeHtml(error.message || '加载驱动失败')}</div>`;
+        }
+    }
+
     root.querySelectorAll('input[name="plan_status"]').forEach((radio) => { radio.checked = radio.value === String(plan?.status ?? 1); });
     root.querySelector('#plan-editor')?.classList.remove('hidden');
     root.querySelector('#plan-editor')?.classList.add('flex');
 }
 
-function closePlanEditor(root) { root.querySelector('#plan-editor')?.classList.add('hidden'); root.querySelector('#plan-editor')?.classList.remove('flex'); }
+function closePlanEditor(root) {
+    root.querySelector('#plan-editor')?.classList.add('hidden');
+    root.querySelector('#plan-editor')?.classList.remove('flex');
+}
 
 async function submitPlan(context, event) {
     event.preventDefault();
     const { root, api, ui, signal } = context;
     const value = (id) => root.querySelector(`#${id}`)?.value || '';
-    const payload = { id: value('plan-id'), name: value('plan-name').trim(), days: value('plan-days'), rate: value('plan-rate'),
-        min_rate: value('plan-min-rate'), channel_quota: value('plan-channel-quota'),
-        allowed_channels: Array.from(root.querySelector('#plan-allowed-channels').selectedOptions).map((item) => item.value).join(','),
-        price: value('plan-price'), limit_count: value('plan-limit-count'), memo: value('plan-memo').trim(),
-        sort_order: value('plan-sort-order'), status: root.querySelector('input[name="plan_status"]:checked')?.value || '1' };
+    
+    const checkedChannels = Array.from(root.querySelectorAll('input[name="plan_channel_cb"]:checked'))
+        .map((cb) => cb.value)
+        .join(',');
+
+    const payload = {
+        id: value('plan-id'),
+        name: value('plan-name').trim(),
+        days: value('plan-days'),
+        rate: value('plan-rate'),
+        min_rate: value('plan-min-rate'),
+        channel_quota: value('plan-channel-quota'),
+        allowed_channels: checkedChannels,
+        price: value('plan-price'),
+        limit_count: value('plan-limit-count'),
+        memo: value('plan-memo').trim(),
+        sort_order: value('plan-sort-order'),
+        status: root.querySelector('input[name="plan_status"]:checked')?.value || '1'
+    };
     await mutatePlan(context, '/api/admin/packvip/save', payload, '套餐保存成功！');
     if (!signal.aborted) closePlanEditor(root);
 }
@@ -99,7 +173,9 @@ async function mutatePlan(context, url, values, success) {
         if (payload.code !== 1) throw new Error(payload.msg || '操作失败');
         ui.showToast(payload.msg || success);
         await loadPlans(context);
-    } catch (error) { if (error?.name !== 'AbortError') ui.showToast(error.message, 'error'); }
+    } catch (error) {
+        if (error?.name !== 'AbortError') ui.showToast(error.message, 'error');
+    }
 }
 
 function setText(root, id, value) { const element = root.querySelector(`#${id}`); if (element) element.textContent = value; }

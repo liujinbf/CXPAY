@@ -86,13 +86,20 @@
                 </div>
 
                 <!-- 6. 绑定通道 (动态读取已安装驱动) -->
-                <div class="grid grid-cols-12 items-center gap-4">
-                    <label class="col-span-3 text-right font-medium text-slate-600">绑定通道</label>
-                    <div class="col-span-9">
-                        <select id="plan-allowed-channels" multiple class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs h-24 focus:outline-none focus:border-blue-500">
-                            <option value="" disabled class="text-slate-400">正在读取已安装支付插件驱动...</option>
-                        </select>
-                        <span class="text-[10px] text-slate-400 mt-1 block">按住 Ctrl / Command 键可按需选择该套餐支持的支付驱动插件</span>
+                <div class="grid grid-cols-12 items-start gap-4">
+                    <label class="col-span-3 text-right font-medium text-slate-600 pt-1.5">绑定通道</label>
+                    <div class="col-span-9 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] text-slate-400">勾选此套餐允许商户开通的通道驱动</span>
+                            <div class="flex items-center gap-3">
+                                <button type="button" id="btn-plan-select-all" class="text-xs text-blue-600 font-bold hover:text-blue-700">一键全选</button>
+                                <span class="text-slate-300">|</span>
+                                <button type="button" id="btn-plan-clear-all" class="text-xs text-slate-500 font-bold hover:text-slate-700">清空</button>
+                            </div>
+                        </div>
+                        <div id="plan-channels-grid" class="max-h-56 overflow-y-auto p-3 border border-slate-200 rounded-xl bg-slate-50/70 space-y-2">
+                            <div class="text-slate-400 text-xs text-center py-4">正在读取已安装支付插件驱动...</div>
+                        </div>
                     </div>
                 </div>
 

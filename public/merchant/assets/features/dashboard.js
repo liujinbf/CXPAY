@@ -110,14 +110,29 @@ async function initTrendChart({ api, signal }) {
     }
     const amounts = Array(7).fill(0);
     chart.setOption({
-        tooltip: { trigger: 'axis', formatter: (items) => `${items[0].name}<br/>收款：¥${items[0].value.toFixed(2)}` },
-        grid: { top: 10, right: 16, bottom: 20, left: 54 },
+        tooltip: { trigger: 'axis', formatter: (items) => `${items[0].name}<br/>收款：¥${(Number(items[0].value) || 0).toFixed(2)}` },
+        grid: { top: 16, right: 16, bottom: 12, left: 16, containLabel: true },
         xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#e2e8f0' } }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
         yAxis: { type: 'value', axisLabel: { color: '#94a3b8', fontSize: 11, formatter: '¥{value}' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
         series: [{ data: amounts, type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { color: '#3b82f6', width: 2.5 }, areaStyle: { color: 'rgba(59,130,246,0.12)' }, itemStyle: { color: '#3b82f6' } }],
     });
+
+    // 监听窗口与容器自适应
     resizeHandler = () => chart?.resize();
     window.addEventListener('resize', resizeHandler, { signal });
+
+    if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => {
+            chart?.resize();
+        });
+        ro.observe(chartElement);
+    }
+
+    // 延迟一帧强制刷新尺寸，防止 flex/grid 初始宽度计算偏差
+    requestAnimationFrame(() => {
+        chart?.resize();
+        setTimeout(() => chart?.resize(), 100);
+    });
 
     try {
         const response = await api.merchantFetch('/api/merchant/order/list?page_size=200&status=1', { signal });
@@ -130,7 +145,8 @@ async function initTrendChart({ api, signal }) {
             const key = `${date.getMonth() + 1}/${date.getDate()}`;
             if (Object.hasOwn(totals, key)) totals[key] += Number(order.price || order.amount || 0);
         });
-        chart.setOption({ series: [{ data: days.map((day) => totals[day]) }] });
+        chart?.setOption({ series: [{ data: days.map((day) => totals[day]) }] });
+        chart?.resize();
     } catch (error) {
         if (error?.name !== 'AbortError') console.warn('商户趋势数据加载失败：', error);
     }

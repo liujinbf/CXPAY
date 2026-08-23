@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CXPAY 手机监控助手 - 官方安装包下载</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        .wechat-mask {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.92);
+            z-index: 9999;
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between p-6">
+
+    <!-- 微信内扫码提示遮罩 -->
+    <div id="wechat-guide-mask" class="wechat-mask flex-col items-end p-6 text-right animate-in fade-in duration-200">
+        <div class="flex items-center gap-2 text-amber-300 font-extrabold text-base mb-3 pr-2">
+            <span>点击右上角【···】</span>
+            <span class="text-2xl animate-bounce">↗</span>
+        </div>
+        <div class="p-4 bg-slate-900 border border-slate-700/80 rounded-2xl text-left text-xs text-slate-200 space-y-2 shadow-2xl max-w-xs">
+            <p class="font-bold text-amber-400 text-sm">💡 微信/QQ 安全限制提示：</p>
+            <p class="leading-relaxed">微信内部禁止直接下载安装 APK。请点击右上角 <span class="font-bold text-white">【···】</span>，选择 <span class="font-bold text-emerald-400">【在浏览器中打开】</span> 即可秒级极速下载！</p>
+        </div>
+    </div>
+
+    <!-- 顶部导航 -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-blue-500/20">
+                CX
+            </div>
+            <div>
+                <h1 class="font-extrabold text-sm text-white">CXPAY 手机助手</h1>
+                <p class="text-[10px] text-slate-400 font-mono">Official Android Assistant</p>
+            </div>
+        </div>
+        <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-[11px] font-extrabold">v1.3.1 最新版</span>
+    </div>
+
+    <!-- 中间核心下载卡片 -->
+    <div class="my-auto py-8 space-y-6">
+        <div class="p-6 bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl space-y-5 text-center">
+            
+            <!-- App Icon -->
+            <div class="relative w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700/60 p-3 shadow-inner flex items-center justify-center">
+                <div class="w-full h-full rounded-2xl bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center text-white text-3xl shadow-md">
+                    🛡️
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-lg font-black text-white">CXPAY 手机监控助手</h2>
+                <p class="text-xs text-slate-400 mt-1">微信 · 支付宝 · QQ 钱包通知毫秒级拦截核销</p>
+            </div>
+
+            <!-- 参数详情 -->
+            <div class="grid grid-cols-3 gap-2 p-3 bg-slate-950/60 border border-slate-800/80 rounded-2xl text-[11px]">
+                <div>
+                    <span class="text-slate-500 block">版本号</span>
+                    <span class="font-bold text-slate-200">v1.3.1</span>
+                </div>
+                <div>
+                    <span class="text-slate-500 block">安装包大小</span>
+                    <span class="font-bold text-slate-200">5.55 MB</span>
+                </div>
+                <div>
+                    <span class="text-slate-500 block">系统要求</span>
+                    <span class="font-bold text-slate-200">Android 5.0+</span>
+                </div>
+            </div>
+
+            <!-- 更新日志 -->
+            <div class="text-left p-3.5 bg-slate-800/40 border border-slate-700/40 rounded-2xl text-xs space-y-1.5">
+                <span class="font-bold text-slate-300 block">🌟 本次更新亮点：</span>
+                <p class="text-slate-400 text-[11px] leading-relaxed">
+                    • 优化主界面顶部布局，消除文字折行与截断<br>
+                    • 内置系统级永久保活与防掉线设置指引<br>
+                    • 收款统计区分微信与支付宝通道明细<br>
+                    • 支持应用内一键自动检测更新与下载安装
+                </p>
+            </div>
+
+            <!-- 下载按钮 -->
+            <div class="space-y-2 pt-2">
+                <a id="btn-main-download" href="/download/CXPayAssistant.apk" class="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] text-white font-extrabold rounded-2xl shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 text-sm transition-all">
+                    <span>⚡ 立即极速下载 APK (v1.3.1)</span>
+                </a>
+                <a href="/api/appasst/download" class="block text-[11px] text-slate-400 hover:text-slate-200 underline pt-1">
+                    备用下载通道 (备用节点)
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部保障说明 -->
+    <div class="text-center space-y-2 pb-2">
+        <div class="flex items-center justify-center gap-4 text-[11px] text-slate-400 font-medium">
+            <span class="flex items-center gap-1">✅ 官方安全认证</span>
+            <span class="flex items-center gap-1">🔒 0 权限越界</span>
+            <span class="flex items-center gap-1">⚡ 毫秒级回调</span>
+        </div>
+        <p class="text-[10px] text-slate-600 font-mono">© 2026 CXPAY · 官方出品 必属精品</p>
+    </div>
+
+    <script>
+        const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+        const isQQ = /QQ\//i.test(navigator.userAgent);
+
+        if (isWeChat || isQQ) {
+            document.getElementById('wechat-guide-mask').style.display = 'flex';
+        } else {
+            // 普通浏览器打开时，延迟 800ms 自动触发一次下载
+            setTimeout(() => {
+                const btn = document.getElementById('btn-main-download');
+                if (btn) {
+                    window.location.href = btn.href;
+                }
+            }, 800);
+        }
+    </script>
+</body>
+</html>

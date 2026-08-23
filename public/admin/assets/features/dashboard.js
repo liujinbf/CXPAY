@@ -101,6 +101,17 @@ async function loadTrend({ root, api, signal }) {
     const days = recentDays();
     chart.setOption(trendOptions(days, days.map(() => 0)));
 
+    if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => {
+            chart?.resize();
+        });
+        ro.observe(chartElement);
+    }
+    requestAnimationFrame(() => {
+        chart?.resize();
+        setTimeout(() => chart?.resize(), 100);
+    });
+
     try {
         const response = await api.adminFetch('/api/admin/order/list?page_size=300&status=1', { signal });
         const payload = await response.json();
@@ -108,12 +119,23 @@ async function loadTrend({ root, api, signal }) {
 
         const totals = Object.fromEntries(days.map((day) => [day, 0]));
         payload.data.data.forEach((order) => {
-            if (Number(order.status) !== 1 || !order.pay_time && !order.paid_at) return;
-            const paidAt = new Date(String(order.pay_time || order.paid_at).replace(' ', 'T'));
+            if (Number(order.status) !== 1) return;
+            const pt = order.pay_time || order.paid_at;
+            if (!pt) return;
+            let paidAt = null;
+            if (typeof pt === 'number' || /^\d+$/.test(String(pt).trim())) {
+                paidAt = new Date(Number(pt) * 1000);
+            } else {
+                paidAt = new Date(String(pt).replace(/-/g, '/'));
+            }
+            if (!paidAt || isNaN(paidAt.getTime())) return;
             const key = `${paidAt.getMonth() + 1}/${paidAt.getDate()}`;
-            if (Object.hasOwn(totals, key)) totals[key] += Number(order.price || order.amount || 0);
+            if (Object.hasOwn(totals, key)) {
+                totals[key] += Number(order.price || order.amount || 0);
+            }
         });
         chart?.setOption({ series: [{ data: days.map((day) => totals[day]) }] });
+        chart?.resize();
     } catch (error) {
         if (error?.name !== 'AbortError') console.warn('趋势数据加载失败，保留占位图', error);
     }
@@ -132,8 +154,8 @@ function recentDays() {
 
 function trendOptions(days, amounts) {
     return {
-        tooltip: { trigger: 'axis', formatter: (items) => `${items[0].name}<br/>流水：¥${items[0].value.toFixed(2)}` },
-        grid: { top: 10, right: 16, bottom: 20, left: 60 },
+        tooltip: { trigger: 'axis', formatter: (items) => `${items[0].name}<br/>流水：¥${(Number(items[0].value) || 0).toFixed(2)}` },
+        grid: { top: 16, right: 16, bottom: 12, left: 16, containLabel: true },
         xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#e2e8f0' } }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
         yAxis: { type: 'value', axisLabel: { color: '#94a3b8', fontSize: 11, formatter: '¥{value}' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
         series: [{

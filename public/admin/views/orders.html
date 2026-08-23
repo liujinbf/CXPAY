@@ -3,7 +3,10 @@
     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
         <i data-lucide="receipt" class="w-5 h-5 text-sky-600"></i> 交易订单检索与补单重发
     </h3>
-    <div class="flex gap-2 text-xs">
+    <div class="flex items-center gap-2 text-xs">
+        <button data-action="batch-clean-orders" class="px-3 py-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-xl font-bold border border-rose-200 transition-all flex items-center gap-1 cursor-pointer">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 一键清理未完成订单
+        </button>
         <input id="admin-order-search" type="search" placeholder="搜索平台单号/商户单号" class="px-3 py-2 border border-slate-200 rounded-xl">
         <select id="admin-order-status" class="px-3 py-2 border border-slate-200 rounded-xl">
             <option value="">全部状态</option>
@@ -12,16 +15,31 @@
             <option value="2">已关闭/超时</option>
             <option value="3">已退款</option>
         </select>
-        <button data-action="search-orders" class="px-3 py-2 bg-blue-600 text-white rounded-xl font-bold">检索</button>
+        <button data-action="search-orders" class="px-3 py-2 bg-blue-600 text-white rounded-xl font-bold cursor-pointer">检索</button>
     </div>
 </div>
+
+<!-- 时间范围筛选 -->
+<div class="flex items-center gap-2 text-xs flex-wrap">
+    <span class="text-slate-400 font-semibold">创建时间：</span>
+    <input id="order-date-start" type="date" class="px-3 py-1.5 border border-slate-200 rounded-xl bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-400">
+    <span class="text-slate-400">至</span>
+    <input id="order-date-end" type="date" class="px-3 py-1.5 border border-slate-200 rounded-xl bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-400">
+    <button data-action="date-today" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors">今天</button>
+    <button data-action="date-yesterday" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors">昨天</button>
+    <button data-action="date-7d" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors">近7天</button>
+    <button data-action="date-clear" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-400 rounded-xl transition-colors">清除日期</button>
+    <span id="order-result-count" class="ml-auto text-slate-400"></span>
+</div>
+
 <div class="overflow-x-auto">
 <table class="w-full text-left text-xs text-slate-600">
     <thead class="bg-slate-50 uppercase font-semibold border-b">
         <tr>
             <th class="p-3">订单号</th>
             <th class="p-3">商户 PID</th>
-            <th class="p-3">金额</th>
+            <th class="p-3">下单金额</th>
+            <th class="p-3">实付金额</th>
             <th class="p-3">状态</th>
             <th class="p-3">创建时间</th>
             <th class="p-3">支付时间</th>
@@ -29,9 +47,23 @@
         </tr>
     </thead>
     <tbody id="order-table-body" class="divide-y divide-slate-100">
-        <tr><td colspan="7" class="p-6 text-center text-slate-400">正在加载订单数据...</td></tr>
+        <tr><td colspan="8" class="p-6 text-center text-slate-400">正在加载订单数据...</td></tr>
     </tbody>
 </table>
 </div>
-</section>
 
+<!-- 分页 -->
+<div id="order-pagination" class="flex items-center justify-between text-xs text-slate-500 pt-1 hidden">
+    <span id="order-page-info">第 1 页</span>
+    <div class="flex gap-1">
+        <button data-action="order-prev-page" class="px-3 py-1.5 border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">← 上一页</button>
+        <span id="order-page-indicator" class="px-3 py-1.5 bg-blue-600 text-white rounded-xl font-bold">1</span>
+        <button data-action="order-next-page" class="px-3 py-1.5 border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">下一页 →</button>
+    </div>
+    <select id="order-page-size" class="px-2 py-1.5 border border-slate-200 rounded-xl">
+        <option value="20">20条/页</option>
+        <option value="50">50条/页</option>
+        <option value="100">100条/页</option>
+    </select>
+</div>
+</section>

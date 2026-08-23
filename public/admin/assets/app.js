@@ -18,6 +18,12 @@ definitions.set('plan-mgmt', { view: 'plans.html', module: 'plans.js' });
 definitions.set('order-list', { view: 'orders.html', module: 'orders.js' });
 definitions.set('callbill-review', { view: 'callbill.html', module: 'callbill.js' });
 definitions.set('alert-config', { view: 'alerts.html', module: 'alerts.js' });
+definitions.set('report', { view: 'report.html', module: 'report.js' });
+definitions.set('security', { view: 'security.html', module: 'security.js' });
+definitions.set('sys-config', { view: 'sys-config.html', module: 'sys-config.js' });
+definitions.set('poll-group', { view: 'poll-group.html', module: 'poll-group.js' });
+definitions.set('bill-source', { view: 'bill-source.html', module: 'bill-source.js' });
+definitions.set('agent-hub', { view: 'agent-hub.html', module: 'agent-hub.js' });
 const tabTitles = {
     dashboard: '控制台仪表盘',
     'channel-config': '收款通道配置',
@@ -29,13 +35,73 @@ const tabTitles = {
     'callbill-review': '到账账单复核',
     'system-update': '系统 Git 一键更新',
     'alert-config': '系统告警与通知',
+    report: '交易统计报表',
+    security: '管理员安全设置',
+    'sys-config': '系统运营配置',
+    'poll-group': '轮询组管理（开发中）',
+    'bill-source': '账单来源管理',
+    'agent-hub': '👑 OEM 代理加盟中心',
 };
+
+const tabGroupMap = {
+    dashboard: 'overview',
+    report: 'overview',
+    'channel-config': 'channels',
+    'plugin-market': 'channels',
+    'cloud-monitor': 'channels',
+    'poll-group': 'channels',
+    'merchant-mgmt': 'merchants',
+    'plan-mgmt': 'merchants',
+    'order-list': 'finance',
+    'callbill-review': 'finance',
+    'bill-source': 'finance',
+    'sys-config': 'system',
+    'alert-config': 'system',
+    security: 'system',
+    'system-update': 'system',
+    'agent-hub': 'agent',
+};
+
+function toggleAccordion(groupId) {
+    const body = document.getElementById('body-' + groupId);
+    const chevron = document.getElementById('chevron-' + groupId);
+    if (!body) return;
+
+    const isCollapsed = body.classList.contains('collapsed');
+    if (isCollapsed) {
+        body.classList.remove('collapsed');
+        body.classList.add('expanded');
+        if (chevron) chevron.classList.add('rotate-180');
+    } else {
+        body.classList.remove('expanded');
+        body.classList.add('collapsed');
+        if (chevron) chevron.classList.remove('rotate-180');
+    }
+}
+
+function ensureGroupExpanded(groupId) {
+    const body = document.getElementById('body-' + groupId);
+    const chevron = document.getElementById('chevron-' + groupId);
+    if (body) {
+        body.classList.remove('collapsed');
+        body.classList.add('expanded');
+    }
+    if (chevron) chevron.classList.add('rotate-180');
+}
+
+window.ensureGroupExpanded = ensureGroupExpanded;
+window.toggleAccordion = toggleAccordion;
 
 function updateNavigation(id) {
     document.querySelectorAll('.nav-btn').forEach((button) => {
         button.classList.remove('nav-link-active');
     });
     document.getElementById(`nav-${id}`)?.classList.add('nav-link-active');
+
+    const groupId = tabGroupMap[id];
+    if (groupId) {
+        ensureGroupExpanded(groupId);
+    }
 
     if (location.hash !== `#${id}`) {
         history.replaceState(null, '', `#${id}`);
@@ -60,6 +126,13 @@ const router = routerModule.createRouter({
 window.CXAdmin = Object.freeze({ api, ui, navigate: router.navigate });
 
 document.getElementById('app')?.addEventListener('click', (event) => {
+    const accordionHeader = event.target.closest?.('.accordion-header, [data-action="toggle-accordion"]');
+    if (accordionHeader) {
+        const group = accordionHeader.dataset.group || accordionHeader.closest?.('.accordion-group')?.dataset.group;
+        if (group) toggleAccordion(group);
+        return;
+    }
+
     const target = event.target.closest?.('[data-tab], [data-action]');
     if (!target) return;
 
@@ -89,3 +162,26 @@ let hashTab = (location.hash || '').replace('#', '').trim();
 if (hashTab.includes('?')) hashTab = hashTab.split('?')[0];
 const initialTab = hashTab || 'dashboard';
 router.navigate(initialTab);
+
+// 启动后检测代理商资质，有权限才显示 OEM 代理中心入口
+(async () => {
+    try {
+        const res = await api.adminFetch('/api/admin/agent/profile');
+        if (res.status === 200) {
+            const data = await res.json();
+            if (data.code === 1 && data.data && data.data.can_issue === true) {
+                const navEl = document.getElementById('nav-agent-hub');
+                if (navEl) navEl.classList.remove('hidden');
+                // 同时显示分组容器并展开
+                const grpDiv = document.getElementById('group-agent');
+                if (grpDiv) grpDiv.classList.remove('hidden');
+                const grpBody = document.getElementById('body-agent');
+                const grpChevron = document.getElementById('chevron-agent');
+                if (grpBody) { grpBody.classList.remove('collapsed'); grpBody.classList.add('expanded'); }
+                if (grpChevron) grpChevron.classList.add('rotate-180');
+            }
+        }
+    } catch (_) {
+        // 无代理权限时静默忽略，不影响其他功能
+    }
+})();

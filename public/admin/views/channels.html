@@ -6,11 +6,41 @@
         </h2>
         <p class="text-xs text-slate-400 mt-1">控制全平台底层支付驱动的启用状态、轮询分配权重与高级通信参数</p>
     </div>
-    <div class="flex items-center gap-2">
-        <button data-action="refresh-channels" class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+    <div class="flex flex-wrap items-center gap-2">
+        <button type="button" data-action="open-isv-config" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="shield-check" class="w-4 h-4"></i> 🏢 支付宝 ISV 扫码代授权设置
+        </button>
+        <button type="button" data-action="open-clerk-config" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="user-check" class="w-4 h-4"></i> 📱 微信官方店员托管配置
+        </button>
+        <button type="button" data-action="create-channel" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i> 新建平台收款通道
+        </button>
+        <button type="button" data-action="refresh-channels" class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
             <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-500"></i> 刷新通道
         </button>
     </div>
+</div>
+
+<!-- 🌟 微信店员小账本·主站统一托管官方店员状态卡片 -->
+<div id="admin-clerk-status-card" class="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 text-white shadow-md flex flex-col md:flex-row items-center justify-between gap-4 border border-emerald-500/30">
+    <div class="flex items-center gap-3.5">
+        <div id="admin-clerk-avatar-box" class="w-12 h-12 rounded-xl bg-emerald-800/60 border border-emerald-400/40 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
+            <i data-lucide="user-check" class="w-6 h-6 text-emerald-300"></i>
+        </div>
+        <div class="space-y-0.5">
+            <div class="text-xs font-black flex items-center gap-2 text-emerald-300">
+                <span>📱 微信小账本·平台官方统一托管店员</span>
+                <span id="admin-clerk-status-badge" class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-400/30">读取中...</span>
+            </div>
+            <div class="text-[11px] text-slate-300">
+                当前官方店员昵称：<b id="admin-clerk-name-label" class="text-white">平台官方收款店员</b>（商户端将统一展示此店员二维码，商户 0 挂机）
+            </div>
+        </div>
+    </div>
+    <button type="button" data-action="open-clerk-config" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:scale-105 active:scale-95">
+        <i data-lucide="qr-code" class="w-4 h-4"></i> ⚙️ 快速设置 / 更换官方店员码
+    </button>
 </div>
 
 <!-- 顶部核心通道状态统计条 -->
@@ -59,63 +89,339 @@
 <div id="admin-channel-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
     <div class="p-8 text-center text-xs text-slate-400 col-span-full">正在加载平台全局通道...</div>
 </div>
-    <div id="channel-config-editor" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm flex items-center justify-center p-4">
-        <form data-role="channel-config-form" class="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+    <!-- 支付通道配置模态弹窗 (与商户端 100% 统一共用引擎) -->
+    <div id="add-channel-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center">
+                        <i data-lucide="layers" class="w-4 h-4 text-blue-400"></i>
+                    </div>
+                    <div>
+                        <h3 id="modal-title" class="text-sm font-extrabold text-white">配置平台收款通道</h3>
+                        <p class="text-[10px] text-slate-300">底层统一驱动直接接入云端插件与本地引擎</p>
+                    </div>
+                </div>
+                <button type="button" data-action="close-channel-editor" class="text-slate-400 hover:text-white p-1 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4 text-xs overflow-y-auto flex-1 custom-scrollbar">
+                <input id="channel-id-input" type="hidden" value="0">
+
                 <div>
-                    <h3 id="channel-config-title" class="font-extrabold text-slate-800 text-base">配置支付通道参数</h3>
-                    <p id="channel-config-subtitle" class="text-xs text-slate-400 font-mono mt-0.5"></p>
+                    <label class="block font-bold text-slate-700 mb-1"><span class="text-rose-500">*</span> 支付分类</label>
+                    <select id="channel-c-type" data-action="change-category" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold bg-white">
+                        <option value="wxpay">微信支付 (WeChat Pay)</option>
+                        <option value="alipay">支付宝 (Alipay)</option>
+                        <option value="qqpay">QQ 钱包 (QQ Pay)</option>
+                        <option value="usdt">USDT 区块链收款 (USDT-TRC20)</option>
+                    </select>
                 </div>
-                <button type="button" data-action="close-channel-editor" class="text-slate-400 hover:text-slate-700 text-xl font-bold">✕</button>
-            </div>
-            
-            <input id="channel-config-id" type="hidden" value="0">
-            <input id="channel-config-ctype" type="hidden" value="">
 
-            <!-- 基础路由与权重配置 -->
-            <div class="grid grid-cols-2 gap-3 text-xs">
-                <label class="space-y-1">
-                    <span class="font-bold text-slate-700">通道显示名称 *</span>
-                    <input id="channel-config-name" required maxlength="100" class="w-full px-3 py-2 border rounded-xl">
-                </label>
-                <label class="space-y-1">
-                    <span class="font-bold text-slate-700">轮询权重 (1-10000) *</span>
-                    <input id="channel-config-weight" required type="number" min="1" max="10000" value="100" class="w-full px-3 py-2 border rounded-xl font-mono">
-                </label>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 text-xs">
-                <label class="space-y-1">
-                    <span class="font-bold text-slate-700">单笔最小金额 (元)</span>
-                    <input id="channel-config-min" type="number" step="0.01" value="0.00" class="w-full px-3 py-2 border rounded-xl font-mono">
-                </label>
-                <label class="space-y-1">
-                    <span class="font-bold text-slate-700">单笔最大金额 (元)</span>
-                    <input id="channel-config-max" type="number" step="0.01" value="0.00" class="w-full px-3 py-2 border rounded-xl font-mono">
-                </label>
-            </div>
-
-            <!-- 动态驱动 inputs 参数容器 -->
-            <div class="border-t border-slate-100 pt-3 space-y-3">
-                <div class="text-xs font-bold text-slate-800 flex items-center justify-between">
-                    <span>通信与密钥参数配置</span>
-                    <span class="text-[10px] text-slate-400 font-normal">敏感密钥将采用 Authcode 算法安全加密</span>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1"><span class="text-rose-500">*</span> 通道类型 (由已安装插件驱动决定)</label>
+                    <select id="channel-driver-list" data-action="change-driver" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold bg-white">
+                        <!-- 动态填充 -->
+                    </select>
+                    <div id="driver-config-fields" class="mt-3 space-y-3"></div>
                 </div>
-                <div id="channel-dynamic-inputs" class="space-y-3 text-xs">
-                    <!-- 动态加载驱动表单项 -->
-                    <div class="p-4 text-center text-slate-400 font-bold">正在读取驱动配置要求...</div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">自定义显示名称</label>
+                    <input id="channel-title-input" type="text" placeholder="留空则自动跟随通道类型名称" class="w-full px-3 py-2 border border-slate-200 rounded-xl font-bold">
+                </div>
+
+                <!-- 基础路由与权重配置 -->
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <label class="space-y-1">
+                        <span class="font-bold text-slate-700">轮询权重 (1-10000) *</span>
+                        <input id="channel-weight-input" required type="number" min="1" max="10000" value="100" class="w-full px-3 py-2 border rounded-xl font-mono">
+                    </label>
+                    <label class="space-y-1">
+                        <span class="font-bold text-slate-700">单笔最小/最大限制 (元)</span>
+                        <div class="flex items-center gap-1.5">
+                            <input id="channel-min-input" type="number" step="0.01" value="0.00" placeholder="最小" class="w-full px-2 py-2 border rounded-xl font-mono">
+                            <span class="text-slate-400">-</span>
+                            <input id="channel-max-input" type="number" step="0.01" value="0.00" placeholder="最大" class="w-full px-2 py-2 border rounded-xl font-mono">
+                        </div>
+                    </label>
+                </div>
+
+                <!-- 📷 上传个人收款码与解码 URL -->
+                <div id="static-qr-upload-box" class="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <label class="font-extrabold text-slate-800 text-xs flex items-center gap-1">
+                            <span>📷 收款码图片 / 解析 URL</span>
+                            <span id="qr-required-span" class="text-emerald-600 font-bold">(选填/免强制)</span>
+                        </label>
+                        <input type="file" id="channel-qr-file" accept="image/*" data-action="upload-qr" class="hidden">
+                        <button type="button" data-action="choose-qr-image" class="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-[11px] font-extrabold shadow-sm hover:bg-blue-700 flex items-center gap-1 cursor-pointer">
+                            <i data-lucide="upload" class="w-3.5 h-3.5"></i> 上传收款码图片自动识别
+                        </button>
+                    </div>
+                    <div id="qr-upload-status" class="text-[11px] text-emerald-900 font-medium leading-relaxed">
+                        图片仅在浏览器本地解析，识别结果会写入上方驱动配置，图片不会上传服务器。
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">备注说明</label>
+                    <input id="channel-remark-input" type="text" placeholder="例如：备用网关 / 主用官方渠道" class="w-full px-3 py-2 border border-slate-200 rounded-xl">
+                </div>
+
+                <div class="flex items-center justify-between pt-1">
+                    <span class="font-bold text-slate-700">通道启用状态</span>
+                    <input id="channel-status-input" type="checkbox" checked class="w-4 h-4 accent-blue-600 cursor-pointer">
                 </div>
             </div>
 
-            <!-- 备注说明 -->
-            <label class="block space-y-1 text-xs border-t border-slate-100 pt-3">
-                <span class="font-bold text-slate-700">通道备注说明</span>
-                <input id="channel-config-remark" maxlength="255" placeholder="例如：备用网关 / 主用官方渠道" class="w-full px-3 py-2 border rounded-xl">
-            </label>
+            <div class="flex justify-end gap-3 p-4 border-t border-slate-100 flex-shrink-0 bg-slate-50/50">
+                <button type="button" data-action="close-channel-editor" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
+                <button type="button" data-action="save-channel" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700">保存到数据库</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📱 平台官方统一托管店员 专属独立配置弹窗 -->
+    <div id="modal-platform-clerk-config" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <form data-role="platform-clerk-form" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                        <i data-lucide="user-check" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-slate-800 text-base">平台官方统一托管店员设置</h3>
+                        <p class="text-xs text-slate-400">设置后，所有商户在添加微信店员通道时将直接展示该二维码，实现 0 挂机</p>
+                    </div>
+                </div>
+                <button type="button" data-action="close-clerk-modal" class="text-slate-400 hover:text-slate-700 text-xl font-bold">✕</button>
+            </div>
+
+            <!-- 店员二维码上传与实时预览区 -->
+            <div class="space-y-2">
+                <label class="block font-bold text-slate-700 text-xs">
+                    官方店员微信名片二维码图片 <span class="text-rose-500">*</span>
+                </label>
+                <div class="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row items-center gap-4">
+                    <div id="admin-clerk-modal-preview" class="w-28 h-28 bg-white border border-emerald-300 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow-xs">
+                        <span class="text-[10px] text-slate-400 text-center px-1">暂无二维码图片</span>
+                    </div>
+                    <div class="space-y-2 text-xs flex-1">
+                        <div class="flex items-center gap-2">
+                            <label class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs cursor-pointer shadow-sm flex items-center gap-1.5 transition-all">
+                                <i data-lucide="upload" class="w-4 h-4"></i> 上传店员微信名片图片
+                                <input type="file" id="admin-clerk-file-input" accept="image/*" class="hidden">
+                            </label>
+                        </div>
+                        <p class="text-[11px] text-slate-500 leading-relaxed">
+                            支持微信名片二维码截图或文件。系统将在本地自动解码与超清优化，商户扫码即可一键发送店员邀请！
+                        </p>
+                    </div>
+                </div>
+                <input id="admin-clerk-qrcode-input" type="text" placeholder="店员二维码内容（上传图片自动生成，也可手动粘贴）" class="w-full px-3 py-2 border rounded-xl font-mono text-xs bg-slate-50">
+            </div>
+
+            <!-- 店员微信昵称 -->
+            <div class="space-y-1">
+                <label class="block font-bold text-slate-700 text-xs">
+                    官方店员微信昵称 <span class="text-rose-500">*</span>
+                </label>
+                <input id="admin-clerk-name-input" required maxlength="50" placeholder="例如：平台官方收款店员" value="平台官方收款店员" class="w-full px-3 py-2 border rounded-xl font-bold text-xs">
+                <p class="text-[10px] text-slate-400">将展示在商户端配置提示中，方便商户确认添加的是官方店员。</p>
+            </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                <button type="button" data-action="close-channel-editor" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
-                <button type="submit" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 shadow-md">保存并启用配置</button>
+                <button type="button" data-action="close-clerk-modal" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
+                <button type="submit" class="px-5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 shadow-md flex items-center gap-1.5">
+                    <i data-lucide="check" class="w-4 h-4"></i> 保存并全局同步生效
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 📱 手机助手一键扫码自动配对模态弹窗 -->
+    <div id="appasst-pair-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center">
+                        <i data-lucide="smartphone" class="w-4 h-4 text-emerald-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                            <span>CXPAY 手机助手 - 扫码免配置绑定</span>
+                            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full text-[10px]">Zero-Config</span>
+                        </h3>
+                        <p class="text-[10px] text-slate-300">打开手机助手 App 点击【扫一扫】，秒级自动填充并绑定全部通道</p>
+                    </div>
+                </div>
+                <button type="button" data-action="close-appasst-modal" class="text-slate-400 hover:text-white p-1 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5 text-xs overflow-y-auto flex-1 custom-scrollbar">
+                <!-- 两步配对指南 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <!-- 第一步：下载 App -->
+                    <div class="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl flex flex-col items-center text-center space-y-3">
+                        <div class="w-full flex items-center justify-between text-left">
+                            <span class="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+                                <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">1</span>
+                                下载安装监控助手
+                            </span>
+                            <span class="text-[10px] text-emerald-600 font-bold">v1.2.0</span>
+                        </div>
+
+                        <div id="appasst-download-qrcode" class="p-2.5 bg-white border border-slate-200 rounded-xl shadow-inner min-h-[140px] flex items-center justify-center">
+                            <div class="text-[11px] text-slate-400">正在生成下载二维码...</div>
+                        </div>
+
+                        <div class="space-y-1.5 w-full">
+                            <p class="text-[11px] text-slate-500">使用安卓手机浏览器扫码或直接下载</p>
+                            <a href="/download/CXPayAssistant.apk" download class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-1.5 text-xs shadow-sm transition-colors">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> 直接下载 APK
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- 第二步：扫码配对 -->
+                    <div class="p-4 bg-gradient-to-b from-indigo-50/60 to-white border border-indigo-100 rounded-2xl flex flex-col items-center text-center space-y-3">
+                        <div class="w-full flex items-center justify-between text-left">
+                            <span class="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+                                <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-[11px] flex items-center justify-center font-bold">2</span>
+                                App 扫码一键秒级绑定
+                            </span>
+                            <span class="text-[10px] text-indigo-600 font-bold">自动启动</span>
+                        </div>
+
+                        <div id="appasst-pair-qrcode" class="p-2.5 bg-white border border-indigo-200 rounded-xl shadow-inner min-h-[140px] flex items-center justify-center">
+                            <div class="text-[11px] text-slate-400">正在生成专属配对码...</div>
+                        </div>
+
+                        <div class="space-y-1 w-full text-center">
+                            <p class="text-[11px] text-indigo-900 font-bold">打开 App 首页 ➔ 点击【📷 扫一扫绑定】</p>
+                            <p class="text-[10px] text-slate-400">所有通道ID与通信密钥将自动写入并立即保活上线</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 当前绑定的通道参数详情展示卡 -->
+                <div class="p-4 bg-slate-900 text-slate-100 rounded-2xl space-y-2.5 font-mono text-[11px]">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 text-xs font-bold text-emerald-400">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="shield-check" class="w-4 h-4"></i> 平台专属加密配对凭据
+                        </span>
+                        <button type="button" data-action="regen-appasst-secret" class="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 重新生成防泄漏密钥
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-slate-300">
+                        <div>主站地址: <span id="appasst-cfg-server" class="text-white"></span></div>
+                        <div>平台设备码: <span id="appasst-cfg-device" class="text-amber-300">AND_MCH_0</span></div>
+                        <div>绑定微信通道: <span id="appasst-cfg-wx" class="text-emerald-400">自动识别</span></div>
+                        <div>绑定支付宝通道: <span id="appasst-cfg-ali" class="text-blue-400">自动识别</span></div>
+                    </div>
+                    <div class="text-slate-400 truncate">
+                        HMAC 通信密钥: <span id="appasst-cfg-secret" class="text-slate-200">••••••••••••••••••••••••</span>
+                    </div>
+                </div>
+
+                <!-- 安全防护与防外泄说明 -->
+                <div class="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl text-[11px] text-amber-900 space-y-1">
+                    <div class="font-extrabold flex items-center gap-1 text-amber-950">
+                        <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-600"></i> 防泄漏与安全管控建议：
+                    </div>
+                    <ul class="list-disc pl-4 space-y-0.5 text-amber-800">
+                        <li>配对二维码包含该通道专属推送秘钥，请在私密环境下扫码，勿将二维码截屏外传。</li>
+                        <li>若挂机手机丢失，可随时点击右上角<b>「重新生成防泄漏密钥」</b>，旧手机将立即失效。</li>
+                    </ul>
+                </div>
+
+                <!-- 底部按钮 -->
+                <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                    <button type="button" data-action="close-appasst-modal" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors">
+                        完成并关闭
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🏢 支付宝 ISV 扫码代授权主应用 专属独立配置弹窗 -->
+    <div id="modal-platform-isv-config" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <form data-role="platform-isv-form" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            <div class="px-6 py-4 bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center font-bold text-lg">
+                        🏢
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-white text-base">支付宝 ISV 扫码代授权主应用配置</h3>
+                        <p class="text-xs text-blue-200/80">配置后，商户在添加当面付时可直接用手机支付宝扫码点同意，1秒完成绑定</p>
+                    </div>
+                </div>
+                <button type="button" data-action="close-isv-modal" class="text-slate-400 hover:text-white text-xl font-bold p-1">✕</button>
+            </div>
+
+            <div class="p-6 space-y-4 text-xs overflow-y-auto flex-1 custom-scrollbar">
+                <!-- 📖 5步获取指南说明卡片 -->
+                <div class="p-4 bg-gradient-to-br from-blue-50/80 via-indigo-50/40 to-slate-50 border border-blue-100 rounded-2xl space-y-2.5 text-slate-700 leading-relaxed">
+                    <div class="font-black text-blue-950 text-xs flex items-center gap-1.5">
+                        <i data-lucide="info" class="w-4 h-4 text-blue-600"></i>
+                        <span>📌 支付宝第三方应用 (ISV) 获取与配置指引（5步接入）：</span>
+                    </div>
+                    <div class="space-y-1 text-[11px] text-slate-600">
+                        <p><b>① 登录开放平台</b>：访问 <a href="https://open.alipay.com" target="_blank" class="text-blue-600 font-bold underline">支付宝开放平台 (open.alipay.com)</a> ➔ 控制台 ➔ 创建应用 ➔ 选择 <b>【第三方应用】</b>；</p>
+                        <p><b>② 获取 AppID</b>：创建后在应用基本信息中复制 <b>APPID</b>（填入下方第一项）；</p>
+                        <p><b>③ 生成并配置 RSA2 密钥</b>：使用 <a href="https://opendocs.alipay.com/common/02kipl" target="_blank" class="text-blue-600 font-bold underline">官方开发助手 (密钥工具)</a> 生成 PKCS8/RSA2 密钥，应用公钥填入支付宝后台，应用私钥填入下方第二项；</p>
+                        <p><b>④ 配置授权回调地址</b>：在支付宝应用详情 ➔ 开发信息 ➔ 授权回调地址 中填入：</p>
+                        <div class="p-2.5 bg-white rounded-xl border border-blue-200 flex items-center justify-between gap-2 font-mono text-[11px] text-blue-900 shadow-inner">
+                            <span id="admin-isv-callback-url-text" class="truncate select-all font-bold">读取中...</span>
+                            <button type="button" data-action="copy-isv-callback-url" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[10px] whitespace-nowrap cursor-pointer shadow-xs flex items-center gap-1 transition-all">
+                                📋 复制地址
+                            </button>
+                        </div>
+                        <p><b>⑤ 添加功能包</b>：在应用「功能信息」中添加 <b>【当面付】</b> 与 <b>【第三方应用授权】</b> 功能包并上线应用。</p>
+                    </div>
+                </div>
+
+                <!-- AppID 输入 -->
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700 text-xs">
+                        支付宝第三方应用 AppID (ALIPAY_ISV_APP_ID) <span class="text-rose-500">*</span>
+                    </label>
+                    <input id="admin-isv-appid-input" required maxlength="50" placeholder="例如: 202100xxxxxxxxxx" class="w-full px-3 py-2 border rounded-xl font-mono font-bold text-xs bg-slate-50 focus:bg-white">
+                </div>
+
+                <!-- 应用私钥输入 -->
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700 text-xs">
+                        应用私钥 RSA2 Private Key (ALIPAY_ISV_PRIVATE_KEY) <span class="text-rose-500">*</span>
+                    </label>
+                    <textarea id="admin-isv-privkey-input" rows="4" placeholder="粘贴生成的应用私钥 (PKCS8 无需头尾标记)" class="w-full px-3 py-2 border rounded-xl font-mono text-xs bg-slate-50 focus:bg-white"></textarea>
+                </div>
+
+                <!-- 支付宝公钥输入 -->
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700 text-xs">
+                        支付宝公钥 Alipay Public Key (可选 / ALIPAY_ISV_PUBLIC_KEY)
+                    </label>
+                    <textarea id="admin-isv-pubkey-input" rows="3" placeholder="支付宝后台加签配置后自动生成的支付宝公钥（可选）" class="w-full px-3 py-2 border rounded-xl font-mono text-xs bg-slate-50 focus:bg-white"></textarea>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between p-4 border-t border-slate-100 bg-slate-50/50 flex-shrink-0">
+                <span class="text-[11px] text-slate-400">配置将安全持久化存储至系统底层数据库</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" data-action="close-isv-modal" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">取消</button>
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer">
+                        <i data-lucide="check" class="w-4 h-4"></i> 保存并立即生效
+                    </button>
+                </div>
             </div>
         </form>
     </div>

@@ -4,87 +4,301 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>CXPAY - 商业级聚合支付管理控制台</title>
+    <!-- TailwindCSS & Lucide & ECharts & QRCode -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        .glass-panel { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px -2px rgba(0,0,0,0.03); }
-        .nav-group-title { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px 4px; }
-        .nav-link-active { background-color: #eff6ff !important; color: #2563eb !important; font-weight: 700 !important; }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "Plus Jakarta Sans", sans-serif;
+        }
+        .glass-panel {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 16px -2px rgba(0,0,0,0.03);
+        }
+        /* 侧边栏分组手风琴样式 */
+        .accordion-header {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #64748b;
+            padding: 9px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+        .accordion-header:hover {
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+        .accordion-header.active-group {
+            color: #0f172a;
+        }
+        .accordion-chevron {
+            transition: transform 0.2s ease;
+        }
+        .accordion-body {
+            transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
+            overflow: hidden;
+        }
+        .accordion-body.collapsed {
+            display: none;
+        }
+        .accordion-body.expanded {
+            display: block;
+        }
+
+        /* 子菜单项样式 */
+        .sub-nav-btn {
+            font-size: 12px;
+            font-weight: 500;
+            color: #475569;
+            padding: 7.5px 12px 7.5px 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+        .sub-nav-btn:hover {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+        .sub-nav-btn.nav-link-active {
+            background-color: #eff6ff !important;
+            color: #2563eb !important;
+            font-weight: 700 !important;
+        }
+        .sub-nav-btn.nav-link-active::before {
+            content: '';
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: #2563eb;
+        }
+
+        /* 侧边栏滚动条 */
+        .sidebar-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 4px;
+        }
+        .sidebar-scroll:hover::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+        }
     </style>
 </head>
 
-<body class="h-screen w-screen overflow-hidden text-slate-700">
+<body class="h-screen w-screen overflow-hidden text-slate-700 bg-slate-50">
     <div id="app" class="h-screen w-screen flex overflow-hidden">
 
-        <!-- 左侧二级级联折叠 Sidebar -->
-        <aside class="w-64 h-full bg-white border-r border-slate-200 flex flex-col justify-between p-3 select-none flex-shrink-0">
-            <div class="overflow-y-auto flex-1">
-                <!-- Brand Title -->
-                <div class="flex items-center gap-2.5 px-3 py-3 mb-2 border-b border-slate-100">
-                    <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md">CX</div>
-                    <div>
-                        <span class="text-base font-extrabold text-slate-800 tracking-tight">CXPAY 控制台</span>
-                        <span class="block text-[10px] text-blue-600 font-mono font-bold">聚合支付管理后台</span>
+        <!-- 左侧现代商务级手风琴折叠 Sidebar -->
+        <aside id="main-sidebar" class="w-64 h-full bg-white border-r border-slate-200 flex flex-col justify-between p-3 select-none flex-shrink-0 z-20 transition-all duration-200">
+            <div class="overflow-y-auto sidebar-scroll flex-1 pr-1">
+                
+                <!-- 品牌 Brand Title -->
+                <div class="flex items-center justify-between px-2 py-2.5 mb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md shadow-blue-500/20">
+                            CX
+                        </div>
+                        <div>
+                            <span class="text-sm font-extrabold text-slate-800 tracking-tight block leading-none">CXPAY 控制台</span>
+                            <span class="text-[10px] text-blue-600 font-bold font-mono mt-1 inline-block">支付网关主站</span>
+                        </div>
                     </div>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 font-mono">v2.1</span>
                 </div>
 
-                <!-- 折叠级联 Navigation List -->
-                <nav class="space-y-1 text-xs">
-                    <!-- 1. 数据概览 -->
-                    <div class="nav-group-title">数据概览</div>
-                    <a data-tab="dashboard" id="nav-dashboard" class="nav-btn nav-link-active flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="layout-dashboard" class="w-4 h-4 text-blue-500"></i> 控制台仪表盘
-                    </a>
+                <!-- 导航分组手风琴体系 -->
+                <nav class="space-y-1.5">
 
-                    <!-- 2. 通道与轮询 -->
-                    <div class="nav-group-title">通道与轮询管理</div>
-                    <a data-tab="channel-config" id="nav-channel-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="settings-2" class="w-4 h-4 text-indigo-500"></i> 收款通道配置
-                    </a>
-                    <a data-tab="plugin-market" id="nav-plugin-market" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="package-check" class="w-4 h-4 text-amber-500"></i> 已安装支付驱动
-                    </a>
-                    <a data-tab="cloud-monitor" id="nav-cloud-monitor" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="cloud-cog" class="w-4 h-4 text-cyan-500"></i> 个人码云监控运维
-                    </a>
+                    <!-- 分组 1: 运营大盘与数据 -->
+                    <div class="accordion-group" data-group="overview">
+                        <div class="accordion-header active-group" data-action="toggle-accordion" data-group="overview">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="layout-grid" class="w-4 h-4 text-blue-600"></i>
+                                <span>运营大盘与数据</span>
+                            </div>
+                            <i data-lucide="chevron-down" id="chevron-overview" class="w-3.5 h-3.5 text-slate-400 accordion-chevron transform rotate-180"></i>
+                        </div>
+                        <div id="body-overview" class="accordion-body expanded space-y-0.5 mt-0.5">
+                            <a data-tab="dashboard" id="nav-dashboard" class="sub-nav-btn nav-btn nav-link-active">
+                                <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+                                <span>控制台仪表盘</span>
+                            </a>
+                            <a data-tab="report" id="nav-report" class="sub-nav-btn nav-btn">
+                                <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i>
+                                <span>交易统计报表</span>
+                            </a>
+                        </div>
+                    </div>
 
-                    <!-- 3. 商户与应用 -->
-                    <div class="nav-group-title">商户与会员</div>
-                    <a data-tab="merchant-mgmt" id="nav-merchant-mgmt" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="users" class="w-4 h-4 text-purple-500"></i> 商户账号与费率
-                    </a>
-                    <a data-tab="plan-mgmt" id="nav-plan-mgmt" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="gem" class="w-4 h-4 text-pink-500"></i> 套餐设置与配额
-                    </a>
+                    <!-- 分组 2: 支付通道与网关 -->
+                    <div class="accordion-group" data-group="channels">
+                        <div class="accordion-header" data-action="toggle-accordion" data-group="channels">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="credit-card" class="w-4 h-4 text-indigo-600"></i>
+                                <span>支付通道与网关</span>
+                            </div>
+                            <i data-lucide="chevron-down" id="chevron-channels" class="w-3.5 h-3.5 text-slate-400 accordion-chevron transform"></i>
+                        </div>
+                        <div id="body-channels" class="accordion-body collapsed space-y-0.5 mt-0.5">
+                            <a data-tab="channel-config" id="nav-channel-config" class="sub-nav-btn nav-btn">
+                                <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+                                <span>收款通道配置</span>
+                            </a>
+                            <a data-tab="plugin-market" id="nav-plugin-market" class="sub-nav-btn nav-btn">
+                                <i data-lucide="package-check" class="w-3.5 h-3.5"></i>
+                                <span>官方插件与商业授权</span>
+                            </a>
+                            <a data-tab="cloud-monitor" id="nav-cloud-monitor" class="sub-nav-btn nav-btn">
+                                <i data-lucide="cloud-cog" class="w-3.5 h-3.5"></i>
+                                <span>个人码云监控运维</span>
+                            </a>
+                            <a data-tab="poll-group" id="nav-poll-group" class="sub-nav-btn nav-btn">
+                                <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                                <span>轮询组智能调度</span>
+                            </a>
+                        </div>
+                    </div>
 
-                    <!-- 4. 订单与财务结算 -->
-                    <div class="nav-group-title">订单与财务结算</div>
-                    <a data-tab="order-list" id="nav-order-list" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="receipt" class="w-4 h-4 text-sky-500"></i> 交易订单与补单
-                    </a>
-                    <a data-tab="callbill-review" id="nav-callbill-review" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="scan-search" class="w-4 h-4 text-amber-500"></i> 到账账单复核
-                    </a>
+                    <!-- 分组 2.5: 👑 OEM 代理加盟中心（仅代理商授权用户可见） -->
+                    <div class="accordion-group hidden" id="group-agent" data-group="agent">
+                        <div class="accordion-header" data-action="toggle-accordion" data-group="agent">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="crown" class="w-4 h-4 text-amber-500"></i>
+                                <span class="text-amber-700 font-bold">OEM 代理加盟</span>
+                            </div>
+                            <i data-lucide="chevron-down" id="chevron-agent" class="w-3.5 h-3.5 text-slate-400 accordion-chevron transform"></i>
+                        </div>
+                        <div id="body-agent" class="accordion-body collapsed space-y-0.5 mt-0.5">
+                            <a data-tab="agent-hub" id="nav-agent-hub" class="sub-nav-btn nav-btn hidden">
+                                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-500"></i>
+                                <span>授权下发与客户管理</span>
+                            </a>
+                        </div>
+                    </div>
 
-                    <!-- 5. 系统设置与通知 -->
-                    <div class="nav-group-title">系统配置</div>
-                    <a data-tab="system-update" id="nav-system-update" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="git-branch" class="w-4 h-4 text-emerald-500"></i> 系统 Git 一键更新
-                    </a>
-                    <a data-tab="alert-config" id="nav-alert-config" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-colors text-slate-600 hover:bg-slate-50">
-                        <i data-lucide="bell" class="w-4 h-4 text-rose-500"></i> 系统告警与通知
-                    </a>
+                    <!-- 分组 3: 商户与会员体系 -->
+                    <div class="accordion-group" data-group="merchants">
+                        <div class="accordion-header" data-action="toggle-accordion" data-group="merchants">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="users" class="w-4 h-4 text-purple-600"></i>
+                                <span>商户与会员体系</span>
+                            </div>
+                            <i data-lucide="chevron-down" id="chevron-merchants" class="w-3.5 h-3.5 text-slate-400 accordion-chevron transform"></i>
+                        </div>
+                        <div id="body-merchants" class="accordion-body collapsed space-y-0.5 mt-0.5">
+                            <a data-tab="merchant-mgmt" id="nav-merchant-mgmt" class="sub-nav-btn nav-btn">
+                                <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+                                <span>商户账号与费率</span>
+                            </a>
+                            <a data-tab="plan-mgmt" id="nav-plan-mgmt" class="sub-nav-btn nav-btn">
+                                <i data-lucide="gem" class="w-3.5 h-3.5"></i>
+                                <span>套餐设置与配额</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- 分组 4: 财务与订单中心 -->
+                    <div class="accordion-group" data-group="finance">
+                        <div class="accordion-header" data-action="toggle-accordion" data-group="finance">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="receipt" class="w-4 h-4 text-emerald-600"></i>
+                                <span>财务与订单中心</span>
+                            </div>
+                            <i data-lucide="chevron-down" id="chevron-finance" class="w-3.5 h-3.5 text-slate-400 accordion-chevron transform"></i>
+                        </div>
+                        <div id="body-finance" class="accordion-body collapsed space-y-0.5 mt-0.5">
+                            <a data-tab="order-list" id="nav-order-list" class="sub-nav-btn nav-btn">
+                                <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                                <span>交易订单与补单</span>
+                            </a>
+                            <a data-tab="callbill-review" id="nav-callbill-review" class="sub-nav-btn nav-btn">
+                                <i data-lucide="scan-line" class="w-3.5 h-3.5"></i>
+                                <span>到账账单复核</span>
+                            </a>
+                            <a data-tab="bill-source" id="nav-bill-source" class="sub-nav-btn nav-btn">
+                                <i data-lucide="cable" class="w-3.5 h-3.5"></i>
+                                <span>账单来源管理</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- 分组 5: 系统运营与安全 -->
+                    <div class="accordion-group" data-group="system">
+                        <div class="accordion-header" data-action="toggle-accordion" data-group="system">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="settings" class="w-4 h-4 text-slate-600"></i>
+                                <span>系统运营与安全</span>
+                            </div>
+                            <i data-lucide="chevron-down" id="chevron-system" class="w-3.5 h-3.5 text-slate-400 accordion-chevron transform"></i>
+                        </div>
+                        <div id="body-system" class="accordion-body collapsed space-y-0.5 mt-0.5">
+                            <a data-tab="sys-config" id="nav-sys-config" class="sub-nav-btn nav-btn">
+                                <i data-lucide="wrench" class="w-3.5 h-3.5"></i>
+                                <span>系统运营配置</span>
+                            </a>
+                            <a data-tab="alert-config" id="nav-alert-config" class="sub-nav-btn nav-btn">
+                                <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+                                <span>系统告警与通知</span>
+                            </a>
+                            <a data-tab="security" id="nav-security" class="sub-nav-btn nav-btn">
+                                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                                <span>管理员安全设置</span>
+                            </a>
+                            <a data-tab="system-update" id="nav-system-update" class="sub-nav-btn nav-btn">
+                                <i data-lucide="git-branch" class="w-3.5 h-3.5"></i>
+                                <span>系统 Git 一键更新</span>
+                            </a>
+                        </div>
+                    </div>
+
                 </nav>
             </div>
 
-            <div class="text-[11px] text-slate-400 px-3 py-2 border-t border-slate-100 flex items-center justify-between">
-                <span>管理安全控制</span>
-                <button data-action="logout-admin" class="text-rose-500 hover:text-rose-600 font-bold flex items-center gap-1 cursor-pointer">
-                    <i data-lucide="power" class="w-3.5 h-3.5"></i>
-                    <span>安全退出</span>
+            <!-- 底部管理员卡片与快捷操作 -->
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-extrabold shadow-sm">
+                        AD
+                    </div>
+                    <div>
+                        <div class="font-bold text-slate-800 text-[11px] leading-tight">超级管理员</div>
+                        <div class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 在线
+                        </div>
+                    </div>
+                </div>
+
+                <button data-action="logout-admin" title="安全退出后台" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer">
+                    <i data-lucide="power" class="w-4 h-4"></i>
                 </button>
             </div>
         </aside>
@@ -94,29 +308,36 @@
             <!-- 顶部 Bar -->
             <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between shadow-sm flex-shrink-0">
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-slate-500">控制台 /</span>
-                    <span id="current-tab-title" class="text-xs font-extrabold text-blue-600 uppercase">DASHBOARD</span>
+                    <span class="text-xs font-bold text-slate-400">控制台 /</span>
+                    <span id="current-tab-title" class="text-xs font-extrabold text-blue-600 uppercase">控制台仪表盘</span>
                 </div>
-                <div class="flex items-center gap-3 text-xs">
-                    <span class="text-slate-400 hidden sm:inline">访问状态: <strong class="text-emerald-600 inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 管理员会话已认证</strong></span>
+                
+                <div class="flex items-center gap-4 text-xs">
+                    <!-- 云端状态指示 -->
+                    <a href="https://cloud.fcwan.cn" target="_blank" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors font-semibold text-[11px]">
+                        <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        <span>直连云端总控制台</span>
+                        <i data-lucide="external-link" class="w-3 h-3"></i>
+                    </a>
+
                     <div class="flex items-center gap-2 border-l border-slate-200 pl-3">
-                        <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-extrabold flex items-center justify-center text-xs shadow-sm">Admin</div>
-                        <button data-action="logout-admin" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-bold transition-all border border-slate-200 hover:border-rose-200">
+                        <span class="text-slate-500 font-bold hidden md:inline">Root 管理员</span>
+                        <button data-action="logout-admin" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-bold transition-all">
                             <i data-lucide="log-out" class="w-3.5 h-3.5 text-rose-500"></i>
-                            <span>退出登录</span>
+                            <span>退出</span>
                         </button>
                     </div>
                 </div>
             </header>
 
-            <!-- 视图列表 -->
+            <!-- 动态视图挂载点 -->
             <div class="p-6 space-y-6 flex-1 overflow-y-auto min-h-0">
                 <div id="admin-feature-root" class="hidden"></div>
             </div>
         </main>
     </div>
 
-    <script type="module" src="/admin/assets/app.js"></script>
+    <script type="module" src="/admin/assets/app.js?v=admin-v20260822_2044_dashboard_fix"></script>
 </body>
 
 </html>

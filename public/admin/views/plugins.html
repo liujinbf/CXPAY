@@ -1,18 +1,471 @@
-<section data-feature="plugins" class="glass-panel rounded-2xl p-6 space-y-6">
-<div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
-    <div>
-        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-            <i data-lucide="package-check" class="w-5 h-5 text-amber-600"></i> 支付通道插件
-        </h3>
-        <p class="text-xs text-slate-400 mt-1">仅接受已加入信任列表的发布者签名包；远程插件仓库仍保持关闭。</p>
-    </div>
-    <label class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer text-center">
-        安装本地签名包
-        <input id="plugin-package-input" type="file" accept=".cxpay-plugin" class="hidden">
-    </label>
-</div>
-<div id="plugin-driver-list" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-    <div class="p-5 text-center text-xs text-slate-400">正在读取本地驱动...</div>
-</div>
-</section>
+<section data-feature="plugins" class="space-y-6">
+    <!-- 顶部状态与商户授权卡片 -->
+    <div class="glass-panel rounded-2xl p-6 space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+            <div>
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i data-lucide="package-check" class="w-5 h-5 text-blue-600"></i>
+                    <span>官方插件商城、监控端与商业授权中心</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-1">管理本地支付通道驱动、拉取官方云端正版插件、下载桌面/手机端监控软件并维护授权域名</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" data-action="refresh-cloud-status" class="px-3.5 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-600"></i> 刷新云端授权
+                </button>
+                <label class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer text-center transition-colors shadow-sm">
+                    安装本地签名包
+                    <input id="plugin-package-input" type="file" accept=".cxpay-plugin" class="hidden">
+                </label>
+            </div>
+        </div>
 
+        <!-- 顶部 Tab 切换 -->
+        <div class="flex items-center gap-2 border-b border-slate-100 pb-3 text-xs font-bold">
+            <button type="button" data-action="switch-plugin-subtab" data-subtab="cloud-market" id="subtab-btn-cloud-market" class="px-4 py-2 rounded-xl bg-blue-600 text-white transition-all flex items-center gap-1.5 shadow-sm">
+                <i data-lucide="cloud-lightning" class="w-4 h-4"></i> 官方插件市场 (Plugin Store)
+            </button>
+            <button type="button" data-action="switch-plugin-subtab" data-subtab="monitor-software" id="subtab-btn-monitor-software" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-1.5">
+                <i data-lucide="smartphone" class="w-4 h-4 text-blue-600"></i> 手机监控助手下载 (Android APK)
+            </button>
+            <button type="button" data-action="switch-plugin-subtab" data-subtab="license-mgmt" id="subtab-btn-license-mgmt" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-1.5">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500"></i> 系统授权与换绑 (License)
+            </button>
+            <button type="button" data-action="switch-plugin-subtab" data-subtab="installed-drivers" id="subtab-btn-installed-drivers" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-1.5">
+                <i data-lucide="cpu" class="w-4 h-4 text-indigo-500"></i> 本地已安装驱动
+            </button>
+            <button type="button" data-action="switch-plugin-subtab" data-subtab="agent-hub" id="subtab-btn-agent-hub" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-1.5">
+                <i data-lucide="crown" class="w-4 h-4 text-amber-500"></i> 👑 OEM 代理商加盟中心
+            </button>
+        </div>
+
+        <!-- 1. 官方插件商城 (Cloud Market) -->
+        <div id="subtab-pane-cloud-market" class="space-y-4">
+            <div class="p-4 rounded-xl bg-blue-50/70 border border-blue-100 flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2 text-blue-900">
+                    <i data-lucide="shield-alert" class="w-4 h-4 text-blue-600"></i>
+                    <span>正版防伪提示：所有官方插件均由云端控制面（cloud.fcwan.cn）计算数字签名与一次性 300s 授权凭证。</span>
+                </div>
+                <div class="text-blue-700 font-mono">当前节点 M2 握手: <strong id="cloud-sync-status" class="text-emerald-600">已就绪</strong></div>
+            </div>
+
+            <!-- 官方插件分类筛选器 -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-bold" id="plugin-category-filters">
+                <button type="button" data-action="filter-plugin-category" data-category="all" class="plugin-cat-btn px-4 py-2 rounded-xl bg-slate-900 text-white transition-all shadow-sm flex items-center gap-1.5 cursor-pointer">
+                    <span>🌐 全部官方插件</span>
+                    <span id="cat-count-all" class="px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-mono">5</span>
+                </button>
+                <button type="button" data-action="filter-plugin-category" data-category="alipay" class="plugin-cat-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                    <span>支付宝专区</span>
+                    <span id="cat-count-alipay" class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-mono">2</span>
+                </button>
+                <button type="button" data-action="filter-plugin-category" data-category="wxpay" class="plugin-cat-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span>微信支付专区</span>
+                    <span id="cat-count-wxpay" class="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-mono">1</span>
+                </button>
+                <button type="button" data-action="filter-plugin-category" data-category="all_in_one" class="plugin-cat-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+                    <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                    <span>三合一手机挂机</span>
+                    <span id="cat-count-allinone" class="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-[10px] font-mono">1</span>
+                </button>
+                <button type="button" data-action="filter-plugin-category" data-category="other" class="plugin-cat-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    <span>USDT / 综合扩展</span>
+                    <span id="cat-count-other" class="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-[10px] font-mono">1</span>
+                </button>
+            </div>
+
+            <!-- 官方插件卡片列表 -->
+            <div id="cloud-plugin-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="p-8 text-center text-xs text-slate-400 col-span-full">正在连接云端插件商城...</div>
+            </div>
+        </div>
+
+        <!-- 2. 监控软件下载 (Monitor Software) -->
+        <div id="subtab-pane-monitor-software" class="space-y-4 hidden">
+            <div class="max-w-3xl">
+                <!-- Android 手机三合一免挂监控 APK -->
+                <div class="border border-slate-200/80 rounded-3xl p-6 bg-gradient-to-br from-white to-slate-50/50 shadow-sm space-y-5">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm">
+                                📱 Android 官方监控端
+                            </span>
+                            <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold">
+                                微信 / 支付宝 / QQ 三合一全能版
+                            </span>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-slate-500">v2.0.0 正式版 (10.0 MB)</span>
+                    </div>
+
+                    <div>
+                        <h4 class="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="smartphone-charging" class="w-5 h-5 text-blue-600"></i>
+                            <span>CXPay 手机免挂监控助手 (CXPayAssistant.apk)</span>
+                        </h4>
+                        <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+                            基于 Android 系统级无障碍（Accessibility）通知监听技术，<strong>无需 Root 权限</strong>。一台备用手机同时秒级监听微信赞赏码、支付宝收钱码与 QQ 钱包到账通知，毫秒级回调主站自动核销订单，支持长效后台保活与掉线自动报警。
+                        </p>
+                    </div>
+
+                    <!-- 核心特性标签 -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                        <div class="p-3 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-2">
+                            <i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>
+                            <div class="text-xs">
+                                <div class="font-bold text-slate-800">秒级无感回调</div>
+                                <div class="text-[10px] text-slate-400">到账 0.1s 自动通知核销</div>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-2">
+                            <i data-lucide="layers" class="w-4 h-4 text-blue-500"></i>
+                            <div class="text-xs">
+                                <div class="font-bold text-slate-800">三码合一监听</div>
+                                <div class="text-[10px] text-slate-400">微信+支付宝+QQ 同屏</div>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-white rounded-2xl border border-slate-100 shadow-xs flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500"></i>
+                            <div class="text-xs">
+                                <div class="font-bold text-slate-800">免 Root 安全抗封</div>
+                                <div class="text-[10px] text-slate-400">纯通知监听，0 账号风险</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="text-[11px] text-slate-400 flex items-center gap-1.5 font-mono">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i> 支持 Android 7.0 ~ 14.0 所有机型 · 适配后台省电白名单
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a href="/download/CXPayAssistant.apk" download
+                                class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-md hover:shadow-lg transition-all">
+                                <i data-lucide="download" class="w-4 h-4"></i> 立即下载 APK 安装包
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 系统商业授权与换绑 (License & Migration) -->
+        <div id="subtab-pane-license-mgmt" class="space-y-4 hidden">
+            <div class="p-5 rounded-2xl border border-slate-200 bg-white space-y-4 max-w-2xl">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800">当前节点商业授权信息</h4>
+                        <p class="text-xs text-slate-400 mt-0.5">本节点通过 Ed25519 机器私钥与官方云端双向鉴权通信</p>
+                    </div>
+                    <span class="px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full text-xs font-bold flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 授权有效 (ACTIVE)
+                    </span>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div class="flex items-center justify-between py-1 border-b border-slate-50">
+                        <span class="text-slate-500 font-semibold">授权版本</span>
+                        <span class="font-bold text-slate-800 font-mono">CXPAY 商业旗舰版 v2.1.0</span>
+                    </div>
+                    <div class="flex items-center justify-between py-1 border-b border-slate-50">
+                        <span class="text-slate-500 font-semibold">专属租户 ID (Tenant ID)</span>
+                        <div class="flex items-center gap-1.5">
+                            <span id="display-tenant-id" class="font-bold font-mono text-blue-600">tenant_official_default</span>
+                            <button type="button" data-action="copy-tenant-id" class="text-slate-400 hover:text-slate-600 p-1 text-[11px]">复制</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between py-1 border-b border-slate-50">
+                        <span class="text-slate-500 font-semibold">当前绑定授权域名</span>
+                        <span id="display-current-domain" class="font-bold font-mono text-slate-800">cs.fcwan.cn</span>
+                    </div>
+                    <div class="flex items-center justify-between py-1 border-b border-slate-50">
+                        <span class="text-slate-500 font-semibold">云端总控服务地址</span>
+                        <span class="font-bold font-mono text-slate-600">https://cloud.fcwan.cn</span>
+                    </div>
+                </div>
+
+                <!-- 换绑域名操作区 -->
+                <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-slate-700 text-xs">更换授权域名？</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">因更换服务器或品牌迁移时，可申请换绑新域名</div>
+                    </div>
+                    <button type="button" data-action="open-rebind-dialog" class="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors">
+                        申请更换授权域名
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. 本地已安装驱动 (Installed Drivers) -->
+        <div id="subtab-pane-installed-drivers" class="space-y-4 hidden">
+            <div id="plugin-driver-list" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="p-5 text-center text-xs text-slate-400 col-span-full">正在读取本地驱动...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 5. 官方插件在线购买收银台模态弹窗 -->
+    <div id="plugin-cashier-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <!-- 弹窗头部 -->
+            <div class="px-6 py-4 bg-gradient-to-r from-slate-900 to-blue-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center">
+                        <i data-lucide="shopping-bag" class="w-4 h-4 text-blue-300"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-white">官方插件商业授权收银台</h3>
+                        <p class="text-[10px] text-blue-200/80 font-mono">CXPAY Official Cloud Cashier</p>
+                    </div>
+                </div>
+                <button type="button" data-action="close-cashier-modal" class="text-slate-400 hover:text-white p-1 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- 弹窗内容 -->
+            <div class="p-6 space-y-5">
+                <!-- 商品摘要卡片 -->
+                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <span id="cashier-plugin-id" class="text-[10px] font-mono text-blue-600 font-bold block mb-0.5">cxpay.driver.example</span>
+                        <h4 id="cashier-plugin-name" class="text-sm font-bold text-slate-800">官方通道驱动插件</h4>
+                        <span class="text-[11px] text-slate-400">授权绑定域名: <strong id="cashier-domain" class="text-slate-600 font-mono">cs.fcwan.cn</strong></span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] text-slate-400 block">应付金额</span>
+                        <span id="cashier-price" class="text-xl font-extrabold text-blue-600 font-mono">¥ 99.00</span>
+                    </div>
+                </div>
+
+                <!-- 付费周期与授权模式选择 (月费 / 永久) -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-600">选择授权模式与计费周期</label>
+                    <div class="grid grid-cols-2 gap-3" id="cashier-period-group">
+                        <label class="flex flex-col p-3 rounded-2xl border-2 border-indigo-600 bg-indigo-50/50 cursor-pointer transition-all cashier-period-label relative overflow-hidden select-none" data-period="forever">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                                    <input type="radio" name="cashier_period" value="forever" checked class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+                                    <span>👑 永久买断</span>
+                                </span>
+                                <span class="px-1.5 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-bold">推荐</span>
+                            </div>
+                            <div class="mt-2 flex items-baseline justify-between">
+                                <span class="text-[10px] text-indigo-700/80">终身免费更新维护</span>
+                                <span id="cashier-period-price-forever" class="text-sm font-extrabold text-indigo-700 font-mono">¥ 99.00</span>
+                            </div>
+                        </label>
+                        <label class="flex flex-col p-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-all cashier-period-label select-none" data-period="month">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                    <input type="radio" name="cashier_period" value="month" class="w-4 h-4 text-blue-600 focus:ring-blue-500">
+                                    <span>🌙 按月订阅</span>
+                                </span>
+                                <span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px]">30天</span>
+                            </div>
+                            <div class="mt-2 flex items-baseline justify-between">
+                                <span class="text-[10px] text-slate-400">轻量试用 / 按需续费</span>
+                                <span id="cashier-period-price-month" class="text-sm font-extrabold text-blue-600 font-mono">¥ 29.00</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 支付方式选择 -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-600">选择支付方式</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center justify-center gap-2 p-3 rounded-xl border border-blue-300 bg-blue-50/60 cursor-pointer font-bold text-xs text-blue-800 select-none">
+                            <input type="radio" name="cashier_pay_type" value="alipay" checked class="w-4 h-4 text-blue-600 focus:ring-blue-500">
+                            <span>支付宝 (扫码)</span>
+                        </label>
+                        <label class="flex items-center justify-center gap-2 p-3 rounded-xl border border-emerald-200 bg-white hover:bg-slate-50 cursor-pointer font-bold text-xs text-emerald-800 select-none">
+                            <input type="radio" name="cashier_pay_type" value="wxpay" class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
+                            <span>微信支付 (扫码)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 二维码展示区 -->
+                <div class="flex flex-col items-center justify-center p-5 rounded-2xl border border-slate-200 bg-white space-y-3">
+                    <div id="cashier-qrcode-box" class="p-3 bg-white border border-slate-100 rounded-xl shadow-inner min-h-[160px] flex items-center justify-center">
+                        <div class="text-xs text-slate-400">正在生成官方收银二维码...</div>
+                    </div>
+                    <div class="text-center space-y-1">
+                        <p id="cashier-status-hint" class="text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5">
+                            <i data-lucide="loader-2" class="w-3.5 h-3.5 text-blue-600 animate-spin"></i>
+                            <span>等待扫码付款中，支付后云端秒级自动开通...</span>
+                        </p>
+                        <div class="text-[10px] text-slate-400 font-mono">订单号: <span id="cashier-order-no">PO_20260815_0000</span> · 倒计时 <span id="cashier-countdown" class="text-rose-500 font-bold">10:00</span></div>
+                    </div>
+                </div>
+
+                <!-- 底部操作按钮 -->
+                <div class="flex items-center justify-between pt-2">
+                    <button type="button" data-action="close-cashier-modal" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition-colors">
+                        取消支付
+                    </button>
+                    <button type="button" data-action="refresh-pay-status" id="btn-cashier-refresh-status" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> 已扫码支付，刷新授权状态
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 👑 OEM 代理商加盟中心 (Agent Hub) -->
+    <div id="subtab-pane-agent-hub" class="space-y-6 hidden">
+        <!-- 代理商资质与核心指标看板 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <!-- 资质卡片 -->
+            <div class="p-5 rounded-2xl bg-gradient-to-br from-indigo-900/90 to-slate-900 border border-indigo-500/30 text-white shadow-xl flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-indigo-300 uppercase tracking-wider">代理加盟资质</span>
+                        <span id="agent-level-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30">👑 钻石加盟商</span>
+                    </div>
+                    <h3 id="agent-tenant-name" class="text-lg font-extrabold mt-3 tracking-tight">深圳市迅付网络科技有限公司</h3>
+                    <p class="text-xs text-indigo-200/70 mt-1">享有全套主站独立授权下发权与官方全网插件底价特权</p>
+                </div>
+                <div class="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                    <span class="text-slate-300">插件采购底价:</span>
+                    <strong class="text-emerald-400 font-mono" id="agent-discount-text">4.0 折 (专享底价)</strong>
+                </div>
+            </div>
+
+            <!-- 配额卡片 -->
+            <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500">已用 / 总下发配额</span>
+                        <i data-lucide="layers" class="w-4 h-4 text-blue-600"></i>
+                    </div>
+                    <div class="flex items-baseline gap-2 mt-3">
+                        <span id="agent-used-instances" class="text-3xl font-black text-slate-800">1</span>
+                        <span class="text-slate-400 font-bold text-sm">/ <span id="agent-max-instances">20</span> 站点</span>
+                    </div>
+                    <!-- 进度条 -->
+                    <div class="w-full bg-slate-100 rounded-full h-2 mt-3 overflow-hidden">
+                        <div id="agent-quota-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: 5%"></div>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span>剩余可下发配额:</span>
+                    <strong id="agent-remaining-quota" class="text-blue-600 font-mono font-bold text-sm">19 站点</strong>
+                </div>
+            </div>
+
+            <!-- 下发操作入口卡片 -->
+            <div class="p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-100 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2 text-blue-900 font-bold text-sm">
+                        <i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>
+                        <span>快速下发新客户授权</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">为您的下级站长/企业客户一键生成独立商业 License Key，开通 CXPAY 主站框架授权。<span class="text-amber-600 font-semibold">微信店员、手机监控、USDT 等增值插件需客户单独在插件市场购买。</span></p>
+                </div>
+                <button type="button" data-action="open-issue-modal" class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-4">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> + 一键下发新站点商业授权
+                </button>
+            </div>
+        </div>
+
+        <!-- 名下客户站点列表表格 -->
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="server" class="w-4 h-4 text-indigo-600"></i>
+                    <h4 class="font-bold text-sm text-slate-800">名下已下发客户站点列表</h4>
+                </div>
+                <button type="button" data-action="refresh-agent-instances" class="px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-600"></i> 刷新列表
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-100">
+                        <tr>
+                            <th class="px-4 py-3">客户绑定主站域名</th>
+                            <th class="px-4 py-3">下发的 License Key</th>
+                            <th class="px-4 py-3">版本与驱动状态</th>
+                            <th class="px-4 py-3">授权状态</th>
+                            <th class="px-4 py-3">下发/激活时间</th>
+                            <th class="px-4 py-3 text-right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agent-instances-tbody" class="divide-y divide-slate-100 text-slate-700">
+                        <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">正在检索名下客户站点列表...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹窗: 一键下发新客户商业授权模态框 -->
+    <div id="agent-issue-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 relative">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-blue-600"></i>
+                    <span>下发下级客户主站商业授权</span>
+                </h3>
+                <button type="button" data-action="close-issue-modal" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            <!-- 下发表单 -->
+            <div id="issue-form-step" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">下级客户主站域名 <span class="text-rose-500">*</span></label>
+                    <input type="text" id="issue-client-domain" placeholder="例如: pay.clientdomain.com" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all font-mono">
+                    <span class="text-[11px] text-slate-400 mt-1 block">授权将精准绑定至该域名，支持客户一键免挂收单</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">客户名称 / 备注 (选填)</label>
+                    <input type="text" id="issue-client-name" placeholder="例如: 华南渠道-王总" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all">
+                </div>
+
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-800 leading-relaxed">
+                    💡 下发后系统将自动扣减 1 个站点配额，开通该域名的 CXPAY 主站框架授权。<strong class="text-amber-700">微信店员、手机监控助手、USDT 等高级插件属付费增值项目，需客户在官方插件市场单独购买。</strong>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" data-action="close-issue-modal" class="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold">取消</button>
+                    <button type="button" id="btn-do-issue-license" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1.5">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i> 确认生成并下发
+                    </button>
+                </div>
+            </div>
+
+            <!-- 下发成功结果展示 -->
+            <div id="issue-result-step" class="space-y-4 hidden text-center">
+                <div class="text-4xl">🎉</div>
+                <h4 class="font-extrabold text-emerald-600 text-base">商业授权已成功生成并下发！</h4>
+                
+                <div class="text-left bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs">
+                    <div class="text-slate-400 font-mono text-[10px]">客户专属 LICENSE KEY:</div>
+                    <div class="p-2.5 bg-white border border-dashed border-emerald-300 rounded-lg font-mono font-bold text-emerald-700 break-all select-all text-xs" id="res-issued-key">
+                        CX_KEY_...
+                    </div>
+                    <div class="flex items-center justify-between text-slate-500 text-[11px] pt-1">
+                        <span>绑定域名: <strong id="res-issued-domain" class="text-slate-800">-</strong></span>
+                        <span>溯源水印: <strong id="res-issued-wm" class="text-indigo-600">-</strong></span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <button type="button" id="btn-copy-issued-key" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all">
+                        📋 一键复制 License Key
+                    </button>
+                    <button type="button" data-action="close-issue-modal" class="px-4 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs rounded-xl">
+                        完成
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

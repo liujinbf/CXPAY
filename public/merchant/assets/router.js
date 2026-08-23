@@ -61,11 +61,17 @@ export function createRouter({
             });
         } catch (error) {
             if (currentNavigation !== navigation || error?.name === 'AbortError') return;
+            console.error(`[Router Error] Failed to load feature ${id}:`, error);
 
             container.innerHTML = `
-                <section class="p-6 text-center" data-feature-error="${id}">
-                    <p class="text-rose-600 font-bold">页面加载失败，请稍后重试</p>
-                    <button type="button" data-action="retry-fragment">重新加载</button>
+                <section class="p-8 text-center space-y-4" data-feature-error="${id}">
+                    <div class="inline-flex p-3 rounded-full bg-rose-50 text-rose-500 font-black text-2xl">⚠️</div>
+                    <h3 class="text-base font-extrabold text-slate-800">模块「${id}」加载失败</h3>
+                    <p class="text-xs text-rose-600 font-bold">${error?.message || '未知脚本错误'}</p>
+                    <pre class="text-[11px] text-slate-500 font-mono max-w-xl mx-auto overflow-auto p-3 bg-slate-50 rounded-xl border border-slate-200 text-left">${error?.stack || String(error)}</pre>
+                    <div>
+                        <button type="button" data-action="retry-fragment" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition-all cursor-pointer">重新加载</button>
+                    </div>
                 </section>`;
             container.querySelector('[data-action="retry-fragment"]')
                 ?.addEventListener('click', () => navigate(id), { once: true });

@@ -87,16 +87,18 @@
     </div>
 
     <!-- 2. 中层：趋势图与商户凭据概览卡片 (2:1) -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 min-w-0">
         <!-- 近7日收款趋势图 -->
-        <div class="glass-card lg:col-span-2 p-6 rounded-2xl border border-slate-200/80">
+        <div class="glass-card lg:col-span-2 p-6 rounded-2xl border border-slate-200/80 min-w-0 overflow-hidden">
             <div class="flex items-center justify-between mb-4">
                 <div class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
                     <i data-lucide="line-chart" class="w-4.5 h-4.5 text-blue-600"></i> 近 7 日收款金额趋势
                 </div>
                 <span class="text-[11px] text-slate-400 font-medium">自动按日汇总成功订单金额</span>
             </div>
-            <div id="merchant-trend-chart" style="width:100%;height:260px;"></div>
+            <div class="w-full overflow-hidden">
+                <div id="merchant-trend-chart" style="width:100%;height:260px;"></div>
+            </div>
         </div>
 
         <!-- 快捷接入与商户凭据 -->

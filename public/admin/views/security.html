@@ -1,0 +1,88 @@
+<section data-feature="security" class="space-y-6">
+<div class="flex items-center justify-between">
+    <div>
+        <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-6 h-6 text-rose-600"></i> 管理员安全设置
+        </h2>
+        <p class="text-xs text-slate-400 mt-1">修改登录密码、配置二次验证码以提升账号安全等级</p>
+    </div>
+    <span id="security-token-version" class="text-xs font-mono bg-slate-100 text-slate-500 px-3 py-1.5 rounded-full border border-slate-200">Token 版本：--</span>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+    <!-- 修改登录密码 -->
+    <div class="glass-panel rounded-2xl p-6 border border-slate-200/80 space-y-4">
+        <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="key-round" class="w-4 h-4 text-rose-500"></i> 修改管理员登录密码
+        </div>
+        <p class="text-xs text-slate-400">修改密码后，所有已颁发的 Token 立即失效，需重新登录。</p>
+        <div class="space-y-3 text-xs">
+            <label class="block space-y-1">
+                <span class="font-bold text-slate-600">当前密码 *</span>
+                <input id="sec-current-password" type="password" autocomplete="current-password"
+                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 bg-white text-slate-800">
+            </label>
+            <label class="block space-y-1">
+                <span class="font-bold text-slate-600">新密码 *（至少 6 位）</span>
+                <input id="sec-new-password" type="password" autocomplete="new-password" minlength="6" maxlength="200"
+                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 bg-white text-slate-800">
+            </label>
+            <label class="block space-y-1">
+                <span class="font-bold text-slate-600">确认新密码 *</span>
+                <input id="sec-confirm-password" type="password" autocomplete="new-password" minlength="6" maxlength="200"
+                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 bg-white text-slate-800">
+            </label>
+        </div>
+        <button data-action="save-password" class="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2">
+            <i data-lucide="save" class="w-3.5 h-3.5"></i> 保存新密码
+        </button>
+    </div>
+
+    <!-- 二次验证配置 -->
+    <div class="glass-panel rounded-2xl p-6 border border-slate-200/80 space-y-4">
+        <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="lock-keyhole" class="w-4 h-4 text-indigo-500"></i> 二次验证码设置
+        </div>
+        <p class="text-xs text-slate-400">启用后，登录时需在密码验证通过后，再输入静态验证码方可进入管理后台。</p>
+
+        <!-- 当前状态徽章 -->
+        <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <span class="text-xs font-semibold text-slate-500">当前状态：</span>
+            <span id="sec-verify-status-badge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-200 text-slate-500">加载中...</span>
+            <span id="sec-verify-configured-badge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-400">验证码：未配置</span>
+        </div>
+
+        <div class="space-y-3 text-xs">
+            <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">
+                <input id="sec-verify-enabled" type="checkbox" class="w-4 h-4 accent-indigo-600 cursor-pointer">
+                <div>
+                    <span class="font-bold text-slate-700">启用二次验证码</span>
+                    <p class="text-slate-400 mt-0.5">勾选后，每次登录需额外输入静态验证码</p>
+                </div>
+            </label>
+            <label class="block space-y-1">
+                <span class="font-bold text-slate-600">新验证码（4～32 位）</span>
+                <input id="sec-verify-code" type="text" maxlength="32" autocomplete="off" placeholder="留空则保留原验证码"
+                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-slate-800 font-mono tracking-widest">
+            </label>
+        </div>
+        <button data-action="save-security" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2">
+            <i data-lucide="save" class="w-3.5 h-3.5"></i> 保存安全设置
+        </button>
+    </div>
+</div>
+
+<!-- 安全提示 -->
+<div class="glass-panel rounded-2xl p-5 border border-amber-100 bg-amber-50/60 space-y-3">
+    <div class="text-sm font-bold text-amber-800 flex items-center gap-2">
+        <i data-lucide="triangle-alert" class="w-4 h-4"></i> 安全建议
+    </div>
+    <ul class="text-xs text-amber-700 space-y-1.5 list-disc list-inside">
+        <li>建议使用至少 12 位包含大小写字母、数字和特殊符号的强密码</li>
+        <li>强烈建议开启二次验证码，有效防止密码泄露后账号被盗</li>
+        <li>修改密码后将自动退出所有设备的管理登录状态（Token 版本递增）</li>
+        <li>验证码建议使用 6～8 位数字或字母，定期更换</li>
+    </ul>
+</div>
+</section>
