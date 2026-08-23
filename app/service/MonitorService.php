@@ -30,7 +30,7 @@ class MonitorService
         // 3. MySQL / Redis 连接池运行状态检测
         $dbPoolStatus = 'HEALTHY';
         try {
-            \illuminate\database\capsule\manager::connection()->getPdo();
+            \Illuminate\Database\Capsule\Manager::connection()->getPdo();
         } catch (\Throwable $e) {
             $dbPoolStatus = 'UNHEALTHY';
         }

@@ -94,7 +94,7 @@ class ReportController
         }
 
         $rows = DB::table('cx_order AS o')
-            ->leftJoin('cx_channel AS c', 'o.channel_id', '=', 'c.id')
+            ->leftJoin('cx_pay_channel AS c', 'o.channel_id', '=', 'c.id')
             ->selectRaw('
                 COALESCE(c.title, "未知通道") AS channel_title,
                 c.c_type,
@@ -187,7 +187,7 @@ class ReportController
 
         $rows = DB::table('cx_order AS o')
             ->leftJoin('cx_merchant AS m', 'o.merchant_id', '=', 'm.id')
-            ->leftJoin('cx_channel AS c', 'o.channel_id', '=', 'c.id')
+            ->leftJoin('cx_pay_channel AS c', 'o.channel_id', '=', 'c.id')
             ->selectRaw('
                 o.trade_no,
                 o.out_trade_no,

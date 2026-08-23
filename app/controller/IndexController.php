@@ -48,7 +48,10 @@ class IndexController
         }
         $content = file_get_contents($templatePath);
         return response($content !== false ? $content : '首页模板读取失败', $content !== false ? 200 : 500, [
-            'Content-Type' => 'text/html; charset=utf-8',
+            'Content-Type'  => 'text/html; charset=utf-8',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate, max-age=0',
+            'Pragma'        => 'no-cache',
+            'Expires'       => '0',
         ]);
     }
 }

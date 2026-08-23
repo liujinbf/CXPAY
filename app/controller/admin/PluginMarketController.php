@@ -22,49 +22,43 @@ class PluginMarketController
     public function getMarketList(): Response
     {
         $plugins = [];
-        foreach (PaymentManager::getRegisteredDrivers() as $cType => $meta) {
+        $installed = PluginManager::installed();
+
+        $latestVersions = [
+            'cxpay.driver.alipay_face_pay'     => '3.0.0',
+            'cxpay.driver.alipay_cookie_cloud' => '1.2.0',
+            'cxpay.driver.wechat_dy_bill'      => '2.1.0',
+            'cxpay.app_asst_universal'         => '2.0.0',
+            'cxpay.driver.usdt_trc20'          => '1.5.0',
+        ];
+
+        foreach ($installed as $pluginId => $entry) {
+            $manifest = is_array($entry['manifest'] ?? null) ? $entry['manifest'] : [];
+            $cType = (string)($entry['c_type'] ?? $manifest['c_type'] ?? str_replace('cxpay.driver.', '', $pluginId));
+            if ($cType !== '' && RemovedPaymentDrivers::contains($cType)) {
+                continue;
+            }
+
+            $currentVer = (string)($entry['active_version'] ?? $manifest['version'] ?? '1.0.0');
+            $latestVer = $latestVersions[$pluginId] ?? $latestVersions['cxpay.driver.' . $cType] ?? $currentVer;
+            $hasUpdate = version_compare($latestVer, $currentVer, '>');
+
             $plugins[] = [
                 'c_type' => $cType,
-                'name' => (string)($meta['title'] ?? $cType),
-                'version' => (string)($meta['version'] ?? '内置'),
-                'author' => (string)($meta['author'] ?? '本地代码库'),
-                'type' => '支付驱动',
-                'source' => 'builtin',
-                'plugin_id' => null,
+                'name' => (string)($entry['name'] ?? $manifest['name'] ?? $pluginId),
+                'version' => $currentVer,
+                'latest_version' => $latestVer,
+                'has_update' => $hasUpdate,
+                'author' => (string)($entry['publisher'] ?? $manifest['publisher'] ?? 'CXPAY 官方团队'),
+                'type' => '官方插件',
+                'source' => 'cloud_plugin',
+                'plugin_id' => $pluginId,
                 'installed' => true,
-                'enabled' => true,
-                'description' => (string)($meta['description'] ?? ''),
+                'enabled' => ($entry['enabled'] ?? false) === true,
+                'broken' => ($entry['broken'] ?? false) === true,
+                'description' => (string)($entry['description'] ?? $manifest['description'] ?? ''),
+                'permissions' => (array)($manifest['permissions'] ?? []),
             ];
-        }
-
-        foreach (PluginManager::installed() as $pluginId => $entry) {
-            $manifest = is_array($entry['manifest'] ?? null) ? $entry['manifest'] : [];
-            $drivers = is_array($manifest['drivers'] ?? null) ? $manifest['drivers'] : [];
-            if ($drivers === []) {
-                $drivers = [['code' => '']];
-            }
-            foreach ($drivers as $driver) {
-                $cType = trim((string)($driver['code'] ?? ''));
-                if ($cType !== '' && RemovedPaymentDrivers::contains($cType)) {
-                    continue;
-                }
-
-                $plugins[] = [
-                    'c_type' => $cType,
-                    'name' => (string)($manifest['name'] ?? $entry['name'] ?? $pluginId),
-                    'version' => (string)($entry['active_version'] ?? ''),
-                    'author' => (string)($entry['publisher'] ?? ''),
-                    'type' => '支付插件',
-                    'source' => 'plugin',
-                    'plugin_id' => $pluginId,
-                    'installed' => true,
-                    'enabled' => ($entry['enabled'] ?? false) === true,
-                    'broken' => ($entry['broken'] ?? false) === true,
-                    'description' => (string)($manifest['description'] ?? $entry['error'] ?? ''),
-                    'permissions' => (array)($manifest['permissions'] ?? []),
-                    'versions' => array_keys((array)($entry['versions'] ?? [])),
-                ];
-            }
         }
 
         return json([
@@ -187,17 +181,40 @@ class PluginMarketController
             return json(['code' => -1, 'msg' => '仍有支付通道引用该插件，请先删除或迁移这些通道配置']);
         }
         try {
-            $this->lifecycle()->uninstall($pluginId);
+            if (($entry['enabled'] ?? false) === true) {
+                PluginManager::registry()->setEnabled($pluginId, false);
+            }
+            PluginManager::registry()->remove($pluginId);
+            try {
+                $this->lifecycle()->uninstall($pluginId);
+            } catch (\Throwable) {
+                // 官方驱动或无独立安装包目录的插件无需物理删除目录
+            }
             PaymentManager::flush();
-            return json(['code' => 1, 'msg' => '插件已卸载，历史订单和审计数据未删除']);
-        } catch (PluginException $e) {
-            return json(['code' => -1, 'msg' => $e->getMessage()]);
+            return json(['code' => 1, 'msg' => '插件已成功卸载']);
+        } catch (\Throwable $e) {
+            return json(['code' => -1, 'msg' => '卸载失败：' . $e->getMessage()]);
         }
     }
 
     public function getCloudMarket(): Response
     {
         return (new CloudPluginMarketController())->getCloudMarket();
+    }
+
+    public function createPurchaseOrder(Request $request): Response
+    {
+        return (new CloudPluginMarketController())->createPurchaseOrder($request);
+    }
+
+    public function checkOrderStatus(Request $request): Response
+    {
+        return (new CloudPluginMarketController())->checkOrderStatus($request);
+    }
+
+    public function confirmPayment(Request $request): Response
+    {
+        return (new CloudPluginMarketController())->confirmPayment($request);
     }
 
     public function buyFromCloud(Request $request): Response
@@ -208,6 +225,16 @@ class PluginMarketController
     public function downloadFromCloud(Request $request): Response
     {
         return (new CloudPluginMarketController())->downloadFromCloud($request);
+    }
+
+    public function instanceStatus(): Response
+    {
+        return (new CloudPluginMarketController())->instanceStatus();
+    }
+
+    public function activateInstance(Request $request): Response
+    {
+        return (new CloudPluginMarketController())->activateInstance($request);
     }
 
     private function lifecycle(): PluginLifecycleManager

@@ -155,7 +155,7 @@ class MerchantReportController
         }
 
         $rows = DB::table('cx_order AS o')
-            ->leftJoin('cx_channel AS c', 'o.channel_id', '=', 'c.id')
+            ->leftJoin('cx_pay_channel AS c', 'o.channel_id', '=', 'c.id')
             ->selectRaw('
                 o.trade_no,
                 o.out_trade_no,

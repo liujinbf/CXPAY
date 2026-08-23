@@ -397,7 +397,7 @@ class MerchantApiController
     }
 
     /**
-     * 获取商户服务费/资金变动明细
+     * 获取商户服务费/资金变动明细（智能分类与分页）
      */
     public function getFinanceLogs(\support\Request $request): string
     {
@@ -406,24 +406,76 @@ class MerchantApiController
             return json_encode(['code' => 401, 'msg' => '未找到商户信息'], JSON_UNESCAPED_UNICODE);
         }
 
-        $logs = \app\model\UserMoneyLog::where('merchant_id', $merchant->id)
-            ->orderBy('id', 'desc')
-            ->limit(50)
+        $page = max(1, (int)($request->get('page', 1)));
+        $pageSize = max(1, min(100, (int)($request->get('page_size', 50))));
+
+        $query = \app\model\UserMoneyLog::where('merchant_id', $merchant->id);
+        $total = $query->count();
+
+        $logs = $query->orderBy('id', 'desc')
+            ->forPage($page, $pageSize)
             ->get()
             ->map(function ($log) {
+                $memo = (string)($log->memo ?? '');
+                $moneyVal = (float)($log->money ?? 0);
+
+                // 智能分类与类型定义
+                $type = 'other';
+                $typeText = '资金变动';
+                $typeClass = 'bg-slate-100 text-slate-600';
+
+                if (str_contains($memo, '充值') || str_contains($memo, '入账') || (str_contains($memo, '服务费') && $moneyVal > 0 && !str_contains($memo, '释放'))) {
+                    $type = 'recharge';
+                    $typeText = '服务费充值';
+                    $typeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                } elseif (str_contains($memo, '释放') || str_contains($memo, '退回') || str_contains($memo, '返还')) {
+                    $type = 'refund';
+                    $typeText = '手续费返还';
+                    $typeClass = 'bg-sky-50 text-sky-700 border border-sky-200';
+                } elseif (str_contains($memo, '抵扣金') || str_contains($memo, '从套餐抵扣')) {
+                    $type = 'plan_discount';
+                    $typeText = '抵扣金抵扣';
+                    $typeClass = 'bg-indigo-50 text-indigo-700 border border-indigo-200';
+                } elseif (str_contains($memo, '购买') || str_contains($memo, '套餐') || str_contains($memo, 'VIP')) {
+                    $type = 'plan_purchase';
+                    $typeText = '套餐购买';
+                    $typeClass = 'bg-purple-50 text-purple-700 border border-purple-200';
+                } elseif (str_contains($memo, '调整') || str_contains($memo, '赠送') || str_contains($memo, 'admin')) {
+                    $type = 'admin_adjust';
+                    $typeText = '平台调账';
+                    $typeClass = 'bg-amber-50 text-amber-700 border border-amber-200';
+                } elseif ($moneyVal < 0 || str_contains($memo, '扣除') || str_contains($memo, '预扣') || str_contains($memo, '预占')) {
+                    $type = 'fee_deduct';
+                    $typeText = '手续费扣除';
+                    $typeClass = 'bg-rose-50 text-rose-700 border border-rose-200';
+                }
+
+                // 提取关联单号（若存在）
+                $tradeNo = '';
+                if (preg_match('/(CX[A-Za-z0-9_]+)/', $memo, $matches)) {
+                    $tradeNo = $matches[1];
+                }
+
                 return [
                     'id'          => $log->id,
                     'money'       => $log->money,
                     'before'      => $log->before,
                     'after'       => $log->after,
-                    'memo'        => $log->memo,
+                    'memo'        => $memo,
+                    'type'        => $type,
+                    'type_text'   => $typeText,
+                    'type_class'  => $typeClass,
+                    'trade_no'    => $tradeNo,
                     'create_time' => date('Y-m-d H:i:s', (int)$log->create_time),
                 ];
             });
 
         return json_encode([
             'code' => 1,
-            'data' => $logs
+            'data' => $logs,
+            'total' => $total,
+            'page' => $page,
+            'page_size' => $pageSize,
         ], JSON_UNESCAPED_UNICODE);
     }
 
@@ -555,6 +607,51 @@ class MerchantApiController
             ->orderBy('id', 'desc')
             ->get();
 
+        // 预加载当前系统可用支付驱动与分类字典
+        \app\payment\PaymentManager::flush();
+        $driversMeta = \app\payment\PaymentManager::getRegisteredDrivers();
+        $channelMetaMap = [
+            '*'      => ['name' => '全量所有支付通道', 'category' => 'all'],
+            'all'    => ['name' => '全量所有支付通道', 'category' => 'all'],
+            'wxpay'  => ['name' => '微信支付全系', 'category' => 'wxpay'],
+            'alipay' => ['name' => '支付宝全系', 'category' => 'alipay'],
+            'qqpay'  => ['name' => 'QQ钱包全系', 'category' => 'qqpay'],
+        ];
+        foreach ($driversMeta as $cType => $dm) {
+            $cat = $dm['category'] ?? $dm['pay_category'] ?? '';
+            if ($cat === '') {
+                if (str_starts_with($cType, 'wechat_') || str_starts_with($cType, 'wx_') || str_starts_with($cType, 'wxpay_')) {
+                    $cat = 'wxpay';
+                } elseif (str_starts_with($cType, 'alipay_') || str_starts_with($cType, 'ali_')) {
+                    $cat = 'alipay';
+                } elseif (str_starts_with($cType, 'qqpay_') || str_starts_with($cType, 'qq_')) {
+                    $cat = 'qqpay';
+                } else {
+                    $cat = 'other';
+                }
+            }
+            $channelMetaMap[$cType] = [
+                'name'     => (string)($dm['title'] ?? $dm['name'] ?? $cType),
+                'category' => $cat,
+            ];
+        }
+
+        // 动态合并云端商品库插件元数据（使得未安装但已配置套餐的通道标签正常解析展示）
+        try {
+            $cloudPlugins = \app\model\CloudPlugin::where('status', 1)->get();
+            foreach ($cloudPlugins as $cp) {
+                $cType = (string)($cp->c_type ?? '');
+                if ($cType !== '' && !isset($channelMetaMap[$cType])) {
+                    $channelMetaMap[$cType] = [
+                        'name'     => (string)$cp->name,
+                        'category' => (string)($cp->category ?: 'other'),
+                    ];
+                }
+            }
+        } catch (\Throwable) {
+            // 容错隔离
+        }
+
         // 统计商户已购买记录
         $boughtCounts = \app\model\MerchantPlanLog::where('merchant_id', $merchant->id)
             ->selectRaw('plan_id, COUNT(*) as cnt')
@@ -562,12 +659,32 @@ class MerchantApiController
             ->pluck('cnt', 'plan_id')
             ->toArray();
 
-        $planData = $plans->map(function ($plan) use ($boughtCounts, $merchant) {
+        $planData = $plans->map(function ($plan) use ($boughtCounts, $merchant, $channelMetaMap) {
             $arr = $plan->toArray();
             $boughtCount = (int)($boughtCounts[$plan->id] ?? 0);
             $arr['bought_count'] = $boughtCount;
             $arr['is_current'] = ((int)$merchant->plan_id === (int)$plan->id);
             $arr['can_buy'] = ($plan->limit_count <= 0 || $boughtCount < $plan->limit_count);
+
+            // 解析 allowed_channels 为展示友好的通道标签列表
+            $rawAllowed = array_values(array_filter(
+                array_map('trim', explode(',', (string)($plan->allowed_channels ?? '')))
+            ));
+            $tags = [];
+            if ($rawAllowed === []) {
+                $tags[] = ['code' => '*', 'name' => '全量支付通道', 'category' => 'all'];
+            } else {
+                foreach ($rawAllowed as $code) {
+                    $meta = $channelMetaMap[$code] ?? null;
+                    $tags[] = [
+                        'code'     => $code,
+                        'name'     => $meta['name'] ?? $code,
+                        'category' => $meta['category'] ?? 'other',
+                    ];
+                }
+            }
+            $arr['allowed_channel_tags'] = $tags;
+
             return $arr;
         });
 
@@ -589,7 +706,7 @@ class MerchantApiController
     }
 
     /**
-     * 商户购买/免费领取套餐
+     * 商户购买/免费领取套餐 (支持余额支付与在线收银扫码支付)
      */
     public function buyPlan(\support\Request $request): string
     {
@@ -598,7 +715,9 @@ class MerchantApiController
             return json_encode(['code' => 401, 'msg' => '未登录'], JSON_UNESCAPED_UNICODE);
         }
 
-        $planId = (int)$request->post('plan_id', 0);
+        $planId  = (int)$request->post('plan_id', 0);
+        $payType = trim((string)$request->post('pay_type', 'balance')); // balance | alipay | wxpay
+
         $plan = \app\model\Plan::where('id', $planId)->where('status', 1)->first();
         if (!$plan) {
             return json_encode(['code' => -1, 'msg' => '套餐不存在或已停用'], JSON_UNESCAPED_UNICODE);
@@ -617,38 +736,84 @@ class MerchantApiController
         $price = (float)$plan->price;
         $merchantMoney = (float)$merchant->money;
 
+        // 1. 在线扫码直购模式 (alipay / wxpay)
+        if (in_array($payType, ['alipay', 'wxpay'], true) && $price > 0) {
+            try {
+                $outTradeNo = 'PLAN_' . date('YmdHis') . '_' . bin2hex(random_bytes(4));
+                $orderService = new \app\service\OrderService();
+                $params = [
+                    'pid'          => (string)$merchant->pid,
+                    'out_trade_no' => $outTradeNo,
+                    'notify_url'   => '',
+                    'return_url'   => $this->baseUrl($request) . '/merchant_center.html',
+                    'name'         => "商户购买套餐【{$plan->name}】¥" . number_format($price, 2, '.', ''),
+                    'money'        => number_format($price, 2, '.', ''),
+                    'type'         => $payType,
+                    'param'        => 'plan:' . $plan->id . ':buyer:' . $merchant->id,
+                ];
+
+                $sign = \support\Sign::makeSign($params, (string)$merchant->key);
+                $res  = $orderService->createOrder(
+                    array_merge($params, ['sign' => $sign, 'sign_type' => 'MD5']),
+                    $this->baseUrl($request),
+                    'plan_purchase',
+                    $request->getRemoteIp()
+                );
+
+                return json_encode([
+                    'code' => 1,
+                    'msg'  => '收银订单已创建',
+                    'data' => [
+                        'mode'            => 'online',
+                        'order_no'        => $res['trade_no'],
+                        'trade_no'        => $res['trade_no'],
+                        'out_trade_no'    => $outTradeNo,
+                        'money'           => $res['money'],
+                        'price'           => $res['price'],
+                        'pay_type'        => $payType,
+                        'pay_url'         => $res['pay_url'],
+                        'qr_code_content' => $res['pay_url'],
+                        'pay_mode'        => $res['pay_mode'],
+                    ]
+                ], JSON_UNESCAPED_UNICODE);
+            } catch (\Throwable $ex) {
+                return json_encode(['code' => -1, 'msg' => '创建在线支付订单失败: ' . $ex->getMessage()], JSON_UNESCAPED_UNICODE);
+            }
+        }
+
+        // 2. 余额支付模式
         if ($price > 0 && $merchantMoney < $price) {
             return json_encode([
-                'code' => -1,
+                'code' => 2, // code=2 表示余额不足，前端可提示切换在线直购
                 'msg'  => '服务费余额不足，当前余额 ¥' . number_format($merchantMoney, 2) . '，套餐需 ¥' . number_format($price, 2),
+                'data' => [
+                    'plan_id'        => $plan->id,
+                    'plan_name'      => $plan->name,
+                    'price'          => number_format($price, 2, '.', ''),
+                    'merchant_money' => number_format($merchantMoney, 2, '.', ''),
+                ]
             ], JSON_UNESCAPED_UNICODE);
         }
 
-        // 事务处理购买
-        \illuminate\database\capsule\manager::transaction(function () use ($merchant, $plan, $price) {
-            // 扣减余额（若 $price > 0）
+        // 事务处理余额扣款与套餐激活
+        \Illuminate\Database\Capsule\Manager::transaction(function () use ($merchant, $plan, $price) {
             if ($price > 0) {
                 $before = (float)$merchant->money;
                 $after  = $before - $price;
                 $merchant->money = number_format($after, 2, '.', '');
 
-                // 写入变动日志
-                \app\model\FinanceLog::create([
-                    'merchant_id' => $merchant->id,
-                    'type'        => 'buy_plan',
-                    'amount'      => '-' . number_format($price, 2, '.', ''),
-                    'before'      => number_format($before, 2, '.', ''),
-                    'after'       => number_format($after, 2, '.', ''),
-                    'memo'        => "购买/订阅套餐【{$plan->name}】",
-                    'create_time' => time(),
-                ]);
+                \app\model\UserMoneyLog::log(
+                    (int)$merchant->id,
+                    '-' . number_format($price, 2, '.', ''),
+                    number_format($before, 2, '.', ''),
+                    number_format($after, 2, '.', ''),
+                    "购买/订阅套餐【{$plan->name}】"
+                );
             }
 
-            // 更新商户套餐信息与抵扣额度
             $merchant->plan_id = $plan->id;
-            $merchant->rate    = number_format((float)$plan->rate / 100.0, 4, '.', ''); // 保存小数形式，如 2.5% 保存为 0.0250
+            $merchant->rate    = number_format((float)$plan->rate / 100.0, 4, '.', '');
 
-            // 核心功能：套餐费用全额转化为同等价格的手续费抵扣金额
             if ($price > 0) {
                 $currentDiscount = (float)($merchant->plan_fee_discount_balance ?? 0.00);
                 $merchant->plan_fee_discount_balance = number_format($currentDiscount + $price, 2, '.', '');
@@ -658,20 +823,17 @@ class MerchantApiController
                 $merchant->channel_quota = $plan->channel_quota;
             }
 
-            // 续期天数计算
             $now = time();
             $currentExpire = (int)$merchant->plan_expire_time;
             if ($plan->days > 0) {
                 $baseTime = ($currentExpire > $now) ? $currentExpire : $now;
                 $merchant->plan_expire_time = $baseTime + ($plan->days * 86400);
             } else {
-                // 0 表示无时间限制/永久
                 $merchant->plan_expire_time = 0;
             }
 
             $merchant->save();
 
-            // 记录购买日志
             \app\model\MerchantPlanLog::create([
                 'merchant_id' => $merchant->id,
                 'plan_id'     => $plan->id,
@@ -684,7 +846,20 @@ class MerchantApiController
         });
 
         $actionText = $price > 0 ? '订阅成功！' : '领取试用成功！';
-        return json_encode(['code' => 1, 'msg' => $actionText], JSON_UNESCAPED_UNICODE);
+        return json_encode(['code' => 1, 'msg' => $actionText, 'data' => ['mode' => 'balance']], JSON_UNESCAPED_UNICODE);
+    }
+
+    private function baseUrl(\support\Request $request): string
+    {
+        $configured = (string)config('app.url', '');
+        if (filter_var($configured, FILTER_VALIDATE_URL)) {
+            return rtrim($configured, '/');
+        }
+        $forwarded = strtolower((string)$request->header('x-forwarded-proto'));
+        $scheme = in_array($forwarded, ['http', 'https'], true)
+            ? $forwarded
+            : (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http');
+        return $scheme . '://' . $request->host();
     }
 }
 

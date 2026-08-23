@@ -10,17 +10,19 @@ use Webman\MiddlewareInterface;
 
 final class MerchantAssetCacheMiddleware implements MiddlewareInterface
 {
-    private const REVALIDATED_PATHS = [
-        'merchant_center.html',
-        'merchant/assets/app.js',
-        'merchant/assets/version.js',
-    ];
-
     public function process(Request $request, callable $handler): Response
     {
         $response = $handler($request);
-        if (in_array(ltrim($request->path(), '/'), self::REVALIDATED_PATHS, true)) {
-            $response->withHeader('Cache-Control', 'no-cache, must-revalidate');
+        $path = ltrim($request->path(), '/');
+        if (
+            str_ends_with($path, '.html') ||
+            str_ends_with($path, '.js') ||
+            str_starts_with($path, 'merchant/') ||
+            str_starts_with($path, 'admin/')
+        ) {
+            $response->withHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+                     ->withHeader('Pragma', 'no-cache')
+                     ->withHeader('Expires', '0');
         }
 
         return $response;

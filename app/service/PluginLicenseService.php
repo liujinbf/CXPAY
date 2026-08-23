@@ -262,4 +262,56 @@ class PluginLicenseService
             ];
         })->values()->toArray();
     }
+
+    /**
+     * 校验当前主站节点是否已开通/已授权指定的支付通道驱动。
+     * 
+     * 规则：
+     * 1. 支付宝三大核心驱动（当面付 alipay_face_pay、免挂云端 alipay_cookie_cloud、免挂助手 alipay_app_asst）：默认永久免费已开通；
+     * 2. 其他付费通道（微信/QQ/USDT/易支付等）：必须在主站本地授权凭据 entitlements.json 或数据库已购买列表中存在有效授权；
+     * 3. 未开通的通道主站商户端严格不可见、不可添加。
+     */
+    public static function isChannelEntitled(string $cType): bool
+    {
+        $cType = trim($cType);
+        if ($cType === '' || \app\payment\RemovedPaymentDrivers::contains($cType)) {
+            return false;
+        }
+
+        // 1. 支付宝三大通道插件默认免费授权
+        $freeChannels = ['alipay_face_pay', 'alipay_cookie_cloud', 'alipay_app_asst'];
+        if (in_array($cType, $freeChannels, true)) {
+            return true;
+        }
+
+        // 2. 检查本地 Ed25519 授权凭据文件
+        $entitlementFile = runtime_path() . '/instance/entitlements.json';
+        if (file_exists($entitlementFile)) {
+            $entitlements = json_decode((string)file_get_contents($entitlementFile), true);
+            if (is_array($entitlements)) {
+                if (isset($entitlements[$cType]) || isset($entitlements['cxpay.driver.' . $cType])) {
+                    return true;
+                }
+            }
+        }
+
+        // 3. 检查当前域名是否已购买过代理授权
+        try {
+            $hasDbLic = AgentPluginLicense::where(function ($q) use ($cType) {
+                $q->where('plugin_id', $cType)
+                  ->orWhere('plugin_id', 'cxpay.driver.' . $cType);
+            })->where(function ($q) {
+                $q->where('expire_time', -1)->orWhere('expire_time', '>', time());
+            })->exists();
+
+            if ($hasDbLic) {
+                return true;
+            }
+        } catch (\Throwable) {
+            // 忽略数据库查询偶发异常
+        }
+
+        return false;
+    }
 }
+

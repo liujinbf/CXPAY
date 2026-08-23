@@ -29,6 +29,8 @@ class OrderAdminController
         $merchantId = trim((string)($request->get('merchant_id') ?? ''));
         $status     = $request->get('status') ?? '';
         $pageSize   = max(1, min(100, (int)$request->get('page_size', 20)));
+        $dateStart  = trim((string)($request->get('date_start') ?? ''));
+        $dateEnd    = trim((string)($request->get('date_end') ?? ''));
 
         if (strlen($tradeNo) > 64 || ($merchantId !== '' && !ctype_digit($merchantId))) {
             return json_encode(['code' => -1, 'msg' => '订单检索条件不合法'], JSON_UNESCAPED_UNICODE);
@@ -55,6 +57,20 @@ class OrderAdminController
 
         if ($status !== '') {
             $query->where('cx_order.status', (int)$status);
+        }
+
+        if ($dateStart !== '') {
+            $startTs = strtotime($dateStart . ' 00:00:00');
+            if ($startTs !== false) {
+                $query->where('cx_order.create_time', '>=', $startTs);
+            }
+        }
+
+        if ($dateEnd !== '') {
+            $endTs = strtotime($dateEnd . ' 23:59:59');
+            if ($endTs !== false) {
+                $query->where('cx_order.create_time', '<=', $endTs);
+            }
         }
 
         $orders = $query->orderBy('cx_order.id', 'desc')->paginate($pageSize);
@@ -126,6 +142,44 @@ class OrderAdminController
         return json_encode([
             'code' => 1,
             'msg'  => '订单已按统一结算流程补单，商户通知已进入队列',
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * 管理员单笔删除未完成订单
+     */
+    public function delete(\support\Request $request): string
+    {
+        $tradeNo  = trim((string)($request->post('trade_no') ?? ''));
+        $operator = AuditLog::currentOperator();
+        $ip       = AuditLog::currentIp();
+
+        if ($tradeNo === '') {
+            return json_encode(['code' => -1, 'msg' => '订单流水号不能为空'], JSON_UNESCAPED_UNICODE);
+        }
+
+        $result = $this->orderService->deleteUnfinishedOrder($tradeNo, null);
+        AuditLog::record($operator, 'delete_order', ['trade_no' => $tradeNo], $result['code'] === 1 ? 'success' : 'fail', $ip);
+
+        return json_encode($result, JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * 管理员批量清理平台未完成订单
+     */
+    public function batchClean(\support\Request $request): string
+    {
+        $beforeMinutes = max(0, (int)($request->post('before_minutes') ?? 5));
+        $operator = AuditLog::currentOperator();
+        $ip       = AuditLog::currentIp();
+
+        $deletedCount = $this->orderService->batchDeleteUnfinishedOrders(null, $beforeMinutes * 60);
+        AuditLog::record($operator, 'batch_clean_orders', ['deleted_count' => $deletedCount, 'before_minutes' => $beforeMinutes], 'success', $ip);
+
+        return json_encode([
+            'code' => 1,
+            'msg'  => "平台已成功清理 {$deletedCount} 笔超时未完成废弃订单！",
+            'data' => ['deleted_count' => $deletedCount],
         ], JSON_UNESCAPED_UNICODE);
     }
 }

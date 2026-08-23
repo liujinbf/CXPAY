@@ -179,6 +179,72 @@ final class SystemUpdateController
             return $blocked;
         }
 
-        return json(['code' => -1, 'msg' => '若需回滚版本，请在 Git 中执行 reset/revert 或推送前置 commit']);
+        $targetHash = trim((string)($request->post('commit_hash') ?? ''));
+
+        // 校验 commit hash 格式（7 ~ 40 位十六进制）
+        if ($targetHash === '' || !preg_match('/^[0-9a-f]{7,40}$/i', $targetHash)) {
+            return json([
+                'code' => -1,
+                'msg'  => '回滚失败：commit hash 格式不合法（须为 7～40 位十六进制字符串）',
+            ]);
+        }
+
+        // 验证 commit 确实存在于本地历史中，防止任意参数注入
+        $verifyOutput = $this->execGit("git cat-file -t {$targetHash}");
+        if (!str_starts_with(trim($verifyOutput), 'commit')) {
+            return json([
+                'code' => -1,
+                'msg'  => "回滚失败：commit {$targetHash} 不存在于本地 Git 历史中，请先执行 git fetch",
+            ]);
+        }
+
+        // 记录当前 HEAD，方便失败后手动恢复
+        $currentHead = $this->execGit('git rev-parse --short HEAD');
+
+        // 执行回滚
+        $resetLog = $this->execGit("git reset --hard {$targetHash}");
+        $newCommit = $this->execGit('git rev-parse --short HEAD');
+        $newCommitMsg = $this->execGit('git log -1 --pretty=format:"%s (%cd)" --date=format:"%Y-%m-%d %H:%M:%S"');
+
+        // 尝试执行 SQL patch（与 doUpdate 保持一致）
+        try {
+            $patchFile = base_path() . '/database/patch_v7.sql';
+            if (file_exists($patchFile)) {
+                $sqlContent = file_get_contents($patchFile);
+                if (!empty($sqlContent)) {
+                    $statements = array_filter(array_map('trim', explode(';', $sqlContent)));
+                    foreach ($statements as $stmt) {
+                        if (!empty($stmt)) {
+                            try {
+                                \Illuminate\Database\Capsule\Manager::statement($stmt);
+                            } catch (\Throwable) {
+                                // 容错处理：字段已存在时忽略
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('[SystemRollback] auto patch sql execution error: ' . $e->getMessage());
+        }
+
+        // 触发进程热重启
+        if (DIRECTORY_SEPARATOR === '\\') {
+            @pclose(@popen('start /B php start.php reload', 'r'));
+        } else {
+            $baseDir = escapeshellarg(base_path());
+            @shell_exec("cd {$baseDir} && php start.php reload >/dev/null 2>&1 &");
+        }
+
+        return json([
+            'code' => 1,
+            'msg'  => "已成功回滚至 #{$newCommit}，并触发后台服务热重启",
+            'data' => [
+                'rollback_from' => $currentHead,
+                'rollback_to'   => $newCommit,
+                'commit_msg'    => $newCommitMsg,
+                'log'           => $resetLog,
+            ],
+        ]);
     }
 }

@@ -36,6 +36,35 @@ class OrderController
             return $this->jsonResponse(['code' => -1, 'msg' => '订单不存在']);
         }
 
+        // 若订单未支付且绑定了通道，主动向上游渠道查询最新支付状态进行补偿核销
+        if ((int)$order->status !== 1 && !empty($order->channel_id)) {
+            try {
+                $channel = Channel::find($order->channel_id);
+                if ($channel && (int)$channel->status === 1 && \app\payment\PaymentManager::has((string)$channel->c_type)) {
+                    $config = $this->decryptConfig($channel->config);
+                    $config['channel_id'] = (int)$channel->id;
+                    $driver = \app\payment\PaymentManager::make((string)$channel->c_type);
+                    $queryRes = $driver->query((string)$order->trade_no, $config);
+                    if (!empty($queryRes['paid'])) {
+                        $orderService = new \app\service\OrderService();
+                        $channelTradeNo = (string)($queryRes['trade_no'] ?? '');
+                        $amount = (float)($queryRes['amount'] ?? $order->price);
+                        $orderService->markAsPaid(
+                            (string)$order->trade_no,
+                            $channelTradeNo,
+                            $amount,
+                            (int)$channel->id,
+                            false
+                        );
+                        // 重新载入核销后的订单最新数据
+                        $order = Order::where('id', $order->id)->first() ?: $order;
+                    }
+                }
+            } catch (\Throwable $ex) {
+                error_log('[OrderController] 订单主动查询补偿异常 trade_no=' . $order->trade_no . ' error=' . $ex->getMessage());
+            }
+        }
+
         $payUrl = '';
         if ((int)$order->status === 0 && (int)$order->expire_time > time()) {
             $payUrl = (string)($order->pay_url ?? '');
@@ -98,6 +127,90 @@ class OrderController
             ->all();
 
         return json(['code' => 1, 'msg' => '获取成功', 'data' => $orders]);
+    }
+
+    /**
+     * 商户手动补单
+     */
+    public function manualPay(Request $request)
+    {
+        $merchant = $request->context['merchant'] ?? null;
+        if (!$merchant instanceof Merchant) {
+            return json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401);
+        }
+
+        $tradeNo = trim((string)($request->post('trade_no') ?? ''));
+        if ($tradeNo === '') {
+            return json(['code' => -1, 'msg' => '订单流水号不能为空']);
+        }
+
+        $order = Order::where('trade_no', $tradeNo)
+            ->where('merchant_id', $merchant->id)
+            ->first();
+        if (!$order) {
+            return json(['code' => -1, 'msg' => '订单不存在或无权操作']);
+        }
+
+        if ((int)$order->status === 1) {
+            return json(['code' => 1, 'msg' => '该订单已经是已完成状态，无需补单']);
+        }
+
+        $orderService = new \app\service\OrderService();
+        $success = $orderService->markAsPaid(
+            $tradeNo,
+            'MANUAL_MERCHANT_' . time(),
+            (float)$order->price,
+            (int)$order->channel_id,
+            false
+        );
+
+        if (!$success) {
+            return json(['code' => -1, 'msg' => '手动补单失败，请检查订单状态']);
+        }
+
+        return json(['code' => 1, 'msg' => '🎉 订单已手动补单成功，已触发统一结算与回调通知！']);
+    }
+
+    /**
+     * 商户删除单笔未完成订单
+     */
+    public function delete(Request $request)
+    {
+        $merchant = $request->context['merchant'] ?? null;
+        if (!$merchant instanceof Merchant) {
+            return json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401);
+        }
+
+        $tradeNo = trim((string)($request->post('trade_no') ?? ''));
+        if ($tradeNo === '') {
+            return json(['code' => -1, 'msg' => '订单流水号不能为空']);
+        }
+
+        $orderService = new \app\service\OrderService();
+        $result = $orderService->deleteUnfinishedOrder($tradeNo, (int)$merchant->id);
+
+        return json($result);
+    }
+
+    /**
+     * 商户一键批量清理已超时/未完成订单
+     */
+    public function batchClean(Request $request)
+    {
+        $merchant = $request->context['merchant'] ?? null;
+        if (!$merchant instanceof Merchant) {
+            return json(['code' => 401, 'msg' => '商户身份无效'])->withStatus(401);
+        }
+
+        $beforeMinutes = max(0, (int)($request->post('before_minutes') ?? 5));
+        $orderService = new \app\service\OrderService();
+        $deletedCount = $orderService->batchDeleteUnfinishedOrders((int)$merchant->id, $beforeMinutes * 60);
+
+        return json([
+            'code' => 1,
+            'msg'  => "已成功清理 {$deletedCount} 笔已超时未完成订单！",
+            'data' => ['deleted_count' => $deletedCount],
+        ]);
     }
 
     private function decryptConfig(mixed $rawConfig): array

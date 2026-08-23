@@ -106,7 +106,7 @@ class CallbillService
 
         $query = Order::where('status', 0)
             ->where('price', $priceFormatted)
-            ->where('create_time', '<=', $occurredAt + 10)
+            ->where('create_time', '<=', $occurredAt + 90)
             ->where('expire_time', '>=', $occurredAt)
             ->where('expire_time', '>', $now);
 
@@ -121,9 +121,10 @@ class CallbillService
             } else {
                 $historicalCandidate = Order::where('channel_id', $channelId)
                     ->where('price', $priceFormatted)
-                    ->where('create_time', '<=', $occurredAt + 10)
+                    ->where('create_time', '<=', $occurredAt + 90)
                     ->where('expire_time', '>=', $occurredAt)
                     ->exists();
+
                 $bill->status = $historicalCandidate ? 3 : 2;
                 $message = $historicalCandidate
                     ? '订单已超时或状态已变化，账单已转人工复核'

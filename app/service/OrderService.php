@@ -72,7 +72,8 @@ class OrderService
         $subject = trim((string)($params['name'] ?? '网络支付'));
         $money = $this->normalizeInputMoney($params['money'] ?? null);
         $type = trim((string)($params['type'] ?? 'alipay'));
-        if (!in_array($businessType, ['payment', 'recharge'], true)) {
+        $param = trim((string)($params['param'] ?? ''));
+        if (!in_array($businessType, ['payment', 'recharge', 'plugin_purchase', 'plan_purchase'], true)) {
             throw new RuntimeException('不支持的订单业务类型');
         }
 
@@ -81,7 +82,7 @@ class OrderService
         }
         // type 为易支付协议标准字段，表示收款钱包分类，不是驱动标识（c_type）。
         // 通道选取时会按 pay_category 或 c_type 前缀匹配，此处仅校验合法范围。
-        $allowedTypes = ['alipay', 'wxpay', 'qqpay'];
+        $allowedTypes = ['alipay', 'wxpay', 'qqpay', 'usdt', 'other', 'epay'];
         if (!in_array($type, $allowedTypes, true)) {
             throw new RuntimeException('不支持的支付类型（type），允许值：' . implode('/', $allowedTypes));
         }
@@ -112,8 +113,14 @@ class OrderService
             throw new RuntimeException('商户 VIP 套餐已过期，请前往商户后台续费');
         }
 
-        // 余额充值只能进入平台公共通道，不能用商户自己的收款码给自己增加余额。
-        $channelOwnerId = $businessType === 'recharge' ? 0 : (int)$merchant->id;
+        // 充值余额与购买套餐必须进入平台官方系统收款通道，不能用商户自己的收款码收款。
+        if (in_array($businessType, ['recharge', 'plan_purchase'], true)) {
+            $sysPid = (string)DB::table('cx_config')->where('name', 'system_recharge_pid')->value('value');
+            $sysMerchant = $sysPid !== '' ? Merchant::where('pid', $sysPid)->first() : null;
+            $channelOwnerId = $sysMerchant ? (int)$sysMerchant->id : 0;
+        } else {
+            $channelOwnerId = (int)$merchant->id;
+        }
         $selectedChannel = $this->selectChannel($channelOwnerId, $type, (float)$money);
         $this->assertChannelReady($selectedChannel);
         $basePrice = $money;
@@ -147,6 +154,7 @@ class OrderService
             $money,
             $basePrice,
             $subject,
+            $param,
             $notifyUrl,
             $returnUrl,
             $now
@@ -275,7 +283,9 @@ class OrderService
                 'channel_id' => $channelId,
                 'pay_type' => $type,
                 'business_type' => $businessType,
+                'param' => $param,
                 'fee_amount' => $fee,
+                'fee_discount_amount' => $useDiscount ?? '0.00',
                 'fee_status' => $feeStatus,
                 'amount' => $money,
                 'price' => $finalPrice,
@@ -309,13 +319,10 @@ class OrderService
         if (!$targetOrder) {
             return false;
         }
-        if ($channelId !== null && (int)$targetOrder->channel_id !== $channelId) {
-            return false;
-        }
         if ((int)$targetOrder->status === 1) {
             return true;
         }
-        if ((int)$targetOrder->status !== 0) {
+        if (!in_array((int)$targetOrder->status, [0, 2], true)) {
             return false;
         }
         $targetOrderId = (int)$targetOrder->id;
@@ -346,7 +353,7 @@ class OrderService
                 if ((int)$order->status === 1) {
                     return ['success' => true, 'newly_paid' => false, 'order' => $order];
                 }
-                if ((int)$order->status !== 0) {
+                if (!in_array((int)$order->status, [0, 2], true)) {
                     return ['success' => false, 'newly_paid' => false, 'order' => null];
                 }
                 if ($validateAmount && bccomp((string)$order->price, $receivedAmount, 2) !== 0) {
@@ -354,10 +361,40 @@ class OrderService
                 }
 
                 $before = $this->normalizeMoney($merchant->money);
-                if ((string)($order->business_type ?? 'payment') === 'recharge') {
+                $bType = (string)($order->business_type ?? 'payment');
+
+                if ($bType === 'recharge' || str_starts_with((string)$order->param, 'recharge:')) {
+                    $targetBuyerId = $targetMerchantId;
+                    if (str_starts_with((string)$order->param, 'recharge:')) {
+                        $targetBuyerId = (int)substr((string)$order->param, strlen('recharge:'));
+                    }
+                    $rechargeMerchant = ($targetBuyerId === $targetMerchantId)
+                        ? $merchant
+                        : (Merchant::where('id', $targetBuyerId)->lockForUpdate()->first() ?: $merchant);
+
+                    $rBefore = $this->normalizeMoney($rechargeMerchant->money);
+                    $change  = $this->normalizeMoney($order->amount);
+                    $rAfter  = bcadd($rBefore, $change, 2);
+                    $memo    = "在线充值订单 {$order->trade_no} 服务费入账";
+
+                    $rechargeMerchant->money = $rAfter;
+                    $rechargeMerchant->save();
+                    UserMoneyLog::log(
+                        (int)$rechargeMerchant->id,
+                        '+' . $change,
+                        $rBefore,
+                        $rAfter,
+                        $memo
+                    );
+                } elseif ($bType === 'plugin_purchase') {
                     $change = $this->normalizeMoney($order->amount);
                     $after = bcadd($before, $change, 2);
-                    $memo = "充值订单 {$order->trade_no} 余额入账";
+                    $memo = "官方插件商城订单 {$order->trade_no} 款项入账";
+                    $merchant->money = $after;
+                    $merchant->save();
+                    UserMoneyLog::log((int)$merchant->id, '+' . $change, $before, $after, $memo);
+                } elseif ($bType === 'plan_purchase' || str_starts_with((string)$order->param, 'plan:')) {
+                    // 在线购买套餐：资金直接进入系统官方收款商户，不扣除手续费
                 } else {
                     $feeStatus = (int)($order->fee_status ?? 0);
                     $fee = $this->normalizeMoney($order->fee_amount ?? 0);
@@ -388,18 +425,18 @@ class OrderService
                     }
                     $order->fee_amount = $fee;
                     $order->fee_status = 2;
-                }
 
-                if (bccomp($change, '0.00', 2) !== 0) {
-                    $merchant->money = $after;
-                    $merchant->save();
-                    UserMoneyLog::log(
-                        (int)$merchant->id,
-                        $change,
-                        $before,
-                        $after,
-                        $memo
-                    );
+                    if (bccomp($change, '0.00', 2) !== 0) {
+                        $merchant->money = $after;
+                        $merchant->save();
+                        UserMoneyLog::log(
+                            (int)$merchant->id,
+                            $change,
+                            $before,
+                            $after,
+                            $memo
+                        );
+                    }
                 }
 
                 Channel::where('id', $order->channel_id)->update([
@@ -414,6 +451,108 @@ class OrderService
                 $order->channel_trade_no = mb_substr($channelTradeNo, 0, 128);
                 $order->pay_time = time();
                 $order->save();
+
+                // 插件购买订单：自动下发授权并写入本地 Entitlements
+                if ($bType === 'plugin_purchase' || str_starts_with((string)$order->param, 'plugin:')) {
+                    try {
+                        $paramParts = explode(':', (string)$order->param);
+                        $pluginId = $paramParts[1] ?? '';
+                        if ($pluginId !== '') {
+                            $entitlementFile = runtime_path() . '/instance/entitlements.json';
+                            $dir = dirname($entitlementFile);
+                            if (!is_dir($dir)) {
+                                @mkdir($dir, 0777, true);
+                            }
+                            $entitlements = [];
+                            if (file_exists($entitlementFile)) {
+                                $entitlements = json_decode((string)file_get_contents($entitlementFile), true) ?: [];
+                            }
+                            $entitlements[$pluginId] = [
+                                'plugin_id'  => $pluginId,
+                                'granted_at' => date('Y-m-d H:i:s'),
+                                'type'       => 'PERMANENT',
+                            ];
+                            @file_put_contents($entitlementFile, json_encode($entitlements, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+                            // 更新临时订单文件
+                            $orderFile = runtime_path() . "/orders/{$order->out_trade_no}.json";
+                            if (file_exists($orderFile)) {
+                                $oData = json_decode((string)file_get_contents($orderFile), true) ?: [];
+                                $oData['status'] = 'PAID';
+                                $oData['pay_time'] = time();
+                                @file_put_contents($orderFile, json_encode($oData, JSON_UNESCAPED_UNICODE));
+                            }
+
+                            // 同步更新 AgentPluginLicense
+                            if (class_exists(\app\model\AgentPluginLicense::class)) {
+                                \app\model\AgentPluginLicense::updateOrCreate(
+                                    ['domain' => $paramParts[2] ?? 'cs.fcwan.cn', 'plugin_id' => $pluginId],
+                                    ['expire_time' => 0, 'auth_key' => bin2hex(random_bytes(16))]
+                                );
+                            }
+                        }
+                    } catch (\Throwable $licEx) {
+                        error_log('[OrderService] 自动授权发放异常: ' . $licEx->getMessage());
+                    }
+                }
+
+                // 套餐订阅直充订单：自动激活商户 VIP 套餐与手续费抵扣金
+                if ($bType === 'plan_purchase' || str_starts_with((string)$order->param, 'plan:')) {
+                    try {
+                        $pParts = explode(':', (string)$order->param);
+                        $targetPlanId = (int)($pParts[1] ?? 0);
+                        $buyerId = isset($pParts[3]) ? (int)$pParts[3] : (int)$order->merchant_id;
+
+                        $buyer = Merchant::find($buyerId);
+                        $targetPlan = \app\model\Plan::find($targetPlanId);
+                        if ($buyer && $targetPlan) {
+                            $buyer->plan_id = $targetPlan->id;
+                            $buyer->rate    = number_format((float)$targetPlan->rate / 100.0, 4, '.', '');
+
+                            $pPrice = (float)$order->amount;
+                            if ($pPrice > 0) {
+                                $currDiscount = (float)($buyer->plan_fee_discount_balance ?? 0.00);
+                                $buyer->plan_fee_discount_balance = number_format($currDiscount + $pPrice, 2, '.', '');
+                            }
+
+                            if ($targetPlan->channel_quota > 0) {
+                                $buyer->channel_quota = $targetPlan->channel_quota;
+                            }
+
+                            $nowTs = time();
+                            $currExp = (int)$buyer->plan_expire_time;
+                            if ($targetPlan->days > 0) {
+                                $baseTs = ($currExp > $nowTs) ? $currExp : $nowTs;
+                                $buyer->plan_expire_time = $baseTs + ($targetPlan->days * 86400);
+                            } else {
+                                $buyer->plan_expire_time = 0;
+                            }
+                            $buyer->save();
+
+                            // 写入商户套餐购买日志
+                            \app\model\MerchantPlanLog::create([
+                                'merchant_id' => $buyer->id,
+                                'plan_id'     => $targetPlan->id,
+                                'plan_name'   => $targetPlan->name,
+                                'price'       => number_format($pPrice, 2, '.', ''),
+                                'days'        => $targetPlan->days,
+                                'rate'        => number_format((float)$targetPlan->rate, 2, '.', ''),
+                                'create_time' => time(),
+                            ]);
+
+                            // 写入资金变动日志 (记录直充套餐购买)
+                            UserMoneyLog::log(
+                                (int)$buyer->id,
+                                '0.00',
+                                (string)$buyer->money,
+                                (string)$buyer->money,
+                                "在线扫码支付购买套餐【{$targetPlan->name}】¥" . number_format($pPrice, 2)
+                            );
+                        }
+                    } catch (\Throwable $planEx) {
+                        error_log('[OrderService] 在线购买套餐自动激活异常: ' . $planEx->getMessage());
+                    }
+                }
 
                 return ['success' => true, 'newly_paid' => true, 'order' => $order];
             }, 3);
@@ -521,21 +660,44 @@ class OrderService
                 }
 
                 $fee = $this->normalizeMoney($order->fee_amount ?? 0);
+                $feeDiscount = $this->normalizeMoney($order->fee_discount_amount ?? 0);
+                $feeMoney = bccomp($fee, $feeDiscount, 2) > 0 ? bcsub($fee, $feeDiscount, 2) : '0.00';
+
                 if ((int)($order->fee_status ?? 0) === 1 && bccomp($fee, '0.00', 2) > 0) {
                     if (!$merchant) {
                         throw new RuntimeException('订单所属商户不存在，无法释放手续费');
                     }
-                    $before = $this->normalizeMoney($merchant->money);
-                    $after = bcadd($before, $fee, 2);
-                    $merchant->money = $after;
+
+                    // 1. 若曾预扣现金余额，退回现金余额
+                    if (bccomp($feeMoney, '0.00', 2) > 0) {
+                        $before = $this->normalizeMoney($merchant->money);
+                        $after = bcadd($before, $feeMoney, 2);
+                        $merchant->money = $after;
+                        UserMoneyLog::log(
+                            (int)$merchant->id,
+                            '+' . $feeMoney,
+                            $before,
+                            $after,
+                            "{$reason}，释放订单 {$order->trade_no} 预扣服务费余额"
+                        );
+                    }
+
+                    // 2. 若曾抵扣套餐抵扣金，原路退回套餐抵扣金
+                    if (bccomp($feeDiscount, '0.00', 2) > 0) {
+                        $beforeDiscount = $this->normalizeMoney($merchant->plan_fee_discount_balance ?? 0);
+                        $afterDiscount = bcadd($beforeDiscount, $feeDiscount, 2);
+                        $merchant->plan_fee_discount_balance = $afterDiscount;
+                        $curMoney = $this->normalizeMoney($merchant->money);
+                        UserMoneyLog::log(
+                            (int)$merchant->id,
+                            '0.00',
+                            $curMoney,
+                            $curMoney,
+                            "{$reason}，释放订单 {$order->trade_no} 套餐抵扣金 ¥{$feeDiscount}（抵扣金余额 ¥{$afterDiscount}）"
+                        );
+                    }
+
                     $merchant->save();
-                    UserMoneyLog::log(
-                        (int)$merchant->id,
-                        $fee,
-                        $before,
-                        $after,
-                        "{$reason}，释放订单 {$order->trade_no} 手续费"
-                    );
                     $order->fee_status = 3;
                 }
 
@@ -592,6 +754,91 @@ class OrderService
             }
         }
         return $closed;
+    }
+
+    /**
+     * 安全删除单笔未完成订单（待支付/已超时/已作废订单）
+     * 若处于待支付状态且预占了手续费，将先在同一事务中释放手续费后物理删除。
+     */
+    public function deleteUnfinishedOrder(string $tradeNo, ?int $merchantId = null): array
+    {
+        $tradeNo = trim($tradeNo);
+        if ($tradeNo === '') {
+            return ['code' => -1, 'msg' => '订单号不能为空'];
+        }
+
+        $query = Order::where('trade_no', $tradeNo);
+        if ($merchantId !== null) {
+            $query->where('merchant_id', $merchantId);
+        }
+        $order = $query->first();
+        if (!$order) {
+            return ['code' => -1, 'msg' => '订单不存在或无权操作'];
+        }
+
+        if ((int)$order->status === 1) {
+            return ['code' => -1, 'msg' => '已支付成功的订单涉及商户资金与账务流水，禁止删除'];
+        }
+
+        // 若处于待支付状态，先走关单流程退回预占手续费
+        if ((int)$order->status === 0) {
+            $this->closePendingOrder($tradeNo, '删除订单释放预占手续费');
+        }
+
+        $order->delete();
+
+        return ['code' => 1, 'msg' => '未完成订单已成功删除'];
+    }
+
+    /**
+     * 一键批量清理未完成/已超时订单
+     */
+    public function batchDeleteUnfinishedOrders(?int $merchantId = null, int $beforeSeconds = 300): int
+    {
+        $cutoffTime = time() - max(0, $beforeSeconds);
+        $query = Order::whereIn('status', [0, 2, 3])
+            ->where('create_time', '<=', $cutoffTime);
+
+        if ($merchantId !== null) {
+            $query->where('merchant_id', $merchantId);
+        }
+
+        $pendingTradeNumbers = (clone $query)->where('status', 0)->limit(500)->pluck('trade_no');
+        foreach ($pendingTradeNumbers as $pTradeNo) {
+            $this->closePendingOrder((string)$pTradeNo, '批量清理未完成订单');
+        }
+
+        return (int)$query->delete();
+    }
+
+    /**
+     * 定时任务自动清理超期废弃未完成订单（防止数据库长期膨胀）
+     * 默认清理保留期（keepDays，默认15天）之前的已作废/超时订单。
+     */
+    public function autoPurgeArchivedOrders(int $keepDays = 15): int
+    {
+        $cutoffTime = time() - ($keepDays * 86400);
+        $deleted = 0;
+        
+        // 分批清理，避免大事务锁表
+        for ($i = 0; $i < 5; $i++) {
+            $ids = Order::whereIn('status', [2, 3])
+                ->where('create_time', '<', $cutoffTime)
+                ->limit(1000)
+                ->pluck('id');
+            
+            if ($ids->isEmpty()) {
+                break;
+            }
+            
+            $count = Order::whereIn('id', $ids->all())->delete();
+            $deleted += $count;
+            if ($count < 1000) {
+                break;
+            }
+        }
+        
+        return $deleted;
     }
 
     private function selectChannel(int $merchantId, string $type, float $money): Channel

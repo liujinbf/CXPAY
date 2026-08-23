@@ -28,36 +28,61 @@ class MerchantRechargeController
     public function create(\support\Request $request): Response
     {
         try {
-            $money  = (float)($request->post('money') ?? 0);
-            $type   = (string)($request->post('type') ?? 'alipay');
+            $money    = (float)($request->post('money') ?? 0);
+            $type     = (string)($request->post('type') ?? 'alipay');
             $merchant = $request->context['merchant'] ?? null;
 
             if (!$merchant instanceof Merchant) {
-                return json(['code' => -1, 'msg' => '商户身份无效']);
+                $merchantId = (int)$request->session()->get('merchant_id', 0);
+                if ($merchantId > 0) {
+                    $merchant = Merchant::find($merchantId);
+                }
+            }
+
+            if (!$merchant instanceof Merchant) {
+                return json(['code' => 401, 'msg' => '商户未登录或会话已失效']);
             }
             if ($money <= 0) {
                 return json(['code' => -1, 'msg' => '充值金额必须大于0']);
             }
 
             // 生成在线充值订单
-            $outTradeNo = 'RECHARGE_' . time() . '_' . bin2hex(random_bytes(6));
+            $outTradeNo = 'RECHARGE_' . date('YmdHis') . '_' . bin2hex(random_bytes(4));
             $params = [
-                'pid'          => $merchant->pid,
+                'pid'          => (string)$merchant->pid,
                 'out_trade_no' => $outTradeNo,
                 'notify_url'   => '',
                 'return_url'   => $this->baseUrl($request) . '/merchant_center.html',
-                'name'         => '商户账户余额充值 ¥' . number_format($money, 2, '.', ''),
-                'money'        => $money,
+                'name'         => '商户余额在线充值 ¥' . number_format($money, 2, '.', ''),
+                'money'        => number_format($money, 2, '.', ''),
                 'type'         => $type,
                 'param'        => 'recharge:' . $merchant->id,
             ];
 
-            // 验签模拟
-            $res = $this->orderService->createOrder(array_merge($params, [
-                'sign' => \support\Sign::makeSign($params, $merchant->key)
-            ]), $this->baseUrl($request), 'recharge');
+            // 签名并创建订单
+            $sign = \support\Sign::makeSign($params, (string)$merchant->key);
+            $res  = $this->orderService->createOrder(
+                array_merge($params, ['sign' => $sign, 'sign_type' => 'MD5']),
+                $this->baseUrl($request),
+                'recharge',
+                $request->getRemoteIp()
+            );
 
-            return json(['code' => 1, 'msg' => '充值订单创建成功', 'data' => $res]);
+            return json([
+                'code' => 1,
+                'msg'  => '充值订单创建成功',
+                'data' => [
+                    'order_no'        => $res['trade_no'],
+                    'trade_no'        => $res['trade_no'],
+                    'out_trade_no'    => $outTradeNo,
+                    'money'           => $res['money'],
+                    'price'           => $res['price'],
+                    'pay_type'        => $type,
+                    'pay_url'         => $res['pay_url'],
+                    'qr_code_content' => $res['pay_url'],
+                    'pay_mode'        => $res['pay_mode'],
+                ]
+            ]);
         } catch (Throwable $e) {
             return json(['code' => -1, 'msg' => $e->getMessage()]);
         }

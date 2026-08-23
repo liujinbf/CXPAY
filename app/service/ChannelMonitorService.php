@@ -56,6 +56,19 @@ class ChannelMonitorService
     }
 
     /**
+     * 检查通道心跳与在线状态并自动滚动清理超期未完成废弃订单
+     */
+    public function syncAll(): array
+    {
+        // 自动巡检关闭超时订单
+        $this->checkExpiredOrders();
+        // 自动清理 15 天前作废的未完成订单，防止数据库无限膨胀
+        $this->orderService->autoPurgeArchivedOrders(15);
+        
+        return $this->checkChannelHeartbeats();
+    }
+
+    /**
      * 检查通道心跳与在线状态 (超时 60 秒无心跳自动切为离线休眠状态)
      */
     public function checkChannelHeartbeats(): array
@@ -65,10 +78,11 @@ class ChannelMonitorService
             ->select([
                 'id', 'title', 'c_type', 'pay_category', 'status',
                 'online_status', 'last_heartbeat_time', 'merchant_id',
+                'online_since', 'offline_since', 'last_online_duration',
             ])
             ->get();
         $now = time();
-        $timeoutThreshold = 60; // 60秒无心跳判为离线
+        $timeoutThreshold = 180; // 放宽至 180 秒 (3分钟)，兼顾手机省电休眠与心跳网络抖动
 
         $onlineCount  = 0;
         $offlineCount = 0;
@@ -95,11 +109,23 @@ class ChannelMonitorService
                 continue;
             }
             if (!$requiresHeartbeat) {
-                if ((int)$channel->status === 1 && (int)$channel->online_status !== 1) {
-                    $channel->online_status = 1;
-                    $channel->save();
+                if ((int)$channel->status === 1) {
+                    $needSave = false;
+                    if ((int)$channel->online_status !== 1) {
+                        $channel->online_status = 1;
+                        $needSave = true;
+                    }
+                    if ((int)($channel->online_since ?? 0) <= 0) {
+                        $channel->online_since = (int)($channel->create_time ?: time());
+                        $needSave = true;
+                    }
+                    if ($needSave) {
+                        $channel->save();
+                    }
+                    $onlineCount++;
+                } else {
+                    $offlineCount++;
                 }
-                (int)$channel->status === 1 ? $onlineCount++ : $offlineCount++;
                 continue;
             }
 
@@ -108,8 +134,15 @@ class ChannelMonitorService
             if ((int)$channel->status === 1) {
                 // 如果开启在线状态但长时间没有心跳，自动切断降级
                 if ($lastHeartbeat <= 0 || ($now - $lastHeartbeat) > $timeoutThreshold) {
-                    $channel->online_status = 0;
-                    $channel->save();
+                    if ((int)$channel->online_status === 1) {
+                        $onlineSince = (int)($channel->online_since ?? 0);
+                        if ($onlineSince > 0) {
+                            $channel->last_online_duration = max(0, $now - $onlineSince);
+                        }
+                        $channel->offline_since = $now;
+                        $channel->online_status = 0;
+                        $channel->save();
+                    }
                     $offlineCount++;
                     $autoOfflined++;
 
@@ -132,8 +165,9 @@ class ChannelMonitorService
                         error_log('[ChannelMonitorService] 掉线告警派发失败: ' . $e->getMessage());
                     }
                 } else {
-                    if ((int)$channel->online_status !== 1) {
+                    if ((int)$channel->online_status !== 1 || (int)($channel->online_since ?? 0) <= 0) {
                         $channel->online_status = 1;
+                        $channel->online_since  = time();
                         $channel->save();
                     }
                     $onlineCount++;
@@ -164,9 +198,9 @@ class ChannelMonitorService
         // 十分钟重叠窗口可覆盖短时网络故障或 Worker 重启；账单稳定流水号负责去重。
         $since = $until - 600;
 
-        // 只加载轮询所需字段，避免把加密 config 大字段也拉进内存（config 在循环内按需解密）
+        // 加载轮询所需字段；在线时长字段一并加载，避免 online_since 为 null 导致每轮轮询重置起始时间
         foreach (Channel::where('status', 1)
-            ->select(['id', 'c_type', 'config', 'online_status'])
+            ->select(['id', 'c_type', 'config', 'online_status', 'online_since', 'offline_since', 'last_online_duration', 'poll_fail_count'])
             ->get() as $channel) {
             $cType = (string)$channel->c_type;
             try {
@@ -183,6 +217,7 @@ class ChannelMonitorService
                 foreach (json_decode((string)$channel->config, true) ?: [] as $key => $value) {
                     $config[$key] = is_string($value) ? $this->authcode->decryptStored($value) : $value;
                 }
+                $config['__channel_id'] = (int)$channel->id;
                 $events = array_slice($driver->pollPaymentEvents($config, $since, $until), 0, 100);
                 $stats['channels']++;
                 foreach ($events as $event) {
@@ -191,7 +226,10 @@ class ChannelMonitorService
                     $occurredAt = (int)($event['occurred_at'] ?? 0);
                     if ($billId === '' || !preg_match('/^\d{1,8}(?:\.\d{1,2})?$/', $amount)
                         || (float)$amount <= 0 || $occurredAt <= 0) {
-                        throw new \RuntimeException('服务端监控驱动返回了不合法的账单事件');
+                        // 跳过单条格式非法账单，不影响同批次其他合法账单的处理
+                        error_log("[ChannelMonitor] 跳过非法账单事件 cType={$cType}#{$channel->id}"
+                            . " billId={$billId} amount={$amount} occurredAt={$occurredAt}");
+                        continue;
                     }
                     $this->callbillService->processPush(
                         $cType,
@@ -206,22 +244,49 @@ class ChannelMonitorService
                     );
                     $stats['events']++;
                 }
-                if ((int)$channel->online_status !== 1) {
+                // 轮询成功：清零失败计数，恢复在线状态
+                $needSave = false;
+                if ((int)($channel->poll_fail_count ?? 0) > 0) {
+                    $channel->poll_fail_count = 0;
+                    $needSave = true;
+                }
+                if ((int)$channel->online_status !== 1 || (int)($channel->online_since ?? 0) <= 0) {
                     $channel->online_status = 1;
+                    $channel->online_since  = time();
+                    $needSave = true;
+                }
+                if ($needSave) {
                     $channel->save();
                 }
             } catch (\Throwable $e) {
                 $stats['errors']++;
-                if ((int)$channel->online_status !== 0) {
-                    $channel->online_status = 0;
+                $failCount = (int)($channel->poll_fail_count ?? 0) + 1;
+                $channel->poll_fail_count = $failCount;
+
+                // 容错机制：连续失败 3 次才将通道置为离线
+                // 避免支付宝瞬时抖动（网络超时/服务端抖动）造成频繁掉线
+                $maxFailsBeforeOffline = 3;
+                if ($failCount >= $maxFailsBeforeOffline && (int)$channel->online_status !== 0) {
+                    $now = time();
+                    $onlineSince = (int)($channel->online_since ?? 0);
+                    if ($onlineSince > 0) {
+                        $channel->last_online_duration = max(0, $now - $onlineSince);
+                    }
+                    $channel->offline_since  = $now;
+                    $channel->online_status  = 0;
                     $channel->save();
+                    error_log("[ChannelMonitor] poll {$cType}#{$channel->id} 连续失败 {$failCount} 次，通道置为离线: " . $e->getMessage());
+                } else {
+                    // 未达到阈值，仅记录警告，保留在线状态
+                    $channel->save(); // 保存 poll_fail_count
+                    error_log("[ChannelMonitor] poll {$cType}#{$channel->id} 第 {$failCount} 次失败（容错中）: " . $e->getMessage());
                 }
-                error_log("[ChannelMonitor] poll {$cType}#{$channel->id}: " . $e->getMessage());
             }
         }
 
         return $stats;
     }
+
     /**
      * 跨日自动重置通道当日统计（today_money / today_count）
      *

@@ -53,9 +53,22 @@ class MerchantNotifyService
             return false;
         }
 
+        // 1. 首次优先直接同步发起 HTTP POST 通知（3秒超时），确保商户秒级收到支付回调
+        $notifyData = $this->buildNotifyParams($order);
+        if ($notifyData !== null) {
+            $success = $this->curlPost((string)$order->notify_url, $notifyData);
+            if ($success) {
+                Order::where('id', $order->id)->update(['notify_status' => 1]);
+                error_log('[MerchantNotify] 商户即时回调成功 trade_no=' . $order->trade_no);
+                return true;
+            }
+        }
+
+        // 2. 若即时通知失败，标记为通知中并尝试推入重试队列
         Order::where('id', $order->id)->update(['notify_status' => 2]);
         return $this->pushToRetryQueue((string)$order->trade_no);
     }
+
 
     /**
      * 后台 Worker 定时驱动的重试补发（从 Redis 队列消费）

@@ -85,19 +85,24 @@ final class AdminDashboardController
                 COUNT(*) as total_orders,
                 SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as paid_orders,
                 SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as closed_orders,
-                SUM(CASE WHEN status = 1 THEN amount ELSE 0 END) as total_amount
+                SUM(CASE WHEN status = 1 THEN price ELSE 0 END) as total_amount
             ')
             ->first();
 
+        $now = time();
         $merchantStats = DB::table('cx_merchant')
             ->selectRaw('
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as active,
-                SUM(CASE WHEN packvip_id > 0 AND packvip_time > ? THEN 1 ELSE 0 END) as vip
-            ', [time()])
+                SUM(CASE 
+                    WHEN (packvip_id > 0 AND (packvip_time = 0 OR packvip_time > ?)) 
+                      OR (plan_id > 0 AND plan_id != 1 AND (plan_expire_time = 0 OR plan_expire_time > ?))
+                    THEN 1 ELSE 0 END
+                ) as vip
+            ', [$now, $now])
             ->first();
 
-        $channelStats = DB::table('cx_channel')
+        $channelStats = DB::table('cx_pay_channel')
             ->selectRaw('
                 SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as enabled,
                 SUM(CASE WHEN status = 1 AND online_status = 1 THEN 1 ELSE 0 END) as online
