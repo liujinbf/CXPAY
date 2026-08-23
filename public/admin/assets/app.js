@@ -1,9 +1,9 @@
+import { assetUrl } from './version.js';
+
 const token = localStorage.getItem('cx_admin_token');
 if (!token) {
     window.location.replace('/admin_login.html');
 }
-
-import { assetUrl } from './version.js';
 
 const [api, ui, routerModule] = await Promise.all([
     import(assetUrl('/admin/assets/api.js')),
