@@ -57,6 +57,14 @@ Route::get('/admin/system_update', function () {
 // 动态首页路由控制
 Route::get('/', [app\controller\IndexController::class, 'index']);
 
+// 商户后台入口别名路由支持
+Route::get('/merchant', static fn() => redirect('/merchant_center.html'));
+Route::get('/merchant/', static fn() => redirect('/merchant_center.html'));
+Route::get('/merchant/index.html', static fn() => redirect('/merchant_center.html'));
+Route::get('/user', static fn() => redirect('/merchant_center.html'));
+Route::get('/user/', static fn() => redirect('/merchant_center.html'));
+Route::get('/user/index.html', static fn() => redirect('/merchant_center.html'));
+
 // 易支付标准下单网关协议 ( Submit.php / mapi.php )
 Route::any('/submit.php', [app\controller\gateway\SubmitController::class, 'submit']);
 Route::any('/mapi.php', [app\controller\gateway\SubmitController::class, 'submit']);
@@ -75,6 +83,9 @@ Route::get('/api/alipay/login_qr', [app\controller\api\AlipayProtocolAdminContro
 Route::any('/api/alipay/poll_qr', [app\controller\api\AlipayProtocolAdminController::class, 'pollQr']);
 Route::get('/api/alipay/auth_page', [app\controller\api\AlipayProtocolAdminController::class, 'authPage']);
 Route::any('/api/alipay/confirm_auth', [app\controller\api\AlipayProtocolAdminController::class, 'confirmAuth']);
+Route::any('/api/alipay/auth/start', [app\controller\api\AlipayProtocolAdminController::class, 'startAuth']);
+Route::any('/api/alipay/auth/poll', [app\controller\api\AlipayProtocolAdminController::class, 'pollAuth']);
+Route::any('/api/alipay/auth/callback', [app\controller\api\AlipayProtocolAdminController::class, 'callback']);
 
 // QQ 钱包 ptlogin 扫码授权免挂 API
 Route::get('/api/qqprotocol/login_qr', [app\controller\api\QQProtocolAdminController::class, 'getLoginQr']);
@@ -85,8 +96,16 @@ Route::any('/api/qqprotocol/confirm_auth', [app\controller\api\QQProtocolAdminCo
 // 订单公开查询 API
 Route::any('/api/order/query', [app\controller\api\OrderController::class, 'query']);
 
-// 挂机助手 OpenAPI 账单上报推送
+// 挂机助手 OpenAPI 账单上报推送与版本检查及安装包下载
 Route::any('/api/appasst/push', [app\controller\api\AppasstController::class, 'push']);
+Route::get('/api/appasst/version', [app\controller\api\AppasstController::class, 'version']);
+Route::get('/api/appasst/download', [app\controller\api\AppasstController::class, 'downloadApk']);
+Route::get('/download/CXPayAssistant.apk', [app\controller\api\AppasstController::class, 'downloadApk']);
+Route::get('/download/CXPayAssistant_latest.apk', [app\controller\api\AppasstController::class, 'downloadApk']);
+
+// 企业微信自建应用 Webhook 回调通知（支持 GET 验证与 POST 消息）
+Route::any('/api/wecom/webhook', [app\controller\api\WecomWebhookController::class, 'handle']);
+Route::any('/api/wecom/webhook/{channel_id}', [app\controller\api\WecomWebhookController::class, 'handle']);
 
 // 授权账单源：采集端写入，PC 监控端按游标拉取
 Route::post('/api/bill-source/ingest', [app\controller\api\BillSourceController::class, 'ingest']);
@@ -111,16 +130,27 @@ Route::group('/api/merchant', function () {
     Route::post('/change_password', [app\controller\api\MerchantApiController::class, 'changePassword']);
     Route::post('/buy_vip', [app\controller\api\MerchantApiController::class, 'buyVip']);
     Route::get('/channel/list', [app\controller\api\MerchantChannelController::class, 'list']);
+    Route::get('/channel/download_preset', [app\controller\api\MerchantChannelController::class, 'downloadPresetClient']);
     Route::post('/channel/save', [app\controller\api\MerchantChannelController::class, 'save']);
     Route::post('/channel/toggle', [app\controller\api\MerchantChannelController::class, 'toggle']);
     Route::post('/channel/delete', [app\controller\api\MerchantChannelController::class, 'delete']);
     Route::get('/channel/drivers', [app\controller\api\MerchantChannelController::class, 'drivers']);
+    Route::post('/channel/test', [app\controller\api\MerchantChannelController::class, 'test']);
+    Route::post('/channel/test_status', [app\controller\api\MerchantChannelController::class, 'testStatus']);
     Route::post('/channel/capabilities', [app\controller\api\MerchantChannelController::class, 'capabilities']);
     Route::post('/channel/authorization/start', [app\controller\api\MerchantChannelController::class, 'startAuthorization']);
+    Route::post('/channel/start_authorization', [app\controller\api\MerchantChannelController::class, 'startAuthorization']);
     Route::post('/channel/authorization/poll', [app\controller\api\MerchantChannelController::class, 'pollAuthorization']);
+    Route::post('/channel/poll_authorization', [app\controller\api\MerchantChannelController::class, 'pollAuthorization']);
+    Route::post('/channel/start_driver_auth', [app\controller\api\MerchantChannelController::class, 'startDriverAuth']);
+    Route::post('/channel/poll_driver_auth', [app\controller\api\MerchantChannelController::class, 'pollDriverAuth']);
+    Route::post('/channel/appasst_sync_pair', [app\controller\api\MerchantChannelController::class, 'appasstSyncPair']);
     Route::get('/bill-source/status', [app\controller\api\BillSourceManageController::class, 'merchantStatus']);
     Route::post('/bill-source/rotate-token', [app\controller\api\BillSourceManageController::class, 'merchantRotate']);
     Route::get('/order/list', [app\controller\api\OrderController::class, 'list']);
+    Route::post('/order/manual_pay', [app\controller\api\OrderController::class, 'manualPay']);
+    Route::post('/order/delete', [app\controller\api\OrderController::class, 'delete']);
+    Route::post('/order/batch_clean', [app\controller\api\OrderController::class, 'batchClean']);
     Route::post('/recharge/create', [app\controller\api\MerchantRechargeController::class, 'create']);
     Route::get('/alert/config', [app\controller\api\MerchantApiController::class, 'getAlertConfig']);
     Route::post('/alert/config/save', [app\controller\api\MerchantApiController::class, 'saveAlertConfig']);
@@ -140,25 +170,44 @@ Route::group('/api/merchant', function () {
 Route::group('/api/admin', function () {
     Route::any('/dashboard', [app\controller\admin\AdminDashboardController::class, 'dashboard']);
     Route::get('/channel/list', [app\controller\admin\AdminChannelConfigController::class, 'listChannels']);
+    Route::get('/channel/drivers', [app\controller\admin\AdminChannelConfigController::class, 'drivers']);
+    Route::get('/channel/driver_list', [app\controller\admin\AdminChannelConfigController::class, 'getDriverList']);
+    Route::get('/channel/download_preset', [app\controller\admin\AdminChannelConfigController::class, 'downloadPresetClient']);
     Route::post('/channel/save', [app\controller\admin\AdminChannelConfigController::class, 'saveChannelConfig']);
     Route::get('/channel/get', [app\controller\admin\AdminChannelConfigController::class, 'getChannelConfig']);
     Route::get('/channel/inputs', [app\controller\admin\ChannelAdminController::class, 'getConfigInputs']);
-    Route::post('/channel/config/save', [app\controller\admin\AdminChannelConfigController::class, 'saveChannelConfig']);
+    Route::post('/channel/start_driver_auth', [app\controller\admin\ChannelAdminController::class, 'startDriverAuth']);
+    Route::post('/channel/poll_driver_auth', [app\controller\admin\ChannelAdminController::class, 'pollDriverAuth']);
+    Route::get('/channel/clerk_config', [app\controller\admin\AdminChannelConfigController::class, 'getPlatformClerkConfig']);
+    Route::post('/channel/clerk_config/save', [app\controller\admin\AdminChannelConfigController::class, 'savePlatformClerkConfig']);
+    Route::get('/channel/isv_config', [app\controller\admin\AdminChannelConfigController::class, 'getIsvConfig']);
+    Route::post('/channel/isv_config/save', [app\controller\admin\AdminChannelConfigController::class, 'saveIsvConfig']);
+    Route::post('/channel/appasst_sync_pair', [app\controller\admin\AdminChannelConfigController::class, 'appasstSyncPair']);
+    Route::get('/bill-source/list', [app\controller\api\BillSourceManageController::class, 'adminList']);
     Route::get('/bill-source/status', [app\controller\api\BillSourceManageController::class, 'adminStatus']);
     Route::post('/bill-source/rotate-token', [app\controller\api\BillSourceManageController::class, 'adminRotate']);
+    Route::get('/bill-source/events', [app\controller\api\BillSourceManageController::class, 'adminEvents']);
+    Route::post('/bill-source/test-ingest', [app\controller\api\BillSourceManageController::class, 'adminTestIngest']);
+    Route::post('/bill-source/clear-events', [app\controller\api\BillSourceManageController::class, 'adminClearEvents']);
     Route::get('/merchant/list', [app\controller\admin\AdminMerchantController::class, 'listMerchants']);
+    Route::get('/merchant/detail', [app\controller\admin\AdminMerchantController::class, 'getMerchantDetail']);
     Route::post('/merchant/save', [app\controller\admin\AdminMerchantController::class, 'saveMerchant']);
+    Route::post('/merchant/delete', [app\controller\admin\AdminMerchantController::class, 'deleteMerchant']);
+    Route::post('/merchant/batch_clean_test', [app\controller\admin\AdminMerchantController::class, 'batchCleanTestMerchants']);
+    Route::post('/merchant/adjust_balance', [app\controller\admin\AdminMerchantController::class, 'adjustBalance']);
     Route::post('/order/force_notify', [app\controller\admin\OrderAdminController::class, 'forceNotifyOrder']);
     Route::post('/template/save', [app\controller\admin\MerchantTemplateController::class, 'saveTemplate']);
     
     // 订单高级检索与人工补单 API
     Route::get('/order/list', [app\controller\admin\OrderAdminController::class, 'list']);
     Route::post('/order/close', [app\controller\admin\OrderAdminController::class, 'close']);
+    Route::post('/order/delete', [app\controller\admin\OrderAdminController::class, 'delete']);
+    Route::post('/order/batch_clean', [app\controller\admin\OrderAdminController::class, 'batchClean']);
     Route::post('/order/manual_pay', [app\controller\admin\CallbillAdminController::class, 'manualPay']);
     Route::get('/callbill/review_list', [app\controller\admin\CallbillAdminController::class, 'reviewList']);
     Route::post('/callbill/review_match', [app\controller\admin\CallbillAdminController::class, 'reviewMatch']);
-    Route::post('/callbill/review_ignore', [app\controller\admin\CallbillAdminController::class, 'reviewIgnore']);
     Route::get('/cloud-monitor/status', [app\controller\admin\CloudMonitorAdminController::class, 'status']);
+    Route::post('/cloud-monitor/toggle', [app\controller\admin\CloudMonitorAdminController::class, 'toggle']);
 
     // 插件商城 API
     Route::get('/plugin/market_list', [app\controller\admin\PluginMarketController::class, 'getMarketList']);
@@ -170,19 +219,36 @@ Route::group('/api/admin', function () {
     Route::get('/plugin/cloud_market', [app\controller\admin\CloudPluginMarketController::class, 'getCloudMarket']);
     Route::post('/plugin/cloud_buy', [app\controller\admin\CloudPluginMarketController::class, 'buyFromCloud']);
     Route::post('/plugin/cloud_download', [app\controller\admin\CloudPluginMarketController::class, 'downloadFromCloud']);
+    Route::post('/plugin/order/create', [app\controller\admin\CloudPluginMarketController::class, 'createPurchaseOrder']);
+    Route::post('/plugin/order/status', [app\controller\admin\CloudPluginMarketController::class, 'checkOrderStatus']);
+    Route::post('/plugin/order/confirm', [app\controller\admin\CloudPluginMarketController::class, 'confirmPayment']);
+    Route::get('/plugin/instance_status', [app\controller\admin\CloudPluginMarketController::class, 'instanceStatus']);
+    Route::post('/plugin/activate_instance', [app\controller\admin\CloudPluginMarketController::class, 'activateInstance']);
 
-    // 轮询组 API
-    // 注意：save / bind 接口目前返回 HTTP 501（轮询组尚未接入通道调度器），
-    //       仅 list 接口可正常使用（返回历史配置记录）。
-    //       待 PollService 接入轮询组后，移除此注释并解除写接口限制。
+    // OEM 代理商加盟中心与授权下发
+    Route::get('/agent/profile', [app\controller\admin\AgentHubController::class, 'profile']);
+    Route::post('/agent/license/issue', [app\controller\admin\AgentHubController::class, 'issueLicense']);
+    Route::get('/agent/sub_instances', [app\controller\admin\AgentHubController::class, 'listSubInstances']);
+    Route::post('/agent/license/revoke', [app\controller\admin\AgentHubController::class, 'revokeLicense']);
+    Route::post('/agent/license/restore', [app\controller\admin\AgentHubController::class, 'restoreLicense']);
+    Route::post('/agent/license/delete', [app\controller\admin\AgentHubController::class, 'deleteLicense']);
+    Route::post('/agent/license/rebind', [app\controller\admin\AgentHubController::class, 'rebindLicense']);
+    Route::post('/agent/quota/buy', [app\controller\admin\AgentHubController::class, 'buyQuota']);
+
+    // 轮询组智能调度 API
     Route::get('/poll_group/list', [app\controller\admin\PollGroupController::class, 'list']);
     Route::post('/poll_group/save', [app\controller\admin\PollGroupController::class, 'save']);
-    Route::post('/poll_group/bind', [app\controller\admin\PollGroupController::class, 'bindChannel']);
+    Route::post('/poll_group/delete', [app\controller\admin\PollGroupController::class, 'delete']);
+    Route::post('/poll_group/toggle', [app\controller\admin\PollGroupController::class, 'toggle']);
+    Route::get('/poll_group/available_channels', [app\controller\admin\PollGroupController::class, 'availableChannels']);
+    Route::post('/poll_group/bind', [app\controller\admin\PollGroupController::class, 'bindChannels']);
+    Route::post('/poll_group/simulate', [app\controller\admin\PollGroupController::class, 'simulate']);
 
 
 
     // VIP 套餐 API
     Route::get('/packvip/list', [app\controller\admin\PackvipAdminController::class, 'list']);
+    Route::get('/packvip/drivers', [app\controller\admin\PackvipAdminController::class, 'drivers']);
     Route::post('/packvip/save', [app\controller\admin\PackvipAdminController::class, 'save']);
     Route::post('/packvip/delete', [app\controller\admin\PackvipAdminController::class, 'delete']);
 
@@ -202,6 +268,7 @@ Route::group('/api/admin', function () {
     Route::get('/alert/config',        [app\controller\admin\AlertConfigController::class, 'getConfig']);
     Route::post('/alert/config/save',  [app\controller\admin\AlertConfigController::class, 'saveConfig']);
     Route::post('/alert/test',         [app\controller\admin\AlertConfigController::class, 'sendTest']);
+
 
     // 管理员安全设置 API（二次验证码配置）
     Route::get('/security/config',       [app\controller\admin\AdminSecurityController::class, 'getSecurityConfig']);
