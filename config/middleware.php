@@ -9,6 +9,7 @@
 return [
     '' => [
         app\middleware\RequestIdMiddleware::class,
+        app\middleware\ApiRateLimitMiddleware::class,   // 全局 API 限流（IP+路径滑动窗口）
         app\middleware\AdminChannelListContractMiddleware::class,
     ],
 ];

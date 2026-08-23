@@ -101,8 +101,8 @@ class AdminAuthMiddleware implements MiddlewareInterface
                     $redis->setex($cacheKey, 60, json_encode($perms, JSON_UNESCAPED_UNICODE));
                 }
             } catch (\Throwable) {
-                // 数据库不可用时 fail-open（不拦截），避免权限表故障封锁所有操作
-                return true;
+                // 数据库不可用时 fail-close（安全优先）：宁可暂时拒绝，不冒权限绕过风险
+                return false;
             }
         }
 
@@ -158,6 +158,16 @@ class AdminAuthMiddleware implements MiddlewareInterface
 
             if (!hash_equals($expectedSign, $sign)) {
                 return null;
+            }
+
+            // ── Token 黑名单检查（主动吊销：退出登录后写入，有效期内拒绝使用）────────
+            $blacklistKey = 'cx:token_bl:' . hash('sha256', $token);
+            try {
+                if ((bool)\Webman\Redis\Client::connection()->exists($blacklistKey)) {
+                    return null; // Token 已被主动吊销
+                }
+            } catch (\Throwable) {
+                // Redis 不可用时放行（黑名单是附加保护，不能因 Redis 故障阻断所有已登录会话）
             }
 
             // 版本号校验：如果数据库有版本号记录，且 Token 携带的版本号小于当前版本，拒绝

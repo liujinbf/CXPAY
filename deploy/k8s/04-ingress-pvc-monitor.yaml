@@ -1,0 +1,82 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CXPAY Ingress（Nginx Ingress Controller）
+# 需要集群已安装 ingress-nginx 并配置好 TLS 证书
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cxpay-ingress
+  namespace: cxpay
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/limit-rps: "100"           # Nginx 层限流兜底
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # 禁止外部直接访问 Prometheus 指标（/metrics 由 ServiceMonitor 内网抓取）
+    nginx.ingress.kubernetes.io/server-snippet: |
+      location /metrics {
+        deny all;
+        return 403;
+      }
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - your-domain.com           # 修改为实际域名
+      secretName: cxpay-tls-cert   # kubectl create secret tls cxpay-tls-cert ...
+  rules:
+    - host: your-domain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cxpay-app-svc
+                port:
+                  number: 80
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# PVC：应用持久化存储（install.lock / storage 目录）
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cxpay-storage-pvc
+  namespace: cxpay
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard    # 按集群实际 StorageClass 修改
+  resources:
+    requests:
+      storage: 5Gi
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# Prometheus ServiceMonitor（需安装 kube-prometheus-stack）
+# 从集群内部抓取 /metrics，不经过 Ingress
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cxpay-metrics
+  namespace: cxpay
+  labels:
+    release: kube-prometheus-stack    # 与 Prometheus Operator 的 serviceMonitorSelector 匹配
+spec:
+  selector:
+    matchLabels:
+      app: cxpay-app
+  namespaceSelector:
+    matchNames:
+      - cxpay
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scheme: http
+      bearerTokenSecret:
+        name: cxpay-secret
+        key: METRICS_SCRAPE_TOKEN

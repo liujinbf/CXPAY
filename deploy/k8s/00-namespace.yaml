@@ -1,0 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CXPAY K8s Namespace
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cxpay
+  labels:
+    app.kubernetes.io/name: cxpay

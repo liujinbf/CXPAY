@@ -1,0 +1,21 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CXPAY ConfigMap — 非敏感配置
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cxpay-config
+  namespace: cxpay
+data:
+  APP_DEBUG: "false"
+  APP_URL: "https://your-domain.com"        # 修改为实际域名
+  DB_HOST: "cxpay-mysql-svc"
+  DB_PORT: "3306"
+  DB_DATABASE: "cxpay"
+  DB_USERNAME: "cxpay"
+  REDIS_HOST: "cxpay-redis-svc"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  SYSTEM_UPDATE_ENABLED: "false"
+  ALLOW_PRIVATE_CALLBACKS: "false"
+  INSTALL_LOCK_FILE: "/app/storage/install.lock"

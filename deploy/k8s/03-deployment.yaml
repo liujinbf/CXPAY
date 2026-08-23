@@ -1,0 +1,149 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CXPAY App Deployment + Service + HPA
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cxpay-app
+  namespace: cxpay
+  labels:
+    app: cxpay-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cxpay-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0        # 零停机滚动更新
+  template:
+    metadata:
+      labels:
+        app: cxpay-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8787"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: cxpay-app
+          image: your-registry/cxpay:latest   # 替换为实际镜像地址
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8787
+              name: http
+          envFrom:
+            - configMapRef:
+                name: cxpay-config
+          env:
+            - name: APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cxpay-secret
+                  key: APP_KEY
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cxpay-secret
+                  key: DB_PASSWORD
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cxpay-secret
+                  key: REDIS_PASSWORD
+            - name: METRICS_SCRAPE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cxpay-secret
+                  key: METRICS_SCRAPE_TOKEN
+          # ── 存活探针：进程存活即可，不检查外部依赖 ──────────────────────────
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8787
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # ── 就绪探针：DB + Redis 均就绪才接流量 ─────────────────────────────
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8787
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: app-storage
+              mountPath: /app/storage
+      volumes:
+        - name: app-storage
+          persistentVolumeClaim:
+            claimName: cxpay-storage-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cxpay-app-svc
+  namespace: cxpay
+spec:
+  selector:
+    app: cxpay-app
+  ports:
+    - port: 80
+      targetPort: 8787
+      name: http
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# HPA：基于 CPU 利用率自动扩缩容（2~10 副本）
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cxpay-app-hpa
+  namespace: cxpay
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cxpay-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# PDB：保证滚动更新时至少 1 个 Pod 可用
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cxpay-app-pdb
+  namespace: cxpay
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cxpay-app

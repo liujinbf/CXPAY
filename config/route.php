@@ -2,6 +2,16 @@
 
 use Webman\Route;
 
+// ── 生产健康探针 ──────────────────────────────────────────────────────────────
+// 不经过任何认证/部署检查中间件，Docker healthcheck 与 K8s probe 直接使用
+Route::get('/health',       [app\controller\HealthController::class, 'index']);
+Route::get('/health/live',  [app\controller\HealthController::class, 'live']);
+Route::get('/health/ready', [app\controller\HealthController::class, 'ready']);
+
+// ── Prometheus 指标抓取端点（仅 127.0.0.1 或带 scrape-token 可访问）──────────
+Route::get('/metrics', [app\controller\MetricsController::class, 'scrape']);
+// ─────────────────────────────────────────────────────────────────────────────
+
 if ((string)config('deployment.role', 'payment') !== 'payment') {
     throw new RuntimeException('CXPAY 主应用只支持 payment 运行角色，云端控制面必须独立部署');
 }
@@ -96,16 +106,26 @@ Route::any('/api/qqprotocol/confirm_auth', [app\controller\api\QQProtocolAdminCo
 // 订单公开查询 API
 Route::any('/api/order/query', [app\controller\api\OrderController::class, 'query']);
 
-// 挂机助手 OpenAPI 账单上报推送与版本检查及安装包下载
-Route::any('/api/appasst/push', [app\controller\api\AppasstController::class, 'push']);
+// 挂机助手 OpenAPI 账单上报推送与版本检查（公开）
+Route::any('/api/appasst/push',    [app\controller\api\AppasstController::class, 'push']);
 Route::get('/api/appasst/version', [app\controller\api\AppasstController::class, 'version']);
-Route::get('/api/appasst/download', [app\controller\api\AppasstController::class, 'downloadApk']);
-Route::get('/download/CXPayAssistant.apk', [app\controller\api\AppasstController::class, 'downloadApk']);
-Route::get('/download/CXPayAssistant_latest.apk', [app\controller\api\AppasstController::class, 'downloadApk']);
+
+// APK / 客户端安装包下载 — 需携带一次性 dl_token 或已登录管理员 Session
+Route::get('/api/appasst/download',              [app\controller\api\AppasstController::class, 'downloadApk'])
+    ->middleware([app\middleware\DownloadAuthMiddleware::class]);
+Route::get('/download/CXPayAssistant.apk',        [app\controller\api\AppasstController::class, 'downloadApk'])
+    ->middleware([app\middleware\DownloadAuthMiddleware::class]);
+Route::get('/download/CXPayAssistant_latest.apk', [app\controller\api\AppasstController::class, 'downloadApk'])
+    ->middleware([app\middleware\DownloadAuthMiddleware::class]);
 
 // 企业微信自建应用 Webhook 回调通知（支持 GET 验证与 POST 消息）
 Route::any('/api/wecom/webhook', [app\controller\api\WecomWebhookController::class, 'handle']);
 Route::any('/api/wecom/webhook/{channel_id}', [app\controller\api\WecomWebhookController::class, 'handle']);
+
+// 官方云端授权中心支付异步通知端点（插件购买与配额增购核销）
+Route::post('/api/cloud/plugin/order/notify', [app\controller\api\CloudOrderNotifyController::class, 'handlePluginOrderNotify']);
+Route::post('/api/agent/quota/notify',        [app\controller\api\CloudOrderNotifyController::class, 'handleQuotaNotify']);
+
 
 // 授权账单源：采集端写入，PC 监控端按游标拉取
 Route::post('/api/bill-source/ingest', [app\controller\api\BillSourceController::class, 'ingest']);
@@ -120,6 +140,11 @@ Route::post('/api/merchant/logout', [app\controller\api\MerchantApiController::c
 Route::post('/api/admin/login',        [app\controller\admin\AdminAuthController::class, 'login']);
 Route::post('/api/admin/login/verify', [app\controller\admin\AdminAuthController::class, 'verifyLoginCode']);
 Route::post('/api/admin/logout',       [app\controller\admin\AdminAuthController::class, 'logout']);
+
+// 子管理员专用登录（cx_admin 表账号，独立于超级管理员）
+Route::post('/api/admin/sub/login',    [app\controller\admin\SubAdminController::class, 'login']);
+// 邀请激活端点（被邀请者用 invite_token 设置密码完成注册）
+Route::post('/api/admin/sub/activate', [app\controller\admin\SubAdminController::class, 'activate']);
 
 // 商户侧控制台 API
 Route::group('/api/merchant', function () {
@@ -278,6 +303,23 @@ Route::group('/api/admin', function () {
     Route::get('/report/channel_dist', [app\controller\admin\ReportController::class, 'channelDist']);
     Route::get('/report/merchant_rank',[app\controller\admin\ReportController::class, 'merchantRank']);
     Route::get('/report/export_csv',   [app\controller\admin\ReportController::class, 'exportCsv']);
+
+    // 下载授权 Token 颁发（管理员生成一次性下载链接，300s 有效）
+    Route::post('/download/token', [app\controller\admin\AdminAuthController::class, 'issueDownloadToken']);
+
+    // Token 滑动续期（前端在过期前 10 分钟调用，旧 Token 立即加入黑名单）
+    Route::get('/token/refresh',   [app\controller\admin\AdminAuthController::class, 'refreshToken']);
+
+    // 子管理员账号 CRUD（RBAC 多角色管理）
+    Route::get('/sub_admin/list',    [app\controller\admin\SubAdminController::class, 'list']);
+    Route::post('/sub_admin/save',   [app\controller\admin\SubAdminController::class, 'save']);
+    Route::post('/sub_admin/delete', [app\controller\admin\SubAdminController::class, 'delete']);
+    Route::post('/sub_admin/toggle', [app\controller\admin\SubAdminController::class, 'toggle']);
+    Route::post('/sub_admin/invite', [app\controller\admin\SubAdminController::class, 'invite']);
+
+    // 审计日志查询
+    Route::get('/audit/list',        [app\controller\admin\AuditLogController::class, 'list']);
+    Route::get('/audit/export_csv',  [app\controller\admin\AuditLogController::class, 'exportCsv']);
 })->middleware([app\middleware\AdminAuthMiddleware::class]);
 
 // 商户开放 API (带签名验证中间件)

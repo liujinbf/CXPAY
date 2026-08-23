@@ -66,8 +66,10 @@ final class AdminAuthController
 
         // 校验账号 + bcrypt 密码
         if ($account !== $storedAccount || !password_verify($password, $storedHash)) {
+            LoginRateLimiter::increment('admin', $rateLimitId);
             return json_encode(['code' => -1, 'msg' => '管理员账号或密码错误'], JSON_UNESCAPED_UNICODE);
         }
+
         LoginRateLimiter::clear('admin', $rateLimitId);
         if (password_needs_rehash($storedHash, PASSWORD_BCRYPT, ['cost' => 12])) {
             $storedHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
@@ -224,11 +226,133 @@ final class AdminAuthController
 
     /**
      * 管理员退出登录
+     *
+     * 同时将当前 Bearer Token 写入 Redis 黑名单（cx:token_bl:*），
+     * TTL = Token 剩余有效期，确保旧 Token 在自然过期前不可复用。
      */
     public function logout(\support\Request $request): string
     {
-        $request->session()->forget('admin_info');
+        $session   = $request->session();
+        $adminInfo = $session->get('admin_info');
+
+        // 将当前 Token 加入黑名单（仅处理 Bearer 无状态 Token 场景）
+        $rawToken = $request->header('authorization') ?? '';
+        $rawToken = trim(str_ireplace('Bearer ', '', trim((string)$rawToken)));
+        if ($rawToken !== '' && !empty($adminInfo['token_expire'])) {
+            $ttl = max(1, (int)$adminInfo['token_expire'] - time());
+            try {
+                \Webman\Redis\Client::connection()->setex(
+                    'cx:token_bl:' . hash('sha256', $rawToken),
+                    $ttl,
+                    '1'
+                );
+            } catch (\Throwable) {
+                // 黑名单写入失败不阻断退出流程
+            }
+        }
+
+        $session->forget('admin_info');
         $request->sessionRegenerateId(true);
+
         return json_encode(['code' => 1, 'msg' => '已成功退出登录'], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * 颁发一次性 APK / 源码下载授权 Token
+     *
+     * POST /api/admin/download/token
+     * 仅限已登录管理员调用；Token 写入 Redis，TTL 300s，消费后立即删除。
+     * 前端使用方式：/download/CXPayAssistant_latest.apk?dl_token={token}
+     */
+    public function issueDownloadToken(\support\Request $request): string
+    {
+        $ttl      = 300;
+        $rawToken = bin2hex(random_bytes(24)); // 48 字符随机 token
+        $redisKey = 'cx:dl_token:' . hash('sha256', $rawToken);
+
+        $adminInfo = $request->session()->get('admin_info');
+        $meta = json_encode([
+            'issued_by' => $adminInfo['username'] ?? 'unknown',
+            'issued_at' => time(),
+            'ip'        => $request->getRemoteIp(),
+        ], JSON_UNESCAPED_UNICODE);
+
+        try {
+            \Webman\Redis\Client::connection()->setex($redisKey, $ttl, $meta);
+        } catch (\Throwable $e) {
+            return json_encode(['code' => -1, 'msg' => 'Redis 服务异常，无法颁发下载凭据'], JSON_UNESCAPED_UNICODE);
+        }
+
+        return json_encode([
+            'code' => 1,
+            'msg'  => '下载凭据已生成，有效期 ' . $ttl . ' 秒',
+            'data' => [
+                'dl_token'   => $rawToken,
+                'expires_in' => $ttl,
+                'download_urls' => [
+                    'apk_latest' => '/download/CXPayAssistant_latest.apk?dl_token=' . $rawToken,
+                    'apk'        => '/download/CXPayAssistant.apk?dl_token=' . $rawToken,
+                ],
+            ],
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Token 滑动续期接口（P2）
+     *
+     * GET /api/admin/token/refresh
+     * 需携带有效 Bearer Token（由 AdminAuthMiddleware 验证）。
+     * 旧 Token 立即加入黑名单，颁发新 Token（重置 2h 有效期）。
+     * 前端应在 Token 到期前 10 分钟主动调用。
+     */
+    public function refreshToken(\support\Request $request): string
+    {
+        $adminInfo = $request->context['admin_info'] ?? $request->session()->get('admin_info');
+        if (empty($adminInfo)) {
+            return json_encode(['code' => -1, 'msg' => '未登录或会话已失效'], JSON_UNESCAPED_UNICODE);
+        }
+
+        // 将旧 Token 写入黑名单
+        $oldToken = trim(str_ireplace('Bearer ', '', trim((string)($request->header('authorization') ?? ''))));
+        if ($oldToken !== '' && !empty($adminInfo['token_expire'])) {
+            $ttl = max(1, (int)$adminInfo['token_expire'] - time());
+            try {
+                \Webman\Redis\Client::connection()->setex(
+                    'cx:token_bl:' . hash('sha256', $oldToken),
+                    $ttl,
+                    '1'
+                );
+            } catch (\Throwable) {}
+        }
+
+        // 颁发新 Token
+        $tokenSalt = (string)DB::table('cx_config')->where('name', 'token_salt')->value('value');
+        if (strlen($tokenSalt) < 32) {
+            return json_encode(['code' => -1, 'msg' => 'Token 盐配置异常'], JSON_UNESCAPED_UNICODE);
+        }
+        $tokenVersion  = (int)(DB::table('cx_config')->where('name', 'admin_token_version')->value('value') ?: 1);
+        $username      = (string)($adminInfo['username'] ?? '');
+        $role          = (string)($adminInfo['role'] ?? 'root');
+        $tokenExpire   = time() + 7200;
+        $accountStr    = ($role !== 'root') ? 'sub:' . $username : $username;
+        $tokenRaw      = $accountStr . '|' . $tokenExpire . '|v' . $tokenVersion;
+        $newToken      = base64_encode($tokenRaw . '|' . hash_hmac('sha256', $tokenRaw, $tokenSalt));
+
+        // 更新 Session
+        $newAdminInfo = array_merge($adminInfo, [
+            'token_expire'  => $tokenExpire,
+            'token_version' => $tokenVersion,
+        ]);
+        $request->session()->set('admin_info', $newAdminInfo);
+
+        return json_encode([
+            'code' => 1,
+            'msg'  => 'Token 已刷新',
+            'data' => [
+                'token'      => $newToken,
+                'expire'     => $tokenExpire,
+                'expires_in' => 7200,
+            ],
+        ], JSON_UNESCAPED_UNICODE);
     }
 }

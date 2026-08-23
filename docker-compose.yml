@@ -2,6 +2,7 @@ services:
   cxpay-app:
     build: .
     restart: unless-stopped
+    stop_grace_period: 30s
     ports:
       - "${CXPAY_PORT:-8787}:8787"
     depends_on:
@@ -9,6 +10,12 @@ services:
         condition: service_healthy
       cxpay-redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8787/health/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     environment:
       APP_DEBUG: "false"
       APP_URL: "${APP_URL:-http://127.0.0.1:8787}"
