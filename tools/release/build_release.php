@@ -104,11 +104,13 @@ $copyItems = [
     'app'              => true,
     'config'           => true,
     'database'         => true,
+    'deploy'           => true,
     'public'           => true,
     'process'          => true,
     'support'          => true,
     '.env.example'     => false,
     'composer.json'    => false,
+    'docker-compose.yml' => false,
     'server.php'       => false,
     'start.php'        => false,
     'windows.php'      => false,
@@ -120,6 +122,7 @@ $copyItems = [
     'README.md'        => false,
     'phpunit.xml'      => false,
 ];
+
 
 // 黑名单模式（严禁打入发布包的文件/后缀）
 $blacklistPatterns = [
@@ -159,7 +162,26 @@ foreach ($copyItems as $item => $isDir) {
 echo "  ✓ 纯净文件提取完成 (已完全剔除云控制面、.env 与开发私钥)\n";
 
 
-// 4. 需要加密的核心敏感文件列表
+// 3.1 针对授权客户发布源码的专用安全净化：彻底剥离自营站专用的云端总后台跳转入口
+$adminIndexHtml = $stagingDir . '/public/admin/index.html';
+if (file_exists($adminIndexHtml)) {
+    $htmlContent = file_get_contents($adminIndexHtml);
+    // 匹配并安全剥离包含 id="cloud-ops-direct-link" 或指向云端控制台的快捷跳转 <a> 标签
+    $htmlContent = preg_replace(
+        '/\s*<!--\s*云端总控制台直连入口.*?-->\s*<a[^>]*id=["\']cloud-ops-direct-link["\'][^>]*>.*?<\/a>/is',
+        '',
+        $htmlContent
+    );
+    // 兜底正则匹配：移除任何指向 cloud.fcwan.cn 的“直连云端总控制台”链接
+    $htmlContent = preg_replace(
+        '/<a[^>]*href=["\'][^"\']*cloud\.fcwan\.cn[^"\']*["\'][^>]*>.*?直连云端总控制台.*?<\/a>/is',
+        '',
+        $htmlContent
+    );
+    file_put_contents($adminIndexHtml, $htmlContent);
+    echo "  ✓ 已安全剥离自营云端总控制台跳转链接 (确保授权客户源码无云端后台入口)\n";
+}
+
 $coreFilesToEncrypt = [
     'app/service/CloudInstanceClient.php',
     'app/service/PluginLicenseService.php',
