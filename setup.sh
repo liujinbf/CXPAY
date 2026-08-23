@@ -410,10 +410,10 @@ ENVEOF
 chmod 640 "$SCRIPT_DIR/.env"
 ok ".env 写入完成（APP_KEY 已随机生成，端口：${WEBMAN_PORT}）"
 
-# 写入安装锁（仅数据库全新初始化成功时）
-if [ "$DB_INIT" = true ] && [ "$TABLE_COUNT" -eq 0 ]; then
+# 写入安装锁（只要数据库初始化成功或保留现有表时均锁定）
+if [ "$DB_INIT_SUCCESS" = true ]; then
     { echo "$(date -Iseconds)"; echo "STATUS=INSTALLED_AND_LOCKED"; } > "$LOCK_FILE"
-    ok "install.lock 已创建，安装入口已锁定"
+    ok "install.lock 已创建，安装入口已安全锁定"
 fi
 
 # ── Step 7: 配置 Nginx 反向代理 ───────────────────────────────────────────────
