@@ -124,6 +124,89 @@ final class AdminControllerApiContractTest extends TestCase
         self::assertSame('fail', $db->table('cx_audit_log')->value('result'));
     }
 
+    public function testMerchantAdjustBalanceRejectsInvalidParameters(): void
+    {
+        $class = \app\controller\admin\AdminMerchantController::class;
+        self::assertTrue(method_exists($class, 'adjustBalance'), '余额调整方法未定义');
+
+        // 无效商户 ID
+        $payload1 = $this->decode((new $class())->adjustBalance(
+            $this->postRequest(['id' => '0', 'amount' => '10', 'type' => 'add', 'memo' => '测试'])
+        ));
+        self::assertSame(-1, $payload1['code']);
+        self::assertSame('商户 ID 不合法', $payload1['msg']);
+
+        // 无效金额
+        $payload2 = $this->decode((new $class())->adjustBalance(
+            $this->postRequest(['id' => '1', 'amount' => '-5', 'type' => 'add', 'memo' => '测试'])
+        ));
+        self::assertSame(-1, $payload2['code']);
+        self::assertStringContainsString('调整金额必须在', $payload2['msg']);
+
+        // 空备注
+        $payload3 = $this->decode((new $class())->adjustBalance(
+            $this->postRequest(['id' => '1', 'amount' => '10', 'type' => 'add', 'memo' => ''])
+        ));
+        self::assertSame(-1, $payload3['code']);
+        self::assertSame('请填写调整备注，便于审计追溯', $payload3['msg']);
+    }
+
+    public function testSystemRollbackRejectsInvalidCommitHash(): void
+    {
+        $class = \app\controller\admin\SystemUpdateController::class;
+        $controller = new $class(new \app\service\SystemUpdateGuard(true));
+
+        // 非法字符/长度
+        $res = $controller->doRollback($this->postRequest(['commit_hash' => 'bad;rm -rf /']));
+        $payload = json_decode((string)$res->rawBody(), true);
+        self::assertSame(-1, $payload['code']);
+        self::assertStringContainsString('格式不合法', $payload['msg']);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testOrderListSupportsDateRangeFiltering(): void
+    {
+        $class = \app\controller\admin\OrderAdminController::class;
+
+        $db = new DB();
+        $db->addConnection(['driver' => 'sqlite', 'database' => ':memory:']);
+        $db->setAsGlobal();
+        $db->bootEloquent();
+        $db->schema()->create('cx_order', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->string('trade_no')->unique();
+            $table->string('out_trade_no')->nullable();
+            $table->unsignedInteger('merchant_id')->default(0);
+            $table->unsignedTinyInteger('status')->default(0);
+            $table->decimal('amount', 12, 2)->default(0);
+            $table->decimal('price', 12, 2)->default(0);
+            $table->unsignedInteger('create_time')->default(0);
+        });
+        $db->schema()->create('cx_merchant', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->string('pid')->default('');
+        });
+
+        // 插入两条测试订单（一条在2026-08-10，一条在2026-08-14）
+        $t1 = strtotime('2026-08-10 12:00:00');
+        $t2 = strtotime('2026-08-14 12:00:00');
+        $db->table('cx_order')->insert([
+            ['trade_no' => 'ORDER-001', 'create_time' => $t1, 'merchant_id' => 1, 'status' => 1, 'amount' => 10, 'price' => 10],
+            ['trade_no' => 'ORDER-002', 'create_time' => $t2, 'merchant_id' => 1, 'status' => 1, 'amount' => 20, 'price' => 20],
+        ]);
+
+        $request = new Request(
+            "GET /?date_start=2026-08-13&date_end=2026-08-15 HTTP/1.1\r\n"
+            . "Host: pay.example.com\r\n\r\n"
+        );
+
+        $payload = $this->decode((new $class())->list($request));
+        self::assertSame(1, $payload['code']);
+        self::assertCount(1, $payload['data']['data']);
+        self::assertSame('ORDER-002', $payload['data']['data'][0]['trade_no']);
+    }
+
     private function postRequest(array $data): Request
     {
         $body = http_build_query($data);

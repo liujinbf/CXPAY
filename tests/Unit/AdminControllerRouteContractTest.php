@@ -65,6 +65,7 @@ final class AdminControllerRouteContractTest extends TestCase
         $middleware = $this->adminMiddleware();
         $this->assertRoute('GET', '/api/admin/merchant/list', [$class, 'listMerchants'], $middleware);
         $this->assertRoute('POST', '/api/admin/merchant/save', [$class, 'saveMerchant'], $middleware);
+        $this->assertRoute('POST', '/api/admin/merchant/adjust_balance', [$class, 'adjustBalance'], $middleware);
     }
 
     public function testSecurityAndTemplateRoutesUseDedicatedControllers(): void

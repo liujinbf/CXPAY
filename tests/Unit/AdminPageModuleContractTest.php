@@ -235,6 +235,11 @@ JS;
         yield 'orders' => ['orders', '/api/admin/order/'];
         yield 'callbill' => ['callbill', '/api/admin/callbill/'];
         yield 'alerts' => ['alerts', '/api/admin/alert/'];
+        yield 'report' => ['report', '/api/admin/report/'];
+        yield 'security' => ['security', '/api/admin/security/'];
+        yield 'sys-config' => ['sys-config', '/api/admin/system/config'];
+        yield 'bill-source' => ['bill-source', '/api/admin/bill-source/'];
+        yield 'poll-group' => ['poll-group', '/api/admin/poll_group/'];
     }
 
     public function testVersionAndUiModulesKeepTheirRuntimeContract(): void

@@ -77,7 +77,7 @@ globalThis.window = {
 globalThis.fetch = async () => ({ status: 401 });
 
 const version = await import(pathToFileURL(process.argv[1]).href);
-if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=merchant-modules-v6') {
+if (version.assetUrl('/merchant/assets/app.js') !== 'https://merchant.example.test/merchant/assets/app.js?v=' + version.MERCHANT_ASSET_VERSION) {
     throw new Error('资源 URL 版本错误');
 }
 
