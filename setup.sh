@@ -240,92 +240,101 @@ hd "Step 5  数据库初始化与表结构导入"
 
 info "使用 PHP PDO 连接并初始化数据库..."
 
-DB_INIT_OUTPUT=$("$PHP_BIN" -r "
-try {
-    \$host = '${DB_HOST}';
-    \$port = (int)'${DB_PORT}';
-    \$user = '${DB_USER}';
-    \$pass = '${DB_PASS}';
-    \$dbName = '${DB_NAME}';
-    \$adminUser = '${ADMIN_USER}';
-    \$adminPass = '${ADMIN_PASS}';
-    \$scriptDir = '${SCRIPT_DIR}';
+export SETUP_DB_HOST="${DB_HOST}"
+export SETUP_DB_PORT="${DB_PORT}"
+export SETUP_DB_USER="${DB_USER}"
+export SETUP_DB_PASS="${DB_PASS}"
+export SETUP_DB_NAME="${DB_NAME}"
+export SETUP_ADMIN_USER="${ADMIN_USER}"
+export SETUP_ADMIN_PASS="${ADMIN_PASS}"
+export SETUP_SCRIPT_DIR="${SCRIPT_DIR}"
 
-    \$pdo = new PDO(\"mysql:host={\$host};port={\$port};charset=utf8mb4\", \$user, \$pass, [
+DB_INIT_OUTPUT=$("$PHP_BIN" -r '
+try {
+    $host = getenv("SETUP_DB_HOST") ?: "127.0.0.1";
+    $port = (int)(getenv("SETUP_DB_PORT") ?: 3306);
+    $user = getenv("SETUP_DB_USER") ?: "root";
+    $pass = (string)getenv("SETUP_DB_PASS");
+    $dbName = getenv("SETUP_DB_NAME") ?: "cxpay";
+    $adminUser = getenv("SETUP_ADMIN_USER") ?: "admin";
+    $adminPass = (string)getenv("SETUP_ADMIN_PASS");
+    $scriptDir = getenv("SETUP_SCRIPT_DIR") ?: __DIR__;
+
+    $pdo = new PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_TIMEOUT => 5
     ]);
 
     // 1. 创建数据库
-    \$pdo->exec(\"CREATE DATABASE IF NOT EXISTS \`{\$dbName}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci\");
-    \$pdo->exec(\"USE \`{\$dbName}\`\");
+    $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    $pdo->exec("USE `{$dbName}`");
 
     // 2. 检查现有表数量
-    \$stmt = \$pdo->query(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='{\$dbName}'\");
-    \$tableCount = (int)\$stmt->fetchColumn();
+    $stmt = $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=\"{$dbName}\"");
+    $tableCount = (int)$stmt->fetchColumn();
 
-    if (\$tableCount > 0) {
-        echo \"EXISTS:\" . \$tableCount;
+    if ($tableCount > 0) {
+        echo "EXISTS:" . $tableCount;
     } else {
-        \$sqlFile = \$scriptDir . '/database/install.sql';
-        if (!file_exists(\$sqlFile)) {
-            throw new Exception('未找到 database/install.sql 基础表结构文件');
+        $sqlFile = $scriptDir . "/database/install.sql";
+        if (!file_exists($sqlFile)) {
+            throw new Exception("未找到 database/install.sql 基础表结构文件");
         }
 
-        \$sql = file_get_contents(\$sqlFile);
+        $sql = file_get_contents($sqlFile);
         // 执行主表结构
-        \$pdo->exec(\$sql);
+        $pdo->exec($sql);
 
         // 执行增量 patches
-        \$patches = glob(\$scriptDir . '/database/patch_v*.sql');
-        if (!empty(\$patches)) {
-            sort(\$patches, SORT_NATURAL);
-            foreach (\$patches as \$patch) {
+        $patches = glob($scriptDir . "/database/patch_v*.sql");
+        if (!empty($patches)) {
+            sort($patches, SORT_NATURAL);
+            foreach ($patches as $patch) {
                 try {
-                    \$pSql = file_get_contents(\$patch);
-                    if (trim(\$pSql) !== '') {
-                        \$pdo->exec(\$pSql);
+                    $pSql = file_get_contents($patch);
+                    if (trim($pSql) !== "") {
+                        $pdo->exec($pSql);
                     }
-                } catch (Throwable \$e) {
+                } catch (Throwable $e) {
                     // 忽略重复列或已存在索引错误
                 }
             }
         }
 
         // 3. 写入管理员账号密码哈希 (同时写入系统配置表 cx_config 与 RBAC 账号表 cx_admin)
-        \$adminHash = password_hash(\$adminPass, PASSWORD_BCRYPT, ['cost' => 12]);
-        \$tokenSalt = bin2hex(random_bytes(16));
+        $adminHash = password_hash($adminPass, PASSWORD_BCRYPT, ["cost" => 12]);
+        $tokenSalt = bin2hex(random_bytes(16));
 
-        \$stmt = \$pdo->prepare(\"INSERT INTO cx_config (name, value, title) VALUES 
-            ('admin_account', :acc, '管理员账号'),
-            ('admin_password_hash', :pwd, '管理员密码 Bcrypt 哈希'),
-            ('token_salt', :salt, 'Token HMAC 签名盐值')
-            ON DUPLICATE KEY UPDATE value=VALUES(value)\");
-        \$stmt->execute([
-            'acc'  => \$adminUser,
-            'pwd'  => \$adminHash,
-            'salt' => \$tokenSalt,
+        $stmt = $pdo->prepare("INSERT INTO cx_config (name, value, title) VALUES 
+            (\"admin_account\", :acc, \"管理员账号\"),
+            (\"admin_password_hash\", :pwd, \"管理员密码 Bcrypt 哈希\"),
+            (\"token_salt\", :salt, \"Token HMAC 签名盐值\")
+            ON DUPLICATE KEY UPDATE value=VALUES(value)");
+        $stmt->execute([
+            "acc"  => $adminUser,
+            "pwd"  => $adminHash,
+            "salt" => $tokenSalt,
         ]);
 
         try {
-            \$stmtAdmin = \$pdo->prepare(\"INSERT INTO cx_admin (username, password_hash, role, display_name, status, create_time) 
-                VALUES (:u, :p, 'root', '超级管理员', 1, UNIX_TIMESTAMP()) 
-                ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash), role='root'\");
-            \$stmtAdmin->execute([
-                'u' => \$adminUser,
-                'p' => \$adminHash,
+            $stmtAdmin = $pdo->prepare("INSERT INTO cx_admin (username, password_hash, role, display_name, status, create_time) 
+                VALUES (:u, :p, \"root\", \"超级管理员\", 1, UNIX_TIMESTAMP()) 
+                ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash), role=\"root\"");
+            $stmtAdmin->execute([
+                "u" => $adminUser,
+                "p" => $adminHash,
             ]);
-        } catch (Throwable \$e) {}
+        } catch (Throwable $e) {}
 
-
-        \$stmtCount = \$pdo->query(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='{\$dbName}'\");
-        \$createdCount = (int)\$stmtCount->fetchColumn();
-        echo \"SUCCESS:\" . \$createdCount;
+        $stmtCount = $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=\"{$dbName}\"");
+        $createdCount = (int)$stmtCount->fetchColumn();
+        echo "SUCCESS:" . $createdCount;
     }
-} catch (Throwable \$e) {
-    echo \"ERROR:\" . \$e->getMessage();
+} catch (Throwable $e) {
+    echo "ERROR:" . $e->getMessage();
 }
-" 2>&1)
+' 2>&1)
+
 
 DB_INIT_SUCCESS=false
 
@@ -352,11 +361,29 @@ else
 fi
 
 
-# ── Step 6: 生成 .env ─────────────────────────────────────────────────────────
+# ── Step 6: 智能选择与生成 .env 配置文件 ──────────────────────────────────────
 hd "Step 6  生成 .env 配置文件"
 
 APP_KEY=$(openssl rand -hex 32 2>/dev/null \
     || "$PHP_BIN" -r "echo bin2hex(random_bytes(32));")
+
+# 智能检测端口可用性（默认 8787，若被占用自动寻找 8788, 8789...）
+WEBMAN_PORT=8787
+while true; do
+    if ss -tlnp 2>/dev/null | grep -q ":${WEBMAN_PORT} "; then
+        WEBMAN_PORT=$((WEBMAN_PORT + 1))
+    elif netstat -tlnp 2>/dev/null | grep -q ":${WEBMAN_PORT} "; then
+        WEBMAN_PORT=$((WEBMAN_PORT + 1))
+    else
+        break
+    fi
+done
+
+if [ "$WEBMAN_PORT" -ne 8787 ]; then
+    info "检测到默认 8787 端口已被占用，已自动为本站点分配空闲端口：${WEBMAN_PORT}"
+else
+    ok "分配 Webman 监听端口：${WEBMAN_PORT}"
+fi
 
 cat > "$SCRIPT_DIR/.env" <<ENVEOF
 APP_DEBUG=false
@@ -365,7 +392,7 @@ APP_KEY="${APP_KEY}"
 ALLOW_PRIVATE_CALLBACKS=false
 SYSTEM_UPDATE_ENABLED=false
 HOST=127.0.0.1
-PORT=8787
+PORT=${WEBMAN_PORT}
 WEBMAN_WORKERS=4
 
 DB_HOST="${DB_HOST}"
@@ -381,7 +408,7 @@ REDIS_DB=0
 ENVEOF
 
 chmod 640 "$SCRIPT_DIR/.env"
-ok ".env 写入完成（APP_KEY 已随机生成）"
+ok ".env 写入完成（APP_KEY 已随机生成，端口：${WEBMAN_PORT}）"
 
 # 写入安装锁（仅数据库全新初始化成功时）
 if [ "$DB_INIT" = true ] && [ "$TABLE_COUNT" -eq 0 ]; then
@@ -435,7 +462,7 @@ server {
     client_max_body_size 6m;
 
     location / {
-        proxy_pass         http://127.0.0.1:8787;
+        proxy_pass         http://127.0.0.1:${WEBMAN_PORT};
         proxy_set_header   Host \$host;
         proxy_set_header   X-Real-IP \$remote_addr;
         proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -452,7 +479,7 @@ else
     client_max_body_size 6m;
 
     location / {
-        proxy_pass         http://127.0.0.1:8787;
+        proxy_pass         http://127.0.0.1:${WEBMAN_PORT};
         proxy_set_header   Host \$host;
         proxy_set_header   X-Real-IP \$remote_addr;
         proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
