@@ -235,65 +235,106 @@ done
 ok "管理员账号：$ADMIN_USER"
 echo ""
 
-# ── Step 5: 数据库初始化 ──────────────────────────────────────────────────────
-hd "Step 5  数据库初始化"
+# ── Step 5: 数据库初始化 (使用 PHP PDO 原生执行，杜绝依赖系统 mysql 命令) ─────────────────
+hd "Step 5  数据库初始化与表结构导入"
 
-DB_INIT=false
-TABLE_COUNT=0
+info "使用 PHP PDO 连接并初始化数据库..."
 
-if command -v mysql &>/dev/null; then
-    info "测试 MySQL 连接..."
-    if mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
-       -e "SELECT 1;" >/dev/null 2>&1; then
-        ok "MySQL 连接成功"
-        DB_INIT=true
+DB_INIT_OUTPUT=$("$PHP_BIN" -r "
+try {
+    \$host = '${DB_HOST}';
+    \$port = (int)'${DB_PORT}';
+    \$user = '${DB_USER}';
+    \$pass = '${DB_PASS}';
+    \$dbName = '${DB_NAME}';
+    \$adminUser = '${ADMIN_USER}';
+    \$adminPass = '${ADMIN_PASS}';
+    \$scriptDir = '${SCRIPT_DIR}';
 
-        # 创建数据库
-        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
-            -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" \
-            >/dev/null 2>&1 && ok "数据库 ${DB_NAME} 就绪" || true
+    \$pdo = new PDO(\"mysql:host={\$host};port={\$port};charset=utf8mb4\", \$user, \$pass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_TIMEOUT => 5
+    ]);
 
-        # 检查已有表
-        TABLE_COUNT=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
-            -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}';" \
-            2>/dev/null || echo "0")
-        TABLE_COUNT="${TABLE_COUNT//[^0-9]/}"
-        TABLE_COUNT="${TABLE_COUNT:-0}"
+    // 1. 创建数据库
+    \$pdo->exec(\"CREATE DATABASE IF NOT EXISTS \`{\$dbName}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci\");
+    \$pdo->exec(\"USE \`{\$dbName}\`\");
 
-        if [ "$TABLE_COUNT" -gt 0 ]; then
-            warn "数据库 ${DB_NAME} 已有 ${TABLE_COUNT} 张表，跳过导入（防止覆盖旧数据）"
-        else
-            SQL_FILE="$SCRIPT_DIR/database/install.sql"
-            if [ -f "$SQL_FILE" ]; then
-                info "导入数据库表结构..."
-                mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
-                    "$DB_NAME" < "$SQL_FILE" >/dev/null 2>&1 && ok "数据库表结构导入完成"
+    // 2. 检查现有表数量
+    \$stmt = \$pdo->query(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='{\$dbName}'\");
+    \$tableCount = (int)\$stmt->fetchColumn();
 
-                # 写入管理员账号
-                _ADMIN_HASH=$("$PHP_BIN" -r \
-                    "echo password_hash('${ADMIN_PASS}', PASSWORD_BCRYPT, ['cost'=>12]);")
-                _TOKEN_SALT=$(openssl rand -hex 16 2>/dev/null \
-                    || "$PHP_BIN" -r "echo bin2hex(random_bytes(16));")
+    if (\$tableCount > 0) {
+        echo \"EXISTS:\" . \$tableCount;
+    } else {
+        \$sqlFile = \$scriptDir . '/database/install.sql';
+        if (!file_exists(\$sqlFile)) {
+            throw new Exception('未找到 database/install.sql 基础表结构文件');
+        }
 
-                mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" \
-                    -e "INSERT INTO cx_config (name, value, title) VALUES
-                        ('admin_account',        '${ADMIN_USER}',    '管理员账号'),
-                        ('admin_password_hash',  '${_ADMIN_HASH}',   '管理员密码 Bcrypt 哈希'),
-                        ('token_salt',           '${_TOKEN_SALT}',   'Token HMAC 签名盐值')
-                        ON DUPLICATE KEY UPDATE value=VALUES(value);" \
-                    >/dev/null 2>&1 && ok "管理员账号写入完成"
-            else
-                warn "未找到 database/install.sql，跳过 SQL 导入"
-            fi
-        fi
-    else
-        warn "MySQL 连接失败，数据库自动初始化跳过"
-        info "请确认账号密码，或通过浏览器安装向导 /install 完成数据库初始化"
-    fi
+        \$sql = file_get_contents(\$sqlFile);
+        // 执行主表结构
+        \$pdo->exec(\$sql);
+
+        // 执行增量 patches
+        \$patches = glob(\$scriptDir . '/database/patch_v*.sql');
+        if (!empty(\$patches)) {
+            sort(\$patches, SORT_NATURAL);
+            foreach (\$patches as \$patch) {
+                try {
+                    \$pSql = file_get_contents(\$patch);
+                    if (trim(\$pSql) !== '') {
+                        \$pdo->exec(\$pSql);
+                    }
+                } catch (Throwable \$e) {
+                    // 忽略重复列或已存在索引错误
+                }
+            }
+        }
+
+        // 3. 写入管理员账号密码哈希
+        \$adminHash = password_hash(\$adminPass, PASSWORD_BCRYPT, ['cost' => 12]);
+        \$tokenSalt = bin2hex(random_bytes(16));
+
+        \$stmt = \$pdo->prepare(\"INSERT INTO cx_config (name, value, title) VALUES 
+            ('admin_account', :acc, '管理员账号'),
+            ('admin_password_hash', :pwd, '管理员密码 Bcrypt 哈希'),
+            ('token_salt', :salt, 'Token HMAC 签名盐值')
+            ON DUPLICATE KEY UPDATE value=VALUES(value)\");
+        \$stmt->execute([
+            'acc'  => \$adminUser,
+            'pwd'  => \$adminHash,
+            'salt' => \$tokenSalt,
+        ]);
+
+        \$stmtCount = \$pdo->query(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='{\$dbName}'\");
+        \$createdCount = (int)\$stmtCount->fetchColumn();
+        echo \"SUCCESS:\" . \$createdCount;
+    }
+} catch (Throwable \$e) {
+    echo \"ERROR:\" . \$e->getMessage();
+}
+" 2>&1)
+
+if [[ "$DB_INIT_OUTPUT" == SUCCESS:* ]]; then
+    _count="${DB_INIT_OUTPUT#SUCCESS:}"
+    ok "数据库 ${DB_NAME} 初始化完成，成功导入并创建 ${_count} 张数据表！"
+    ok "初始管理员账号 [${ADMIN_USER}] 配置就绪"
+elif [[ "$DB_INIT_OUTPUT" == EXISTS:* ]]; then
+    _count="${DB_INIT_OUTPUT#EXISTS:}"
+    warn "数据库 ${DB_NAME} 已有 ${_count} 张数据表，已保留现有数据"
 else
-    warn "未找到 mysql 客户端，跳过数据库自动初始化"
-    info "请通过浏览器安装向导 /install 完成数据库初始化"
+    _err="${DB_INIT_OUTPUT#ERROR:}"
+    err "数据库初始化失败：${_err}"
+    echo ""
+    echo -e "  ${BOLD}请检查：${NC}"
+    echo "  1. MySQL 服务是否已在宝塔中启动"
+    echo "  2. 填写的数据库主机、端口、用户名和密码是否正确"
+    echo "  3. 数据库用户是否具有建表和写入权限"
+    echo ""
+    exit 1
 fi
+
 
 # ── Step 6: 生成 .env ─────────────────────────────────────────────────────────
 hd "Step 6  生成 .env 配置文件"
