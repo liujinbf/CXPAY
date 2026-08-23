@@ -292,7 +292,7 @@ try {
             }
         }
 
-        // 3. 写入管理员账号密码哈希
+        // 3. 写入管理员账号密码哈希 (同时写入系统配置表 cx_config 与 RBAC 账号表 cx_admin)
         \$adminHash = password_hash(\$adminPass, PASSWORD_BCRYPT, ['cost' => 12]);
         \$tokenSalt = bin2hex(random_bytes(16));
 
@@ -306,6 +306,17 @@ try {
             'pwd'  => \$adminHash,
             'salt' => \$tokenSalt,
         ]);
+
+        try {
+            \$stmtAdmin = \$pdo->prepare(\"INSERT INTO cx_admin (username, password_hash, role, display_name, status, create_time) 
+                VALUES (:u, :p, 'root', '超级管理员', 1, UNIX_TIMESTAMP()) 
+                ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash), role='root'\");
+            \$stmtAdmin->execute([
+                'u' => \$adminUser,
+                'p' => \$adminHash,
+            ]);
+        } catch (Throwable \$e) {}
+
 
         \$stmtCount = \$pdo->query(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='{\$dbName}'\");
         \$createdCount = (int)\$stmtCount->fetchColumn();
