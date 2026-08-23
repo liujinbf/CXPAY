@@ -316,14 +316,19 @@ try {
 }
 " 2>&1)
 
+DB_INIT_SUCCESS=false
+
 if [[ "$DB_INIT_OUTPUT" == SUCCESS:* ]]; then
     _count="${DB_INIT_OUTPUT#SUCCESS:}"
     ok "数据库 ${DB_NAME} 初始化完成，成功导入并创建 ${_count} 张数据表！"
     ok "初始管理员账号 [${ADMIN_USER}] 配置就绪"
+    DB_INIT_SUCCESS=true
 elif [[ "$DB_INIT_OUTPUT" == EXISTS:* ]]; then
     _count="${DB_INIT_OUTPUT#EXISTS:}"
     warn "数据库 ${DB_NAME} 已有 ${_count} 张数据表，已保留现有数据"
+    DB_INIT_SUCCESS=true
 else
+
     _err="${DB_INIT_OUTPUT#ERROR:}"
     err "数据库初始化失败：${_err}"
     echo ""
@@ -567,13 +572,12 @@ echo ""
 echo -e "  ${BOLD}👤 账号信息：${NC}"
 echo -e "     用户名：${BOLD}${ADMIN_USER}${NC}"
 echo -e "     密  码：你填写的管理员密码"
-echo ""
-
-if [ "$DB_INIT" = false ] || [ "$TABLE_COUNT" -gt 0 ]; then
+if [ "$DB_INIT_SUCCESS" = false ]; then
     echo -e "  ${YLW}⚠ 数据库未自动初始化，请访问以下地址完成：${NC}"
     echo -e "     ${BOLD}${APP_URL}/install${NC}"
     echo ""
 fi
+
 
 echo -e "  ${BOLD}🔄 重启 Webman：${NC}"
 echo -e "     ${BLU}${PHP_BIN} ${SCRIPT_DIR}/start.php stop && ${PHP_BIN} ${SCRIPT_DIR}/start.php start -d${NC}"
