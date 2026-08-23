@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use illuminate\database\eloquent\Model;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * 挂机账单数据模型

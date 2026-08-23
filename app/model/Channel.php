@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use illuminate\database\eloquent\Model;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * 支付通道数据模型
