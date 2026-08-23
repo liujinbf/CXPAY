@@ -12,10 +12,18 @@ CXPAY 是基于 PHP 8.1、Webman 2、MySQL 和 Redis 的个人收款码监控网
 - 支付宝、微信、QQ 外部账单服务回调型个人码驱动；外部服务必须配置共享鉴权凭据。
 - 授权账单源（BillSource）双端架构：采集端通过 `POST /api/bill-source/ingest` 写入账单，PC 监控端通过 `GET /api/bill-source/poll` 按单调游标拉取，两端密钥相互隔离并支持在线轮换。
 - 插件商城与动态驱动注册：管理员可通过后台安装、启停和卸载支付驱动插件，插件驱动在运行时动态注册到 PaymentManager。
+- 官方云端授权异步通知与自动激活：支持接收官方云端 Webhook 回调（`POST /api/cloud/plugin/order/notify`），自动核销订单并为本地颁发商业授权。
 - 订单幂等、手续费预占/核销/释放、支付出码并发认领、通道金额校验、回调重试和 SSRF 防护。
-- 管理员与商户 Session 登录、登录限流、同源写操作校验。
+- 管理员与商户安全认证：支持 Bearer Token 验证、Token 滑动续期（`/api/admin/token/refresh`）、登出立即进入 Redis Token 实时黑名单，防爆破滑动窗口限流。
+- RBAC 多角色子管理员与邀请机制：支持子管理员账号管理、独立登录（`POST /api/admin/sub/login`）与 24h 一次性 Token 邀请激活（`POST /api/admin/sub/activate`）。
+- 操作审计日志：记录所有管理员写操作上下文，支持多维度分页查询与近 7 天 CSV 一键导出（`GET /api/admin/audit/*`）。
+- 软件与 APK 安全分发鉴权：APK 下载接口挂载 `DownloadAuthMiddleware`，需管理员颁发 300s 一次性下载凭证（`POST /api/admin/download/token`），禁止公网无鉴权拉取。
+- 生产探针与监控：集成 `/health`、`/health/live`、`/health/ready` 探针与 `/metrics` Prometheus 监控指标端点。
+- 全局限流与结构化日志：挂载 `ApiRateLimitMiddleware` 实现基于 IP+路径的滑动窗口限流；集成 `StructuredLog` 自动携带 `request_id` 输出标准 JSON 日志。
+- 容器与云原生编排：提供 Docker Compose 完整健康检查配置与 Kubernetes 生产清单（`deploy/k8s/`：Deployment 零停机滚动、HPA 自动扩缩、PDB 容灾、Ingress 与 ServiceMonitor）。
 - 商户后台登录密码与支付 API 密钥相互独立；管理员创建商户时只返回一次初始凭据。
 - Docker Compose 部署及浏览器安装向导。
+
 
 尚未完成或默认停用：
 
