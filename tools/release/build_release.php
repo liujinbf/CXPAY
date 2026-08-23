@@ -117,11 +117,12 @@ $copyItems = [
     'reset_pwd.php'    => false,
     'setup.sh'         => false,
     'update.sh'        => false,
-    'rollback.sh'      => false,
     'DEPLOYMENT.md'    => false,
     'README.md'        => false,
+    '安装说明.txt'      => false,
     'phpunit.xml'      => false,
 ];
+
 
 
 // 黑名单模式（严禁打入发布包的文件/后缀）
