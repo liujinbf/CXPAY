@@ -43,12 +43,9 @@ tests/pc/flaui-smoke/
 # 本地隔离开发工作区
 /.worktrees/
 
-# 独立云端控制面构建产物
-/services/cloud-control-plane/vendor/
-/services/cloud-control-plane/node_modules/
-/services/cloud-control-plane/runtime/
-/services/cloud-control-plane/frontend/*/dist/
-/services/cloud-control-plane/.phpunit.cache/
+# 云端控制面已迁移至独立仓库 https://gitee.com/liujinbf/cxpay-cloud
+# 严禁将 services/cloud-control-plane/ 重新提交到本仓库
+/services/cloud-control-plane/
 
 # 插件驱动开发源码 — 不随授权包分发，仅在官方内部仓库维护
 # 下级站点通过插件商城下载加密安装包，不得获取驱动明文源码
