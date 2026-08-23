@@ -14,7 +14,7 @@ final class PluginManager
     {
         return self::$registry ??= new PluginRegistry((string)config(
             'payment_plugin.registry',
-            base_path() . '/runtime/payment_plugins/registry.json'
+            runtime_path() . '/installed_plugins.json'
         ));
     }
 
@@ -34,8 +34,20 @@ final class PluginManager
         $result = [];
         foreach (self::registry()->all() as $pluginId => $entry) {
             try {
-                [$manifest] = self::activeManifest($entry);
-                $result[$pluginId] = $entry + ['manifest' => $manifest->toArray()];
+                if (isset($entry['versions']) && is_array($entry['versions']) && !empty($entry['versions'])) {
+                    [$manifest] = self::activeManifest($entry);
+                    $result[$pluginId] = $entry + ['manifest' => $manifest->toArray()];
+                } else {
+                    $result[$pluginId] = $entry + [
+                        'manifest' => [
+                            'id' => $pluginId,
+                            'name' => (string)($entry['name'] ?? $pluginId),
+                            'version' => (string)($entry['active_version'] ?? '1.0.0'),
+                            'description' => (string)($entry['description'] ?? ''),
+                            'publisher' => (string)($entry['publisher'] ?? 'cxpay.official'),
+                        ]
+                    ];
+                }
             } catch (\Throwable $e) {
                 $result[$pluginId] = $entry + ['broken' => true, 'error' => $e->getMessage()];
             }

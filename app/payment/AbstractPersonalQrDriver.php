@@ -10,7 +10,7 @@ use app\payment\Contracts\PaymentDriverInterface;
 /**
  * 个人固定收款码挂机助手驱动基类。
  *
- * 三种钱包共享相同的出码、设备绑定和安全校验，只在元数据与二维码字段上存在差异。
+ * 手机挂机助手统一极简配置：商户仅需提供收款二维码内容，监控设备ID与HMAC密钥全自动生成与免配置同步。
  */
 abstract class AbstractPersonalQrDriver implements PaymentDriverInterface, MonitorableDriverInterface
 {
@@ -75,41 +75,18 @@ abstract class AbstractPersonalQrDriver implements PaymentDriverInterface, Monit
                     'title' => $this->qrTitle(),
                     'type' => 'string',
                     'required' => true,
+                    'placeholder' => '请粘贴收款码解析链接或直接点击上方按钮上传收款码图片',
                 ],
                 [
                     'name' => 'device_id',
-                    'title' => '绑定的监控设备 ID',
+                    'title' => '绑定的监控设备 ID（已自动生成，免手动填写）',
                     'type' => 'string',
-                    'required' => true,
+                    'required' => false,
                 ],
                 [
                     'name' => 'notify_secret',
-                    'title' => '监控端 HMAC 推送密钥（32～128位）',
+                    'title' => '监控端 HMAC 推送密钥（已自动生成，免手动填写）',
                     'type' => 'password',
-                    'required' => true,
-                ],
-                [
-                    'name' => 'collector_id',
-                    'title' => '授权账单采集端 ID',
-                    'type' => 'string',
-                    'required' => false,
-                ],
-                [
-                    'name' => 'ingest_secret',
-                    'title' => '账单源写入令牌（通过令牌生成接口创建）',
-                    'type' => 'password',
-                    'required' => false,
-                ],
-                [
-                    'name' => 'feed_token',
-                    'title' => 'PC 账单源拉取令牌（通过令牌生成接口创建）',
-                    'type' => 'password',
-                    'required' => false,
-                ],
-                [
-                    'name' => 'ingest_ip_white',
-                    'title' => '采集端 IP 白名单（可选，逗号分隔）',
-                    'type' => 'string',
                     'required' => false,
                 ],
             ],
@@ -120,50 +97,40 @@ abstract class AbstractPersonalQrDriver implements PaymentDriverInterface, Monit
     {
         $qrField = $this->qrField();
         $qr = trim((string)($config[$qrField] ?? ''));
-        if ($qr === '' || strlen($qr) > 4096 || preg_match('/[\x00-\x1F\x7F]/', $qr)) {
-            return ['code' => -1, 'msg' => $this->qrTitle() . '不能为空、不能含控制字符且最长4096字节'];
+        $isDataUrl = str_starts_with($qr, 'data:image/');
+        $maxLen = $isDataUrl ? 2 * 1024 * 1024 : 8192;
+        if ($qr === '' || strlen($qr) > $maxLen) {
+            return ['code' => -1, 'msg' => $this->qrTitle() . '不能为空且不能超过 2MB 图片大小限制'];
+        }
+        if (!$isDataUrl && preg_match('/[\x00-\x1F\x7F]/', $qr)) {
+            return ['code' => -1, 'msg' => $this->qrTitle() . '不能包含控制字符'];
         }
 
+        $mchId = $channelRow['merchant_id'] ?? 1;
         $deviceId = trim((string)($config['device_id'] ?? ''));
+        if ($deviceId === '') {
+            $deviceId = "AND_MCH_{$mchId}";
+        }
         if (!preg_match('/^[A-Za-z0-9_.:-]{1,64}$/', $deviceId)) {
             return ['code' => -1, 'msg' => '请绑定合法的监控设备 ID'];
         }
 
-        $secret = (string)($config['notify_secret'] ?? '');
+        $secret = trim((string)($config['notify_secret'] ?? ''));
+        if ($secret === '') {
+            $secret = bin2hex(random_bytes(16));
+        }
         if (strlen($secret) < 32 || strlen($secret) > 128) {
             return ['code' => -1, 'msg' => '监控端 HMAC 推送密钥长度必须为32至128个字符'];
-        }
-
-        $collectorId = trim((string)($config['collector_id'] ?? ''));
-        if ($collectorId !== '' && !preg_match('/^[A-Za-z0-9_.:-]{1,64}$/', $collectorId)) {
-            return ['code' => -1, 'msg' => '授权账单采集端 ID 格式不合法'];
-        }
-        foreach (['ingest_secret', 'feed_token'] as $tokenName) {
-            $token = trim((string)($config[$tokenName] ?? ''));
-            if ($token !== '' && (strlen($token) < 32 || strlen($token) > 128)) {
-                return ['code' => -1, 'msg' => $tokenName . ' 长度必须为32至128位'];
-            }
-        }
-        $ipWhitelist = \support\IpWhitelist::normalize((string)($config['ingest_ip_white'] ?? ''));
-        if ($ipWhitelist === null) {
-            return ['code' => -1, 'msg' => '采集端 IP 白名单格式不合法'];
         }
 
         $config[$qrField] = $qr;
         $config['device_id'] = $deviceId;
         $config['notify_secret'] = $secret;
-        if (array_key_exists('collector_id', $config)) {
-            $config['collector_id'] = $collectorId;
-        }
-        if (array_key_exists('ingest_secret', $config)) {
-            $config['ingest_secret'] = trim((string)$config['ingest_secret']);
-        }
-        if (array_key_exists('feed_token', $config)) {
-            $config['feed_token'] = trim((string)$config['feed_token']);
-        }
-        if (array_key_exists('ingest_ip_white', $config)) {
-            $config['ingest_ip_white'] = $ipWhitelist;
-        }
-        return $config;
+
+        return [
+            'code' => 1,
+            'msg' => '配置校验成功',
+            'data' => $config,
+        ];
     }
 }

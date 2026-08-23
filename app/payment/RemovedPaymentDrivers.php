@@ -16,6 +16,11 @@ final class RemovedPaymentDrivers
         'wxpay_protocol_cloud',
         'qqpay_protocol_cloud',
         'qqpay_epay',
+        'wechat_wecom_app',
+        'epay_generic',
+        'wxpay_recpt_afk_pc',
+        'wxpay_recpt_pc',
+        'sandbox',
     ];
 
     private const DEFAULT_ARCHIVE_REASON =
@@ -24,6 +29,11 @@ final class RemovedPaymentDrivers
     /** @var array<string,string> */
     private const ARCHIVE_REASONS = [
         'qqpay_epay' => 'superseded_by_epay_generic',
+        'wechat_wecom_app' => 'superseded_by_wechat_dy_bill',
+        'epay_generic' => 'under_development',
+        'wxpay_recpt_afk_pc' => 'placeholder_pc_driver_removed',
+        'wxpay_recpt_pc' => 'placeholder_pc_driver_removed',
+        'sandbox' => 'internal_test_only',
     ];
 
     /** @return list<string> */

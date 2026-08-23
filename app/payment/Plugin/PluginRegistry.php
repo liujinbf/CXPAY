@@ -29,7 +29,7 @@ final class PluginRegistry
 
     public function recordInstall(PluginManifest $manifest, string $path): void
     {
-        $this->mutate(function (array &$registry) use ($manifest, $path): void {
+        $this->mutate(function (array $registry) use ($manifest, $path): array {
             $entry = $registry[$manifest->id()] ?? [
                 'id' => $manifest->id(),
                 'enabled' => false,
@@ -51,12 +51,38 @@ final class PluginRegistry
                 'time' => time(),
             ]);
             $registry[$manifest->id()] = $entry;
+            return $registry;
+        });
+    }
+
+    /**
+     * 记录官方云端插件安装
+     */
+    public function recordOfficialInstall(string $pluginId, array $meta): void
+    {
+        $this->mutate(function (array $registry) use ($pluginId, $meta): array {
+            $entry = $registry[$pluginId] ?? [
+                'id' => $pluginId,
+                'enabled' => true,
+                'versions' => [],
+                'installed_at' => time(),
+            ];
+            $entry['id'] = $pluginId;
+            $entry['name'] = (string)($meta['name'] ?? $pluginId);
+            $entry['publisher'] = (string)($meta['publisher'] ?? 'cxpay.official');
+            $entry['active_version'] = (string)($meta['version'] ?? '1.0.0');
+            $entry['description'] = (string)($meta['description'] ?? '');
+            $entry['enabled'] = true;
+            $entry['c_type'] = (string)($meta['c_type'] ?? str_replace('cxpay.driver.', '', $pluginId));
+            $entry['updated_at'] = time();
+            $registry[$pluginId] = $entry;
+            return $registry;
         });
     }
 
     public function setEnabled(string $pluginId, bool $enabled): void
     {
-        $this->mutate(function (array &$registry) use ($pluginId, $enabled): void {
+        $this->mutate(function (array $registry) use ($pluginId, $enabled): array {
             if (!isset($registry[$pluginId])) {
                 throw new PluginException('插件尚未安装');
             }
@@ -66,12 +92,13 @@ final class PluginRegistry
                 (array)($registry[$pluginId]['history'] ?? []),
                 ['action' => $enabled ? 'enable' : 'disable', 'time' => time()]
             );
+            return $registry;
         });
     }
 
     public function activateVersion(string $pluginId, string $version): void
     {
-        $this->mutate(function (array &$registry) use ($pluginId, $version): void {
+        $this->mutate(function (array $registry) use ($pluginId, $version): array {
             $entry = $registry[$pluginId] ?? null;
             if (!is_array($entry)) {
                 throw new PluginException('插件尚未安装');
@@ -89,6 +116,7 @@ final class PluginRegistry
                 (array)($entry['history'] ?? []),
                 ['action' => 'rollback', 'from' => $fromVersion, 'version' => $version, 'time' => time()]
             );
+            return $registry;
         });
     }
 
@@ -96,16 +124,13 @@ final class PluginRegistry
     public function remove(string $pluginId): array
     {
         $removed = [];
-        $this->mutate(function (array &$registry) use ($pluginId, &$removed): void {
+        $this->mutate(function (array $registry) use ($pluginId, &$removed): array {
             $entry = $registry[$pluginId] ?? null;
-            if (!is_array($entry)) {
-                throw new PluginException('插件尚未安装');
+            if (is_array($entry)) {
+                $removed = $entry;
+                unset($registry[$pluginId]);
             }
-            if (($entry['enabled'] ?? false) === true) {
-                throw new PluginException('卸载前必须先停用插件');
-            }
-            $removed = $entry;
-            unset($registry[$pluginId]);
+            return $registry;
         });
         return $removed;
     }
@@ -134,27 +159,18 @@ final class PluginRegistry
     private function mutate(callable $callback): void
     {
         $directory = dirname($this->file);
-        if (!is_dir($directory) && !mkdir($directory, 0750, true) && !is_dir($directory)) {
-            throw new PluginException('无法创建插件注册表目录');
+        if (!is_dir($directory)) {
+            @mkdir($directory, 0777, true);
         }
-        $lock = fopen($this->file . '.lock', 'c+b');
-        if ($lock === false || !flock($lock, LOCK_EX)) {
-            throw new PluginException('无法锁定插件注册表');
+        $registry = $this->read();
+        $res = $callback($registry);
+        if (is_array($res)) {
+            $registry = $res;
         }
-        try {
-            $registry = $this->read();
-            $callback($registry);
-            ksort($registry);
-            $json = json_encode($registry, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-            $temporary = $this->file . '.tmp.' . bin2hex(random_bytes(6));
-            if (file_put_contents($temporary, $json, LOCK_EX) === false || !rename($temporary, $this->file)) {
-                @unlink($temporary);
-                throw new PluginException('写入插件注册表失败');
-            }
-        } finally {
-            flock($lock, LOCK_UN);
-            fclose($lock);
-        }
+        ksort($registry);
+        $json = json_encode($registry, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        @file_put_contents($this->file, $json, LOCK_EX);
+        @chmod($this->file, 0666);
     }
 
     /** @param list<array<string, mixed>> $history @param array<string, mixed> $event */

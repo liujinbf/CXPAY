@@ -57,7 +57,9 @@ class PaymentManager
     }
 
     /**
-     * 获取驱动实例
+     * 获取驱动实例。
+     * 所有驱动必须通过 PluginManager 安装并启用后才能使用，
+     * 源码包不内置任何支付通道驱动实现。
      */
     public static function make(string $cType): PaymentDriverInterface
     {
@@ -71,26 +73,22 @@ class PaymentManager
         }
 
         if (!isset(static::$drivers[$cType])) {
-            // 自动解析约定目录 app\payment\Drivers\{StudlyCase}\Driver
-            $studlyName = str_replace(' ', '', ucwords(str_replace(['_', '-'], ' ', $cType)));
-            $defaultClass = "app\\payment\\Drivers\\{$studlyName}\\Driver";
-            if (static::classIsAvailable($defaultClass)) {
-                static::$drivers[$cType] = $defaultClass;
-            } else {
-                throw new InvalidArgumentException("未注册的支付通道驱动: {$cType}");
-            }
+            throw new InvalidArgumentException(
+                "支付通道驱动尚未安装或尚未启用: {$cType}。请在插件商城下载并安装对应插件包。"
+            );
         }
 
         $class = static::$drivers[$cType];
         if (!static::classIsAvailable($class)) {
             unset(static::$drivers[$cType], static::$instances[$cType]);
-            throw new InvalidArgumentException("支付通道驱动尚未完成或已停用: {$cType}");
+            throw new InvalidArgumentException("支付通道驱动已损坏或已停用: {$cType}");
         }
         return static::$instances[$cType] = new $class();
     }
 
     /**
-     * 判断驱动是否已注册或可按目录约定自动发现。
+     * 判断驱动是否已通过插件安装注册。
+     * 源码包中无内置驱动，必须通过 PluginManager 安装并启用。
      */
     public static function has(string $cType): bool
     {
@@ -102,14 +100,9 @@ class PaymentManager
         if (!static::driverIsEnabled($cType)) {
             return false;
         }
-        if (isset(static::$drivers[$cType])) {
-            return static::classIsAvailable(static::$drivers[$cType]);
-        }
 
-        $studlyName = str_replace(' ', '', ucwords(str_replace(['_', '-'], ' ', $cType)));
-        $defaultClass = "app\\payment\\Drivers\\{$studlyName}\\Driver";
-
-        return static::classIsAvailable($defaultClass);
+        return isset(static::$drivers[$cType])
+            && static::classIsAvailable(static::$drivers[$cType]);
     }
 
     /**
@@ -190,6 +183,19 @@ class PaymentManager
     }
 
     /**
+     * 获取单个驱动的完整元数据配置
+     */
+    public static function getMeta(string $cType): array
+    {
+        $driver = static::make($cType);
+        $meta = $driver->getMeta();
+        if ($driver instanceof MonitorableDriverInterface) {
+            $meta['monitor_mode'] = static::monitorMode($cType);
+        }
+        return $meta;
+    }
+
+    /**
      * 获取所有已发现/已注册驱动元数据列表
      *
      * 修复：原来用 $class::getMeta() 静态调用实例方法，PHP 8 严格模式下会产生 Deprecation
@@ -225,28 +231,11 @@ class PaymentManager
     }
 
     /**
-     * 按约定目录发现内置驱动，避免后台展示不存在的硬编码驱动。
+     * 加载已通过插件市场安装并启用的驱动。
+     * 源码包不内置任何驱动实现，全部驱动来自安装的加密插件包。
      */
     protected static function discoverDrivers(): void
     {
-        $driverFiles = glob(app_path('payment/Drivers/*/Driver.php')) ?: [];
-        foreach ($driverFiles as $driverFile) {
-            $directory = basename(dirname($driverFile));
-            $class = "app\\payment\\Drivers\\{$directory}\\Driver";
-            if (!static::classIsAvailable($class)) {
-                continue;
-            }
-            try {
-                $instance = new $class();
-                $meta = $instance->getMeta();
-                $cType = trim((string)($meta['name'] ?? ''));
-                if ($cType !== '' && !RemovedPaymentDrivers::contains($cType)) {
-                    static::$drivers[$cType] = $class;
-                }
-            } catch (\Throwable) {
-                // 单个驱动初始化失败不影响其余驱动发现。
-            }
-        }
         PluginManager::discoverEnabledDrivers();
     }
 
@@ -266,7 +255,14 @@ class PaymentManager
     private static function driverIsEnabled(string $cType): bool
     {
         $pluginId = static::$driverPlugins[$cType] ?? null;
-        return $pluginId === null || PluginManager::isEnabled($pluginId);
+        if ($pluginId === null) {
+            return true;
+        }
+        $entry = PluginManager::registry()->get($pluginId);
+        if ($entry === null) {
+            return true;
+        }
+        return ($entry['enabled'] ?? true) === true;
     }
 
     private static function classIsAvailable(string $class): bool
