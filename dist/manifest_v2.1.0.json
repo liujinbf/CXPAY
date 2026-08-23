@@ -1,0 +1,10 @@
+{
+    "product": "CXPAY Commercial Payment System (Clean Core)",
+    "version": "2.1.0",
+    "release_time": "2026-08-22T20:02:17.777668+00:00",
+    "package_name": "CXPAY-Pro-v2.1.0.zip",
+    "package_size": 9788139,
+    "sha256": "d1ff6fc7031866f052e1687f533d034298d6ceb8038d6872a57f4baa9f49b0bd",
+    "drivers_included": false,
+    "note": "Pure framework without built-in payment drivers. Install drivers from Plugin Market."
+}

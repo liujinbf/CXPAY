@@ -1,0 +1,25 @@
+{
+    "product": "CXPAY Commercial Payment System",
+    "version": "1.0.0",
+    "release_time": "2026-08-22T17:10:59+00:00",
+    "domain": "pay.fcwan.cn",
+    "watermark_id": "WM_E48D4ACE0AD5B526",
+    "is_encrypted": true,
+    "package_name": "CXPAY_Release_v1.0.0.zip",
+    "package_size": 9834409,
+    "sha256": "571434066c2deb580b9f7c6e6ca22d97ebd86c39d95b6b7822fff70371b746d4",
+    "requirements": {
+        "php": ">=8.2",
+        "mysql": ">=8.0",
+        "redis": ">=7.0"
+    },
+    "encrypted_files": [
+        "app/service/CloudInstanceClient.php",
+        "app/service/PluginLicenseService.php",
+        "app/service/WatermarkTracerService.php",
+        "app/service/OrderService.php",
+        "app/payment/PaymentManager.php",
+        "app/payment/Plugin/PluginPackageInstaller.php",
+        "app/service/RiskGuardService.php"
+    ]
+}
