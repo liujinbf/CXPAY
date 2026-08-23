@@ -109,45 +109,50 @@ fi
 
 
 # ── Step 3: Composer 安装依赖 ────────────────────────────────────────────────────
-hd "Step 3  Composer 安装 PHP 依赖"
-
-COMPOSER_CMD=""
-if command -v composer &>/dev/null; then
-    COMPOSER_CMD="composer"
-    ok "找到全局 composer：$(composer --version 2>/dev/null | head -1)"
-elif [ -f "$SCRIPT_DIR/composer.phar" ]; then
-    COMPOSER_CMD="$PHP_BIN $SCRIPT_DIR/composer.phar"
-    ok "找到本地 composer.phar"
-else
-    info "下载 Composer（阿里云镜像）..."
-    _downloaded=false
-    if command -v curl &>/dev/null; then
-        curl -sSL https://mirrors.aliyun.com/composer/composer.phar -o "$SCRIPT_DIR/composer.phar" 2>/dev/null \
-            || curl -sSL https://getcomposer.org/composer.phar -o "$SCRIPT_DIR/composer.phar" 2>/dev/null \
-            && _downloaded=true
-    elif command -v wget &>/dev/null; then
-        wget -q https://mirrors.aliyun.com/composer/composer.phar -O "$SCRIPT_DIR/composer.phar" 2>/dev/null \
-            || wget -q https://getcomposer.org/composer.phar -O "$SCRIPT_DIR/composer.phar" 2>/dev/null \
-            && _downloaded=true
-    fi
-    if [ "$_downloaded" = true ] && [ -f "$SCRIPT_DIR/composer.phar" ]; then
-        chmod +x "$SCRIPT_DIR/composer.phar"
-        COMPOSER_CMD="$PHP_BIN $SCRIPT_DIR/composer.phar"
-        ok "Composer 下载完成"
-    else
-        err "Composer 下载失败，请手动安装后重试"
-    fi
-fi
-
-$COMPOSER_CMD config -g repo.packagist composer https://mirrors.aliyun.com/composer/ 2>/dev/null || true
-info "执行 composer install（可能需要 1~3 分钟）..."
-$COMPOSER_CMD install --no-dev --optimize-autoloader --no-interaction --prefer-dist 2>&1
+hd "Step 3  PHP 依赖库检测与加载"
 
 if [ -f "$SCRIPT_DIR/vendor/autoload.php" ]; then
-    ok "依赖安装完成，vendor/autoload.php 就绪"
+    ok "检测到安装包已内置完整 PHP 依赖库 (vendor/autoload.php 就绪)，免在线下载！"
 else
-    err "composer install 失败，请检查网络或 PHP 扩展后重试"
+    COMPOSER_CMD=""
+    if command -v composer &>/dev/null; then
+        COMPOSER_CMD="composer"
+        ok "找到全局 composer：$(composer --version 2>/dev/null | head -1)"
+    elif [ -f "$SCRIPT_DIR/composer.phar" ]; then
+        COMPOSER_CMD="$PHP_BIN $SCRIPT_DIR/composer.phar"
+        ok "找到本地 composer.phar"
+    else
+        info "下载 Composer（阿里云镜像）..."
+        _downloaded=false
+        if command -v curl &>/dev/null; then
+            curl -sSL https://mirrors.aliyun.com/composer/composer.phar -o "$SCRIPT_DIR/composer.phar" 2>/dev/null \
+                || curl -sSL https://getcomposer.org/composer.phar -o "$SCRIPT_DIR/composer.phar" 2>/dev/null \
+                && _downloaded=true
+        elif command -v wget &>/dev/null; then
+            wget -q https://mirrors.aliyun.com/composer/composer.phar -O "$SCRIPT_DIR/composer.phar" 2>/dev/null \
+                || wget -q https://getcomposer.org/composer.phar -O "$SCRIPT_DIR/composer.phar" 2>/dev/null \
+                && _downloaded=true
+        fi
+        if [ "$_downloaded" = true ] && [ -f "$SCRIPT_DIR/composer.phar" ]; then
+            chmod +x "$SCRIPT_DIR/composer.phar"
+            COMPOSER_CMD="$PHP_BIN $SCRIPT_DIR/composer.phar"
+            ok "Composer 下载完成"
+        else
+            err "Composer 下载失败，请手动安装后重试"
+        fi
+    fi
+
+    $COMPOSER_CMD config -g repo.packagist composer https://mirrors.aliyun.com/composer/ 2>/dev/null || true
+    info "执行 composer install（可能需要 1~3 分钟）..."
+    $COMPOSER_CMD install --no-dev --optimize-autoloader --no-interaction --prefer-dist 2>&1
+
+    if [ -f "$SCRIPT_DIR/vendor/autoload.php" ]; then
+        ok "依赖安装完成，vendor/autoload.php 就绪"
+    else
+        err "composer install 失败，请检查网络或 PHP 扩展后重试"
+    fi
 fi
+
 
 # 创建运行时目录
 mkdir -p "$SCRIPT_DIR/runtime/logs"

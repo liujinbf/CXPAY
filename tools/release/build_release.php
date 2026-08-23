@@ -110,7 +110,9 @@ $copyItems = [
     'support'          => true,
     '.env.example'     => false,
     'composer.json'    => false,
+    'composer.lock'    => false,
     'docker-compose.yml' => false,
+    'vendor'           => true,
     'server.php'       => false,
     'start.php'        => false,
     'windows.php'      => false,
@@ -122,6 +124,7 @@ $copyItems = [
     '安装说明.txt'      => false,
     'phpunit.xml'      => false,
 ];
+
 
 
 
@@ -138,6 +141,7 @@ $blacklistPatterns = [
     '/plugins-src/i',
     '/tools\/release/i',
     '/\.phpunit\.cache/i',
+    '/\/vendor\/[^\/]+\/[^\/]+\/(test|tests|doc|docs)\//i',
     '/\.log$/i',
     '/\.tmp$/i',
     '/\.bak$/i',
@@ -161,7 +165,6 @@ foreach ($copyItems as $item => $isDir) {
     }
 }
 echo "  ✓ 纯净文件提取完成 (已完全剔除云控制面、.env 与开发私钥)\n";
-
 
 // 3.1 针对授权客户发布源码的专用安全净化：彻底剥离自营站专用的云端总后台跳转入口
 $adminIndexHtml = $stagingDir . '/public/admin/index.html';
@@ -218,6 +221,10 @@ echo "\n[3/6] 正在对所有提取与加密后的 PHP 文件执行语法检测 
 $phpFiles = scanAllFiles($stagingDir, ['php']);
 $errorCount = 0;
 foreach ($phpFiles as $phpFile) {
+    // 忽略第三方库内部的测试用例夹具
+    if (str_contains($phpFile, '/vendor/') && (str_contains($phpFile, '/fixtures/') || str_contains($phpFile, '/test/') || str_contains($phpFile, '/tests/'))) {
+        continue;
+    }
     $cmd = 'php -l ' . escapeshellarg($phpFile) . ' 2>&1';
     $res = shell_exec($cmd);
     if (!str_contains((string)$res, 'No syntax errors detected')) {
@@ -225,6 +232,7 @@ foreach ($phpFiles as $phpFile) {
         $errorCount++;
     }
 }
+
 
 if ($errorCount > 0) {
     echo "❌ 语法检测失败，发现 {$errorCount} 个错误文件，终止打包！\n";
