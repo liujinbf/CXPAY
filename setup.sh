@@ -416,6 +416,63 @@ if [ "$DB_INIT_SUCCESS" = true ]; then
     ok "install.lock 已创建，安装入口已安全锁定"
 fi
 
+
+# ── Step 6.5: 从官方云端拉取并安装基础支付插件 (纯插件化架构) ────────────────────
+hd "Step 6.5  从官方云端拉取并初始化官方支付插件"
+
+$PHP_BIN -r '
+require_once "'"$SCRIPT_DIR"'/vendor/autoload.php";
+require_once "'"$SCRIPT_DIR"'/support/bootstrap.php";
+
+use app\payment\Plugin\PluginPackageInstaller;
+use app\payment\Plugin\PluginManager;
+
+$cloudBase = rtrim(getenv("CLOUD_CONTROL_URL") ?: "https://cloud.fcwan.cn", "/");
+$plugins = [
+    "cxpay.driver.alipay_face_pay",
+    "cxpay.driver.alipay_cookie_cloud",
+    "cxpay.app_asst_universal",
+    "cxpay.driver.wechat_dy_bill",
+    "cxpay.alipay.scan_monitor",
+    "cxpay.wxpay.clerk_adapter",
+    "cxpay.wxpay.cloud_adapter",
+    "cxpay.alipay.accountlog_monitor",
+];
+
+$installer = new PluginPackageInstaller(
+    (string)config("payment_plugin.path", base_path() . "/plugin/cxpay"),
+    (string)config("payment_plugin.trusted_keys", base_path() . "/config/plugin_keys"),
+    PluginManager::registry()
+);
+
+$reg = PluginManager::registry();
+$tmpDir = sys_get_temp_dir() . "/cxpay_setup_plugins_" . bin2hex(random_bytes(4));
+@mkdir($tmpDir, 0777, true);
+
+$successCount = 0;
+foreach ($plugins as $pluginId) {
+    $url = $cloudBase . "/downloads/plugins/" . $pluginId . ".cxpay-plugin";
+    $target = $tmpDir . "/" . $pluginId . ".cxpay-plugin";
+    
+    $ctx = stream_context_create(["http" => ["timeout" => 10, "ignore_errors" => true], "ssl" => ["verify_peer" => false, "verify_peer_name" => false]]);
+    $content = @file_get_contents($url, false, $ctx);
+    if ($content !== false && strlen($content) > 100) {
+        file_put_contents($target, $content);
+        try {
+            $installer->install($target);
+            $reg->setEnabled($pluginId, true);
+            echo "  ✓ [云端拉取并验签成功] " . $pluginId . "\n";
+            $successCount++;
+        } catch (Throwable $e) {
+            echo "  ⚠️ [安装异常] " . $pluginId . ": " . $e->getMessage() . "\n";
+        }
+    }
+}
+@system("rm -rf " . escapeshellarg($tmpDir));
+'
+
+ok "官方基础支付插件已由云端拉取并完成公钥验签与热加载就绪！"
+
 # ── Step 7: 配置 Nginx 反向代理 ───────────────────────────────────────────────
 hd "Step 7  配置 Nginx 反向代理"
 

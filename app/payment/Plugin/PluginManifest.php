@@ -78,10 +78,10 @@ final class PluginManifest
         if ($name === '' || mb_strlen($name) > 100) {
             throw new PluginException('插件名称不能为空且不能超过 100 个字符');
         }
-        if (($data['collection_mode'] ?? '') !== 'personal_qr') {
+        if (!in_array($data['collection_mode'] ?? '', ['personal_qr', 'official_merchant', 'chain', 'all'], true)) {
             throw new PluginException('CXPAY 只允许安装个人收款码插件');
         }
-        if (!in_array($data['payment_type'] ?? '', ['alipay', 'wxpay', 'qqpay'], true)) {
+        if (!in_array($data['payment_type'] ?? '', ['alipay', 'wxpay', 'qqpay', 'wechat', 'usdt', 'epay', 'all'], true)) {
             throw new PluginException('插件支付类型不受支持');
         }
         if (!in_array($data['monitor_mode'] ?? '', ['push', 'callback', 'server'], true)) {
@@ -101,10 +101,10 @@ final class PluginManifest
             $code = (string)($driver['code'] ?? '');
             $class = (string)($driver['class'] ?? '');
             $file = self::normalizeRelativePath((string)($driver['file'] ?? ''));
-            if (!preg_match('/^(?:alipay|wxpay|qqpay)_[a-z0-9_]{2,42}$/', $code)) {
+            if (!preg_match('/^(?:alipay|wxpay|wechat|qqpay|usdt|epay|app_asst)_[a-z0-9_]{2,42}$/', $code)) {
                 throw new PluginException("支付驱动标识不合法: {$code}");
             }
-            if (!str_starts_with($code, (string)$data['payment_type'] . '_')) {
+            if ($data['payment_type'] !== 'all' && !str_starts_with($code, (string)$data['payment_type'] . '_') && !(($data['payment_type'] === 'wxpay' || $data['payment_type'] === 'wechat') && (str_starts_with($code, 'wxpay_') || str_starts_with($code, 'wechat_')))) {
                 throw new PluginException("支付驱动与插件支付类型不一致: {$code}");
             }
             if (isset($driverCodes[$code])) {

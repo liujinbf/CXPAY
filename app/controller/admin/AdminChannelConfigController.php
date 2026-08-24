@@ -28,6 +28,10 @@ final class AdminChannelConfigController
     {
         PaymentManager::flush();
         $registered = PaymentManager::getRegisteredDrivers();
+        if (empty($registered)) {
+            \app\payment\Plugin\PluginManager::discoverEnabledDrivers();
+            $registered = PaymentManager::getRegisteredDrivers();
+        }
         $grouped = [];
 
         foreach ($registered as $cType => $meta) {
