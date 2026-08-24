@@ -467,6 +467,8 @@ foreach ($plugins as $pluginId) {
             echo "  ⚠️ [安装异常] " . $pluginId . ": " . $e->getMessage() . "\n";
         }
     }
+}
+
 if (is_dir($tmpDir)) {
     $files = array_diff(scandir($tmpDir) ?: [], ['.', '..']);
     foreach ($files as $f) {
@@ -475,6 +477,7 @@ if (is_dir($tmpDir)) {
     @rmdir($tmpDir);
 }
 '
+
 
 ok "官方基础支付插件已由云端拉取并完成公钥验签与热加载就绪！"
 
