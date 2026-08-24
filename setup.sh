@@ -428,16 +428,28 @@ use app\payment\Plugin\PluginPackageInstaller;
 use app\payment\Plugin\PluginManager;
 
 $cloudBase = rtrim(getenv("CLOUD_CONTROL_URL") ?: "https://cloud.fcwan.cn", "/");
-$plugins = [
+$domain = "'"$DOMAIN"'";
+
+// 1. 官方默认免费基础插件（确保新站开箱即可进行官方通道联调出码）
+$freePlugins = [
     "cxpay.driver.alipay_face_pay",
-    "cxpay.driver.alipay_cookie_cloud",
-    "cxpay.app_asst_universal",
-    "cxpay.driver.wechat_dy_bill",
-    "cxpay.alipay.scan_monitor",
-    "cxpay.wxpay.clerk_adapter",
-    "cxpay.wxpay.cloud_adapter",
-    "cxpay.alipay.accountlog_monitor",
 ];
+
+// 2. 尝试从云端查询该域名已购高级插件列表（如为老站重装或已代开站点自动同步已购清单）
+$purchasedPlugins = [];
+try {
+    $apiUrl = $cloudBase . "/api/agent/v1/plugins/purchased?domain=" . urlencode($domain);
+    $ctxApi = stream_context_create(["http" => ["timeout" => 5, "ignore_errors" => true], "ssl" => ["verify_peer" => false, "verify_peer_name" => false]]);
+    $resp = @file_get_contents($apiUrl, false, $ctxApi);
+    if ($resp) {
+        $json = json_decode($resp, true);
+        if (($json["code"] ?? 0) === 1 && !empty($json["data"]["plugins"])) {
+            $purchasedPlugins = (array)$json["data"]["plugins"];
+        }
+    }
+} catch (Throwable) {}
+
+$pluginsToInstall = array_unique(array_merge($freePlugins, $purchasedPlugins));
 
 $installer = new PluginPackageInstaller(
     (string)config("payment_plugin.path", base_path() . "/plugin/cxpay"),
@@ -450,9 +462,10 @@ $tmpDir = sys_get_temp_dir() . "/cxpay_setup_plugins_" . bin2hex(random_bytes(4)
 @mkdir($tmpDir, 0777, true);
 
 $successCount = 0;
-foreach ($plugins as $pluginId) {
+foreach ($pluginsToInstall as $pluginId) {
     $url = $cloudBase . "/downloads/plugins/" . $pluginId . ".cxpay-plugin";
     $target = $tmpDir . "/" . $pluginId . ".cxpay-plugin";
+
     
     $ctx = stream_context_create(["http" => ["timeout" => 10, "ignore_errors" => true], "ssl" => ["verify_peer" => false, "verify_peer_name" => false]]);
     $content = @file_get_contents($url, false, $ctx);
