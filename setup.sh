@@ -467,11 +467,17 @@ foreach ($plugins as $pluginId) {
             echo "  ⚠️ [安装异常] " . $pluginId . ": " . $e->getMessage() . "\n";
         }
     }
+if (is_dir($tmpDir)) {
+    $files = array_diff(scandir($tmpDir) ?: [], ['.', '..']);
+    foreach ($files as $f) {
+        @unlink($tmpDir . '/' . $f);
+    }
+    @rmdir($tmpDir);
 }
-@system("rm -rf " . escapeshellarg($tmpDir));
 '
 
 ok "官方基础支付插件已由云端拉取并完成公钥验签与热加载就绪！"
+
 
 # ── Step 7: 配置 Nginx 反向代理 ───────────────────────────────────────────────
 hd "Step 7  配置 Nginx 反向代理"
@@ -622,6 +628,10 @@ fi
 # ── Step 9: 启动 Webman ───────────────────────────────────────────────────────
 hd "Step 9  启动 Webman 服务"
 
+# 确保运行时目录权限
+mkdir -p "$SCRIPT_DIR/runtime/logs" "$SCRIPT_DIR/runtime/sessions" "$SCRIPT_DIR/runtime/views"
+chmod -R 777 "$SCRIPT_DIR/runtime" 2>/dev/null || true
+
 # 先尝试通过 Supervisor 启动
 _started_by_supervisor=false
 if [ -n "$SUPERVISORCTL" ] && $SUPERVISORCTL status cxpay-webman >/dev/null 2>&1; then
@@ -634,26 +644,34 @@ fi
 if [ "$_started_by_supervisor" = false ]; then
     "$PHP_BIN" "$SCRIPT_DIR/start.php" stop >/dev/null 2>&1 || true
     sleep 1
-    "$PHP_BIN" "$SCRIPT_DIR/start.php" start -d >/dev/null 2>&1 \
-        && ok "Webman 已在后台启动（端口 8787）" \
-        || warn "Webman 启动失败，请查看日志后手动执行：php start.php start -d"
+    _start_res=$("$PHP_BIN" "$SCRIPT_DIR/start.php" start -d 2>&1)
+    if echo "$_start_res" | grep -qi "success\|start\|workerman"; then
+        ok "Webman 已在后台启动（端口 ${WEBMAN_PORT}）"
+    else
+        echo "  $_start_res"
+    fi
 fi
 
-# 验证端口
-sleep 2
+# 验证端口（轮询重试 3 秒）
 _port_ok=false
-if ss -tlnp 2>/dev/null | grep -q ':8787'; then
-    _port_ok=true
-elif netstat -tlnp 2>/dev/null | grep -q ':8787'; then
-    _port_ok=true
-fi
+for _retry in 1 2 3 4; do
+    sleep 1
+    if ss -tlnp 2>/dev/null | grep -q ":${WEBMAN_PORT}[^0-9]"; then
+        _port_ok=true; break
+    elif netstat -tlnp 2>/dev/null | grep -q ":${WEBMAN_PORT}[^0-9]"; then
+        _port_ok=true; break
+    elif curl -s -m 1 "http://127.0.0.1:${WEBMAN_PORT}/" >/dev/null 2>&1; then
+        _port_ok=true; break
+    fi
+done
 
 if [ "$_port_ok" = true ]; then
-    ok "端口 8787 监听正常，Webman 运行中"
+    ok "端口 ${WEBMAN_PORT} 监听正常，Webman 运行中"
 else
-    warn "未检测到 8787 端口，Webman 可能启动失败"
+    warn "未检测到 ${WEBMAN_PORT} 端口，Webman 可能启动失败或在后台初始化"
     info "请查看日志：tail -f ${SCRIPT_DIR}/runtime/logs/workerman.log"
 fi
+
 
 # ── 完成摘要 ─────────────────────────────────────────────────────────────────
 echo ""
