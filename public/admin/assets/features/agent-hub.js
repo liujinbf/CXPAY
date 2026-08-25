@@ -20,11 +20,19 @@ export const feature = {
             if (action === 'open-buy-quota-modal')  openBuyQuotaModal(root);
             if (action === 'close-buy-quota-modal') closeBuyQuotaModal(root);
             if (action === 'close-rebind-modal')    closeRebindModal(root);
+            if (action === 'close-grant-plugin-modal') closeGrantPluginModal(root);
 
-            // 打开换绑弹窗
-            if (action === 'open-rebind-modal') {
+            // 打开为子站点开通插件弹窗
+            if (action === 'open-grant-plugin-modal') {
                 const domain = target.dataset.domain || '';
-                if (domain) openRebindModal(root, domain);
+                if (domain) void openGrantPluginModal(context, domain);
+            }
+
+            // 执行为子站点开通插件
+            if (action === 'do-grant-plugin-to-sub') {
+                const domain = target.dataset.domain || '';
+                const pluginId = target.dataset.pluginId || '';
+                if (domain && pluginId) void doGrantPluginToSub(context, domain, pluginId, target);
             }
 
             // 快捷购买配额选择
@@ -68,7 +76,21 @@ export const feature = {
         // 复制 License Key
         root.querySelector('#btn-copy-issued-key')?.addEventListener('click', () => {
             const keyText = root.querySelector('#res-issued-key')?.textContent?.trim() || '';
-            if (keyText) navigator.clipboard.writeText(keyText).then(() => ui.showToast('License Key 已复制到剪贴板！'));
+            if (keyText) navigator.clipboard.writeText(keyText).then(() => ui.showToast('✅ License Key 已复制到剪贴板！'));
+        }, { signal });
+
+        // 一键复制完整客户交付单
+        root.querySelector('#btn-copy-deliver-pack')?.addEventListener('click', () => {
+            const deliverText = root.querySelector('#res-issued-deliver-text')?.value?.trim() || '';
+            if (deliverText) {
+                navigator.clipboard.writeText(deliverText).then(() => ui.showToast('📋 客户交付全套文本已复制，可直接发送给买家！', 'success'));
+            } else {
+                const keyText = root.querySelector('#res-issued-key')?.textContent?.trim() || '';
+                const domText = root.querySelector('#res-issued-domain')?.textContent?.trim() || '';
+                const cmdText = root.querySelector('#res-issued-cmd')?.textContent?.trim() || '';
+                const fullText = `【授权域名】：${domText}\n【授权密钥】：${keyText}\n【一键安装】：${cmdText}\n【售后说明】：商业授权已生效，支持全套插件与通道出码。`;
+                navigator.clipboard.writeText(fullText).then(() => ui.showToast('📋 客户交付文本已复制到剪贴板！', 'success'));
+            }
         }, { signal });
 
         // 确认购买配额
@@ -92,11 +114,17 @@ function openIssueModal(root) {
     const nameInput = root.querySelector('#issue-client-name');
     if (nameInput) nameInput.value = '';
     modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
     domInput?.focus();
 }
 function closeIssueModal(root) {
     const modal = root.querySelector('#agent-issue-modal');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
 }
 
 // ── 更换绑定域名弹窗 ──────────────────────────────────────────────
@@ -108,11 +136,17 @@ function openRebindModal(root, oldDomain) {
     const newInput = root.querySelector('#rebind-new-domain');
     if (newInput) newInput.value = '';
     modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
     newInput?.focus();
 }
 function closeRebindModal(root) {
     const modal = root.querySelector('#agent-rebind-modal');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
 }
 
 // ── 购买配额弹窗 ──────────────────────────────────────────────────
@@ -171,7 +205,7 @@ async function loadAgentHub(context) {
             }
 
             const tenantEl = root.querySelector('#agent-tenant-name');
-            if (tenantEl) tenantEl.textContent = d.tenant_name || '代理加盟商';
+            if (tenantEl) tenantEl.textContent = d.tenant_name || 'OEM 代理加盟商';
 
             const badgeEl = root.querySelector('#agent-level-badge');
             if (badgeEl) badgeEl.textContent =
@@ -194,12 +228,47 @@ async function loadAgentHub(context) {
             ));
             const bar = root.querySelector('#agent-quota-bar');
             if (bar) bar.style.width = pct + '%';
+
+            // 启用发码与购额按钮
+            root.querySelectorAll('[data-action="open-issue-modal"], [data-action="open-buy-quota-modal"]').forEach(btn => {
+                btn.removeAttribute('disabled');
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
+
+            await loadAgentInstances(context);
+        } else {
+            // 未开通代理商资质或受限提示
+            const msg = data.msg || '当前主站实例未开通 OEM 代理商资质';
+            const tenantEl = root.querySelector('#agent-tenant-name');
+            if (tenantEl) tenantEl.textContent = '标准商业授权版 (未开通代理)';
+
+            const badgeEl = root.querySelector('#agent-level-badge');
+            if (badgeEl) badgeEl.textContent = '🔒 未开通代理商';
+
+            const tbody = root.querySelector('#agent-instances-tbody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-slate-400">
+                    <div class="max-w-md mx-auto p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+                        <div class="font-bold text-base mb-1">⚠️ 代理商功能未激活</div>
+                        <div>${msg}。如需为客户下发子站点商业授权，请联系官方运营开通 OEM 代理商资质。</div>
+                    </div>
+                </td></tr>`;
+            }
+
+            // 禁用发码按钮
+            root.querySelectorAll('[data-action="open-issue-modal"], [data-action="open-buy-quota-modal"]').forEach(btn => {
+                btn.setAttribute('disabled', 'true');
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            });
         }
     } catch (e) {
         console.warn('[AgentHub] 获取资质失败', e);
+        const tbody = root.querySelector('#agent-instances-tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">
+                暂未获取到代理商资质信息，请确保已激活合法商业授权。</td></tr>`;
+        }
     }
-
-    await loadAgentInstances(context);
 }
 
 async function loadAgentInstances(context) {
@@ -246,13 +315,18 @@ async function loadAgentInstances(context) {
                 if (isDeleted) {
                     actionHtml = `<span class="text-xs text-slate-300">已终止</span>`;
                 } else {
+                    const grantPluginBtn = `<button type="button" data-action="open-grant-plugin-modal" data-domain="${item.domain}"
+                            class="px-2 py-1 text-purple-600 hover:bg-purple-50 border border-purple-200 rounded-lg font-bold text-[11px] transition-colors">
+                            🧩 插件
+                        </button>`;
+
                     const toggleBtn = isActive
                         ? `<button type="button" data-action="revoke-sub-license" data-domain="${item.domain}"
-                                class="px-2 py-1 text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-lg font-bold text-[11px] transition-colors">
+                                class="px-2 py-1 text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-lg font-bold text-[11px] transition-colors ml-1">
                                冻结
                            </button>`
                         : `<button type="button" data-action="restore-sub-license" data-domain="${item.domain}"
-                                class="px-2 py-1 text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg font-bold text-[11px] transition-colors">
+                                class="px-2 py-1 text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg font-bold text-[11px] transition-colors ml-1">
                                恢复
                            </button>`;
 
@@ -266,7 +340,7 @@ async function loadAgentInstances(context) {
                            吊销
                        </button>`;
 
-                    actionHtml = `${toggleBtn}${rebindBtn}${deleteBtn}`;
+                    actionHtml = `${grantPluginBtn}${toggleBtn}${rebindBtn}${deleteBtn}`;
                 }
 
                 return `<tr class="hover:bg-slate-50/80 transition-colors">
@@ -319,11 +393,16 @@ async function doIssueLicense(context) {
         const d = data.data;
         root.querySelector('#issue-form-step')?.classList.add('hidden');
         root.querySelector('#issue-result-step')?.classList.remove('hidden');
-        root.querySelector('#res-issued-key').textContent    = d.license_key;
-        root.querySelector('#res-issued-domain').textContent = d.client_domain;
-        root.querySelector('#res-issued-wm').textContent     = d.watermark_id;
+        root.querySelector('#res-issued-key').textContent    = d.license_key || '';
+        root.querySelector('#res-issued-domain').textContent = d.client_domain || domain;
+        if (root.querySelector('#res-issued-cmd')) {
+            root.querySelector('#res-issued-cmd').textContent = d.install_cmd || `curl -sSO https://${window.location.host}/setup.sh && bash setup.sh`;
+        }
+        if (root.querySelector('#res-issued-deliver-text')) {
+            root.querySelector('#res-issued-deliver-text').value = d.deliver_text || '';
+        }
 
-        ui.showToast('🎉 客户商业授权下发成功！');
+        ui.showToast('🎉 客户商业授权下发成功！', 'success');
         void loadAgentHub(context);
     } catch (e) {
         ui.showToast(e.message, 'error');
@@ -486,3 +565,132 @@ async function doBuyQuota(context) {
         }
     }
 }
+
+// ── 为子站点开通插件弹窗与划拨 ─────────────────────────────────────────
+function closeGrantPluginModal(root) {
+    const modal = root.querySelector('#agent-grant-plugin-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+async function openGrantPluginModal(context, domain) {
+    const { root, ui, api } = context;
+    const modal = root.querySelector('#agent-grant-plugin-modal');
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    const domainLabel = root.querySelector('#grant-target-domain');
+    if (domainLabel) domainLabel.textContent = domain;
+
+    const listContainer = root.querySelector('#agent-plugin-catalog-list');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = `<div class="py-10 text-center text-slate-400 text-xs">
+        <span class="inline-block animate-spin mr-2">⏳</span> 正在检索该子站点已开通插件及官方驱动目录...
+    </div>`;
+
+    try {
+        // 并行拉取全量目录和该子站点已开通列表
+        const [catRes, grantRes] = await Promise.all([
+            api.adminFetch('/api/admin/agent/plugins/catalog'),
+            api.adminFetch('/api/admin/agent/plugins/instance_grants', {
+                method: 'POST',
+                body: new URLSearchParams({ domain })
+            })
+        ]);
+
+        if (!catRes.ok) {
+            const errText = await catRes.text();
+            let parsed = null;
+            try { parsed = JSON.parse(errText); } catch(e){}
+            throw new Error((parsed && parsed.msg) || `HTTP ${catRes.status}: ${errText.substring(0, 80)}`);
+        }
+
+        const catData   = await catRes.json();
+        const grantData = grantRes.ok ? await grantRes.json() : { data: { granted_ids: [] } };
+
+        if (catData.code !== 1) throw new Error(catData.msg || '获取插件目录失败');
+
+        const plugins = catData.data?.list || [];
+        const grantedIds = grantData.data?.granted_ids || [];
+
+        if (plugins.length === 0) {
+            listContainer.innerHTML = `<div class="py-10 text-center text-slate-400 text-xs">官方云端暂无可用插件</div>`;
+            return;
+        }
+
+        listContainer.innerHTML = plugins.map(p => {
+            const isGranted = grantedIds.includes(p.plugin_id);
+            const retailVal = parseFloat(p.price_retail) || 129.00;
+            const agentVal  = parseFloat(p.price_agent) || 49.00;
+            const profitVal = Math.max(0, retailVal - agentVal).toFixed(2);
+
+            const btnHtml = isGranted
+                ? `<span class="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs flex items-center gap-1">
+                       <span>✅</span> 已开通
+                   </span>`
+                : `<button type="button" data-action="do-grant-plugin-to-sub" data-domain="${domain}" data-plugin-id="${p.plugin_id}"
+                       class="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1">
+                       <span>⚡</span> 立即划拨开通
+                   </button>`;
+
+            return `<div class="p-3.5 rounded-xl border ${isGranted ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200 bg-white hover:border-purple-200'} flex items-center justify-between gap-3 transition-colors">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-slate-800 text-xs truncate">${p.name}</span>
+                        <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-mono text-[10px]">v${p.version}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1 truncate">${p.description || '官方支付通道驱动插件'}</p>
+                    <div class="flex items-center gap-3 mt-1.5 text-[11px]">
+                        <span class="text-slate-400">建议零售价: <del class="font-mono">¥${p.price_retail}</del></span>
+                        <span class="text-purple-600 font-bold font-mono">代理拿货底价: ¥${p.price_agent} (${p.discount_text})</span>
+                        <span class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 font-bold text-[10px]">💰 预计利润 ¥${profitVal}</span>
+                    </div>
+                </div>
+                <div class="flex-shrink-0">
+                    ${btnHtml}
+                </div>
+            </div>`;
+        }).join('');
+
+    } catch (e) {
+        listContainer.innerHTML = `<div class="py-8 text-center text-rose-500 text-xs">
+            拉取失败: ${e.message}
+        </div>`;
+    }
+}
+
+async function doGrantPluginToSub(context, domain, pluginId, btn) {
+    const { ui, api } = context;
+    if (!confirm(`确定要为子站点 [${domain}] 划拨开通该支付插件吗？\n开通后下级站点将立即拥有该通道出码与收款能力。`)) {
+        return;
+    }
+
+    const origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="inline-block animate-spin mr-1">⏳</span> 开通中...`;
+
+    try {
+        const res = await api.adminFetch('/api/admin/agent/plugins/grant', {
+            method: 'POST',
+            body: new URLSearchParams({ domain, plugin_id: pluginId })
+        });
+        const data = await res.json();
+        if (data.code !== 1) throw new Error(data.msg || '开通失败');
+
+        ui.showToast(`✅ ${data.msg || '插件开通成功！'}`, 'success');
+        // 重新拉取更新状态
+        void openGrantPluginModal(context, domain);
+    } catch (e) {
+        ui.showToast(e.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = origText;
+    }
+}
+

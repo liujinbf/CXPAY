@@ -251,14 +251,17 @@ Route::group('/api/admin', function () {
     Route::post('/plugin/activate_instance', [app\controller\admin\CloudPluginMarketController::class, 'activateInstance']);
 
     // OEM 代理商加盟中心与授权下发
-    Route::get('/agent/profile', [app\controller\admin\AgentHubController::class, 'profile']);
-    Route::post('/agent/license/issue', [app\controller\admin\AgentHubController::class, 'issueLicense']);
-    Route::get('/agent/sub_instances', [app\controller\admin\AgentHubController::class, 'listSubInstances']);
-    Route::post('/agent/license/revoke', [app\controller\admin\AgentHubController::class, 'revokeLicense']);
-    Route::post('/agent/license/restore', [app\controller\admin\AgentHubController::class, 'restoreLicense']);
-    Route::post('/agent/license/delete', [app\controller\admin\AgentHubController::class, 'deleteLicense']);
-    Route::post('/agent/license/rebind', [app\controller\admin\AgentHubController::class, 'rebindLicense']);
-    Route::post('/agent/quota/buy', [app\controller\admin\AgentHubController::class, 'buyQuota']);
+    Route::get('/agent/profile',                 [app\controller\admin\AgentHubController::class, 'profile']);
+    Route::post('/agent/license/issue',          [app\controller\admin\AgentHubController::class, 'issueLicense']);
+    Route::get('/agent/sub_instances',           [app\controller\admin\AgentHubController::class, 'listSubInstances']);
+    Route::post('/agent/license/revoke',         [app\controller\admin\AgentHubController::class, 'revokeLicense']);
+    Route::post('/agent/license/restore',        [app\controller\admin\AgentHubController::class, 'restoreLicense']);
+    Route::post('/agent/license/delete',         [app\controller\admin\AgentHubController::class, 'deleteLicense']);
+    Route::post('/agent/license/rebind',         [app\controller\admin\AgentHubController::class, 'rebindLicense']);
+    Route::post('/agent/quota/buy',              [app\controller\admin\AgentHubController::class, 'buyQuota']);
+    Route::any('/agent/plugins/catalog',         [app\controller\admin\AgentHubController::class, 'pluginCatalog']);
+    Route::any('/agent/plugins/instance_grants', [app\controller\admin\AgentHubController::class, 'instanceGrants']);
+    Route::any('/agent/plugins/grant',           [app\controller\admin\AgentHubController::class, 'grantPlugin']);
 
     // 轮询组智能调度 API
     Route::get('/poll_group/list', [app\controller\admin\PollGroupController::class, 'list']);
@@ -310,12 +313,15 @@ Route::group('/api/admin', function () {
     // Token 滑动续期（前端在过期前 10 分钟调用，旧 Token 立即加入黑名单）
     Route::get('/token/refresh',   [app\controller\admin\AdminAuthController::class, 'refreshToken']);
 
-    // 子管理员账号 CRUD（RBAC 多角色管理）
-    Route::get('/sub_admin/list',    [app\controller\admin\SubAdminController::class, 'list']);
-    Route::post('/sub_admin/save',   [app\controller\admin\SubAdminController::class, 'save']);
-    Route::post('/sub_admin/delete', [app\controller\admin\SubAdminController::class, 'delete']);
-    Route::post('/sub_admin/toggle', [app\controller\admin\SubAdminController::class, 'toggle']);
-    Route::post('/sub_admin/invite', [app\controller\admin\SubAdminController::class, 'invite']);
+    // 子管理员账号 CRUD 与 RBAC 权限配置
+    Route::get('/sub_admin/list',               [app\controller\admin\SubAdminController::class, 'list']);
+    Route::get('/sub_admin/roles',              [app\controller\admin\SubAdminController::class, 'roles']);
+    Route::get('/sub_admin/permissions',        [app\controller\admin\SubAdminController::class, 'permissions']);
+    Route::post('/sub_admin/permissions/update',[app\controller\admin\SubAdminController::class, 'updatePermissions']);
+    Route::post('/sub_admin/save',              [app\controller\admin\SubAdminController::class, 'save']);
+    Route::post('/sub_admin/delete',            [app\controller\admin\SubAdminController::class, 'delete']);
+    Route::post('/sub_admin/toggle',            [app\controller\admin\SubAdminController::class, 'toggle']);
+    Route::post('/sub_admin/invite',            [app\controller\admin\SubAdminController::class, 'invite']);
 
     // 审计日志查询
     Route::get('/audit/list',        [app\controller\admin\AuditLogController::class, 'list']);

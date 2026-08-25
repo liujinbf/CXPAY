@@ -58,12 +58,37 @@
                 <p class="text-[11px] text-slate-400">购买插件时将直接通过上述通道出码并即时监听入账，核销后自动下发授权。</p>
             </div>
 
-            <label class="block space-y-1.5">
-                <span class="font-bold text-slate-600">站点显示名称</span>
-                <p class="text-slate-400">显示在登录页、控制台标题及对外邮件中的平台名称</p>
-                <input id="syscfg-site-name" type="text" maxlength="60" placeholder="如：CXPAY 聚合支付网关"
-                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white text-slate-800">
-            </label>
+            <!-- OEM 贴牌与品牌专属定制 -->
+            <div class="p-4 bg-purple-50/50 border border-purple-200/80 rounded-xl space-y-3.5">
+                <div class="font-bold text-slate-800 flex items-center justify-between">
+                    <span class="flex items-center gap-1.5 text-purple-900">
+                        <i data-lucide="crown" class="w-4 h-4 text-purple-600"></i> OEM 贴牌与品牌专属定制
+                    </span>
+                    <span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-bold">全站 100% 贴牌替换</span>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <span class="font-bold text-slate-700 block mb-1">平台系统品牌名称</span>
+                        <input id="syscfg-site-name" type="text" maxlength="60" placeholder="如：迅付聚合支付平台"
+                            class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white text-slate-800 font-bold text-xs">
+                        <p class="text-[10px] text-slate-400 mt-1">显示在登录页、控制台左上角及网页标题</p>
+                    </div>
+                    <div>
+                        <span class="font-bold text-slate-700 block mb-1">客服联系微信 / QQ</span>
+                        <input id="syscfg-contact-service" type="text" maxlength="60" placeholder="如：wx_service888 / 10001"
+                            class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white text-slate-800 text-xs">
+                        <p class="text-[10px] text-slate-400 mt-1">展示在商户后台帮助中心及收银台客服入口</p>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="font-bold text-slate-700 block mb-1">全站底部版权信息与 ICP 备案号</span>
+                    <input id="syscfg-site-copyright" type="text" maxlength="120" placeholder="如：© 2026 深圳市迅付网络科技有限公司 版权所有 | 粤ICP备20268888号"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white text-slate-800 text-xs">
+                    <p class="text-[10px] text-slate-400 mt-1">全站收银台、商户中心、控制台底部将自动渲染此版权</p>
+                </div>
+            </div>
 
             <label class="block space-y-1.5">
                 <span class="font-bold text-slate-600">官网主页展示模板</span>
@@ -78,7 +103,7 @@
         </div>
 
         <button data-action="save-sys-config" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm">
-            <i data-lucide="save" class="w-3.5 h-3.5"></i> 保存系统运营与支付配置
+            <i data-lucide="save" class="w-3.5 h-3.5"></i> 保存系统运营与 OEM 品牌配置
         </button>
     </div>
 
@@ -86,13 +111,13 @@
     <div class="space-y-5">
         <div class="glass-panel rounded-2xl p-5 border border-slate-200/80 bg-white space-y-4">
             <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <i data-lucide="info" class="w-4 h-4 text-blue-600"></i> 功能与运营说明
+                <i data-lucide="info" class="w-4 h-4 text-blue-600"></i> 功能与 OEM 贴牌说明
             </div>
             <ul class="text-xs text-slate-600 space-y-2.5 list-disc list-inside leading-relaxed">
-                <li><strong>注册赠送金额</strong>：仅在商户通过注册接口新开户时触发一次，修改不影响已注册账户。</li>
-                <li><strong>系统收款 PID</strong>：套餐充值与插件购买款项入账的目标商户，该商户需正常启用且有有效收款通道。</li>
-                <li><strong>通道配置解耦</strong>：各支付插件（支付宝/微信/QQ/USDT）的所有参数均在各自通道插件内独立配置与持久化。</li>
-                <li><strong>主页模板</strong>：即时生效切换，支持默认商业版、极简风格与科技极客风格。</li>
+                <li><strong>100% 独立品牌贴牌</strong>：代理商可自由修改全站品牌、客服与版权，完全去官方化，打造独立支付体系。</li>
+                <li><strong>注册赠送金额</strong>：仅在商户新开户时触发一次，设为 0 即禁用。</li>
+                <li><strong>系统收款 PID</strong>：套餐充值与插件购买款项入账的目标商户。</li>
+                <li><strong>即时生效</strong>：修改保存后全站（商户端、管理端、收银台）秒级生效，无需重启服务。</li>
             </ul>
         </div>
     </div>

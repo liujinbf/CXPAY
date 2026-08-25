@@ -56,6 +56,111 @@ final class SubAdminController
         ], JSON_UNESCAPED_UNICODE);
     }
 
+    // ── 查询系统角色与权限列表 ───────────────────────────────────────────────
+    public function roles(Request $request): string
+    {
+        $definedRoles = [
+            [
+                'role' => 'root',
+                'name' => '超级管理员 (Root)',
+                'description' => '拥有系统最高控制权，可管理所有通道、商户、子管理员及云端配置。',
+                'is_system' => true,
+            ],
+            [
+                'role' => 'operator',
+                'name' => '运营管理员 (Operator)',
+                'description' => '负责日常通道配置、轮询组管理、商户审核及交易监控，无法操作子账号。',
+                'is_system' => false,
+            ],
+            [
+                'role' => 'finance',
+                'name' => '财务管理员 (Finance)',
+                'description' => '负责订单核销、充值记录、资金流水、财务报表与补单操作。',
+                'is_system' => false,
+            ],
+            [
+                'role' => 'support',
+                'name' => '客服支持 (Support)',
+                'description' => '只读权限，负责订单与商户基础资料查询，无法修改任何配置。',
+                'is_system' => false,
+            ],
+        ];
+
+        return json_encode([
+            'code' => 1,
+            'data' => [
+                'roles' => $definedRoles,
+            ],
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    // ── 查询指定角色权限白名单 ───────────────────────────────────────────────
+    public function permissions(Request $request): string
+    {
+        $role = trim((string)$request->get('role', ''));
+        $query = DB::table('cx_admin_permission');
+        if ($role !== '') {
+            $query->where('role', $role);
+        }
+        $rows = $query->get();
+
+        return json_encode([
+            'code' => 1,
+            'data' => [
+                'permissions' => $rows->map(fn($r) => (array)$r)->values(),
+            ],
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    // ── 自定义/更新角色权限 ───────────────────────────────────────────────────
+    public function updatePermissions(Request $request): string
+    {
+        if ($err = $this->requireRoot($request)) return $err;
+
+        $role = trim((string)$request->post('role', ''));
+        $perms = $request->post('permissions', []);
+
+        if ($role === '' || !in_array($role, ['operator', 'finance', 'support'], true)) {
+            return json_encode(['code' => -1, 'msg' => '无效的角色标识'], JSON_UNESCAPED_UNICODE);
+        }
+        if (!is_array($perms)) {
+            return json_encode(['code' => -1, 'msg' => '权限列表格式错误'], JSON_UNESCAPED_UNICODE);
+        }
+
+        DB::beginTransaction();
+        try {
+            DB::table('cx_admin_permission')->where('role', $role)->delete();
+            $now = time();
+            foreach ($perms as $p) {
+                $prefix = trim((string)($p['path_prefix'] ?? ''));
+                $method = strtoupper(trim((string)($p['method'] ?? '*')));
+                $desc = trim((string)($p['description'] ?? ''));
+                if ($prefix !== '') {
+                    DB::table('cx_admin_permission')->insert([
+                        'role' => $role,
+                        'path_prefix' => $prefix,
+                        'method' => $method,
+                        'description' => $desc,
+                        'create_time' => $now,
+                    ]);
+                }
+            }
+            DB::commit();
+
+            // 清理权限缓存
+            try {
+                \Webman\Redis\Client::connection()->del('cx:admin_perm:' . $role);
+            } catch (\Throwable) {}
+
+            AuditLog::record(AuditLog::currentOperator(), 'update_role_permission', ['role' => $role, 'count' => count($perms)], 'success', AuditLog::currentIp());
+
+            return json_encode(['code' => 1, 'msg' => "角色【{$role}】权限已成功更新并生效"], JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return json_encode(['code' => -1, 'msg' => '更新角色权限失败：' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+    }
+
     // ── 新建 / 更新 ───────────────────────────────────────────────────────────
     public function save(Request $request): string
     {

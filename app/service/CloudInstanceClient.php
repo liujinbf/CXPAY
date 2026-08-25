@@ -44,7 +44,9 @@ final class CloudInstanceClient
      *   secret_key: string,
      *   fingerprint: string,
      *   activated: bool,
-     *   activated_at: ?string
+     *   activated_at: ?string,
+     *   license_type: string,
+     *   is_agent: bool
      * }
      */
     public function getIdentity(): array
@@ -57,6 +59,8 @@ final class CloudInstanceClient
         if (file_exists($this->storageFile)) {
             $data = json_decode((string)file_get_contents($this->storageFile), true);
             if (is_array($data) && !empty($data['public_key']) && !empty($data['secret_key'])) {
+                $licenseType = strtoupper((string)($data['license_type'] ?? 'STANDARD'));
+                $isAgent = (bool)($data['is_agent'] ?? ($licenseType === 'AGENT' || $licenseType === 'OEM'));
                 return [
                     'instance_id' => $data['instance_id'] ?? null,
                     'domain' => $data['domain'] ?? null,
@@ -65,6 +69,8 @@ final class CloudInstanceClient
                     'fingerprint' => (string)($data['fingerprint'] ?? hash('sha256', self::base64UrlDecode((string)$data['public_key']))),
                     'activated' => (bool)($data['activated'] ?? false),
                     'activated_at' => $data['activated_at'] ?? null,
+                    'license_type' => $licenseType,
+                    'is_agent' => $isAgent,
                 ];
             }
         }
@@ -88,11 +94,42 @@ final class CloudInstanceClient
             'fingerprint' => $fingerprint,
             'activated' => false,
             'activated_at' => null,
+            'license_type' => 'STANDARD',
+            'is_agent' => false,
         ];
 
         @file_put_contents($this->storageFile, json_encode($identity, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
         return $identity;
+    }
+
+    /**
+     * 检查当前实例是否具备 OEM 代理商资质（严禁未开通代理商资质的普通授权实例越权下发授权）
+     */
+    public function isAgent(): bool
+    {
+        $identity = $this->getIdentity();
+        return ($identity['is_agent'] ?? false) === true;
+    }
+
+    /**
+     * 获取当前实例授权等级类型 (STANDARD | AGENT)
+     */
+    public function getLicenseType(): string
+    {
+        $identity = $this->getIdentity();
+        return (string)($identity['license_type'] ?? 'STANDARD');
+    }
+
+    /**
+     * 刷新并持久化当前实例的代理商资质状态
+     */
+    public function updateAgentStatus(bool $isAgent, string $licenseType = 'STANDARD'): void
+    {
+        $identity = $this->getIdentity();
+        $identity['is_agent'] = $isAgent;
+        $identity['license_type'] = strtoupper($licenseType);
+        @file_put_contents($this->storageFile, json_encode($identity, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     /**

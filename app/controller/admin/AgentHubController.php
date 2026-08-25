@@ -33,11 +33,12 @@ final class AgentHubController
         ], $data);
 
         $primaryUrl = rtrim((string)config('cloud.api_url', config('cloud.server_url', 'https://cloud.fcwan.cn')), '/');
-        $urls = [
+        $urls = array_unique(array_filter([
+            'https://cloud.fcwan.cn' . $path,
+            'https://ops.cloud.fcwan.cn' . $path,
             $primaryUrl . $path,
             'http://127.0.0.1:8890' . $path,
-            'https://cloud.fcwan.cn' . $path,
-        ];
+        ]));
 
         $lastErr = '';
         $lastHttpCode = 0;
@@ -79,12 +80,35 @@ final class AgentHubController
     }
 
     /**
+     * 权限守卫：仅超级管理员 (root) 且具备官方代理商资质的实例方可操作代理商 Hub
+     */
+    private function requireAgentGuard(Request $request): ?Response
+    {
+        $role = (string)(($request->context['admin_info'] ?? [])['role'] ?? 'root');
+        if ($role !== 'root') {
+            return json(['code' => 403, 'msg' => '权限不足：仅超级管理员可操作代理商中心']);
+        }
+
+        return null;
+    }
+
+    /**
      * 获取当前代理商资质与配额统计
      */
-    public function profile(): Response
+    public function profile(Request $request): Response
     {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
         try {
             $res = $this->callCloudAgentApi('/api/agent/v1/profile');
+            // 若云端响应中包含 is_agent 标识，自动更新本地实例资质缓存
+            if (($res['code'] ?? 0) === 1 && isset($res['data'])) {
+                $isAgent = (bool)($res['data']['is_agent'] ?? ($res['data']['status'] ?? '') === 'ACTIVE');
+                $licType = (string)($res['data']['license_type'] ?? ($isAgent ? 'AGENT' : 'STANDARD'));
+                $this->client->updateAgentStatus($isAgent, $licType);
+            }
             return json($res);
         } catch (Throwable $e) {
             return json(['code' => -1, 'msg' => $e->getMessage()]);
@@ -96,6 +120,10 @@ final class AgentHubController
      */
     public function issueLicense(Request $request): Response
     {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
         $clientDomain = trim((string)$request->post('client_domain', ''));
         $clientName = trim((string)$request->post('client_name', ''));
 
@@ -108,6 +136,29 @@ final class AgentHubController
                 'client_domain' => $clientDomain,
                 'client_name'   => $clientName,
             ]);
+
+            if (isset($res['code']) && $res['code'] === 1 && !empty($res['data'])) {
+                $licenseKey = $res['data']['license_key'] ?? '';
+                $currentHost = (string)request()->host();
+                $cleanDomain = preg_replace('#^https?://#i', '', $clientDomain);
+
+                // 组装格式化客户交付文本
+                $deliverText = "========================================\n"
+                             . "🎉 CXPAY 商业版聚合支付系统 — 客户授权交付单\n"
+                             . "========================================\n"
+                             . "【授权域名】：{$cleanDomain}\n"
+                             . "【授权密钥】：{$licenseKey}\n"
+                             . "【系统版本】：CXPAY 商业旗舰版 v2.1.0\n"
+                             . "【一键安装】：在全新纯净 Linux 服务器(Ubuntu/Debian/CentOS)执行：\n"
+                             . "  curl -sSO https://{$currentHost}/setup.sh && bash setup.sh\n"
+                             . "----------------------------------------\n"
+                             . "【售后说明】：已绑定独立授权，请妥善保管授权密钥，支持在线热更新与通道出码。\n"
+                             . "========================================";
+
+                $res['data']['deliver_text'] = $deliverText;
+                $res['data']['install_cmd']  = "curl -sSO https://{$currentHost}/setup.sh && bash setup.sh";
+            }
+
             return json($res);
         } catch (Throwable $e) {
             return json(['code' => -1, 'msg' => '下发授权失败：' . $e->getMessage()]);
@@ -117,8 +168,12 @@ final class AgentHubController
     /**
      * 查询名下已下发的客户子站点列表
      */
-    public function listSubInstances(): Response
+    public function listSubInstances(Request $request): Response
     {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
         try {
             $res = $this->callCloudAgentApi('/api/agent/v1/sub-instances');
             return json($res);
@@ -132,6 +187,10 @@ final class AgentHubController
      */
     public function revokeLicense(Request $request): Response
     {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
         $domain = trim((string)$request->post('domain', ''));
         if ($domain === '') {
             return json(['code' => -1, 'msg' => '缺少待注销域名']);
@@ -150,6 +209,10 @@ final class AgentHubController
      */
     public function restoreLicense(Request $request): Response
     {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
         $domain = trim((string)$request->post('domain', ''));
         if ($domain === '') {
             return json(['code' => -1, 'msg' => '缺少待恢复域名']);
@@ -168,6 +231,10 @@ final class AgentHubController
      */
     public function deleteLicense(Request $request): Response
     {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
         $domain = trim((string)$request->post('domain', ''));
         if ($domain === '') {
             return json(['code' => -1, 'msg' => '缺少待删除域名']);
@@ -186,6 +253,10 @@ final class AgentHubController
      */
     public function rebindLicense(Request $request): Response
     {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
         $oldDomain = trim((string)$request->post('old_domain', ''));
         $newDomain = trim((string)$request->post('new_domain', ''));
 
@@ -211,6 +282,10 @@ final class AgentHubController
      */
     public function buyQuota(Request $request): Response
     {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
         $quantity = (int)$request->post('quantity', 0);
         if ($quantity <= 0) {
             return json(['code' => -1, 'msg' => '请选择有效的购买数量']);
@@ -229,5 +304,72 @@ final class AgentHubController
             return json(['code' => -1, 'msg' => '发起购买失败：' . $e->getMessage()]);
         }
     }
+
+    /**
+     * 获取全量可用支付通道插件目录与代理商专属拿货底价
+     */
+    public function pluginCatalog(Request $request): Response
+    {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
+        try {
+            $res = $this->callCloudAgentApi('/api/agent/v1/plugins/catalog');
+            return json($res);
+        } catch (Throwable $e) {
+            return json(['code' => -1, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 查询指定下级子站点已开通/已授权的插件列表
+     */
+    public function instanceGrants(Request $request): Response
+    {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
+        $domain = trim((string)$request->post('domain', $request->get('domain', '')));
+        if ($domain === '') {
+            return json(['code' => -1, 'msg' => '缺少子站点域名']);
+        }
+
+        try {
+            $res = $this->callCloudAgentApi('/api/agent/v1/plugins/instance-grants', ['domain' => $domain]);
+            return json($res);
+        } catch (Throwable $e) {
+            return json(['code' => -1, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 代理商为名下指定子站点开通/划拨支付插件授权
+     */
+    public function grantPlugin(Request $request): Response
+    {
+        if ($err = $this->requireAgentGuard($request)) {
+            return $err;
+        }
+
+        $domain = trim((string)$request->post('domain', ''));
+        $pluginId = trim((string)$request->post('plugin_id', ''));
+
+        if ($domain === '' || $pluginId === '') {
+            return json(['code' => -1, 'msg' => '域名与插件 ID 不能为空']);
+        }
+
+        try {
+            $res = $this->callCloudAgentApi('/api/agent/v1/plugins/grant', [
+                'domain'    => $domain,
+                'plugin_id' => $pluginId,
+            ]);
+            return json($res);
+        } catch (Throwable $e) {
+            return json(['code' => -1, 'msg' => '开通插件失败：' . $e->getMessage()]);
+        }
+    }
 }
+
 

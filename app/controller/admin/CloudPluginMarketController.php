@@ -41,6 +41,8 @@ final class CloudPluginMarketController
                 'fingerprint'  => $identity['fingerprint'],
                 'activated'    => (bool)($identity['activated'] ?? false),
                 'activated_at' => $identity['activated_at'] ?? date('Y-m-d H:i:s'),
+                'is_agent'     => (bool)($identity['is_agent'] ?? false),
+                'license_type' => (string)($identity['license_type'] ?? 'STANDARD'),
                 'portal_url'   => rtrim((string)config('cloud.portal_url', 'https://cloud.fcwan.cn'), '/'),
             ],
         ]);

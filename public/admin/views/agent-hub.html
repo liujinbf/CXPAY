@@ -153,20 +153,34 @@
         <div id="issue-result-step" class="space-y-4 text-center hidden">
             <div class="text-4xl">🎉</div>
             <h4 class="font-extrabold text-emerald-600 text-base">商业授权已成功生成并下发！</h4>
-            <div class="text-left bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs">
-                <div class="text-slate-400 font-mono text-[10px]">客户专属 LICENSE KEY:</div>
-                <div id="res-issued-key" class="p-2.5 bg-white border border-dashed border-emerald-300 rounded-lg font-mono font-bold text-emerald-700 break-all select-all text-xs">
-                    CX_KEY_...
+            <div class="text-left bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5 text-xs">
+                <div class="flex items-center justify-between text-slate-500 text-[11px]">
+                    <span>绑定主站域名: <strong id="res-issued-domain" class="text-blue-700 font-mono font-bold text-xs">-</strong></span>
+                    <span>授权状态: <strong class="text-emerald-600 font-bold">🟢 已生效</strong></span>
                 </div>
-                <div class="flex items-center justify-between text-slate-500 text-[11px] pt-1">
-                    <span>绑定域名: <strong id="res-issued-domain" class="text-slate-800">-</strong></span>
-                    <span>溯源水印: <strong id="res-issued-wm" class="text-indigo-600">-</strong></span>
+                <div>
+                    <div class="text-slate-400 font-mono text-[10px] mb-1">客户专属 LICENSE KEY:</div>
+                    <div id="res-issued-key" class="p-2 bg-white border border-dashed border-emerald-300 rounded-lg font-mono font-bold text-emerald-700 break-all select-all text-xs">
+                        CX_KEY_...
+                    </div>
                 </div>
+                <div>
+                    <div class="text-slate-400 font-mono text-[10px] mb-1">一键全自动部署命令 (发给客户在纯净 Linux 执行):</div>
+                    <div id="res-issued-cmd" class="p-2 bg-slate-900 text-emerald-400 rounded-lg font-mono text-[11px] break-all select-all">
+                        curl -sSO https://.../setup.sh && bash setup.sh
+                    </div>
+                </div>
+                <textarea id="res-issued-deliver-text" class="hidden" readonly></textarea>
             </div>
             <div class="flex items-center gap-2 pt-2">
+                <button type="button" id="btn-copy-deliver-pack"
+                    class="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5">
+                    <span>📋</span>
+                    <span>一键复制客户交付文本</span>
+                </button>
                 <button type="button" id="btn-copy-issued-key"
-                    class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all">
-                    📋 一键复制 License Key
+                    class="px-3 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all">
+                    复制 Key
                 </button>
                 <button type="button" data-action="close-issue-modal"
                     class="px-4 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs rounded-xl">完成</button>
@@ -285,4 +299,37 @@
         </div>
     </div>
 </div>
+
+<!-- 弹窗: 为子站点开通/划拨支付通道插件 -->
+<div id="agent-grant-plugin-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
+            <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                <span class="text-base">🧩</span>
+                <span>为子站点开通支付通道插件</span>
+            </h3>
+            <button type="button" data-action="close-grant-plugin-modal" class="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+        </div>
+
+        <div class="p-3 bg-purple-50 rounded-xl border border-purple-100 text-xs text-purple-900 flex items-center justify-between flex-shrink-0">
+            <div>
+                <span class="text-slate-500">目标子站点域名:</span>
+                <strong id="grant-target-domain" class="font-mono font-bold text-purple-700 ml-1 text-sm">pay.client.com</strong>
+            </div>
+            <span class="px-2 py-0.5 rounded-full bg-purple-200/60 text-purple-800 font-bold text-[11px]" id="grant-agent-discount-tag">OEM 专享进货底价</span>
+        </div>
+
+        <div class="overflow-y-auto flex-1 custom-scrollbar space-y-2 pr-1" id="agent-plugin-catalog-list">
+            <!-- 动态插件列表 -->
+            <div class="py-10 text-center text-slate-400 text-xs">正在拉取可用支付驱动目录...</div>
+        </div>
+
+        <div class="flex items-center justify-between pt-3 border-t border-slate-100 flex-shrink-0 text-xs">
+            <span class="text-slate-400 text-[11px]">开通后下级站点即可在线一键拉取并出码</span>
+            <button type="button" data-action="close-grant-plugin-modal"
+                class="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold">关闭</button>
+        </div>
+    </div>
+</div>
+
 
