@@ -1,0 +1,335 @@
+<section class="p-6 space-y-6">
+    <!-- 页头 -->
+    <div class="flex items-start justify-between">
+        <div>
+            <h2 class="text-xl font-extrabold text-slate-800 flex items-center gap-2.5">
+                <span class="text-2xl">👑</span>
+                <span>OEM 代理加盟中心</span>
+                <span id="agent-level-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-700 border border-amber-200 ml-1">钻石加盟商</span>
+            </h2>
+            <p class="text-slate-500 text-xs mt-1.5 font-medium">
+                代理商工作台 — 为下级客户一键下发合法独立商业授权，享受官方插件全网批发底价
+            </p>
+        </div>
+        <button type="button" data-action="open-issue-modal"
+            class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            + 一键下发新站点授权
+        </button>
+    </div>
+
+    <!-- 三大指标看板 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <!-- 资质卡片 -->
+        <div class="p-5 rounded-2xl bg-gradient-to-br from-indigo-900/90 to-slate-900 border border-indigo-500/30 text-white shadow-xl flex flex-col justify-between min-h-[140px]">
+            <div>
+                <span class="text-xs font-bold text-indigo-300 uppercase tracking-wider">代理加盟资质</span>
+                <h3 id="agent-tenant-name" class="text-base font-extrabold mt-3 tracking-tight leading-snug">加载中...</h3>
+                <p class="text-xs text-indigo-200/70 mt-1.5 leading-relaxed">享有全套主站独立授权下发权与官方全网插件底价特权</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                <span class="text-slate-300">插件采购底价:</span>
+                <strong class="text-emerald-400 font-mono" id="agent-discount-text">–</strong>
+            </div>
+        </div>
+
+        <!-- 配额卡片 -->
+        <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between min-h-[140px]">
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-500">已用 / 总下发配额</span>
+                    <i data-lucide="layers" class="w-4 h-4 text-blue-600"></i>
+                </div>
+                <div class="flex items-baseline gap-2 mt-3">
+                    <span id="agent-used-instances" class="text-3xl font-black text-slate-800">–</span>
+                    <span class="text-slate-400 font-bold text-sm">/ <span id="agent-max-instances">–</span> 站点</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 mt-3 overflow-hidden">
+                    <div id="agent-quota-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-700" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>剩余可下发配额:</span>
+                <div class="flex items-center gap-2">
+                    <strong id="agent-remaining-quota" class="text-blue-600 font-mono font-bold text-sm">–</strong>
+                    <button type="button" data-action="open-buy-quota-modal"
+                        class="px-2 py-0.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold rounded-md transition-colors flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        购买配额
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速操作卡片 -->
+        <div class="p-5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/50 border border-amber-100 shadow-sm flex flex-col justify-between min-h-[140px]">
+            <div>
+                <div class="flex items-center gap-2 font-bold text-sm text-amber-900">
+                    <i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>
+                    <span>快速下发客户授权</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-2 leading-relaxed">为下级站长/企业客户一键生成独立 License Key，开通 CXPAY 主站框架授权，<span class="text-amber-600 font-semibold">付费插件（微信/USDT 等）需客户在插件市场单独购买</span>。</p>
+            </div>
+            <button type="button" data-action="open-issue-modal"
+                class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-4">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i> + 一键下发新站点
+            </button>
+        </div>
+    </div>
+
+    <!-- 客户站点列表 -->
+    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div class="flex items-center gap-2">
+                <i data-lucide="server" class="w-4 h-4 text-indigo-600"></i>
+                <h4 class="font-bold text-sm text-slate-800">名下已下发客户站点列表</h4>
+            </div>
+            <button type="button" data-action="refresh-agent-instances"
+                class="px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-600"></i> 刷新列表
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-100">
+                    <tr>
+                        <th class="px-4 py-3">客户绑定主站域名</th>
+                        <th class="px-4 py-3">License Key</th>
+                        <th class="px-4 py-3">版本与驱动</th>
+                        <th class="px-4 py-3">授权状态</th>
+                        <th class="px-4 py-3">激活时间</th>
+                        <th class="px-4 py-3 text-right">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="agent-instances-tbody" class="divide-y divide-slate-100 text-slate-700">
+                    <tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">
+                        <i data-lucide="loader-2" class="w-5 h-5 animate-spin mx-auto mb-2 text-blue-400"></i>
+                        正在加载客户站点列表...
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- 弹窗: 一键下发新客户商业授权 -->
+<div id="agent-issue-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                <i data-lucide="shield-check" class="w-4 h-4 text-blue-600"></i>
+                下发下级客户主站商业授权
+            </h3>
+            <button type="button" data-action="close-issue-modal" class="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+        </div>
+
+        <!-- 表单 -->
+        <div id="issue-form-step" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">下级客户主站域名 <span class="text-rose-500">*</span></label>
+                <input type="text" id="issue-client-domain" placeholder="例如: pay.clientdomain.com"
+                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all font-mono">
+                <span class="text-[11px] text-slate-400 mt-1 block">授权精准绑定至该域名，支持客户一键免挂收单</span>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">客户名称 / 备注 (选填)</label>
+                <input type="text" id="issue-client-name" placeholder="例如: 华南渠道-王总"
+                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all">
+            </div>
+            <div class="p-3 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-800 leading-relaxed">
+                💡 下发后系统自动扣减 1 个站点配额，开通该域名的 CXPAY 主站框架授权。<strong class="text-amber-700">微信店员、手机监控助手、USDT 等付费插件需在官方插件市场单独购买授权。</strong>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" data-action="close-issue-modal"
+                    class="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold">取消</button>
+                <button type="button" id="btn-do-issue-license"
+                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1.5">
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> 确认生成并下发
+                </button>
+            </div>
+        </div>
+
+        <!-- 成功结果 -->
+        <div id="issue-result-step" class="space-y-4 text-center hidden">
+            <div class="text-4xl">🎉</div>
+            <h4 class="font-extrabold text-emerald-600 text-base">商业授权已成功生成并下发！</h4>
+            <div class="text-left bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5 text-xs">
+                <div class="flex items-center justify-between text-slate-500 text-[11px]">
+                    <span>绑定主站域名: <strong id="res-issued-domain" class="text-blue-700 font-mono font-bold text-xs">-</strong></span>
+                    <span>授权状态: <strong class="text-emerald-600 font-bold">🟢 已生效</strong></span>
+                </div>
+                <div>
+                    <div class="text-slate-400 font-mono text-[10px] mb-1">客户专属 LICENSE KEY:</div>
+                    <div id="res-issued-key" class="p-2 bg-white border border-dashed border-emerald-300 rounded-lg font-mono font-bold text-emerald-700 break-all select-all text-xs">
+                        CX_KEY_...
+                    </div>
+                </div>
+                <div>
+                    <div class="text-slate-400 font-mono text-[10px] mb-1">一键全自动部署命令 (发给客户在纯净 Linux 执行):</div>
+                    <div id="res-issued-cmd" class="p-2 bg-slate-900 text-emerald-400 rounded-lg font-mono text-[11px] break-all select-all">
+                        curl -sSO https://.../setup.sh && bash setup.sh
+                    </div>
+                </div>
+                <textarea id="res-issued-deliver-text" class="hidden" readonly></textarea>
+            </div>
+            <div class="flex items-center gap-2 pt-2">
+                <button type="button" id="btn-copy-deliver-pack"
+                    class="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5">
+                    <span>📋</span>
+                    <span>一键复制客户交付文本</span>
+                </button>
+                <button type="button" id="btn-copy-issued-key"
+                    class="px-3 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all">
+                    复制 Key
+                </button>
+                <button type="button" data-action="close-issue-modal"
+                    class="px-4 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs rounded-xl">完成</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 弹窗: 购买站点配额 -->
+<div id="agent-buy-quota-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                购买站点配额
+            </h3>
+            <button type="button" data-action="close-buy-quota-modal" class="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+        </div>
+
+        <!-- 数量选择 -->
+        <div class="space-y-3">
+            <label class="block text-xs font-bold text-slate-700">选择购买数量</label>
+            <div class="grid grid-cols-4 gap-2" id="quota-qty-options">
+                <button type="button" data-action="select-quota-qty" data-qty="5"
+                    class="quota-qty-btn py-2 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-600 transition-all">
+                    5 站点
+                </button>
+                <button type="button" data-action="select-quota-qty" data-qty="10"
+                    class="quota-qty-btn py-2 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-600 transition-all">
+                    10 站点
+                </button>
+                <button type="button" data-action="select-quota-qty" data-qty="20"
+                    class="quota-qty-btn py-2 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-600 transition-all">
+                    20 站点
+                </button>
+                <button type="button" data-action="select-quota-qty" data-qty="50"
+                    class="quota-qty-btn py-2 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-600 transition-all">
+                    50 站点
+                </button>
+            </div>
+            <div>
+                <label class="block text-[11px] font-semibold text-slate-500 mb-1">或自定义数量</label>
+                <input type="number" id="quota-custom-qty" min="1" max="999" placeholder="输入自定义数量"
+                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all font-mono">
+            </div>
+        </div>
+
+        <!-- 价格预估 -->
+        <div class="p-3.5 bg-emerald-50 rounded-xl border border-emerald-100">
+            <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-600 font-medium">预计费用</span>
+                <span id="quota-price-preview" class="text-emerald-700 font-extrabold font-mono text-base">–</span>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
+                💡 实际价格以官方云端授权中心结算为准，支持微信/支付宝/对公转账
+            </p>
+        </div>
+
+        <div class="p-3 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-800 leading-relaxed">
+            ⚡ 购买完成后配额将在 5 分钟内自动同步到本站，无需手动刷新。
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-1">
+            <button type="button" data-action="close-buy-quota-modal"
+                class="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold">取消</button>
+            <button type="button" id="btn-do-buy-quota"
+                class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+                前往云端支付
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 弹窗: 更换客户绑定域名 -->
+<div id="agent-rebind-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                更换客户绑定域名
+            </h3>
+            <button type="button" data-action="close-rebind-modal" class="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">当前绑定的原域名</label>
+                <input type="text" id="rebind-old-domain" readonly
+                    class="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-600 font-mono select-all">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">更换后的新域名 <span class="text-rose-500">*</span></label>
+                <input type="text" id="rebind-new-domain" placeholder="例如: pay.new-domain.com"
+                    class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all font-mono">
+            </div>
+
+            <div class="p-3 bg-blue-50 rounded-xl border border-blue-100 text-xs text-blue-800 leading-relaxed space-y-1">
+                <p class="font-bold flex items-center gap-1">
+                    <span>💡</span> 换绑域名规则说明：
+                </p>
+                <p class="text-[11px] text-blue-700">1. 更换域名<strong>不消耗任何下发配额</strong>，授权直接无缝平移到新域名；</p>
+                <p class="text-[11px] text-blue-700">2. 换绑生效后，<strong>原旧域名将被立即作废注销</strong>，旧站瞬间停机；</p>
+                <p class="text-[11px] text-blue-700">3. 每个商业授权每年支持换绑 2 次，请仔细核对新域名。</p>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-1">
+            <button type="button" data-action="close-rebind-modal"
+                class="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold">取消</button>
+            <button type="button" id="btn-do-rebind-license"
+                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-1.5">
+                确认提交换绑
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 弹窗: 为子站点开通/划拨支付通道插件 -->
+<div id="agent-grant-plugin-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4" style="display:none">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
+            <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                <span class="text-base">🧩</span>
+                <span>为子站点开通支付通道插件</span>
+            </h3>
+            <button type="button" data-action="close-grant-plugin-modal" class="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+        </div>
+
+        <div class="p-3 bg-purple-50 rounded-xl border border-purple-100 text-xs text-purple-900 flex items-center justify-between flex-shrink-0">
+            <div>
+                <span class="text-slate-500">目标子站点域名:</span>
+                <strong id="grant-target-domain" class="font-mono font-bold text-purple-700 ml-1 text-sm">pay.client.com</strong>
+            </div>
+            <span class="px-2 py-0.5 rounded-full bg-purple-200/60 text-purple-800 font-bold text-[11px]" id="grant-agent-discount-tag">OEM 专享进货底价</span>
+        </div>
+
+        <div class="overflow-y-auto flex-1 custom-scrollbar space-y-2 pr-1" id="agent-plugin-catalog-list">
+            <!-- 动态插件列表 -->
+            <div class="py-10 text-center text-slate-400 text-xs">正在拉取可用支付驱动目录...</div>
+        </div>
+
+        <div class="flex items-center justify-between pt-3 border-t border-slate-100 flex-shrink-0 text-xs">
+            <span class="text-slate-400 text-[11px]">开通后下级站点即可在线一键拉取并出码</span>
+            <button type="button" data-action="close-grant-plugin-modal"
+                class="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold">关闭</button>
+        </div>
+    </div>
+</div>
+
+

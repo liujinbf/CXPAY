@@ -80,7 +80,7 @@ export const feature = {
 };
 
 function switchSubtab(root, subtabId) {
-    ['cloud-market', 'monitor-software', 'license-mgmt', 'installed-drivers'].forEach(t => {
+    ['cloud-market', 'monitor-software', 'license-mgmt', 'installed-drivers', 'agent-hub'].forEach(t => {
         const pane = root.querySelector(`#subtab-pane-${t}`), btn = root.querySelector(`#subtab-btn-${t}`);
         if (pane) pane.classList.toggle('hidden', t !== subtabId);
         if (btn) {
@@ -89,6 +89,10 @@ function switchSubtab(root, subtabId) {
                 : 'px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-1.5';
         }
     });
+
+    if (subtabId === 'agent-hub') {
+        void loadAgentHub({ root, ui: window.appUI || { showToast: alert, safeCreateIcons: () => {} } });
+    }
 }
 
 let cachedCloudList = [];

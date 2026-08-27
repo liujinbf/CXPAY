@@ -122,8 +122,9 @@ Route::get('/download/CXPayAssistant_latest.apk', [app\controller\api\AppasstCon
 Route::any('/api/wecom/webhook', [app\controller\api\WecomWebhookController::class, 'handle']);
 Route::any('/api/wecom/webhook/{channel_id}', [app\controller\api\WecomWebhookController::class, 'handle']);
 
-// 官方云端授权中心支付异步通知端点（插件购买与授权下发核销）
+// 官方云端授权中心支付异步通知端点（插件购买与配额增购核销）
 Route::post('/api/cloud/plugin/order/notify', [app\controller\api\CloudOrderNotifyController::class, 'handlePluginOrderNotify']);
+Route::post('/api/agent/quota/notify',        [app\controller\api\CloudOrderNotifyController::class, 'handleQuotaNotify']);
 
 
 // 授权账单源：采集端写入，PC 监控端按游标拉取
@@ -248,6 +249,19 @@ Route::group('/api/admin', function () {
     Route::post('/plugin/order/confirm', [app\controller\admin\CloudPluginMarketController::class, 'confirmPayment']);
     Route::get('/plugin/instance_status', [app\controller\admin\CloudPluginMarketController::class, 'instanceStatus']);
     Route::post('/plugin/activate_instance', [app\controller\admin\CloudPluginMarketController::class, 'activateInstance']);
+
+    // OEM 代理商加盟中心与授权下发
+    Route::get('/agent/profile',                 [app\controller\admin\AgentHubController::class, 'profile']);
+    Route::post('/agent/license/issue',          [app\controller\admin\AgentHubController::class, 'issueLicense']);
+    Route::get('/agent/sub_instances',           [app\controller\admin\AgentHubController::class, 'listSubInstances']);
+    Route::post('/agent/license/revoke',         [app\controller\admin\AgentHubController::class, 'revokeLicense']);
+    Route::post('/agent/license/restore',        [app\controller\admin\AgentHubController::class, 'restoreLicense']);
+    Route::post('/agent/license/delete',         [app\controller\admin\AgentHubController::class, 'deleteLicense']);
+    Route::post('/agent/license/rebind',         [app\controller\admin\AgentHubController::class, 'rebindLicense']);
+    Route::post('/agent/quota/buy',              [app\controller\admin\AgentHubController::class, 'buyQuota']);
+    Route::any('/agent/plugins/catalog',         [app\controller\admin\AgentHubController::class, 'pluginCatalog']);
+    Route::any('/agent/plugins/instance_grants', [app\controller\admin\AgentHubController::class, 'instanceGrants']);
+    Route::any('/agent/plugins/grant',           [app\controller\admin\AgentHubController::class, 'grantPlugin']);
 
     // 轮询组智能调度 API
     Route::get('/poll_group/list', [app\controller\admin\PollGroupController::class, 'list']);

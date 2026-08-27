@@ -23,6 +23,7 @@ definitions.set('security', { view: 'security.html', module: 'security.js' });
 definitions.set('sys-config', { view: 'sys-config.html', module: 'sys-config.js' });
 definitions.set('poll-group', { view: 'poll-group.html', module: 'poll-group.js' });
 definitions.set('bill-source', { view: 'bill-source.html', module: 'bill-source.js' });
+definitions.set('agent-hub', { view: 'agent-hub.html', module: 'agent-hub.js' });
 const tabTitles = {
     dashboard: '控制台仪表盘',
     'channel-config': '收款通道配置',
@@ -39,6 +40,7 @@ const tabTitles = {
     'sys-config': '系统运营配置',
     'poll-group': '轮询组管理（开发中）',
     'bill-source': '账单来源管理',
+    'agent-hub': '👑 OEM 代理加盟中心',
 };
 
 const tabGroupMap = {
@@ -53,6 +55,7 @@ const tabGroupMap = {
     'order-list': 'finance',
     'callbill-review': 'finance',
     'bill-source': 'finance',
+    'agent-hub': 'agent',
     'sys-config': 'system',
     'alert-config': 'system',
     security: 'system',
@@ -159,3 +162,23 @@ let hashTab = (location.hash || '').replace('#', '').trim();
 if (hashTab.includes('?')) hashTab = hashTab.split('?')[0];
 const initialTab = hashTab || 'dashboard';
 router.navigate(initialTab);
+
+// 启动后检测代理商资质并自动激活 OEM 代理加盟中心
+try {
+    const res = await api.adminFetch('/api/admin/agent/profile');
+    if (res.status === 200) {
+        const data = await res.json();
+        if (data.code === 1 && data.data && data.data.can_issue === true) {
+            const navEl = document.getElementById('nav-agent-hub');
+            if (navEl) navEl.classList.remove('hidden');
+            const grpDiv = document.getElementById('group-agent');
+            if (grpDiv) grpDiv.classList.remove('hidden');
+            const grpBody = document.getElementById('body-agent');
+            const grpChevron = document.getElementById('chevron-agent');
+            if (grpBody) { grpBody.classList.remove('collapsed'); grpBody.classList.add('expanded'); }
+            if (grpChevron) grpChevron.classList.add('rotate-180');
+        }
+    }
+} catch (_) {
+    // 静默忽略
+}
