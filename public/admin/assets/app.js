@@ -40,7 +40,6 @@ const tabTitles = {
     'sys-config': '系统运营配置',
     'poll-group': '轮询组管理（开发中）',
     'bill-source': '账单来源管理',
-    'agent-hub': '👑 OEM 代理加盟中心',
 };
 
 const tabGroupMap = {

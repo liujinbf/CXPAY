@@ -250,18 +250,6 @@ Route::group('/api/admin', function () {
     Route::get('/plugin/instance_status', [app\controller\admin\CloudPluginMarketController::class, 'instanceStatus']);
     Route::post('/plugin/activate_instance', [app\controller\admin\CloudPluginMarketController::class, 'activateInstance']);
 
-    // OEM 代理商加盟中心与授权下发
-    Route::get('/agent/profile',                 [app\controller\admin\AgentHubController::class, 'profile']);
-    Route::post('/agent/license/issue',          [app\controller\admin\AgentHubController::class, 'issueLicense']);
-    Route::get('/agent/sub_instances',           [app\controller\admin\AgentHubController::class, 'listSubInstances']);
-    Route::post('/agent/license/revoke',         [app\controller\admin\AgentHubController::class, 'revokeLicense']);
-    Route::post('/agent/license/restore',        [app\controller\admin\AgentHubController::class, 'restoreLicense']);
-    Route::post('/agent/license/delete',         [app\controller\admin\AgentHubController::class, 'deleteLicense']);
-    Route::post('/agent/license/rebind',         [app\controller\admin\AgentHubController::class, 'rebindLicense']);
-    Route::post('/agent/quota/buy',              [app\controller\admin\AgentHubController::class, 'buyQuota']);
-    Route::any('/agent/plugins/catalog',         [app\controller\admin\AgentHubController::class, 'pluginCatalog']);
-    Route::any('/agent/plugins/instance_grants', [app\controller\admin\AgentHubController::class, 'instanceGrants']);
-    Route::any('/agent/plugins/grant',           [app\controller\admin\AgentHubController::class, 'grantPlugin']);
 
     // 轮询组智能调度 API
     Route::get('/poll_group/list', [app\controller\admin\PollGroupController::class, 'list']);
