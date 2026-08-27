@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 云端星空渐变背景 -->
+    <radialGradient id="cloudBgGlow" cx="50%" cy="50%" r="65%">
+      <stop offset="0%" stop-color="#1e1035" />
+      <stop offset="60%" stop-color="#0b0817" />
+      <stop offset="100%" stop-color="#04030a" />
+    </radialGradient>
+
+    <!-- 极光紫与靛蓝渐变 (CXPAY Cloud 主题) -->
+    <linearGradient id="nebulaPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c084fc" />
+      <stop offset="50%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+
+    <!-- 晶核与金芒授权渐变 -->
+    <linearGradient id="cryptoGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+
+    <!-- 云环青蓝流光渐变 -->
+    <linearGradient id="auroraCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+
+    <!-- 云端发光滤镜 -->
+    <filter id="cloudGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- 外边框流光 -->
+    <linearGradient id="cloudBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.6" />
+      <stop offset="50%" stop-color="#312e81" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.6" />
+    </linearGradient>
+  </defs>
+
+  <!-- 容器背景 (Squircle) -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#cloudBgGlow)" stroke="url(#cloudBorder)" stroke-width="4" />
+
+  <!-- 外部数字签名授权轨道 (加密椭圆星轨) -->
+  <g transform="translate(256, 245) rotate(-22)" stroke-opacity="0.35" fill="none">
+    <ellipse cx="0" cy="0" rx="180" ry="70" stroke="url(#auroraCyan)" stroke-width="3" stroke-dasharray="12 6" />
+    <circle cx="180" cy="0" r="6" fill="#38bdf8" filter="url(#cloudGlow)" />
+  </g>
+  <g transform="translate(256, 245) rotate(22)" stroke-opacity="0.35" fill="none">
+    <ellipse cx="0" cy="0" rx="180" ry="70" stroke="url(#nebulaPurple)" stroke-width="3" stroke-dasharray="12 6" />
+    <circle cx="-180" cy="0" r="6" fill="#c084fc" filter="url(#cloudGlow)" />
+  </g>
+
+  <!-- 云端主体轮廓 (The Intelligent Cloud Entity) -->
+  <g filter="url(#cloudGlow)">
+    <!-- 多层云弧交织 -->
+    <path d="M 180 340 
+             L 332 340 
+             A 62 62 0 0 0 394 278 
+             A 58 58 0 0 0 368 223 
+             A 75 75 0 0 0 236 172 
+             A 68 68 0 0 0 135 242 
+             A 55 55 0 0 0 180 340 
+             Z" 
+          fill="none" 
+          stroke="url(#nebulaPurple)" 
+          stroke-width="18" 
+          stroke-linejoin="round" 
+          stroke-linecap="round" />
+
+    <!-- 中心悬浮的 RSA 数字签名 / 官方授权加密晶核 (Cryptographic License Core) -->
+    <g transform="translate(256, 258)">
+      <!-- 六边形外晶格 -->
+      <polygon points="0,-48 42,-24 42,24 0,48 -42,24 -42,-24" 
+               fill="#0f0c24" 
+               stroke="url(#cryptoGold)" 
+               stroke-width="4" />
+      
+      <!-- 内部星芒晶格线 -->
+      <line x1="0" y1="-48" x2="0" y2="48" stroke="url(#cryptoGold)" stroke-width="2" stroke-opacity="0.8" />
+      <line x1="42" y1="-24" x2="-42" y2="24" stroke="url(#cryptoGold)" stroke-width="2" stroke-opacity="0.8" />
+      <line x1="-42" y1="-24" x2="42" y2="24" stroke="url(#cryptoGold)" stroke-width="2" stroke-opacity="0.8" />
+      
+      <!-- 晶核核心璀璨光点 -->
+      <circle cx="0" cy="0" r="7" fill="#ffffff" filter="url(#cloudGlow)" />
+    </g>
+  </g>
+</svg>

@@ -278,19 +278,40 @@ class PluginLicenseService
             return false;
         }
 
-        // 1. 支付宝三大通道插件默认免费授权
+        // 1. 支付宝核心驱动默认免费授权
         $freeChannels = ['alipay_face_pay', 'alipay_cookie_cloud', 'alipay_app_asst'];
         if (in_array($cType, $freeChannels, true)) {
             return true;
         }
 
-        // 2. 检查本地 Ed25519 授权凭据文件
+        // 2. 检查本地 Ed25519 授权凭据文件（带过期时间校验）
         $entitlementFile = runtime_path() . '/instance/entitlements.json';
         if (file_exists($entitlementFile)) {
             $entitlements = json_decode((string)file_get_contents($entitlementFile), true);
             if (is_array($entitlements)) {
-                if (isset($entitlements[$cType]) || isset($entitlements['cxpay.driver.' . $cType])) {
-                    return true;
+                $now = time();
+                $candidates = [
+                    $cType,
+                    'cxpay.driver.' . $cType,
+                    'cxpay.' . $cType,
+                ];
+                if (in_array($cType, ['wxpay_app_asst', 'qqpay_app_asst', 'app_asst_universal'], true)) {
+                    $candidates[] = 'cxpay.app_asst_universal';
+                    $candidates[] = 'app_asst_universal';
+                }
+
+                foreach ($candidates as $cand) {
+                    if (isset($entitlements[$cand])) {
+                        $item = $entitlements[$cand];
+                        if (is_array($item)) {
+                            $expiresAt = $item['expires_at'] ?? null;
+                            if ($expiresAt === null || strtotime((string)$expiresAt) >= $now) {
+                                return true;
+                            }
+                        } else {
+                            return true;
+                        }
+                    }
                 }
             }
         }
@@ -299,7 +320,8 @@ class PluginLicenseService
         try {
             $hasDbLic = AgentPluginLicense::where(function ($q) use ($cType) {
                 $q->where('plugin_id', $cType)
-                  ->orWhere('plugin_id', 'cxpay.driver.' . $cType);
+                  ->orWhere('plugin_id', 'cxpay.driver.' . $cType)
+                  ->orWhere('plugin_id', 'cxpay.' . $cType);
             })->where(function ($q) {
                 $q->where('expire_time', -1)->orWhere('expire_time', '>', time());
             })->exists();

@@ -23,6 +23,14 @@ class WeChatProtocolAdminController
 
     private function unavailable(): Response
     {
-        return json(['code' => -1, 'msg' => '尚未配置微信官方授权服务，扫码授权暂不可用'])->withStatus(501);
+        return json([
+            'code' => -1,
+            'error_code' => 'PROTOCOL_SERVICE_NOT_CONFIGURED',
+            'msg' => '尚未配置微信授权服务，协议扫码功能暂不可用',
+            'data' => [
+                'channel' => 'wechat',
+                'status'  => 'UNAVAILABLE',
+            ]
+        ])->withStatus(501);
     }
 }

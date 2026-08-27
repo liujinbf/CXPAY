@@ -244,12 +244,7 @@ final class CloudInstanceClient
 
         try {
             $url = $this->cloudApiUrl . '/api/ops/v1/plugins';
-            try {
-                $res = $this->httpGet($url);
-            } catch (\Throwable) {
-                $fallbackUrl = 'http://127.0.0.1:8890/api/ops/v1/plugins';
-                $res = $this->httpGet($fallbackUrl);
-            }
+            $res = $this->httpGet($url);
 
             if (($res['code'] ?? 0) === 1 && !empty($res['data']['list'])) {
                 $plugins = [];
@@ -548,10 +543,6 @@ final class CloudInstanceClient
             'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
         ];
         $raw = @file_get_contents($url, false, stream_context_create($opts));
-        if ($raw === false && (str_contains($url, 'fcwan.cn') || str_contains($url, 'cxpay.com'))) {
-            $fallbackUrl = preg_replace('#https?://[^/]+#', 'http://127.0.0.1:8890', $url);
-            $raw = @file_get_contents($fallbackUrl, false, stream_context_create($opts));
-        }
         if ($raw === false) {
             throw new RuntimeException('无法连接到云端服务: ' . $url);
         }
@@ -589,10 +580,6 @@ final class CloudInstanceClient
             'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
         ];
         $raw = @file_get_contents($url, false, stream_context_create($opts));
-        if ($raw === false && (str_contains($url, 'fcwan.cn') || str_contains($url, 'cxpay.com'))) {
-            $fallbackUrl = preg_replace('#https?://[^/]+#', 'http://127.0.0.1:8890', $url);
-            $raw = @file_get_contents($fallbackUrl, false, stream_context_create($opts));
-        }
         if ($raw === false) {
             throw new RuntimeException('无法连接到云端服务: ' . $url);
         }

@@ -10,7 +10,12 @@ use app\service\WatermarkTracerService;
 use Exception;
 
 /**
- * 官方云端授权控制中心服务 (集成动态源码水印与泄露一键封禁)
+ * 官方云端授权服务兼容适配层 (Legacy Cloud License Adapter)
+ *
+ * 架构说明：
+ *   根据 CXPAY 独立云端控制面契约（cloud-control-plane-instance-v1），
+ *   源码包分发、动态水印生成与全网授权数据已全面迁移至官方云端工作台（https://cloud.fcwan.cn）。
+ *   本地支付节点仅作为实例客户端（CloudInstanceClient）交互，本服务仅保留作向下兼容。
  */
 class CloudLicenseService
 {
