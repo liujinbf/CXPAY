@@ -39,12 +39,25 @@ class SubmitController
             // 2. 如果是 mapi.php 返回 JSON 响应
             $path = $request->path();
             if (str_contains($path, 'mapi')) {
+                $baseUrl = $this->baseUrl($request);
+                $cashierUrl = "{$baseUrl}/cashier/index.html?trade_no={$orderResult['trade_no']}";
+                $rawPayUrl = (string)($orderResult['pay_url'] ?? '');
+                $payMode = (string)($orderResult['pay_mode'] ?? 'qrcode');
+
+                // 若底层驱动本身返回的是完整的外部网页跳转地址（url模式），payurl 即为其自身；
+                // 若底层驱动是原生扫码链接（qrcode模式），payurl 优先返回平台自适应收银台，供对接方重定向；
+                $payUrl = ($payMode === 'url' && (str_starts_with($rawPayUrl, 'http://') || str_starts_with($rawPayUrl, 'https://')))
+                    ? $rawPayUrl
+                    : $cashierUrl;
+
                 return json([
-                    'code' => 1,
-                    'msg'  => '下单成功',
-                    'trade_no' => $orderResult['trade_no'],
-                    'payurl'   => $orderResult['pay_url'],
-                    'qrcode'   => $orderResult['pay_mode'] === 'qrcode' ? $orderResult['pay_url'] : '',
+                    'code'        => 1,
+                    'msg'         => '下单成功',
+                    'trade_no'    => $orderResult['trade_no'],
+                    'payurl'      => $payUrl,
+                    'cashier_url' => $cashierUrl,
+                    'qrcode'      => $rawPayUrl,
+                    'urlscheme'   => $rawPayUrl,
                 ]);
             }
 

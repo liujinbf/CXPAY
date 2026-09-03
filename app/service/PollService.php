@@ -233,8 +233,15 @@ class PollService
     {
         $rawConfig       = json_decode((string)$channel->config, true) ?: [];
         $decryptedConfig = [];
+        if (isset($rawConfig['data']) && is_array($rawConfig['data'])) {
+            foreach ($rawConfig['data'] as $k => $v) {
+                $decryptedConfig[$k] = is_string($v) ? $this->authcode->decryptStored($v) : $v;
+            }
+        }
         foreach ($rawConfig as $k => $v) {
-            $decryptedConfig[$k] = is_string($v) ? $this->authcode->decryptStored($v) : $v;
+            if ($k !== 'code' && $k !== 'msg' && $k !== 'data') {
+                $decryptedConfig[$k] = is_string($v) ? $this->authcode->decryptStored($v) : $v;
+            }
         }
 
         return [

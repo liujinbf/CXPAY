@@ -1063,12 +1063,18 @@ class OrderService
             ? (json_decode($channel->config, true) ?: [])
             : (array)$channel->config;
         $authcode = new Authcode();
-        foreach ($raw as $key => $value) {
-            if (is_string($value)) {
-                $raw[$key] = $authcode->decryptStored($value);
+        $flat = [];
+        if (isset($raw['data']) && is_array($raw['data'])) {
+            foreach ($raw['data'] as $k => $v) {
+                $flat[$k] = is_string($v) ? $authcode->decryptStored($v) : $v;
             }
         }
-        return $raw;
+        foreach ($raw as $key => $value) {
+            if ($key !== 'code' && $key !== 'msg' && $key !== 'data') {
+                $flat[$key] = is_string($value) ? $authcode->decryptStored($value) : $value;
+            }
+        }
+        return $flat;
     }
 
     private function normalizeMoney(mixed $amount): string

@@ -75,6 +75,10 @@ Route::get('/user', static fn() => redirect('/merchant_center.html'));
 Route::get('/user/', static fn() => redirect('/merchant_center.html'));
 Route::get('/user/index.html', static fn() => redirect('/merchant_center.html'));
 
+// 管理后台入口别名路由支持
+Route::get('/admin', static fn() => redirect('/admin/index.html'));
+Route::get('/admin/', static fn() => redirect('/admin/index.html'));
+
 // 易支付标准下单网关协议 ( Submit.php / mapi.php )
 Route::any('/submit.php', [app\controller\gateway\SubmitController::class, 'submit']);
 Route::any('/mapi.php', [app\controller\gateway\SubmitController::class, 'submit']);

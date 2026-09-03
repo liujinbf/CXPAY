@@ -68,10 +68,12 @@ class OrderController
         $payUrl = '';
         if ((int)$order->status === 0 && (int)$order->expire_time > time()) {
             $payUrl = (string)($order->pay_url ?? '');
-            $channel = $payUrl === '' ? Channel::find($order->channel_id) : null;
-            if ($channel !== null) {
-                $config = $this->decryptConfig($channel->config);
-                $payUrl = trim((string)($config['qr_url'] ?? $config['qr_code_url'] ?? ''));
+            if ($payUrl === '') {
+                $channel = Channel::find($order->channel_id);
+                if ($channel !== null) {
+                    $config = $this->decryptConfig($channel->config);
+                    $payUrl = trim((string)($config['qr_url'] ?? $config['qr_code_url'] ?? $config['qrcode'] ?? ''));
+                }
             }
         }
 
@@ -215,14 +217,20 @@ class OrderController
 
     private function decryptConfig(mixed $rawConfig): array
     {
-        $config = is_string($rawConfig) ? (json_decode($rawConfig, true) ?: []) : (array)$rawConfig;
+        $raw = is_string($rawConfig) ? (json_decode($rawConfig, true) ?: []) : (array)$rawConfig;
         $authcode = new Authcode();
-        foreach ($config as $key => $value) {
-            if (is_string($value)) {
-                $config[$key] = $authcode->decryptStored($value);
+        $flat = [];
+        if (isset($raw['data']) && is_array($raw['data'])) {
+            foreach ($raw['data'] as $k => $v) {
+                $flat[$k] = is_string($v) ? $authcode->decryptStored($v) : $v;
             }
         }
-        return $config;
+        foreach ($raw as $key => $value) {
+            if ($key !== 'code' && $key !== 'msg' && $key !== 'data') {
+                $flat[$key] = is_string($value) ? $authcode->decryptStored($value) : $value;
+            }
+        }
+        return $flat;
     }
 
     private function jsonResponse(array $payload)
