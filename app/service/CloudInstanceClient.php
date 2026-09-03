@@ -312,37 +312,26 @@ final class CloudInstanceClient
     }
 
     /**
-     * 从云端申请凭证、下载并安装插件
+     * 从云端申请凭证、下载并安装插件（遵循双层体系架构与官方数字验签规范）
      */
     public function downloadAndInstallPlugin(string $pluginId, string $version, string $cxpayVersion = '1.0.0'): array
     {
-        $downloadUrl = '';
-        $expectedSha256 = '';
+        // 1. 向官方云端申请一次性带数字签名的合法下载凭证 (300s 有效)
+        $grantResponse = $this->signedRequest('POST', "/api/instance/v1/plugins/{$pluginId}/download-grants", [], [
+            'version' => $version,
+            'cxpay_version' => $cxpayVersion,
+        ]);
 
-        // 1. 尝试申请官方一次性下载凭证
-        try {
-            $grantResponse = $this->signedRequest('POST', "/api/instance/v1/plugins/{$pluginId}/download-grants", [], [
-                'version' => $version,
-                'cxpay_version' => $cxpayVersion,
-            ]);
+        $grantData = $grantResponse['data'] ?? [];
+        $grantToken = (string)($grantData['grant_token'] ?? '');
+        $expectedSha256 = (string)($grantData['sha256'] ?? '');
 
-            $grantData = $grantResponse['data'] ?? [];
-            $grantToken = (string)($grantData['grant_token'] ?? '');
-            $expectedSha256 = (string)($grantData['sha256'] ?? '');
-
-            if ($grantToken !== '') {
-                $downloadUrl = $this->cloudApiUrl . "/api/artifact/v1/downloads/{$grantToken}";
-            }
-        } catch (\Throwable $grantErr) {
-            // 实例尚未绑定或云端签名通信异常时，尝试从官方签名分发源直接拉取基础插件包
-            $downloadUrl = $this->cloudApiUrl . "/downloads/plugins/{$pluginId}.cxpay-plugin";
+        if ($grantToken === '') {
+            throw new RuntimeException((string)($grantResponse['msg'] ?? '未获取到有效的云端插件下载凭证'));
         }
 
-        if ($downloadUrl === '') {
-            $downloadUrl = $this->cloudApiUrl . "/downloads/plugins/{$pluginId}.cxpay-plugin";
-        }
-
-        // 2. 兑换并下载数字签名交付包
+        // 2. 兑换下载官方数字签名加密包 (.cxpay-plugin)
+        $downloadUrl = $this->cloudApiUrl . "/api/artifact/v1/downloads/{$grantToken}";
         $tempFile = runtime_path() . '/plugin_temp/' . $pluginId . '_' . bin2hex(random_bytes(6)) . '.cxpay-plugin';
         @mkdir(dirname($tempFile), 0755, true);
 
@@ -350,22 +339,15 @@ final class CloudInstanceClient
             $this->downloadFile($downloadUrl, $tempFile);
 
             if (!file_exists($tempFile) || filesize($tempFile) === 0) {
-                // 若标准分发包失败，再尝试备用公共下载路由
-                $fallbackUrl = $this->cloudApiUrl . "/downloads/plugins/" . $pluginId . ".cxpay-plugin";
-                if ($downloadUrl !== $fallbackUrl) {
-                    $this->downloadFile($fallbackUrl, $tempFile);
-                }
+                throw new RuntimeException('插件包下载失败或文件为空');
             }
 
-            if (!file_exists($tempFile) || filesize($tempFile) === 0) {
-                throw new RuntimeException('插件包下载失败或分发源文件不存在');
-            }
-
+            // 严格防篡改校验：核对云端下发的 SHA-256 完整性摘要
             if ($expectedSha256 !== '' && !hash_equals(strtolower($expectedSha256), strtolower(hash_file('sha256', $tempFile)))) {
                 throw new RuntimeException('插件包 SHA-256 校验和不匹配，包已被篡改或下载不完整');
             }
 
-            // 3. 调用本地安装器完成解压、验签与注册
+            // 3. 调用本地安装器完成解压、RSA-SHA256 官方公钥验签与驱动注册
             $installer = new PluginPackageInstaller(
                 (string)config('payment_plugin.path', base_path() . '/plugin/cxpay'),
                 (string)config('payment_plugin.trusted_keys', base_path() . '/config/plugin_keys'),
