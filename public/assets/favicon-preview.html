@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CXPAY 视觉图标与浏览器标签页体系预览</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.294.0/dist/umd/lucide.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #07090e;
+            color: #e2e8f0;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .tab-preview-dark {
+            background-color: #1f232b;
+            border-bottom: 1px solid #111419;
+        }
+        .tab-preview-light {
+            background-color: #dee1e6;
+            border-bottom: 1px solid #c5c8cf;
+        }
+    </style>
+</head>
+<body class="min-h-screen py-10 px-4 md:px-8">
+    <div class="max-w-6xl mx-auto space-y-10">
+
+        <!-- 页面顶部 Header -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-800">
+            <div>
+                <div class="flex items-center gap-3 mb-2">
+                    <img src="/favicon.svg" alt="CXPAY Favicon" class="w-10 h-10 rounded-xl shadow-lg shadow-sky-500/20">
+                    <h1 class="text-3xl font-black tracking-tight text-white">CXPAY 品牌图标与标签页体系</h1>
+                </div>
+                <p class="text-sm text-slate-400">基于「高吞吐极速出码 + C-X 拓扑收敛」全新重构的下一代金融级聚合网关视觉识别资产</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="/" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-colors flex items-center gap-2">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> 返回主站首页
+                </a>
+                <a href="/favicon.svg" target="_blank" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white transition-colors flex items-center gap-2 shadow-lg shadow-sky-600/30">
+                    <i data-lucide="download" class="w-4 h-4"></i> 查看原生 SVG
+                </a>
+            </div>
+        </div>
+
+        <!-- 1. 真实浏览器标签栏模拟 (Chrome / Edge / Safari Tab Bar) -->
+        <section class="space-y-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="layout" class="w-5 h-5 text-sky-400"></i>
+                <h2 class="text-lg font-bold text-white">1. 真实浏览器标签页模拟 (Tab Bar Simulation)</h2>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 深色标签栏 -->
+                <div class="rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+                    <div class="tab-preview-dark px-4 pt-3 flex items-center gap-2">
+                        <div class="flex gap-1.5 mr-2">
+                            <span class="w-3 h-3 rounded-full bg-[#ff5f56]"></span>
+                            <span class="w-3 h-3 rounded-full bg-[#ffbd2e]"></span>
+                            <span class="w-3 h-3 rounded-full bg-[#27c93f]"></span>
+                        </div>
+                        <!-- 激活状态的标签 -->
+                        <div class="bg-[#2c313a] text-slate-200 px-3 py-2 rounded-t-xl flex items-center gap-2 text-xs font-medium border-t-2 border-sky-400 max-w-[220px] truncate shadow">
+                            <img src="/favicon.svg" alt="icon" class="w-4 h-4 flex-shrink-0">
+                            <span class="truncate">CXPAY - 商业级聚合支付</span>
+                            <i data-lucide="x" class="w-3 h-3 text-slate-400 ml-auto flex-shrink-0"></i>
+                        </div>
+                        <!-- 未激活标签 -->
+                        <div class="text-slate-400 px-3 py-2 flex items-center gap-2 text-xs font-medium max-w-[180px] truncate opacity-70">
+                            <img src="/cloud-favicon.svg" alt="icon" class="w-4 h-4 flex-shrink-0">
+                            <span class="truncate">CXPAY Cloud 授权中心</span>
+                        </div>
+                    </div>
+                    <div class="bg-[#12161f] p-4 text-xs text-slate-400 flex items-center justify-between">
+                        <span>深色标签栏环境（Chrome Dark / macOS Dark）</span>
+                        <span class="text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> 极佳立体轮廓与穿透力</span>
+                    </div>
+                </div>
+
+                <!-- 浅色标签栏 -->
+                <div class="rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+                    <div class="tab-preview-light px-4 pt-3 flex items-center gap-2">
+                        <div class="flex gap-1.5 mr-2">
+                            <span class="w-3 h-3 rounded-full bg-[#ff5f56]"></span>
+                            <span class="w-3 h-3 rounded-full bg-[#ffbd2e]"></span>
+                            <span class="w-3 h-3 rounded-full bg-[#27c93f]"></span>
+                        </div>
+                        <!-- 激活状态的标签 -->
+                        <div class="bg-white text-slate-800 px-3 py-2 rounded-t-xl flex items-center gap-2 text-xs font-medium shadow max-w-[220px] truncate">
+                            <img src="/favicon.svg" alt="icon" class="w-4 h-4 flex-shrink-0">
+                            <span class="truncate">CXPAY - 商业级聚合支付</span>
+                            <i data-lucide="x" class="w-3 h-3 text-slate-400 ml-auto flex-shrink-0"></i>
+                        </div>
+                        <!-- 未激活标签 -->
+                        <div class="text-slate-600 px-3 py-2 flex items-center gap-2 text-xs font-medium max-w-[180px] truncate opacity-70">
+                            <img src="/cloud-favicon.svg" alt="icon" class="w-4 h-4 flex-shrink-0">
+                            <span class="truncate">CXPAY Cloud 授权中心</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 p-4 text-xs text-slate-400 flex items-center justify-between">
+                        <span>浅色标签栏环境（Windows Standard / macOS Light）</span>
+                        <span class="text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> 纯净反差，主体鲜明醒目</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 全尺寸缩放清晰度矩阵 (Multi-Scale Matrix) -->
+        <section class="space-y-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="scaling" class="w-5 h-5 text-indigo-400"></i>
+                <h2 class="text-lg font-bold text-white">2. 全尺寸微观至宏观清晰度矩阵 (Multi-Scale Rendering)</h2>
+            </div>
+            <div class="glass-card rounded-2xl p-6">
+                <p class="text-xs text-slate-400 mb-6">采用加粗的 C-X 拓扑几何架构，消除原有 2px 细虚线与微小光斑，在 16x16 极小像素到 512x512 高清视网膜屏幕均呈现锋利边缘与精准光学重心。</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 items-end text-center">
+                    
+                    <!-- 16px -->
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col items-center gap-3">
+                        <div class="h-16 flex items-center justify-center">
+                            <img src="/favicon.svg" alt="16px" class="w-4 h-4">
+                        </div>
+                        <div class="text-[11px] mono text-slate-400">16×16 px<br><span class="text-[10px] text-sky-400">浏览器 Favicon</span></div>
+                    </div>
+
+                    <!-- 24px -->
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col items-center gap-3">
+                        <div class="h-16 flex items-center justify-center">
+                            <img src="/favicon.svg" alt="24px" class="w-6 h-6">
+                        </div>
+                        <div class="text-[11px] mono text-slate-400">24×24 px<br><span class="text-[10px] text-sky-400">书签工具栏</span></div>
+                    </div>
+
+                    <!-- 32px -->
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col items-center gap-3">
+                        <div class="h-16 flex items-center justify-center">
+                            <img src="/favicon.svg" alt="32px" class="w-8 h-8">
+                        </div>
+                        <div class="text-[11px] mono text-slate-400">32×32 px<br><span class="text-[10px] text-sky-400">Retina 标签页</span></div>
+                    </div>
+
+                    <!-- 48px -->
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col items-center gap-3">
+                        <div class="h-16 flex items-center justify-center">
+                            <img src="/favicon.svg" alt="48px" class="w-12 h-12">
+                        </div>
+                        <div class="text-[11px] mono text-slate-400">48×48 px<br><span class="text-[10px] text-sky-400">任务栏快捷方式</span></div>
+                    </div>
+
+                    <!-- 64px -->
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col items-center gap-3">
+                        <div class="h-16 flex items-center justify-center">
+                            <img src="/favicon.svg" alt="64px" class="w-16 h-16">
+                        </div>
+                        <div class="text-[11px] mono text-slate-400">64×64 px<br><span class="text-[10px] text-sky-400">控制台 Navbar</span></div>
+                    </div>
+
+                    <!-- 96px -->
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col items-center gap-3">
+                        <div class="h-24 flex items-center justify-center">
+                            <img src="/favicon.svg" alt="96px" class="w-20 h-20">
+                        </div>
+                        <div class="text-[11px] mono text-slate-400">96×96 px<br><span class="text-[10px] text-sky-400">客户端托盘图标</span></div>
+                    </div>
+
+                    <!-- 128px -->
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col items-center gap-3">
+                        <div class="h-24 flex items-center justify-center">
+                            <img src="/favicon.svg" alt="128px" class="w-24 h-24 shadow-xl">
+                        </div>
+                        <div class="text-[11px] mono text-slate-400">128×128 px<br><span class="text-[10px] text-sky-400">Touch Icon / App</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 双层架构官方双生体系 (Runtime vs Cloud) -->
+        <section class="space-y-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="layers" class="w-5 h-5 text-emerald-400"></i>
+                <h2 class="text-lg font-bold text-white">3. 本地与云端双生视觉识别体系 (Runtime & Cloud Dualism)</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Runtime -->
+                <div class="glass-card rounded-2xl p-6 space-y-4 border-l-4 border-l-sky-500">
+                    <div class="flex items-center gap-4">
+                        <img src="/favicon.svg" alt="Runtime Icon" class="w-16 h-16 rounded-2xl shadow-xl shadow-sky-500/20">
+                        <div>
+                            <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">RUNTIME NODE</span>
+                            <h3 class="text-xl font-bold text-white mt-1">CXPAY 支付节点 (网关/商户/收银台)</h3>
+                            <p class="text-xs text-slate-400">电光青蓝 (Cyan) + 极速折叠光刃 + 高并发毫秒脉冲晶核</p>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-300 leading-relaxed bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                        应用于：主站官网首页、商户控制中心（Merchant Center）、系统管理员总控台（Admin Console）、统一收银台（Cashier）及开放 API 文档。
+                    </div>
+                </div>
+
+                <!-- Cloud -->
+                <div class="glass-card rounded-2xl p-6 space-y-4 border-l-4 border-l-purple-500">
+                    <div class="flex items-center gap-4">
+                        <img src="/cloud-favicon.svg" alt="Cloud Icon" class="w-16 h-16 rounded-2xl shadow-xl shadow-purple-500/20">
+                        <div>
+                            <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">CLOUD CONTROL</span>
+                            <h3 class="text-xl font-bold text-white mt-1">CXPAY Cloud 官方云端控制面</h3>
+                            <p class="text-xs text-slate-400">极光紫靛 (Nebula Purple) + 官方 RSA 数字签名金芒晶核</p>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-300 leading-relaxed bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                        应用于：官方云端授权中心（cloud.fcwan.cn）、OEM 代理商租户工作台（Agent Portal）、插件签名发布中心与全网大盘。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 品牌横版字标完整 Logo (Full Wordmark & Emblem) -->
+        <section class="space-y-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-5 h-5 text-amber-400"></i>
+                <h2 class="text-lg font-bold text-white">4. 官方横版组合 Logo (Full Wordmark & Emblem)</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 深色底呈现 -->
+                <div class="glass-card rounded-2xl p-8 flex flex-col justify-between">
+                    <div>
+                        <span class="text-xs text-slate-400 block mb-4 font-mono">// 深色模式 / 官网与收银台环境呈现</span>
+                        <img src="/assets/logo-full.svg" alt="Full Logo Dark" class="w-full max-w-md h-auto">
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                        <span>资源路径：<code class="text-sky-400">/assets/logo-full.svg</code></span>
+                    </div>
+                </div>
+
+                <!-- 浅色底呈现 -->
+                <div class="bg-white rounded-2xl p-8 flex flex-col justify-between shadow-xl">
+                    <div>
+                        <span class="text-xs text-slate-500 block mb-4 font-mono">// 浅色模式 / 商户后台与控制台环境呈现</span>
+                        <img src="/assets/logo-full.svg" alt="Full Logo Light" class="w-full max-w-md h-auto">
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+                        <span>通用性：自发光 Squircle 徽标在白底上同样立体耀眼</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
