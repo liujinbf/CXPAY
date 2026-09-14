@@ -260,7 +260,7 @@ class ChannelMonitorService
                 }
             } catch (\Throwable $e) {
                 $stats['errors']++;
-                $failCount = (int)($channel->poll_fail_count ?? 0) + 1;
+                $failCount = self::nextPollFailCount((int)($channel->poll_fail_count ?? 0));
                 $channel->poll_fail_count = $failCount;
 
                 // 容错机制：连续失败 3 次才将通道置为离线
@@ -285,6 +285,19 @@ class ChannelMonitorService
         }
 
         return $stats;
+    }
+
+    /**
+     * 连续失败计数保存在 TINYINT UNSIGNED 字段中，达到上限后保持饱和，
+     * 避免长期离线通道每轮轮询都因 256 溢出而中断整个定时任务。
+     */
+    private static function nextPollFailCount(int $current): int
+    {
+        if ($current >= 255) {
+            return 255;
+        }
+
+        return max(0, $current) + 1;
     }
 
     /**
