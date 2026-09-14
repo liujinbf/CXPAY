@@ -19,11 +19,15 @@ final class CloudInstanceClient
     private string $storageFile;
     private string $cloudApiUrl;
     private ?Client $httpClient;
+    private string $entitlementFile;
+    private string $directivesFile;
 
     public function __construct(
         ?string $storageFile = null,
         ?string $cloudApiUrl = null,
-        ?Client $httpClient = null
+        ?Client $httpClient = null,
+        ?string $entitlementFile = null,
+        ?string $directivesFile = null
     ) {
         $this->storageFile = $storageFile ?? (runtime_path() . '/instance/identity.json');
         $rawUrl = rtrim($cloudApiUrl ?? (string)config('cloud.api_url', 'https://cloud.fcwan.cn'), '/');
@@ -32,6 +36,8 @@ final class CloudInstanceClient
         }
         $this->cloudApiUrl = $rawUrl;
         $this->httpClient = $httpClient;
+        $this->entitlementFile = $entitlementFile ?? (runtime_path() . '/instance/entitlements.json');
+        $this->directivesFile = $directivesFile ?? (runtime_path() . '/instance/cloud_directives.json');
     }
 
     /**
@@ -234,7 +240,9 @@ final class CloudInstanceClient
         if (($identity['activated'] ?? false) && !empty($identity['instance_id'])) {
             try {
                 $res = $this->signedRequest('GET', '/api/instance/v1/plugins/catalog');
-                if (($res['code'] ?? 0) === 1 && !empty($res['data']['plugins'])) {
+                if (($res['code'] ?? 0) === 1
+                    && is_array($res['data'] ?? null)
+                    && array_key_exists('plugins', $res['data'])) {
                     return $res;
                 }
             } catch (\Throwable) {
@@ -374,6 +382,141 @@ final class CloudInstanceClient
     }
 
 
+
+    /**
+     * 发起实例双向心跳与安全指令/授权全量同步
+     */
+    public function sendHeartbeat(): array
+    {
+        $identity = $this->getIdentity();
+        $installed = PluginManager::installed();
+        $installedList = [];
+        foreach ($installed as $pid => $item) {
+            $installedList[] = [
+                'plugin_id' => $pid,
+                'version'   => (string)($item['version'] ?? $item['active_version'] ?? '1.0.0'),
+                'enabled'   => (bool)($item['enabled'] ?? false),
+            ];
+        }
+
+        $activeChannelsCount = 0;
+        try {
+            if (class_exists(\app\model\Channel::class)) {
+                $activeChannelsCount = (int)\app\model\Channel::where('status', 1)->count();
+            }
+        } catch (Throwable) {
+        }
+
+        $payload = [
+            'instance_id'           => (string)($identity['instance_id'] ?? ''),
+            'domain'                => (string)($identity['domain'] ?? ''),
+            'product_version'       => (string)config('app.version', '1.0.0'),
+            'php_version'           => PHP_VERSION,
+            'installed_plugins'     => $installedList,
+            'active_channels_count' => $activeChannelsCount,
+            'timestamp'             => time(),
+        ];
+
+        $syncedEntitlements = [];
+        $revokedPlugins = [];
+        $directives = [];
+
+        try {
+            $resp = $this->signedRequest('POST', '/api/instance/v1/heartbeat', [], $payload);
+            if (($resp['code'] ?? 0) === 1 && !empty($resp['data'])) {
+                $data = $resp['data'];
+
+                if (!empty($data['entitlements']) && is_array($data['entitlements'])) {
+                    $entFile = $this->entitlementFile;
+                    @mkdir(dirname($entFile), 0755, true);
+                    $current = [];
+                    if (file_exists($entFile)) {
+                        $current = json_decode((string)file_get_contents($entFile), true) ?: [];
+                    }
+                    foreach ($data['entitlements'] as $k => $item) {
+                        if (is_array($item)) {
+                            $pid = (string)($item['plugin_id'] ?? $k);
+                            $current[$pid] = [
+                                'plugin_id'  => $pid,
+                                'granted_at' => $item['granted_at'] ?? date('Y-m-d H:i:s'),
+                                'type'       => strtoupper((string)($item['type'] ?? 'PERMANENT')),
+                                'expires_at' => $item['expires_at'] ?? null,
+                            ];
+                            $syncedEntitlements[] = $pid;
+                        }
+                    }
+                    file_put_contents($entFile, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                }
+
+                if (!empty($data['revocations']) && is_array($data['revocations'])) {
+                    $registry = PluginManager::registry();
+                    foreach ($data['revocations'] as $revokedId) {
+                        $revokedId = (string)$revokedId;
+                        if (isset($installed[$revokedId]) && ($installed[$revokedId]['enabled'] ?? false)) {
+                            $registry->setEnabled($revokedId, false);
+                            $revokedPlugins[] = $revokedId;
+                        }
+                    }
+                    if ($revokedPlugins !== []) {
+                        PaymentManager::flush();
+                    }
+                }
+
+                if (!empty($data['directives'])) {
+                    $directives = (array)$data['directives'];
+                    $dirFile = $this->directivesFile;
+                    @mkdir(dirname($dirFile), 0755, true);
+                    file_put_contents($dirFile, json_encode([
+                        'updated_at' => date('Y-m-d H:i:s'),
+                        'directives' => $directives,
+                    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                }
+
+                return [
+                    'code' => 1,
+                    'msg'  => '云端心跳已同步，授权与安全状态为最新',
+                    'data' => [
+                        'synced'              => true,
+                        'instance_id'         => $identity['instance_id'],
+                        'synced_entitlements' => $syncedEntitlements,
+                        'revoked_plugins'     => $revokedPlugins,
+                        'directives'          => $directives,
+                        'cloud_time'          => $data['server_time'] ?? time(),
+                    ],
+                ];
+            }
+        } catch (Throwable $e) {
+            return [
+                'code' => -1,
+                'msg'  => '云端心跳请求失败（离线运行中）: ' . $e->getMessage(),
+                'data' => [
+                    'synced'              => false,
+                    'instance_id'         => $identity['instance_id'] ?? null,
+                    'synced_entitlements' => [],
+                    'revoked_plugins'     => [],
+                    'directives'          => [],
+                ],
+            ];
+        }
+
+        return [
+            'code' => 0,
+            'msg'  => '云端未返回心跳确认响应',
+            'data' => ['synced' => false],
+        ];
+    }
+
+    public function createPluginOrder(array $payload): array
+    {
+        return $this->signedRequest('POST', '/api/payment/v1/orders/create', [], $payload);
+    }
+
+    public function queryPluginOrder(string $orderNo): array
+    {
+        return $this->signedRequest('POST', '/api/payment/v1/orders/query', [], [
+            'order_no' => $orderNo,
+        ]);
+    }
 
     /**
      * 执行带 Ed25519 规范串签名的实例受保护请求

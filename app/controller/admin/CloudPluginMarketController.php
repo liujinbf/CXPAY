@@ -35,12 +35,12 @@ final class CloudPluginMarketController
             'code' => 1,
             'msg' => 'ok',
             'data' => [
-                'instance_id'  => $identity['instance_id'] ?? 'inst_' . substr($identity['fingerprint'], 0, 12),
-                'domain'       => $identity['domain'] ?? 'cs.fcwan.cn',
+                'instance_id'  => $identity['instance_id'] ?? null,
+                'domain'       => $identity['domain'] ?? null,
                 'public_key'   => $identity['public_key'],
                 'fingerprint'  => $identity['fingerprint'],
                 'activated'    => (bool)($identity['activated'] ?? false),
-                'activated_at' => $identity['activated_at'] ?? date('Y-m-d H:i:s'),
+                'activated_at' => $identity['activated_at'] ?? null,
                 'is_agent'     => (bool)($identity['is_agent'] ?? false),
                 'license_type' => (string)($identity['license_type'] ?? 'STANDARD'),
                 'portal_url'   => rtrim((string)config('cloud.portal_url', 'https://cloud.fcwan.cn'), '/'),
@@ -86,6 +86,8 @@ final class CloudPluginMarketController
         $entitlements = $this->getEntitlements();
         $installedPlugins = PluginManager::installed();
         $registeredDrivers = PaymentManager::getRegisteredDrivers();
+        $identity = $this->client->getIdentity();
+        $isActivated = ($identity['activated'] ?? false) === true;
 
         // 基础官方基准目录 — 所有插件均需从插件商城下载安装，无内置驱动
         // entitled 字段反映该插件在本实例是否已安装且持有有效授权
@@ -310,7 +312,7 @@ final class CloudPluginMarketController
             $latestVersion = (string)($item['latest_version'] ?? '1.0.0');
             $hasUpdate = $isInstalled && version_compare($latestVersion, $installedVersion, '>');
 
-            $item['entitled'] = $isEntitled;
+            $item['entitled'] = $isActivated && $isEntitled;
             $item['installed'] = $isInstalled;
             $item['enabled'] = $isEnabled;
             $item['installed_version'] = $installedVersion;
@@ -318,9 +320,6 @@ final class CloudPluginMarketController
             $item['delisted'] = $isDelisted;
             $finalList[] = $item;
         }
-
-        $identity = $this->client->getIdentity();
-        $isActivated = ($identity['activated'] ?? false) === true;
 
         return json([
             'code' => 1,
@@ -360,29 +359,15 @@ final class CloudPluginMarketController
             return json(['code' => -1, 'msg' => '当前实例尚未激活，请先完成云端实例绑定']);
         }
 
-        // 调用云端创建订单 API
-        $rawApiUrl    = (string)config('cloud.api_url', 'https://cloud.fcwan.cn');
-        $baseCloudUrl = preg_replace('#/api/?$#', '', rtrim($rawApiUrl, '/')) ?: 'https://cloud.fcwan.cn';
-        $createApi    = "{$baseCloudUrl}/api/payment/v1/orders/create";
-
-        $ch = curl_init($createApi);
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => json_encode([
+        try {
+            $res = $this->client->createPluginOrder([
                 'plugin_id'   => $pluginId,
-                'instance_id' => $instanceId,
                 'pay_type'    => $payChannel,
                 'period'      => $period,
-            ]),
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Accept: application/json'],
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_SSL_VERIFYPEER => false,
-        ]);
-        $rawResp = (string)curl_exec($ch);
-        curl_close($ch);
-
-        $res = json_decode($rawResp, true);
+            ]);
+        } catch (Throwable $e) {
+            return json(['code' => -1, 'msg' => '云端下单失败：' . $e->getMessage()]);
+        }
         if (!is_array($res) || ($res['code'] ?? 0) !== 1 || empty($res['data'])) {
             $errMsg = $res['msg'] ?? '云端下单响应异常，请检查云端收款配置';
             return json(['code' => -1, 'msg' => $errMsg]);
@@ -452,23 +437,11 @@ final class CloudPluginMarketController
 
         // 轮询云端确认订单状态
         if (!$isPaid) {
-            $rawApiUrl    = (string)config('cloud.api_url', 'https://cloud.fcwan.cn');
-            $baseCloudUrl = preg_replace('#/api/?$#', '', rtrim($rawApiUrl, '/')) ?: 'https://cloud.fcwan.cn';
-            $queryApi     = "{$baseCloudUrl}/api/payment/v1/orders/query";
-
-            $ch = curl_init($queryApi);
-            curl_setopt_array($ch, [
-                CURLOPT_POST           => true,
-                CURLOPT_POSTFIELDS     => json_encode(['order_no' => $orderNo]),
-                CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Accept: application/json'],
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 5,
-                CURLOPT_SSL_VERIFYPEER => false,
-            ]);
-            $rawQuery = (string)curl_exec($ch);
-            curl_close($ch);
-
-            $qRes = json_decode($rawQuery, true);
+            try {
+                $qRes = $this->client->queryPluginOrder($orderNo);
+            } catch (Throwable) {
+                $qRes = [];
+            }
             if (is_array($qRes) && ($qRes['code'] ?? 0) === 1 && !empty($qRes['data'])) {
                 if (($qRes['data']['paid'] ?? false) === true || ($qRes['data']['status'] ?? '') === 'PAID') {
                     $isPaid = true;
@@ -606,6 +579,11 @@ final class CloudPluginMarketController
             return json(['code' => -1, 'msg' => '必须指定插件 ID']);
         }
 
+        $activationRequired = $this->activationRequiredResponse();
+        if ($activationRequired !== null) {
+            return $activationRequired;
+        }
+
         // 全部插件统一通过云端授权验证，免费插件同样需要下载安装
         // 不再本地硬编码判断免费插件的授权状态
         try {
@@ -645,6 +623,54 @@ final class CloudPluginMarketController
                 'msg'  => "插件下载安装失败：" . $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * 一键同步云端最新授权、指令与插件目录。
+     */
+    public function syncFromCloud(Request $request): Response
+    {
+        $activationRequired = $this->activationRequiredResponse();
+        if ($activationRequired !== null) {
+            return $activationRequired;
+        }
+
+        try {
+            $heartbeat = $this->client->sendHeartbeat();
+            $catalog = $this->client->fetchCatalog();
+            $entitlements = $this->getEntitlements();
+
+            return json([
+                'code' => 1,
+                'msg' => '云端授权与安全状态同步完成',
+                'data' => [
+                    'heartbeat' => $heartbeat['data'] ?? [],
+                    'catalog_count' => count($catalog['data']['plugins'] ?? []),
+                    'total_entitlements' => count($entitlements),
+                    'timestamp' => time(),
+                ],
+            ]);
+        } catch (Throwable $e) {
+            return json([
+                'code' => -1,
+                'msg' => '同步云端状态异常：' . $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function activationRequiredResponse(): ?Response
+    {
+        $identity = $this->client->getIdentity();
+        if (($identity['activated'] ?? false) === true && !empty($identity['instance_id'])) {
+            return null;
+        }
+
+        return json([
+            'code' => -1,
+            'error_code' => 'CLOUD_INSTANCE_ACTIVATION_REQUIRED',
+            'msg' => '当前实例尚未激活，请先完成云端实例绑定',
+            'data' => ['action' => 'ACTIVATE_INSTANCE'],
+        ])->withStatus(503);
     }
 
     /**

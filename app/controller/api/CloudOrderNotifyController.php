@@ -36,7 +36,7 @@ final class CloudOrderNotifyController
 
     /**
      * 接收插件购买订单支付异步通知
-     * POST /api/cloud/plugin/order/notify
+     * 遗留插件订单回调入口已下线；新订单统一由云端控制面完成核销。
      */
     public function handlePluginOrderNotify(Request $request): Response
     {

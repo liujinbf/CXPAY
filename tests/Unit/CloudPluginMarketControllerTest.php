@@ -16,6 +16,8 @@ use support\Request;
 final class CloudPluginMarketControllerTest extends TestCase
 {
     private string $tempIdentityFile;
+    /** @var list<string> */
+    private array $orderFiles = [];
 
     protected function setUp(): void
     {
@@ -26,6 +28,11 @@ final class CloudPluginMarketControllerTest extends TestCase
     {
         if (file_exists($this->tempIdentityFile)) {
             @unlink($this->tempIdentityFile);
+        }
+        foreach ($this->orderFiles as $orderFile) {
+            if (file_exists($orderFile)) {
+                @unlink($orderFile);
+            }
         }
     }
 
@@ -42,9 +49,26 @@ final class CloudPluginMarketControllerTest extends TestCase
         $this->assertNotEmpty($data['data']['public_key']);
         $this->assertNotEmpty($data['data']['fingerprint']);
         $this->assertFalse($data['data']['activated']);
+        $this->assertNull($data['data']['instance_id']);
+        $this->assertNull($data['data']['domain']);
+        $this->assertNull($data['data']['activated_at']);
     }
 
-    public function testGetCloudMarketPromptsActivationWhenUnactivated(): void
+    public function testSyncRequiresActivatedInstance(): void
+    {
+        $client = new CloudInstanceClient($this->tempIdentityFile, 'https://mock.cloud.cxpay.com');
+        $controller = new CloudPluginMarketController($client);
+
+        $request = new Request("POST /api/admin/plugin/cloud_sync HTTP/1.1\r\nHost: pay.example.com\r\nContent-Length: 0\r\n\r\n");
+        $response = $controller->syncFromCloud($request);
+        $data = json_decode((string)$response->rawBody(), true, 16, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(503, $response->getStatusCode());
+        $this->assertSame('CLOUD_INSTANCE_ACTIVATION_REQUIRED', $data['error_code']);
+        $this->assertSame('ACTIVATE_INSTANCE', $data['data']['action']);
+    }
+
+    public function testGetCloudMarketAllowsPublicBrowseWhenUnactivated(): void
     {
         $client = new CloudInstanceClient($this->tempIdentityFile, 'https://mock.cloud.cxpay.com');
         $controller = new CloudPluginMarketController($client);
@@ -52,9 +76,8 @@ final class CloudPluginMarketControllerTest extends TestCase
         $response = $controller->getCloudMarket();
         $data = json_decode((string)$response->rawBody(), true);
 
-        $this->assertSame(-1, $data['code']);
-        $this->assertSame('CLOUD_INSTANCE_ACTIVATION_REQUIRED', $data['error_code']);
-        $this->assertSame('ACTIVATE_INSTANCE', $data['data']['action']);
+        $this->assertSame(1, $data['code']);
+        $this->assertFalse($data['data']['activated']);
     }
 
     public function testGetCloudMarketProxiesCatalogWhenActivated(): void
@@ -89,12 +112,42 @@ final class CloudPluginMarketControllerTest extends TestCase
 
         $data = json_decode((string)$response->rawBody(), true);
         $this->assertSame(1, $data['code']);
-        $this->assertSame('cxpay.wxpay.cloud_adapter', $data['data']['plugins'][0]['plugin_id']);
+        $pluginIds = array_column($data['data']['plugins'], 'plugin_id');
+        $this->assertContains('cxpay.wxpay.cloud_adapter', $pluginIds);
     }
 
     public function testCreatePurchaseOrderAndConfirm(): void
     {
-        $client = new CloudInstanceClient($this->tempIdentityFile, 'https://mock.cloud.cxpay.com');
+        $mock = new MockHandler([
+            new Response(200, [], json_encode([
+                'code' => 1,
+                'msg' => 'ok',
+                'data' => [
+                    'order_no' => 'ord_controller_test_01',
+                    'amount' => '99.00',
+                    'period' => 'forever',
+                    'qr_code_url' => 'https://pay.example.test/qr/ord_controller_test_01',
+                ],
+            ], JSON_THROW_ON_ERROR)),
+            new Response(200, [], json_encode([
+                'code' => 1,
+                'msg' => 'ok',
+                'data' => [
+                    'order_no' => 'ord_controller_test_01',
+                    'plugin_id' => 'cxpay.driver.wxpay_app_asst',
+                    'period' => 'forever',
+                    'status' => 'PENDING',
+                    'paid' => false,
+                ],
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+        $httpClient = new Client(['handler' => HandlerStack::create($mock)]);
+        $client = new CloudInstanceClient($this->tempIdentityFile, 'https://mock.cloud.cxpay.com', $httpClient);
+        $identity = $client->getIdentity();
+        $identity['instance_id'] = 'ins_controller_order_active';
+        $identity['domain'] = 'cs.fcwan.cn';
+        $identity['activated'] = true;
+        file_put_contents($this->tempIdentityFile, json_encode($identity));
         $controller = new CloudPluginMarketController($client);
 
         // 构造模拟 Request
@@ -110,6 +163,7 @@ final class CloudPluginMarketControllerTest extends TestCase
         $this->assertNotEmpty($data['data']['qr_code_content']);
 
         $orderNo = $data['data']['order_no'];
+        $this->orderFiles[] = runtime_path() . "/orders/{$orderNo}.json";
 
         // 检查状态 (未支付)
         $reqStatus = new Request("POST /api/admin/plugin/order/status HTTP/1.1\r\nHost: cs.fcwan.cn\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\norder_no={$orderNo}");
@@ -140,4 +194,3 @@ final class CloudPluginMarketControllerTest extends TestCase
         $this->assertTrue($statusData2['data']['paid']);
     }
 }
-

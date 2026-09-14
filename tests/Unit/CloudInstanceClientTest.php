@@ -8,6 +8,7 @@ use app\service\CloudInstanceClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 
@@ -149,5 +150,92 @@ final class CloudInstanceClientTest extends TestCase
         $this->assertNotEmpty($lastRequest->getHeaderLine('X-CXPAY-Signature'));
         $this->assertNotEmpty($lastRequest->getHeaderLine('X-CXPAY-Nonce'));
         $this->assertNotEmpty($lastRequest->getHeaderLine('X-CXPAY-Timestamp'));
+    }
+
+    public function testFetchCatalogAcceptsSuccessfulEmptyCatalog(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode([
+                'code' => 1,
+                'msg' => 'ok',
+                'data' => ['plugins' => [], 'server_time' => 1789373641],
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+        $client = new CloudInstanceClient(
+            $this->tempIdentityFile,
+            'https://mock.cloud.cxpay.com',
+            new Client(['handler' => HandlerStack::create($mock)])
+        );
+        $identity = $client->getIdentity();
+        $identity['instance_id'] = 'ins_empty_catalog';
+        $identity['domain'] = 'pay.example.com';
+        $identity['activated'] = true;
+        file_put_contents($this->tempIdentityFile, json_encode($identity));
+
+        $catalog = $client->fetchCatalog();
+
+        $this->assertSame(1, $catalog['code']);
+        $this->assertSame([], $catalog['data']['plugins']);
+    }
+
+    public function testPluginOrderCreateAndQueryUseSignedInstanceRequests(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode([
+                'code' => 1,
+                'msg' => 'ok',
+                'data' => [
+                    'order_no' => 'ord_test_01',
+                    'amount' => '99.00',
+                    'period' => 'forever',
+                    'qr_code_url' => 'https://pay.example.test/qr/ord_test_01',
+                ],
+            ], JSON_THROW_ON_ERROR)),
+            new Response(200, [], json_encode([
+                'code' => 1,
+                'msg' => 'ok',
+                'data' => [
+                    'order_no' => 'ord_test_01',
+                    'plugin_id' => 'cxpay.wxpay.cloud_adapter',
+                    'period' => 'forever',
+                    'status' => 'PENDING',
+                    'paid' => false,
+                ],
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+        $history = [];
+        $handlerStack = HandlerStack::create($mock);
+        $handlerStack->push(Middleware::history($history));
+        $client = new CloudInstanceClient(
+            $this->tempIdentityFile,
+            'https://mock.cloud.cxpay.com',
+            new Client(['handler' => $handlerStack])
+        );
+
+        $identity = $client->getIdentity();
+        $identity['instance_id'] = 'ins_order_active';
+        $identity['domain'] = 'pay.example.com';
+        $identity['activated'] = true;
+        file_put_contents($this->tempIdentityFile, json_encode($identity));
+
+        $created = $client->createPluginOrder([
+            'plugin_id' => 'cxpay.wxpay.cloud_adapter',
+            'pay_type' => 'alipay',
+            'period' => 'forever',
+        ]);
+        $queried = $client->queryPluginOrder('ord_test_01');
+
+        $this->assertSame('ord_test_01', $created['data']['order_no']);
+        $this->assertFalse($queried['data']['paid']);
+        $this->assertCount(2, $history);
+        $this->assertSame('/api/payment/v1/orders/create', $history[0]['request']->getUri()->getPath());
+        $this->assertSame('/api/payment/v1/orders/query', $history[1]['request']->getUri()->getPath());
+        foreach ($history as $transaction) {
+            $request = $transaction['request'];
+            $this->assertSame('ins_order_active', $request->getHeaderLine('X-CXPAY-Instance'));
+            $this->assertNotEmpty($request->getHeaderLine('X-CXPAY-Signature'));
+            $this->assertNotEmpty($request->getHeaderLine('X-CXPAY-Nonce'));
+            $this->assertNotEmpty($request->getHeaderLine('X-CXPAY-Timestamp'));
+        }
     }
 }

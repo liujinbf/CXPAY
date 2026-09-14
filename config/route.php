@@ -126,8 +126,7 @@ Route::get('/download/CXPayAssistant_latest.apk', [app\controller\api\AppasstCon
 Route::any('/api/wecom/webhook', [app\controller\api\WecomWebhookController::class, 'handle']);
 Route::any('/api/wecom/webhook/{channel_id}', [app\controller\api\WecomWebhookController::class, 'handle']);
 
-// 官方云端授权中心支付异步通知端点（插件购买与配额增购核销）
-Route::post('/api/cloud/plugin/order/notify', [app\controller\api\CloudOrderNotifyController::class, 'handlePluginOrderNotify']);
+// 代理配额支付回调保留在支付节点；插件订单回调统一由云端控制面接收。
 Route::post('/api/agent/quota/notify',        [app\controller\api\CloudOrderNotifyController::class, 'handleQuotaNotify']);
 
 
@@ -253,6 +252,7 @@ Route::group('/api/admin', function () {
     Route::post('/plugin/order/confirm', [app\controller\admin\CloudPluginMarketController::class, 'confirmPayment']);
     Route::get('/plugin/instance_status', [app\controller\admin\CloudPluginMarketController::class, 'instanceStatus']);
     Route::post('/plugin/activate_instance', [app\controller\admin\CloudPluginMarketController::class, 'activateInstance']);
+    Route::post('/plugin/cloud_sync', [app\controller\admin\CloudPluginMarketController::class, 'syncFromCloud']);
 
 
     // 轮询组智能调度 API

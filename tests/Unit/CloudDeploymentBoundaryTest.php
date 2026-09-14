@@ -51,7 +51,8 @@ final class CloudDeploymentBoundaryTest extends TestCase
     public function testCloudPortalUsesDedicatedConfiguration(): void
     {
         self::assertSame('payment', config('deployment.role'));
-        self::assertSame('https://cloud.cxpay.com', config('cloud.portal_url'));
-        self::assertSame('https://api.cloud.cxpay.com', config('cloud.api_url'));
+        self::assertSame('https://cloud.fcwan.cn', config('cloud.portal_url'));
+        self::assertSame('https://cloud.fcwan.cn', config('cloud.api_url'));
+        self::assertNotContains('/api/cloud/plugin/order/notify', self::$paths);
     }
 }
