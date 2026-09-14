@@ -2,6 +2,7 @@
 
 namespace app\exception;
 
+use support\exception\PageNotFoundException;
 use Throwable;
 use Webman\Exception\ExceptionHandler;
 use Webman\Http\Request;
@@ -13,12 +14,13 @@ class Handler extends ExceptionHandler
     {
         // 针对 API 请求，即使服务端抛出 500 异常，也统一返回 JSON 格式并带上详细错误说明，方便追踪
         if ($request->expectsJson() || str_starts_with($request->path(), '/api/')) {
+            $status = $exception instanceof PageNotFoundException ? 404 : 500;
             $json = [
                 'code' => -1,
                 'msg'  => $exception->getMessage() ?: 'Server internal error',
                 'trace' => $this->debug ? (string)$exception : null
             ];
-            return new Response(500, ['Content-Type' => 'application/json; charset=utf-8'],
+            return new Response($status, ['Content-Type' => 'application/json; charset=utf-8'],
                 json_encode($json, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
 
