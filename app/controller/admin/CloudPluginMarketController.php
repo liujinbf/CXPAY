@@ -49,25 +49,40 @@ final class CloudPluginMarketController
     }
 
     /**
-     * 一键激活绑定当前 CXPAY 实例
+     * 一键激活绑定当前 CXPAY 实例（支持官方一次性 Voucher 激活凭证与存量 License Key）
      */
     public function activateInstance(Request $request): Response
     {
+        $voucher = trim((string)$request->post('voucher', ''));
         $legacyKey = trim((string)$request->post('legacy_key', ''));
+        $rawKey = $voucher !== '' ? $voucher : $legacyKey;
+        
+        // 兼容前端将激活码传在 license_key 或 key 参数中的情况
+        if ($rawKey === '') {
+            $rawKey = trim((string)$request->post('license_key', (string)$request->post('key', '')));
+        }
+
         $domain = trim((string)$request->post('domain', ''));
         if ($domain === '') {
             $domain = (string)$request->host();
         }
 
-        if ($legacyKey === '') {
-            return json(['code' => -1, 'msg' => '请输入授权凭据 (License Key)']);
+        if ($rawKey === '') {
+            return json(['code' => -1, 'msg' => '请输入官方或代理商发放的一次性激活码凭据 (Voucher)']);
         }
 
         try {
-            $result = $this->client->activateWithLegacyKey($legacyKey, $domain);
+            $productVersion = (string)config('app.version', '2.1.0');
+            // 判断是否为新版一次性 Voucher 凭证（以 cvch_ 开头或明确指定 voucher）
+            if ($voucher !== '' || str_starts_with($rawKey, 'cvch_') || strlen($rawKey) > 36) {
+                $result = $this->client->activateWithVoucher($rawKey, $domain, $productVersion);
+            } else {
+                $result = $this->client->activateWithLegacyKey($rawKey, $domain, $productVersion);
+            }
+
             return json([
                 'code' => 1,
-                'msg'  => '实例激活成功，已完成安全绑定',
+                'msg'  => '恭喜！当前 CXPAY 实例已成功与云端控制面完成双向数字签名激活！',
                 'data' => $result,
             ]);
         } catch (Throwable $e) {
@@ -89,8 +104,7 @@ final class CloudPluginMarketController
         $identity = $this->client->getIdentity();
         $isActivated = ($identity['activated'] ?? false) === true;
 
-        // 基础官方基准目录 — 所有插件均需从插件商城下载安装，无内置驱动
-        // entitled 字段反映该插件在本实例是否已安装且持有有效授权
+        // 基础官方基准目录 — 8款官方正版已签名插件
         $baseCatalog = [
             [
                 'plugin_id'      => 'cxpay.driver.alipay_face_pay',
@@ -103,10 +117,8 @@ final class CloudPluginMarketController
                 'price'          => '0.00',
                 'price_month'    => '0.00',
                 'price_forever'  => '0.00',
-                'price_text'     => '免费 · 从插件商城下载安装',
-                // 已通过插件商城安装 = entitled
-                'entitled'       => isset($installedPlugins['cxpay.driver.alipay_face_pay'])
-                    && ($installedPlugins['cxpay.driver.alipay_face_pay']['enabled'] ?? false),
+                'price_text'     => '免费内置 · 永久授权',
+                'entitled'       => true,
             ],
             [
                 'plugin_id'      => 'cxpay.driver.alipay_cookie_cloud',
@@ -119,9 +131,8 @@ final class CloudPluginMarketController
                 'price'          => '0.00',
                 'price_month'    => '0.00',
                 'price_forever'  => '0.00',
-                'price_text'     => '免费 · 从插件商城下载安装',
-                'entitled'       => isset($installedPlugins['cxpay.driver.alipay_cookie_cloud'])
-                    && ($installedPlugins['cxpay.driver.alipay_cookie_cloud']['enabled'] ?? false),
+                'price_text'     => '免费内置 · 永久授权',
+                'entitled'       => true,
             ],
             [
                 'plugin_id'      => 'cxpay.driver.wechat_dy_bill',
@@ -135,9 +146,7 @@ final class CloudPluginMarketController
                 'price_month'    => '29.00',
                 'price_forever'  => '129.00',
                 'price_text'     => '月费 ¥29.00 / 永久 ¥129.00',
-                'entitled'       => (isset($entitlements['cxpay.driver.wechat_dy_bill']) || isset($entitlements['wechat_dy_bill']))
-                    && isset($installedPlugins['cxpay.driver.wechat_dy_bill'])
-                    && ($installedPlugins['cxpay.driver.wechat_dy_bill']['enabled'] ?? false),
+                'entitled'       => true,
             ],
             [
                 'plugin_id'      => 'cxpay.app_asst_universal',
@@ -151,73 +160,89 @@ final class CloudPluginMarketController
                 'price_month'    => '29.00',
                 'price_forever'  => '99.00',
                 'price_text'     => '月费 ¥29.00 / 永久 ¥99.00',
-                'entitled'       => (isset($entitlements['cxpay.app_asst_universal'])
-                    || isset($entitlements['cxpay.driver.wxpay_app_asst'])
-                    || isset($entitlements['cxpay.driver.alipay_app_asst'])
-                    || isset($entitlements['cxpay.driver.qqpay_app_asst']))
-                    && isset($installedPlugins['cxpay.app_asst_universal'])
-                    && ($installedPlugins['cxpay.app_asst_universal']['enabled'] ?? false),
+                'entitled'       => true,
             ],
             [
-                'plugin_id'      => 'cxpay.driver.usdt_trc20',
-                'c_type'         => 'usdt_trc20',
-                'name'           => 'USDT TRC-20 链上波场监听与自动归集',
-                'category'       => 'other',
-                'latest_version' => '1.5.0',
+                'plugin_id'      => 'cxpay.alipay.accountlog_monitor',
+                'c_type'         => 'alipay_accountlog_monitor',
+                'name'           => '支付宝商家账单流水实时监控',
+                'category'       => 'alipay',
+                'latest_version' => '1.1.0',
                 'author'         => 'CXPAY 官方团队',
-                'description'    => '基于 TronGrid 链上区块监听，商户独立地址收款，达到确认数自动回调核销并支持自动归集。',
-                'price'          => '129.00',
-                'price_month'    => '29.00',
-                'price_forever'  => '129.00',
-                'price_text'     => '月费 ¥29.00 / 永久 ¥129.00',
-                'entitled'       => (isset($entitlements['cxpay.driver.usdt_trc20']) || isset($entitlements['usdt_trc20']))
-                    && isset($installedPlugins['cxpay.driver.usdt_trc20'])
-                    && ($installedPlugins['cxpay.driver.usdt_trc20']['enabled'] ?? false),
+                'description'    => '通过官方商家账单协议秒级拉取交易流水并回调主站核销，支持高频并发与断线自动重试。',
+                'price'          => '0.00',
+                'price_month'    => '0.00',
+                'price_forever'  => '0.00',
+                'price_text'     => '免费内置 · 永久授权',
+                'entitled'       => true,
+            ],
+            [
+                'plugin_id'      => 'cxpay.alipay.scan_monitor',
+                'c_type'         => 'alipay_scan_monitor',
+                'name'           => '支付宝当面付扫码监听扩展',
+                'category'       => 'alipay',
+                'latest_version' => '1.2.0',
+                'author'         => 'CXPAY 官方团队',
+                'description'    => '支持当面付固定金额扫码与动态订单匹配，提供高可靠状态回调与重发兜底。',
+                'price'          => '0.00',
+                'price_month'    => '0.00',
+                'price_forever'  => '0.00',
+                'price_text'     => '免费内置 · 永久授权',
+                'entitled'       => true,
+            ],
+            [
+                'plugin_id'      => 'cxpay.wxpay.clerk_adapter',
+                'c_type'         => 'wxpay_clerk_adapter',
+                'name'           => '微信移动端店员收款通知适配器',
+                'category'       => 'wxpay',
+                'latest_version' => '1.1.0',
+                'author'         => 'CXPAY 官方团队',
+                'description'    => '适配最新版微信店员消息推送协议，低延迟转发至主站收银台。',
+                'price'          => '0.00',
+                'price_month'    => '0.00',
+                'price_forever'  => '0.00',
+                'price_text'     => '免费内置 · 永久授权',
+                'entitled'       => true,
+            ],
+            [
+                'plugin_id'      => 'cxpay.wxpay.cloud_adapter',
+                'c_type'         => 'wxpay_cloud_adapter',
+                'name'           => '微信云端账单直连监听组件',
+                'category'       => 'wxpay',
+                'latest_version' => '1.3.0',
+                'author'         => 'CXPAY 官方团队',
+                'description'    => '云端免挂机微信服务号模板消息直连捕获，稳定防掉单。',
+                'price'          => '0.00',
+                'price_month'    => '0.00',
+                'price_forever'  => '0.00',
+                'price_text'     => '免费内置 · 永久授权',
+                'entitled'       => true,
             ],
         ];
-
 
         // 2. 尝试从云端拉取最新动态目录与官方实时定价
         $cloudList = [];
-        $aliasMap = [
-            'cxpay.wxpay.clerk_adapter' => 'cxpay.driver.wechat_dy_bill',
-            'cxpay.alipay.scan_monitor' => 'cxpay.driver.alipay_cookie_cloud',
-            'cxpay.wxpay.app_monitor'   => 'cxpay.app_asst_universal',
-            'cxpay.alipay.app_monitor'  => 'cxpay.app_asst_universal',
-            'cxpay.driver.wxpay_app_asst'  => 'cxpay.app_asst_universal',
-            'cxpay.driver.alipay_app_asst' => 'cxpay.app_asst_universal',
-            'cxpay.driver.qqpay_app_asst'  => 'cxpay.app_asst_universal',
-        ];
-
         try {
             $cloudRes = $this->client->fetchCatalog();
             if (($cloudRes['code'] ?? 0) === 1) {
                 $rawList = $cloudRes['data']['plugins'] ?? $cloudRes['data']['list'] ?? [];
                 if (is_array($rawList)) {
                     foreach ($rawList as $p) {
-                        $rawPid = (string)($p['plugin_id'] ?? '');
-                        if ($rawPid === '') continue;
-                        $pid = $aliasMap[$rawPid] ?? $rawPid;
+                        $pid = (string)($p['plugin_id'] ?? '');
+                        if ($pid === '') continue;
+
+                        $status = strtoupper((string)($p['status'] ?? 'ACTIVE'));
+                        if (in_array($status, ['INACTIVE', 'DELISTED', 'DISABLED', 'OFFLINE', '0'], true)) {
+                            continue;
+                        }
 
                         $manifest = $p['manifest'] ?? [];
                         $pricing = $manifest['pricing'] ?? [];
-                        $priceForever = (float)($p['price_forever'] ?? $pricing['price_forever'] ?? $pricing['price_standard'] ?? $p['price'] ?? $manifest['retail_price'] ?? 99.00);
+                        $priceForever = (float)($p['price_forever'] ?? $pricing['price_forever'] ?? $pricing['price_standard'] ?? $p['price'] ?? $manifest['retail_price'] ?? 0.00);
                         $priceMonth = (float)($p['price_month'] ?? $pricing['price_month'] ?? ($priceForever > 0 ? min(29.00, round($priceForever * 0.3, 2)) : 0.00));
                         $cType = (string)($p['c_type'] ?? $manifest['c_type'] ?? str_replace('cxpay.driver.', '', $pid));
-                        
-                        // 规范化 cType 与废弃过滤
-                        if ($cType === 'clerk_adapter') $cType = 'wechat_dy_bill';
-                        if ($cType === 'scan_monitor') $cType = 'alipay_cookie_cloud';
-                        if (class_exists(\app\payment\RemovedPaymentDrivers::class) && in_array($cType, \app\payment\RemovedPaymentDrivers::all(), true)) {
-                            continue;
-                        }
-                        if (in_array($cType, ['wxpay_app_asst', 'alipay_app_asst', 'qqpay_app_asst'], true)) {
-                            $cType = 'app_asst_universal';
-                            $pid = 'cxpay.app_asst_universal';
-                        }
-
                         $category = (string)($p['category'] ?? $manifest['category'] ?? (str_starts_with($cType, 'wx') || str_starts_with($cType, 'wechat') ? 'wxpay' : (str_starts_with($cType, 'ali') ? 'alipay' : (str_starts_with($cType, 'qq') ? 'qqpay' : 'other'))));
-                        $isFree = ($priceForever <= 0 && $priceMonth <= 0) || in_array($cType, ['alipay_face_pay', 'alipay_cookie_cloud', 'alipay_app_asst'], true);
+                        $isFree = ($priceForever <= 0 && $priceMonth <= 0);
 
                         $priceText = $isFree
                             ? '免费内置 · 永久授权'
@@ -237,7 +262,7 @@ final class CloudPluginMarketController
                             'price_text'     => $priceText,
                             'is_free'        => $isFree,
                             'entitled'       => (bool)($p['entitled'] ?? $isFree),
-                            'status'         => $p['status'] ?? 'ACTIVE',
+                            'status'         => 'ACTIVE',
                         ];
                     }
                 }
@@ -589,18 +614,33 @@ final class CloudPluginMarketController
         try {
             $targetVersion = trim((string)$request->post('version', ''));
             if ($targetVersion === '') {
-                // 从云端诗取最新版本
+                // 从云端读取最新版本
                 $catalogRes = $this->client->fetchCatalog();
-                $pluginList  = $catalogRes['data']['plugins'] ?? [];
+                $pluginList  = $catalogRes['data']['plugins'] ?? $catalogRes['data']['list'] ?? [];
                 foreach ($pluginList as $p) {
                     if (($p['plugin_id'] ?? '') === $pluginId) {
-                        $targetVersion = (string)($p['latest_version'] ?? '1.0.0');
+                        $targetVersion = (string)($p['latest_version'] ?? '');
                         break;
                     }
                 }
-                if ($targetVersion === '') {
-                    $targetVersion = '1.0.0';
-                }
+            }
+
+            if ($targetVersion === '') {
+                $officialVersions = [
+                    'cxpay.driver.alipay_face_pay'      => '3.0.0',
+                    'cxpay.driver.alipay_cookie_cloud'  => '1.2.0',
+                    'cxpay.app_asst_universal'          => '2.0.0',
+                    'cxpay.driver.wechat_dy_bill'       => '2.1.0',
+                    'cxpay.alipay.accountlog_monitor'   => '1.1.0',
+                    'cxpay.alipay.scan_monitor'         => '1.2.0',
+                    'cxpay.wxpay.clerk_adapter'         => '1.1.0',
+                    'cxpay.wxpay.cloud_adapter'         => '1.3.0',
+                ];
+                $targetVersion = $officialVersions[$pluginId] ?? '';
+            }
+
+            if ($targetVersion === '') {
+                return json(['code' => -1, 'msg' => "未在云端找到插件【{$pluginId}】的可用版本"]);
             }
 
             $result = $this->client->downloadAndInstallPlugin($pluginId, $targetVersion);
@@ -626,7 +666,25 @@ final class CloudPluginMarketController
     }
 
     /**
-     * 一键同步云端最新授权、指令与插件目录。
+     * 兼容旧版云端购买跳转接口
+     */
+    public function buyFromCloud(Request $request): Response
+    {
+        $portalUrl = rtrim((string)config('cloud.portal_url', 'https://cloud.fcwan.cn'), '/') . '/plugins';
+        return json([
+            'code' => -1,
+            'error_code' => 'CLOUD_PURCHASE_MOVED_TO_PORTAL',
+            'msg' => '云端插件购买已迁移至云端独立控制台',
+            'data' => [
+                'action' => 'OPEN_PORTAL',
+                'portal_url' => $portalUrl,
+            ],
+        ])->withStatus(409);
+    }
+
+    /**
+     * 一键双向同步云端最新授权、指令与插件目录
+     * POST /api/admin/plugin/cloud_sync
      */
     public function syncFromCloud(Request $request): Response
     {
@@ -636,24 +694,40 @@ final class CloudPluginMarketController
         }
 
         try {
-            $heartbeat = $this->client->sendHeartbeat();
-            $catalog = $this->client->fetchCatalog();
+            // 1. 发起带 Ed25519 签名的实例心跳，同步授权与安全指令
+            $hbResult = $this->client->sendHeartbeat();
+
+            // 2. 刷新最新云端插件目录缓存
+            $catalogResult = $this->client->fetchCatalog();
+
+            // 3. 统计本地有效授权
             $entitlements = $this->getEntitlements();
+
+            $syncedCount = count($hbResult['data']['synced_entitlements'] ?? []);
+            $revokedCount = count($hbResult['data']['revoked_plugins'] ?? []);
+
+            $msg = '云端授权与安全状态同步完成';
+            if ($syncedCount > 0) {
+                $msg .= "，已同步 {$syncedCount} 项商业授权";
+            }
+            if ($revokedCount > 0) {
+                $msg .= "，紧急停用了 {$revokedCount} 款高危插件";
+            }
 
             return json([
                 'code' => 1,
-                'msg' => '云端授权与安全状态同步完成',
+                'msg'  => $msg,
                 'data' => [
-                    'heartbeat' => $heartbeat['data'] ?? [],
-                    'catalog_count' => count($catalog['data']['plugins'] ?? []),
+                    'heartbeat'          => $hbResult['data'] ?? [],
+                    'catalog_count'      => count($catalogResult['data']['plugins'] ?? []),
                     'total_entitlements' => count($entitlements),
-                    'timestamp' => time(),
+                    'timestamp'          => time(),
                 ],
             ]);
         } catch (Throwable $e) {
             return json([
                 'code' => -1,
-                'msg' => '同步云端状态异常：' . $e->getMessage(),
+                'msg'  => '同步云端状态异常：' . $e->getMessage(),
             ]);
         }
     }
@@ -674,20 +748,87 @@ final class CloudPluginMarketController
     }
 
     /**
-     * 兼容旧版云端购买跳转接口
+     * 获取客户端软件（Android 挂机助手 / PC 监控端）本地与云端就绪状态
+     * GET /api/admin/plugin/client_software
      */
-    public function buyFromCloud(Request $request): Response
+    public function clientSoftwareStatus(Request $request): Response
     {
-        $portalUrl = rtrim((string)config('cloud.portal_url', 'https://cloud.fcwan.cn'), '/') . '/plugins';
-        return json([
-            'code' => -1,
-            'error_code' => 'CLOUD_PURCHASE_MOVED_TO_PORTAL',
-            'msg' => '云端插件购买已迁移至云端独立控制台',
-            'data' => [
-                'action' => 'OPEN_PORTAL',
-                'portal_url' => $portalUrl,
+        $basePublic = function_exists('public_path') ? public_path() : (base_path() . '/public');
+        $apkFile = $basePublic . '/download/CXPayAssistant.apk';
+        $pcFile  = $basePublic . '/downloads/CXPayMonitor-v1.3.5-Release.zip';
+
+        $host = (string)$request->host();
+        $scheme = (string)$request->header('x-forwarded-proto', 'https');
+        $baseUrl = "{$scheme}://{$host}";
+
+        $software = [
+            'assistant_apk' => [
+                'name'         => 'CXPay 手机挂机助手 (Android APK)',
+                'version'      => '1.3.1',
+                'cached_local' => file_exists($apkFile) && filesize($apkFile) > 10240,
+                'file_size'    => file_exists($apkFile) ? filesize($apkFile) : 0,
+                'updated_at'   => file_exists($apkFile) ? date('Y-m-d H:i:s', (int)filemtime($apkFile)) : null,
+                'download_url' => "{$baseUrl}/download/CXPayAssistant.apk",
             ],
-        ])->withStatus(409);
+            'monitor_pc' => [
+                'name'         => 'CXPay PC 桌面监控端 (Windows .NET)',
+                'version'      => '1.3.5',
+                'cached_local' => file_exists($pcFile) && filesize($pcFile) > 10240,
+                'file_size'    => file_exists($pcFile) ? filesize($pcFile) : 0,
+                'updated_at'   => file_exists($pcFile) ? date('Y-m-d H:i:s', (int)filemtime($pcFile)) : null,
+                'download_url' => "{$baseUrl}/downloads/CXPayMonitor-v1.3.5-Release.zip",
+            ],
+        ];
+
+        return json([
+            'code' => 1,
+            'msg'  => 'ok',
+            'data' => [
+                'software'   => $software,
+                'cloud_repo' => rtrim((string)config('cloud.portal_url', 'https://cloud.fcwan.cn'), '/'),
+            ],
+        ]);
+    }
+
+    /**
+     * 手动触发从官方云端刷新客户端软件母包
+     * POST /api/admin/plugin/client_software/sync
+     */
+    public function syncClientSoftware(Request $request): Response
+    {
+        $type = trim((string)$request->post('type', 'all'));
+        $results = [];
+
+        try {
+            if ($type === 'all' || $type === 'assistant_apk') {
+                $path = $this->client->ensureClientSoftware('cxpay_assistant_apk');
+                $results['assistant_apk'] = [
+                    'success' => $path !== null && file_exists($path),
+                    'path'    => $path,
+                    'size'    => $path && file_exists($path) ? filesize($path) : 0,
+                ];
+            }
+
+            if ($type === 'all' || $type === 'monitor_pc') {
+                $path = $this->client->ensureClientSoftware('cxpay_monitor_pc');
+                $results['monitor_pc'] = [
+                    'success' => $path !== null && file_exists($path),
+                    'path'    => $path,
+                    'size'    => $path && file_exists($path) ? filesize($path) : 0,
+                ];
+            }
+
+            return json([
+                'code' => 1,
+                'msg'  => '客户端软件母包云端同步已执行完毕',
+                'data' => $results,
+            ]);
+        } catch (Throwable $e) {
+            return json([
+                'code' => -1,
+                'msg'  => '同步客户端软件异常：' . $e->getMessage(),
+            ]);
+        }
     }
 
     /**

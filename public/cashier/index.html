@@ -83,9 +83,17 @@
                 </div>
             </div>
 
-            <!-- Pay Method Selection Tabs -->
-            <div class="pay-tabs-container p-1 rounded-2xl border mb-6 grid grid-cols-3 gap-1">
-                <button onclick="switchTab('alipay')" class="pay-tab alipay-tab active-alipay py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all">
+            <!-- Pay Method Header: 专属支付方式品牌条 (根据订单自动呈现微信/支付宝/QQ) -->
+            <div id="single-pay-banner" class="mb-6 p-2.5 rounded-2xl bg-slate-800/50 border border-slate-700/60 flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-inner">
+                <span id="single-pay-icon-box" class="w-6 h-6 rounded-lg flex items-center justify-center bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                    <i id="single-pay-icon" data-lucide="shield-check" class="w-4 h-4"></i>
+                </span>
+                <span id="single-pay-title" class="text-slate-200">安全支付网关连接中...</span>
+            </div>
+
+            <!-- Pay Method Selection Tabs: 仅在纯聚合订单模式下激活 -->
+            <div id="pay-tabs-container" class="pay-tabs-container p-1 rounded-2xl border mb-6 grid grid-cols-3 gap-1 hidden">
+                <button onclick="switchTab('alipay')" class="pay-tab alipay-tab py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all">
                     <i data-lucide="qr-code" class="w-4 h-4"></i> 支付宝
                 </button>
                 <button onclick="switchTab('wxpay')" class="pay-tab wxpay-tab text-slate-400 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer hover:text-slate-200 transition-all">
@@ -113,16 +121,17 @@
             <!-- QR Code Scan Tip -->
             <div class="text-center mt-4 space-y-1">
                 <div id="qr-tip" class="text-xs font-semibold text-slate-300 flex items-center justify-center gap-1">
-                    <i data-lucide="scan" class="w-4 h-4 text-blue-500"></i> 请使用支付宝扫码完成支付
+                    <i id="qr-tip-icon" data-lucide="scan" class="w-4 h-4 text-blue-500"></i> <span id="qr-tip-text">正在安全调起收款网关...</span>
                 </div>
                 <p class="text-[10px] text-slate-400">单据号: <span id="order-trade-no" class="font-mono">--</span> · 订单即时防篡改已开启</p>
             </div>
 
             <!-- 移动端拉起支付应用 -->
-            <div id="mobile-btn" class="mt-5 space-y-2">
-                <button onclick="openApp()" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all">
-                    <i data-lucide="external-link" class="w-4 h-4"></i> 打开支付应用
+            <div id="mobile-btn" class="mt-5 space-y-2 hidden">
+                <button id="mobile-pay-btn" onclick="openApp()" class="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all">
+                    <i id="mobile-btn-icon" data-lucide="external-link" class="w-4 h-4"></i> <span id="mobile-btn-text">打开支付应用</span>
                 </button>
+                <div id="mobile-sub-hint" class="text-[11px] text-slate-400 text-center"></div>
             </div>
         </div>
     </div>
@@ -625,10 +634,12 @@
     <!-- 收银台核心交互逻辑 -->
     <script>
         let countdown = 180;
+        let timerInterval = null;
         let isDark = true;
         let tradeNo = '';
         let pollTimer = null;
         let currentPayType = 'alipay';
+        let isOrderExpired = false;
 
         function safeCreateIcons() {
             try {
@@ -645,6 +656,133 @@
             if (t.includes('ali')) return 'alipay';
             if (t.includes('qq')) return 'qqpay';
             return 'alipay';
+        }
+
+        // 核心：根据支付通道自适应视觉主题（微信绿、支付宝蓝、QQ天蓝）
+        function applyPaymentTheme(rawType) {
+            const type = normalizePayType(rawType);
+            currentPayType = type;
+
+            const banner = document.getElementById('single-pay-banner');
+            const iconBox = document.getElementById('single-pay-icon-box');
+            const icon = document.getElementById('single-pay-icon');
+            const title = document.getElementById('single-pay-title');
+            const tipIcon = document.getElementById('qr-tip-icon');
+            const tipText = document.getElementById('qr-tip-text');
+            const mobBtn = document.getElementById('mobile-pay-btn');
+            const mobBtnIcon = document.getElementById('mobile-btn-icon');
+            const mobBtnText = document.getElementById('mobile-btn-text');
+            const mobSubHint = document.getElementById('mobile-sub-hint');
+
+            if (type === 'wxpay') {
+                if (banner) {
+                    banner.className = 'mb-6 p-2.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-inner';
+                }
+                if (iconBox) {
+                    iconBox.className = 'w-6 h-6 rounded-lg flex items-center justify-center bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+                }
+                if (icon) {
+                    icon.setAttribute('data-lucide', 'message-circle');
+                }
+                if (title) {
+                    title.innerHTML = '<span class="text-emerald-400">微信安全支付</span> <span class="text-[10px] text-emerald-500/80 font-mono tracking-wider ml-1">WeChat Pay</span>';
+                }
+                if (tipIcon) {
+                    tipIcon.className = 'w-4 h-4 text-emerald-400';
+                    tipIcon.setAttribute('data-lucide', 'scan-line');
+                }
+                if (tipText) {
+                    tipText.innerText = '请使用手机微信「扫一扫」完成支付';
+                }
+                if (mobBtn) {
+                    mobBtn.className = 'w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all shadow-emerald-900/40';
+                }
+                if (mobBtnIcon) {
+                    mobBtnIcon.setAttribute('data-lucide', 'message-circle');
+                }
+                if (mobBtnText) {
+                    mobBtnText.innerText = '微信支付 / 保存收款码';
+                }
+                if (mobSubHint) {
+                    mobSubHint.innerText = '长按保存二维码或截屏，打开微信相册扫码完成支付';
+                }
+            } else if (type === 'qqpay') {
+                if (banner) {
+                    banner.className = 'mb-6 p-2.5 rounded-2xl bg-sky-950/40 border border-sky-500/30 flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-inner';
+                }
+                if (iconBox) {
+                    iconBox.className = 'w-6 h-6 rounded-lg flex items-center justify-center bg-sky-500/20 text-sky-400 border border-sky-500/40';
+                }
+                if (icon) {
+                    icon.setAttribute('data-lucide', 'wallet');
+                }
+                if (title) {
+                    title.innerHTML = '<span class="text-sky-400">QQ钱包安全支付</span> <span class="text-[10px] text-sky-500/80 font-mono tracking-wider ml-1">QQ Pay</span>';
+                }
+                if (tipIcon) {
+                    tipIcon.className = 'w-4 h-4 text-sky-400';
+                    tipIcon.setAttribute('data-lucide', 'scan-line');
+                }
+                if (tipText) {
+                    tipText.innerText = '请使用手机QQ「扫一扫」完成支付';
+                }
+                if (mobBtn) {
+                    mobBtn.className = 'w-full py-3.5 bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-500 hover:to-cyan-500 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all';
+                }
+                if (mobBtnIcon) {
+                    mobBtnIcon.setAttribute('data-lucide', 'wallet');
+                }
+                if (mobBtnText) {
+                    mobBtnText.innerText = '打开QQ钱包完成支付';
+                }
+                if (mobSubHint) {
+                    mobSubHint.innerText = '可保存二维码后使用手机QQ扫码识别';
+                }
+            } else {
+                // 支付宝 (alipay)
+                if (banner) {
+                    banner.className = 'mb-6 p-2.5 rounded-2xl bg-blue-950/40 border border-blue-500/30 flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-inner';
+                }
+                if (iconBox) {
+                    iconBox.className = 'w-6 h-6 rounded-lg flex items-center justify-center bg-blue-500/20 text-blue-400 border border-blue-500/40';
+                }
+                if (icon) {
+                    icon.setAttribute('data-lucide', 'shield-check');
+                }
+                if (title) {
+                    title.innerHTML = '<span class="text-blue-400">支付宝安全支付</span> <span class="text-[10px] text-blue-500/80 font-mono tracking-wider ml-1">Alipay</span>';
+                }
+                if (tipIcon) {
+                    tipIcon.className = 'w-4 h-4 text-blue-400';
+                    tipIcon.setAttribute('data-lucide', 'scan-line');
+                }
+                if (tipText) {
+                    tipText.innerText = '请使用手机支付宝「扫一扫」完成支付';
+                }
+                if (mobBtn) {
+                    mobBtn.className = 'w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all shadow-blue-900/40';
+                }
+                if (mobBtnIcon) {
+                    mobBtnIcon.setAttribute('data-lucide', 'external-link');
+                }
+                if (mobBtnText) {
+                    mobBtnText.innerText = '打开支付宝 APP 支付';
+                }
+                if (mobSubHint) {
+                    mobSubHint.innerText = '支持快速调起手机支付宝客户端完成付款';
+                }
+            }
+
+            // 同步更新聚合 Tab 中的激活状态
+            document.querySelectorAll('.pay-tab').forEach(b => {
+                b.className = 'pay-tab text-slate-400 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer hover:text-slate-200 transition-all';
+            });
+            const activeTabBtn = document.querySelector(`.${type}-tab`);
+            if (activeTabBtn) {
+                activeTabBtn.classList.add(`active-${type}`);
+            }
+
+            safeCreateIcons();
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -680,17 +818,48 @@
                         document.getElementById('order-subject').innerText = data.subject || data.name || '网络商品';
                         document.getElementById('order-trade-no').innerText = tNo;
 
+                        // 依据订单类型自适应：单通道模式隐藏假 Tab，呈现该通道专属安全条
+                        const isSingleMethod = data.pay_type && data.pay_type !== 'aggregate' && data.pay_type !== 'all';
+                        const tabsContainer = document.getElementById('pay-tabs-container');
+                        const singleBanner = document.getElementById('single-pay-banner');
+
+                        if (isSingleMethod) {
+                            if (tabsContainer) tabsContainer.classList.add('hidden');
+                            if (singleBanner) singleBanner.classList.remove('hidden');
+                        } else {
+                            if (tabsContainer) tabsContainer.classList.remove('hidden');
+                            if (singleBanner) singleBanner.classList.add('hidden');
+                        }
+
+                        // 应用对应的品牌视觉主题
+                        const rawType = data.pay_type || data.pay_category || 'alipay';
+                        applyPaymentTheme(rawType);
+
+                        // 真实倒计时计算与过期状态判定
+                        if (data.expire_time) {
+                            const nowSec = Math.floor(Date.now() / 1000);
+                            const remainSec = data.expire_time - nowSec;
+                            if (remainSec > 0) {
+                                countdown = remainSec;
+                                isOrderExpired = false;
+                            } else {
+                                countdown = 0;
+                                isOrderExpired = true;
+                            }
+                        }
+
+                        // 如果订单已超时失效
+                        if (isOrderExpired || data.status === -1 || data.status === 2) {
+                            renderExpired();
+                            return;
+                        }
+
                         let finalQrUrl = (data.pay_url || '').trim();
                         if (finalQrUrl.startsWith('/')) {
                             finalQrUrl = window.location.origin + finalQrUrl;
                         }
                         window.lastPayUrl = finalQrUrl;
                         window.realQrUrl  = finalQrUrl;
-
-                        // 依据订单真实的支付类型自动高亮切换对应 Tab
-                        const rawType = data.pay_type || data.pay_category || 'alipay';
-                        currentPayType = normalizePayType(rawType);
-                        switchTab(currentPayType);
 
                         // 若用户在手机支付宝 APP 内访问，且配置了 PID，秒级自动唤起原生支付宝付钱界面
                         const isAli = navigator.userAgent.toLowerCase().includes('alipayclient');
@@ -711,8 +880,8 @@
                                     <div class="w-10 h-10 mx-auto rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-lg">
                                         !
                                     </div>
-                                    <div class="text-xs font-extrabold text-slate-800">出码中...</div>
-                                    <button onclick="fetchOrderDetails('${escapeHtml(tNo)}')" class="text-xs px-3 py-1.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-500">刷新二维码</button>
+                                    <div class="text-xs font-extrabold text-slate-800">正在生成收款码...</div>
+                                    <button onclick="fetchOrderDetails('${escapeHtml(tNo)}')" class="text-xs px-3 py-1.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-500 cursor-pointer">点击刷新</button>
                                 </div>
                             `;
                         }
@@ -725,7 +894,7 @@
                         document.getElementById("qrcode").innerHTML = `
                             <div class="text-center p-3 space-y-2">
                                 <div class="text-xs text-rose-500 font-bold">${escapeHtml(errMsg)}</div>
-                                <button onclick="fetchOrderDetails('${escapeHtml(tNo)}')" class="text-xs px-3 py-1 bg-slate-800 text-slate-200 rounded-lg hover:bg-slate-700">点击重试</button>
+                                <button onclick="fetchOrderDetails('${escapeHtml(tNo)}')" class="text-xs px-3 py-1 bg-slate-800 text-slate-200 rounded-lg hover:bg-slate-700 cursor-pointer">点击重试</button>
                             </div>
                         `;
                     }
@@ -741,21 +910,53 @@
                 });
         }
 
+        // 订单超时失效渲染
+        function renderExpired() {
+            isOrderExpired = true;
+            if (pollTimer) clearInterval(pollTimer);
+            const timerEl = document.getElementById('timer');
+            if (timerEl) {
+                timerEl.innerText = '已失效';
+                timerEl.parentElement.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-mono font-bold';
+            }
+            document.getElementById("qrcode").innerHTML = `
+                <div class="text-center p-4 space-y-2">
+                    <div class="w-12 h-12 mx-auto rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-xl">
+                        !
+                    </div>
+                    <div class="text-sm font-black text-slate-800">订单已超时失效</div>
+                    <div class="text-[11px] text-slate-500">支付时效已过，请返回商户重新下单</div>
+                </div>
+            `;
+            const tipText = document.getElementById('qr-tip-text');
+            if (tipText) tipText.innerText = '订单已超时关闭，请勿继续支付';
+            const mobBtnWrap = document.getElementById('mobile-btn');
+            if (mobBtnWrap) mobBtnWrap.classList.add('hidden');
+        }
+
         // 真实轮询订单状态
         function startOrderPolling(tNo) {
             if (pollTimer) clearInterval(pollTimer);
             pollTimer = setInterval(() => {
+                if (isOrderExpired) {
+                    clearInterval(pollTimer);
+                    return;
+                }
                 fetch(`/api/order/query?trade_no=${encodeURIComponent(tNo)}&_t=${Date.now()}`, { cache: 'no-store' })
                     .then(res => res.json())
                     .then(res => {
-                        if (res.code === 1 && res.data && (res.data.status == 1 || res.data.status === '1')) {
-                            clearInterval(pollTimer);
-                            showPaidMask();
-                            setTimeout(() => {
-                                if (res.data.return_url) {
-                                    window.location.href = res.data.return_url;
-                                }
-                            }, 1500);
+                        if (res.code === 1 && res.data) {
+                            if (res.data.status == 1 || res.data.status === '1') {
+                                clearInterval(pollTimer);
+                                showPaidMask();
+                                setTimeout(() => {
+                                    if (res.data.return_url) {
+                                        window.location.href = res.data.return_url;
+                                    }
+                                }, 1500);
+                            } else if (res.data.status === 2 || res.data.status === -1) {
+                                renderExpired();
+                            }
                         }
                     })
                     .catch(() => {});
@@ -832,89 +1033,121 @@
             safeCreateIcons();
         }
 
+        // 聚合模式下手动切换 Tab
         function switchTab(rawType) {
-            const type = normalizePayType(rawType);
-            currentPayType = type;
-
-            document.querySelectorAll('.pay-tab').forEach(b => {
-                b.className = 'pay-tab text-slate-400 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer hover:text-slate-200 transition-all';
-            });
-
-            const btn = document.querySelector(`.${type}-tab`);
-            if (btn) {
-                btn.classList.add(`active-${type}`);
-            }
-
-            const tip = document.getElementById('qr-tip');
-            if (tip) {
-                if (type === 'alipay') {
-                    tip.innerHTML = `<i data-lucide="scan" class="w-4 h-4 text-blue-500"></i> 请使用支付宝扫码完成支付`;
-                } else if (type === 'wxpay') {
-                    tip.innerHTML = `<i data-lucide="scan" class="w-4 h-4 text-emerald-500"></i> 请使用微信扫码完成支付`;
-                } else if (type === 'qqpay') {
-                    tip.innerHTML = `<i data-lucide="scan" class="w-4 h-4 text-sky-500"></i> 请使用QQ钱包扫码完成支付`;
-                } else {
-                    tip.innerHTML = `<i data-lucide="scan" class="w-4 h-4 text-blue-500"></i> 请扫码完成支付`;
-                }
-            }
-            safeCreateIcons();
+            applyPaymentTheme(rawType);
         }
 
         function startTimer() {
-            setInterval(() => {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (isOrderExpired) return;
                 if (countdown > 0) {
                     countdown--;
                     const m = String(Math.floor(countdown / 60)).padStart(2, '0');
                     const s = String(countdown % 60).padStart(2, '0');
                     const timerEl = document.getElementById('timer');
                     if (timerEl) timerEl.innerText = `${m}:${s}`;
+                } else {
+                    renderExpired();
                 }
             }, 1000);
         }
 
+        // 页面从后台切回（买家付款完毕返回浏览器）瞬间，立即秒级核销并跳回发卡网
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && tradeNo && !isOrderExpired) {
+                checkOrderStatusImmediately(tradeNo);
+            }
+        });
+        window.addEventListener('focus', () => {
+            if (tradeNo && !isOrderExpired) {
+                checkOrderStatusImmediately(tradeNo);
+            }
+        });
+
+        function checkOrderStatusImmediately(tNo) {
+            fetch(`/api/order/query?trade_no=${encodeURIComponent(tNo)}&_t=${Date.now()}`, { cache: 'no-store' })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.code === 1 && res.data && (res.data.status == 1 || res.data.status === '1')) {
+                        if (pollTimer) clearInterval(pollTimer);
+                        showPaidMask();
+                        setTimeout(() => {
+                            if (res.data.return_url) {
+                                window.location.href = res.data.return_url;
+                            }
+                        }, 800);
+                    }
+                })
+                .catch(() => {});
+        }
+
         function openApp() {
+            if (isOrderExpired) {
+                alert('订单已超时失效，请返回商户重新下单！');
+                return;
+            }
             const ua = navigator.userAgent.toLowerCase();
             const isAli = ua.includes('alipayclient');
             const isWx = ua.includes('micromessenger');
             const realQr = window.realQrUrl || '';
 
-            // 1. 如果配置了支付宝/微信真实收款码且为有效协议，直接跳转唤起
-            if (realQr && !realQr.includes('/cashier/index.html')) {
-                if (realQr.startsWith('alipays://') || realQr.startsWith('https://qr.alipay.com/')) {
+            // 1. 如果当前是微信支付
+            if (currentPayType === 'wxpay') {
+                if (isWx && (realQr.startsWith('wxp://') || realQr.includes('weixin.qq.com'))) {
                     window.location.href = realQr;
                     return;
                 }
-                if (realQr.startsWith('wxp://') || realQr.includes('weixin.qq.com')) {
-                    if (isWx) {
-                        window.location.href = realQr;
-                    } else {
-                        alert('请长按保存二维码，打开微信扫一扫完成支付');
-                    }
-                    return;
-                }
-            }
-
-            // 2. 如果用户已经在支付宝 App 内
-            if (isAli) {
-                if (realQr && realQr.startsWith('https://')) {
-                    window.location.href = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(realQr);
-                    return;
-                }
-                alert('您已在支付宝客户端内，请保存/截屏上方二维码或使用支付宝扫一扫完成支付');
+                alert('请截屏或长按保存上方二维码，打开手机微信「扫一扫」从相册选择识别支付；付款完成后返回本页面即可自动查收卡密！');
                 return;
             }
 
-            // 3. 外部浏览器根据当前支付方式唤起
-            if (currentPayType === 'wxpay') {
-                alert('请截屏或保存二维码，打开微信「扫一扫」识别支付');
-            } else {
-                if (realQr.startsWith('https://qr.alipay.com/')) {
-                    window.location.href = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(realQr);
+            // 2. 如果当前是支付宝
+            if (currentPayType === 'alipay') {
+                // 情况 A：买家已经在支付宝客户端内访问（通过内置容器直开收银台）
+                if (isAli) {
+                    if (realQr) {
+                        const payTarget = realQr.startsWith('alipays://') ? realQr : ("alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(realQr));
+                        window.location.href = payTarget;
+                        return;
+                    }
+                    alert('请识别上方二维码完成支付');
                     return;
                 }
-                const aliScheme = "alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(window.location.href);
-                window.location.href = aliScheme;
+
+                // 情况 B：买家在手机外部浏览器访问
+                // 优先拉起支付宝内置应用容器打开收银台（可在支付宝内付款后直接秒跳商品发货页，真正免切回）
+                const inAppCashierUrl = "alipays://platformapi/startapp?appId=20000067&url=" + encodeURIComponent(window.location.href);
+
+                // 准备备用原生拉起协议
+                const fallbackQrTarget = (realQr && (realQr.startsWith('alipays://') || realQr.startsWith('https://qr.alipay.com/')))
+                    ? (realQr.startsWith('alipays://') ? realQr : ("alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(realQr)))
+                    : ("alipays://platformapi/startapp?saId=10000007&qrcode=" + encodeURIComponent(window.location.href));
+
+                // 更新底部提示与操作指引
+                const hintEl = document.getElementById('mobile-sub-hint');
+                if (hintEl) {
+                    hintEl.innerHTML = `已唤起支付宝付款。若未自动跳出商品，请 <span class="text-blue-400 font-bold underline cursor-pointer" onclick="checkOrderStatusImmediately('${escapeHtml(tradeNo)}')">返回此处点击查验发货</span>`;
+                }
+
+                // 尝试通过支付宝内嵌容器直开当前收银台
+                window.location.href = inAppCashierUrl;
+
+                // 2 秒后若还在外部浏览器，提供无缝备用拉起
+                setTimeout(() => {
+                    const fallbackBtn = document.getElementById('mobile-pay-btn');
+                    if (fallbackBtn) {
+                        fallbackBtn.onclick = function() { window.location.href = fallbackQrTarget; };
+                        const btnText = document.getElementById('mobile-btn-text');
+                        if (btnText) btnText.innerText = '唤起支付 / 备用扫码付';
+                    }
+                }, 2000);
+                return;
             }
+
+            // 3. QQ钱包
+            alert('请截屏或保存上方二维码，打开手机QQ「扫一扫」完成支付');
         }
 
         function escapeHtml(str) {

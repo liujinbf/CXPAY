@@ -1,4 +1,4 @@
-import { createChannelEditor } from './channel-editor.js?v=20260822_v55_fresh_all';
+import { createChannelEditor } from './channel-editor.js?v=20260910_cap_detect';
 import { createChannelAuthorization } from './channel-authorization.js?v=20260822_v55_fresh_all';
 import { createChannelAppAsst } from './channel-appasst.js?v=20260822_v55_fresh_all';
 

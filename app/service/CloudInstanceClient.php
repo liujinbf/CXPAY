@@ -232,8 +232,112 @@ final class CloudInstanceClient
     }
 
     /**
-     * 拉取云端插件市场全量商品目录与最新官方定价
+     * 使用官方一次性激活码（Voucher，格式如 cvch_...）激活并绑定当前实例
+     *
+     * @param string $voucher 官方或代理商发放的一次性激活码
+     * @param string $domain 待绑定的站点域名
+     * @param string $productVersion 产品版本号
+     * @return array{
+     *   instance_id: string,
+     *   domain: string,
+     *   status: string,
+     *   activated_at: string
+     * }
      */
+    public function activateWithVoucher(string $voucher, string $domain, string $productVersion = '1.0.0'): array
+    {
+        $voucher = trim($voucher);
+        if ($voucher === '') {
+            throw new InvalidArgumentException('激活码不能为空');
+        }
+
+        $identity = $this->getIdentity();
+        $canonicalDomain = self::canonicalizeDomain($domain);
+        if ($canonicalDomain === '') {
+            throw new InvalidArgumentException('绑定域名不能为空');
+        }
+
+        // 1. 发起一次性激活码挑战申请
+        $challengeUrl = $this->cloudApiUrl . '/api/instance/v1/activations/voucher/challenge';
+        $challengeBody = [
+            'voucher' => $voucher,
+            'domain' => $canonicalDomain,
+            'instance_public_key' => $identity['public_key'],
+            'instance_fingerprint' => $identity['fingerprint'],
+            'product_version' => $productVersion,
+        ];
+
+        $challengeResponse = $this->httpPost($challengeUrl, $challengeBody);
+        if (($challengeResponse['code'] ?? 0) !== 1 || empty($challengeResponse['data'])) {
+            throw new RuntimeException((string)($challengeResponse['msg'] ?? '云端激活申请失败，请检查激活码或域名'));
+        }
+
+        $data = $challengeResponse['data'];
+        $instanceId = (string)($data['instance_id'] ?? '');
+        $activationId = (string)($data['activation_id'] ?? '');
+        $challenge = (string)($data['challenge'] ?? '');
+
+        if ($instanceId === '' || $activationId === '' || $challenge === '') {
+            throw new RuntimeException('云端返回的激活挑战数据不完整');
+        }
+
+        // 2. 构造确认请求并计算 Ed25519 签名
+        $confirmUrl = $this->cloudApiUrl . '/api/instance/v1/activations/confirm';
+        $confirmPath = '/api/instance/v1/activations/confirm';
+        $confirmBody = [
+            'activation_id' => $activationId,
+            'challenge' => $challenge,
+            'domain' => $canonicalDomain,
+        ];
+        $rawBody = json_encode($confirmBody, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        $timestamp = time();
+        $nonce = self::base64UrlEncode(random_bytes(16));
+
+        $canonicalString = self::buildCanonicalString(
+            httpMethod: 'POST',
+            requestPath: $confirmPath,
+            timestamp: $timestamp,
+            nonce: $nonce,
+            rawBody: $rawBody,
+            instanceId: $instanceId
+        );
+
+        $secretKeyBytes = self::base64UrlDecode($identity['secret_key']);
+        $signatureBytes = self::signDetached($canonicalString, $secretKeyBytes);
+        $signatureBase64 = self::base64UrlEncode($signatureBytes);
+
+        $headers = [
+            'X-CXPAY-Instance' => $instanceId,
+            'X-CXPAY-Timestamp' => (string)$timestamp,
+            'X-CXPAY-Nonce' => $nonce,
+            'X-CXPAY-Signature' => $signatureBase64,
+            'Idempotency-Key' => 'idemp_' . bin2hex(random_bytes(12)),
+            'Content-Type' => 'application/json',
+        ];
+
+        $confirmResponse = $this->httpPost($confirmUrl, $confirmBody, $headers);
+        if (($confirmResponse['code'] ?? 0) !== 1 || empty($confirmResponse['data'])) {
+            throw new RuntimeException((string)($confirmResponse['msg'] ?? '云端激活签名确认失败'));
+        }
+
+        $resultData = $confirmResponse['data'];
+
+        // 3. 持久化激活结果
+        $identity['instance_id'] = $instanceId;
+        $identity['domain'] = $canonicalDomain;
+        $identity['activated'] = true;
+        $identity['activated_at'] = $resultData['activated_at'] ?? date('c');
+
+        file_put_contents($this->storageFile, json_encode($identity, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        // 4. 激活成功后静默同步一次心跳与权益
+        try {
+            $this->sendHeartbeat();
+        } catch (\Throwable) {}
+
+        return $resultData;
+    }
     public function fetchCatalog(): array
     {
         $identity = $this->getIdentity();
@@ -381,10 +485,103 @@ final class CloudInstanceClient
         }
     }
 
+    /**
+     * 确保客户端软件（Android 助手 APK / PC 监控端 Release 包）在本地可用。
+     * 若本地缺失，将自动从官方云端授权分发源静默拉取并缓存，杜绝 404 或降级。
+     *
+     * @param string $softwareType 'cxpay_assistant_apk' | 'cxpay_monitor_pc'
+     * @return string|null 成功返回本地绝对路径，拉取失败返回 null
+     */
+    public function ensureClientSoftware(string $softwareType): ?string
+    {
+        $type = strtolower(trim($softwareType));
+        $basePublic = function_exists('public_path') ? public_path() : (base_path() . '/public');
 
+        $map = [
+            'cxpay_assistant_apk' => [
+                'local_paths' => [
+                    $basePublic . '/download/CXPayAssistant.apk',
+                    $basePublic . '/downloads/CXPayAssistant.apk',
+                ],
+                'cloud_uris'  => [
+                    '/downloads/software/CXPayAssistant.apk',
+                    '/downloads/CXPayAssistant.apk',
+                    '/download/CXPayAssistant.apk',
+                ],
+            ],
+            'cxpay_monitor_pc' => [
+                'local_paths' => [
+                    $basePublic . '/downloads/CXPayMonitor-v1.3.5-Release.zip',
+                    $basePublic . '/downloads/CXPayMonitor_latest.zip',
+                ],
+                'cloud_uris'  => [
+                    '/downloads/software/CXPayMonitor-v1.3.5-Release.zip',
+                    '/downloads/CXPayMonitor-v1.3.5-Release.zip',
+                    '/downloads/CXPayMonitor_latest.zip',
+                ],
+            ],
+        ];
+
+        if (!isset($map[$type])) {
+            throw new InvalidArgumentException("不支持的客户端软件类型: {$softwareType}");
+        }
+
+        $info = $map[$type];
+        $targetFile = $info['local_paths'][0];
+
+        // 1. 本地已有且非空文件（大于 10KB）直接复用
+        foreach ($info['local_paths'] as $loc) {
+            if (file_exists($loc) && filesize($loc) > 10240) {
+                return $loc;
+            }
+        }
+
+        // 2. 本地缺失，从云端分发源静默拉取
+        $dir = dirname($targetFile);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        foreach ($info['cloud_uris'] as $uri) {
+            $cloudUrl = $this->cloudApiUrl . $uri;
+            try {
+                $tempTarget = $targetFile . '.tmp.' . bin2hex(random_bytes(4));
+                $this->downloadFile($cloudUrl, $tempTarget);
+
+                if (file_exists($tempTarget) && filesize($tempTarget) > 10240) {
+                    // 读取前 100 字节，防止下载到 404 HTML 页面
+                    $head = (string)file_get_contents($tempTarget, false, null, 0, 100);
+                    if (!str_contains(strtolower($head), '<!doctype') && !str_contains(strtolower($head), '<html')) {
+                        rename($tempTarget, $targetFile);
+                        return $targetFile;
+                    }
+                }
+                if (file_exists($tempTarget)) {
+                    @unlink($tempTarget);
+                }
+            } catch (Throwable) {
+                // 尝试下一个候选 URI
+            }
+        }
+
+        // 若拉取失败但存在任意旧文件则回退，否则返回 null
+        foreach ($info['local_paths'] as $loc) {
+            if (file_exists($loc) && filesize($loc) > 0) {
+                return $loc;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * 发起实例双向心跳与安全指令/授权全量同步
+     *
+     * 核心能力：
+     *   1. 向官方云端以 Ed25519 签名上报本实例健康指标与安装插件清单；
+     *   2. 自动接收云端颁发的全量商业授权，实时同步刷新本地 entitlements.json；
+     *   3. 自动识别云端下发的高危/违规插件吊销指令 (revocations)，立即在运行时停用相关通道；
+     *   4. 接收云端安全告警与通告指令并持久化至 cloud_directives.json。
      */
     public function sendHeartbeat(): array
     {
@@ -404,8 +601,7 @@ final class CloudInstanceClient
             if (class_exists(\app\model\Channel::class)) {
                 $activeChannelsCount = (int)\app\model\Channel::where('status', 1)->count();
             }
-        } catch (Throwable) {
-        }
+        } catch (Throwable) {}
 
         $payload = [
             'instance_id'           => (string)($identity['instance_id'] ?? ''),
@@ -426,6 +622,7 @@ final class CloudInstanceClient
             if (($resp['code'] ?? 0) === 1 && !empty($resp['data'])) {
                 $data = $resp['data'];
 
+                // 1. 全量同步商业授权清单 (Entitlements)
                 if (!empty($data['entitlements']) && is_array($data['entitlements'])) {
                     $entFile = $this->entitlementFile;
                     @mkdir(dirname($entFile), 0755, true);
@@ -448,6 +645,7 @@ final class CloudInstanceClient
                     file_put_contents($entFile, json_encode($current, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
                 }
 
+                // 2. 响应高危/违规插件吊销指令 (Revocations)
                 if (!empty($data['revocations']) && is_array($data['revocations'])) {
                     $registry = PluginManager::registry();
                     foreach ($data['revocations'] as $revokedId) {
@@ -457,11 +655,12 @@ final class CloudInstanceClient
                             $revokedPlugins[] = $revokedId;
                         }
                     }
-                    if ($revokedPlugins !== []) {
+                    if (!empty($revokedPlugins)) {
                         PaymentManager::flush();
                     }
                 }
 
+                // 3. 存储云端系统公告与安全通告
                 if (!empty($data['directives'])) {
                     $directives = (array)$data['directives'];
                     $dirFile = $this->directivesFile;
@@ -476,16 +675,17 @@ final class CloudInstanceClient
                     'code' => 1,
                     'msg'  => '云端心跳已同步，授权与安全状态为最新',
                     'data' => [
-                        'synced'              => true,
-                        'instance_id'         => $identity['instance_id'],
-                        'synced_entitlements' => $syncedEntitlements,
-                        'revoked_plugins'     => $revokedPlugins,
-                        'directives'          => $directives,
-                        'cloud_time'          => $data['server_time'] ?? time(),
+                        'synced'               => true,
+                        'instance_id'          => $identity['instance_id'],
+                        'synced_entitlements'  => $syncedEntitlements,
+                        'revoked_plugins'      => $revokedPlugins,
+                        'directives'           => $directives,
+                        'cloud_time'           => $data['server_time'] ?? time(),
                     ],
                 ];
             }
         } catch (Throwable $e) {
+            // 心跳非阻塞降级：云端不可达时不抛出异常中断调用方
             return [
                 'code' => -1,
                 'msg'  => '云端心跳请求失败（离线运行中）: ' . $e->getMessage(),
@@ -800,4 +1000,3 @@ final class CloudInstanceClient
         return implode("\r\n", $lines);
     }
 }
-

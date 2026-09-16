@@ -12,7 +12,7 @@ export const feature = {
             const action = target.dataset.action;
             const pluginId = target.dataset.pluginId || '';
 
-            if (action === 'switch-plugin-subtab') switchSubtab(root, target.dataset.subtab);
+            if (action === 'switch-plugin-subtab') switchSubtab(context, target.dataset.subtab);
             if (action === 'filter-plugin-category') {
                 const cat = target.dataset.category || 'all';
                 currentCategory = cat;
@@ -24,7 +24,7 @@ export const feature = {
                 });
                 renderFilteredCloudPlugins(root, ui);
             }
-            if (action === 'refresh-cloud-status') { void loadCloudPlugins(context); ui.showToast('已刷新官方云端插件与授权信息'); }
+            if (action === 'refresh-cloud-status') { void triggerCloudSync(context); }
             if (action === 'toggle-plugin') void togglePlugin(context, pluginId, Number(target.dataset.enabled));
             if (action === 'uninstall-plugin') void uninstallPlugin(context, pluginId);
             if (action === 'rollback-plugin') void rollbackPlugin(context, pluginId);
@@ -35,26 +35,17 @@ export const feature = {
             }
             if (action === 'close-cashier-modal') closeCashierModal(root);
             if (action === 'refresh-pay-status') void refreshPayStatus(context);
-            if (action === 'install-cloud-plugin') void installCloudPlugin(context, pluginId);
-            if (action === 'copy-tenant-id') {
-                const tid = root.querySelector('#display-tenant-id')?.textContent || 'tenant_official_default';
-                navigator.clipboard.writeText(tid).then(() => ui.showToast('租户 ID 已复制到剪贴板'));
+            if (action === 'install-cloud-plugin') void installCloudPlugin(context, pluginId, target.dataset.pluginVersion || '');
+            if (action === 'copy-instance-id' || action === 'copy-tenant-id') {
+                const idText = root.querySelector('#display-instance-id')?.textContent || root.querySelector('#display-tenant-id')?.textContent || '';
+                if (idText && idText !== '--') {
+                    navigator.clipboard.writeText(idText).then(() => ui.showToast('实例 ID 已复制到剪贴板'));
+                }
             }
             if (action === 'open-rebind-dialog') openRebindGuideModal(root);
-            if (action === 'open-issue-modal') openAgentIssueModal(root);
-            if (action === 'close-issue-modal') closeAgentIssueModal(root);
-            if (action === 'refresh-agent-instances') void loadAgentInstances(context);
-            if (action === 'revoke-sub-license') {
-                const dom = target.dataset.domain || '';
-                if (dom) void doRevokeLicense(context, dom);
-            }
         }, { signal });
 
-        root.querySelector('#btn-do-issue-license')?.addEventListener('click', () => void doIssueLicense(context), { signal });
-        root.querySelector('#btn-copy-issued-key')?.addEventListener('click', () => {
-            const keyText = root.querySelector('#res-issued-key')?.textContent?.trim() || '';
-            if (keyText) navigator.clipboard.writeText(keyText).then(() => ui.showToast('License Key 已成功复制到剪贴板！'));
-        }, { signal });
+        root.querySelector('#btn-do-activate-voucher')?.addEventListener('click', () => void doActivateVoucher(context), { signal });
 
         root.querySelectorAll('input[name="cashier_pay_type"]').forEach((radio) => {
             radio.addEventListener('change', () => {
@@ -79,8 +70,9 @@ export const feature = {
     unmount() { clearCashierTimers(); pluginRecords.clear(); },
 };
 
-function switchSubtab(root, subtabId) {
-    ['cloud-market', 'monitor-software', 'license-mgmt', 'installed-drivers', 'agent-hub'].forEach(t => {
+function switchSubtab(context, subtabId) {
+    const root = context.root || context;
+    ['cloud-market', 'monitor-software', 'license-mgmt', 'installed-drivers'].forEach(t => {
         const pane = root.querySelector(`#subtab-pane-${t}`), btn = root.querySelector(`#subtab-btn-${t}`);
         if (pane) pane.classList.toggle('hidden', t !== subtabId);
         if (btn) {
@@ -90,13 +82,13 @@ function switchSubtab(root, subtabId) {
         }
     });
 
-    if (subtabId === 'agent-hub') {
-        void loadAgentHub({ root, ui: window.appUI || { showToast: alert, safeCreateIcons: () => {} } });
+    if (subtabId === 'license-mgmt' && context.ui) {
+        void loadLicenseStatus(context);
     }
 }
 
 let cachedCloudList = [];
-let currentCategory = 'all';
+let currentCategory = 'primary_gateways';
 
 async function loadCloudPlugins({ root, api, ui, signal }) {
     const container = root.querySelector('#cloud-plugin-grid');
@@ -110,12 +102,16 @@ async function loadCloudPlugins({ root, api, ui, signal }) {
         if (Array.isArray(payload.data?.list) && payload.data.list.length > 0) {
             cachedCloudList = payload.data.list;
             const statusEl = root.querySelector('#cloud-sync-status');
+            const isBackendAdapter = (p) => {
+                const id = String(p.plugin_id || p.c_type || '');
+                return id.includes('monitor') || id.includes('adapter') || ['cxpay.alipay.accountlog_monitor', 'cxpay.alipay.scan_monitor', 'cxpay.wxpay.clerk_adapter', 'cxpay.wxpay.cloud_adapter'].includes(id);
+            };
+            const gatewayList = cachedCloudList.filter(p => !isBackendAdapter(p));
             const updateCount = cachedCloudList.filter(p => p.installed && p.has_update).length;
             if (statusEl) {
-                const activeCount = cachedCloudList.filter(p => p.status !== 'INACTIVE').length;
                 statusEl.innerHTML = updateCount > 0
-                    ? `<span class="text-amber-600 font-bold animate-pulse">✨ 发现 ${updateCount} 款插件有新版本可更新</span> (共 ${activeCount} 款)`
-                    : `已直连云端 (实时在售 ${activeCount} 款官方插件)`;
+                    ? `<span class="text-amber-600 font-bold animate-pulse">✨ 发现 ${updateCount} 款插件有新版本</span> (共 ${gatewayList.length} 款可用通道)`
+                    : `已直连云端 (实时就绪 ${gatewayList.length} 款官方支付通道)`;
             }
             const subtabBtnInstalled = root.querySelector('#subtab-btn-installed-drivers');
             if (subtabBtnInstalled) {
@@ -156,6 +152,27 @@ async function loadCloudPlugins({ root, api, ui, signal }) {
     renderFilteredCloudPlugins(root, ui);
 }
 
+async function triggerCloudSync(context) {
+    const { api, ui, signal } = context;
+    try {
+        ui.showToast('正在双向同步官方云端商业授权与安全指令...');
+        const resp = await api.adminFetch('/api/admin/plugin/cloud_sync', {
+            method: 'POST',
+            signal
+        });
+        const res = await resp.json();
+        if (res.code === 1) {
+            ui.showToast(res.msg || '云端授权与安全状态同步完成！');
+        } else {
+            ui.showToast(res.msg || '云端同步离线', 'error');
+        }
+    } catch (e) {
+        console.warn('云端同步异常:', e);
+    } finally {
+        await loadCloudPlugins(context);
+    }
+}
+
 function renderFilteredCloudPlugins(root, ui) {
     const container = root.querySelector('#cloud-plugin-grid');
     if (!container) return;
@@ -166,36 +183,36 @@ function renderFilteredCloudPlugins(root, ui) {
         return;
     }
 
+    // 架构角色判断辅助函数
+    const isBackendAdapter = (p) => {
+        const id = String(p.plugin_id || p.c_type || '');
+        return id.includes('monitor') || id.includes('adapter') || ['cxpay.alipay.accountlog_monitor', 'cxpay.alipay.scan_monitor', 'cxpay.wxpay.clerk_adapter', 'cxpay.wxpay.cloud_adapter'].includes(id);
+    };
+
     // 统计各分类数量
-    const countAll = activeList.length;
-    const countAli = activeList.filter(p => p.category === 'alipay' || (p.category !== 'all_in_one' && String(p.c_type).startsWith('ali'))).length;
-    const countWx  = activeList.filter(p => p.category === 'wxpay' || (p.category !== 'all_in_one' && (String(p.c_type).startsWith('wx') || String(p.c_type).startsWith('wechat')))).length;
-    const countAllInOne = activeList.filter(p => p.category === 'all_in_one' || p.c_type === 'app_asst_universal' || p.plugin_id === 'cxpay.app_asst_universal').length;
-    const countOther = activeList.filter(p => {
-        const cat = p.category || '';
-        const ct = String(p.c_type || '');
-        return cat !== 'alipay' && cat !== 'wxpay' && cat !== 'all_in_one' && ct !== 'app_asst_universal' && !ct.startsWith('ali') && !ct.startsWith('wx') && !ct.startsWith('wechat');
-    }).length;
+    const countGateways = activeList.filter(p => !isBackendAdapter(p)).length;
+    const countAdapters = activeList.filter(p => isBackendAdapter(p)).length;
+    const countAli = activeList.filter(p => !isBackendAdapter(p) && (p.category === 'alipay' || (p.category !== 'all_in_one' && String(p.c_type).startsWith('ali')))).length;
+    const countWx  = activeList.filter(p => !isBackendAdapter(p) && (p.category === 'wxpay' || (p.category !== 'all_in_one' && (String(p.c_type).startsWith('wx') || String(p.c_type).startsWith('wechat'))))).length;
+    const countAllInOne = activeList.filter(p => !isBackendAdapter(p) && (p.category === 'all_in_one' || p.c_type === 'app_asst_universal' || p.plugin_id === 'cxpay.app_asst_universal')).length;
 
     const setBadge = (id, val) => { const el = root.querySelector(id); if (el) el.textContent = String(val); };
-    setBadge('#cat-count-all', countAll);
+    setBadge('#cat-count-gateways', countGateways);
+    setBadge('#cat-count-adapters', countAdapters);
     setBadge('#cat-count-alipay', countAli);
     setBadge('#cat-count-wxpay', countWx);
     setBadge('#cat-count-allinone', countAllInOne);
-    setBadge('#cat-count-other', countOther);
 
     // 筛选当前选中的分类
     const filtered = activeList.filter(p => {
-        if (currentCategory === 'all') return true;
+        if (currentCategory === 'primary_gateways') return !isBackendAdapter(p);
+        if (currentCategory === 'backend_adapters') return isBackendAdapter(p);
         const cat = p.category || '';
         const ct = String(p.c_type || '');
         const pid = String(p.plugin_id || '');
-        if (currentCategory === 'alipay') return cat === 'alipay' || (cat !== 'all_in_one' && ct.startsWith('ali'));
-        if (currentCategory === 'wxpay') return cat === 'wxpay' || (cat !== 'all_in_one' && (ct.startsWith('wx') || ct.startsWith('wechat')));
-        if (currentCategory === 'all_in_one') return cat === 'all_in_one' || ct === 'app_asst_universal' || pid === 'cxpay.app_asst_universal';
-        if (currentCategory === 'other') {
-            return cat !== 'alipay' && cat !== 'wxpay' && cat !== 'all_in_one' && ct !== 'app_asst_universal' && !ct.startsWith('ali') && !ct.startsWith('wx') && !ct.startsWith('wechat');
-        }
+        if (currentCategory === 'alipay') return !isBackendAdapter(p) && (cat === 'alipay' || (cat !== 'all_in_one' && ct.startsWith('ali')));
+        if (currentCategory === 'wxpay') return !isBackendAdapter(p) && (cat === 'wxpay' || (cat !== 'all_in_one' && (ct.startsWith('wx') || ct.startsWith('wechat'))));
+        if (currentCategory === 'all_in_one') return !isBackendAdapter(p) && (cat === 'all_in_one' || ct === 'app_asst_universal' || pid === 'cxpay.app_asst_universal');
         return true;
     });
 
@@ -226,12 +243,15 @@ function renderFilteredCloudPlugins(root, ui) {
         const isWx = p.category === 'wxpay' || (!isAllInOne && (String(p.c_type).startsWith('wx') || String(p.c_type).startsWith('wechat')));
         const isAli = p.category === 'alipay' || (!isAllInOne && String(p.c_type).startsWith('ali'));
         const isCrypto = String(p.c_type).includes('usdt') || String(p.plugin_id).includes('usdt');
+        const isAdapter = isBackendAdapter(p);
 
-        const catBadge = isAllInOne ? '<span class="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded text-[10px] font-bold">三合一手机挂机</span>'
-            : (isWx ? '<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[10px] font-bold">微信支付</span>'
-            : (isAli ? '<span class="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded text-[10px] font-bold">支付宝</span>'
+        const catBadge = isAdapter
+            ? '<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">⚙️ 后台监听/适配</span>'
+            : (isAllInOne ? '<span class="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded text-[10px] font-bold">📱 手机出码挂机</span>'
+            : (isWx ? '<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[10px] font-bold">💳 微信出码通道</span>'
+            : (isAli ? '<span class="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded text-[10px] font-bold">💳 支付宝出码通道</span>'
             : (isCrypto ? '<span class="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-bold">USDT / 链上</span>'
-            : '<span class="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10px] font-bold">综合扩展</span>')));
+            : '<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold">💳 核心通道</span>'))));
 
         let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-100">🔒 商业增值·未开通</span>`;
         if (isEntitled) {
@@ -250,14 +270,18 @@ function renderFilteredCloudPlugins(root, ui) {
         if (isEntitled) {
             if (isInstalled) {
                 if (hasUpdate) {
-                    actionBtn = `<button type="button" data-action="install-cloud-plugin" data-plugin-id="${pId}" class="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1 cursor-pointer"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> 立即更新至 v${pVer}</button>`;
+                    actionBtn = `<button type="button" data-action="install-cloud-plugin" data-plugin-id="${pId}" data-plugin-version="${pVer}" class="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1 cursor-pointer"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> 立即更新至 v${pVer}</button>`;
                 } else {
-                    actionBtn = `<button type="button" data-action="install-cloud-plugin" data-plugin-id="${pId}" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center gap-1 cursor-pointer"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-600"></i> 热更新</button>`;
+                    actionBtn = `<button type="button" data-action="install-cloud-plugin" data-plugin-id="${pId}" data-plugin-version="${pVer}" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center gap-1 cursor-pointer"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-600"></i> 热更新</button>`;
                 }
             } else {
-                actionBtn = `<button type="button" data-action="install-cloud-plugin" data-plugin-id="${pId}" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center gap-1 cursor-pointer"><i data-lucide="download" class="w-3.5 h-3.5"></i> 一键安装部署</button>`;
+                actionBtn = `<button type="button" data-action="install-cloud-plugin" data-plugin-id="${pId}" data-plugin-version="${pVer}" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center gap-1 cursor-pointer"><i data-lucide="download" class="w-3.5 h-3.5"></i> 一键安装部署</button>`;
             }
         }
+
+        const roleTip = isAdapter 
+            ? '<div class="mt-2 text-[10px] text-amber-700 bg-amber-50/80 p-1.5 rounded-lg border border-amber-200/60 font-medium">💡 后台守护与协议组件：系统底层静默运行，无需在收款通道中手动添加</div>'
+            : '';
 
         return `<div class="glass-panel p-5 rounded-2xl border ${hasUpdate ? 'border-amber-300 ring-2 ring-amber-400/20' : 'border-slate-200/80'} bg-white flex flex-col justify-between hover:shadow-md transition-all">
             <div>
@@ -265,6 +289,7 @@ function renderFilteredCloudPlugins(root, ui) {
                 <h4 class="text-sm font-bold text-slate-800 mt-1.5">${pName}</h4>
                 <div class="text-xs font-mono text-slate-400 mt-0.5">最新版本: v${pVer} · 官方正版</div>
                 <p class="text-xs text-slate-500 mt-2.5 line-clamp-2 leading-relaxed">${pDesc}</p>
+                ${roleTip}
             </div>
             <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between"><span class="text-[11px] font-bold ${isFree ? 'text-emerald-600' : (isEntitled ? 'text-blue-600' : 'text-amber-600 font-mono')}">${priceText}</span>${actionBtn}</div>
         </div>`;
@@ -415,11 +440,13 @@ function handlePaymentSuccess(context) {
     setTimeout(() => { closeCashierModal(root); void loadCloudPlugins(context); }, 1200);
 }
 
-async function installCloudPlugin(context, pluginId) {
+async function installCloudPlugin(context, pluginId, version = '') {
     const { api, ui } = context;
     ui.showToast(`正在部署插件【${pluginId}】...`, 'info');
     try {
-        const response = await api.adminFetch('/api/admin/plugin/cloud_download', { method: 'POST', body: new URLSearchParams({ plugin_id: pluginId }) });
+        const bodyParams = { plugin_id: pluginId };
+        if (version) bodyParams.version = version;
+        const response = await api.adminFetch('/api/admin/plugin/cloud_download', { method: 'POST', body: new URLSearchParams(bodyParams) });
         const payload = await response.json();
         if (payload.code !== 1) throw new Error(payload.msg || '部署失败');
         ui.showToast(payload.msg || '插件安装成功！驱动已就绪', 'success');
@@ -485,12 +512,27 @@ function renderPlugin(plugin, ui) {
         }
     }
 
+    const isAdapter = String(plugin.plugin_id || plugin.c_type || '').includes('monitor') 
+        || String(plugin.plugin_id || plugin.c_type || '').includes('adapter')
+        || ['cxpay.alipay.accountlog_monitor', 'cxpay.alipay.scan_monitor', 'cxpay.wxpay.clerk_adapter', 'cxpay.wxpay.cloud_adapter'].includes(plugin.plugin_id || plugin.c_type);
+
+    const typeBadge = isAdapter
+        ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">⚙️ 后台监听/适配组件</span>`
+        : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">💳 核心出码通道驱动</span>`;
+
+    const adapterHint = isAdapter
+        ? `<div class="mt-2 text-[10px] text-amber-700 bg-amber-50/80 p-1.5 rounded-lg border border-amber-200/60 font-medium">💡 后台静默运行组件，用于协议解析与防漏单对账，无需在收款通道中重复添加。</div>`
+        : '';
+
     return `<div class="glass-panel p-5 rounded-2xl border ${hasUpdate ? 'border-amber-300 ring-2 ring-amber-400/20' : 'border-slate-200/80'} bg-white flex flex-col justify-between hover:shadow-md transition-all">
         <div>
             <div class="flex items-center justify-between">
-                ${hasUpdate 
-                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-300 animate-pulse flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3 text-amber-500"></i> 云端新版 v${pLatestVer} 可更新</span>`
-                    : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">官方正版插件</span>`}
+                <div class="flex items-center gap-1.5">
+                    ${typeBadge}
+                    ${hasUpdate 
+                        ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-300 animate-pulse flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3 text-amber-500"></i> 新版 v${pLatestVer}</span>`
+                        : ''}
+                </div>
                 <span class="text-xs font-mono font-bold ${enabled ? 'text-emerald-600' : 'text-slate-400'}">${enabled ? '● 运行中' : '○ 已停用'}</span>
             </div>
             <h4 class="text-sm font-bold text-slate-800 mt-2">${ui.escapeHtml(plugin.name || plugin.c_type)}</h4>
@@ -499,6 +541,7 @@ function renderPlugin(plugin, ui) {
                 <span>${hasUpdate ? `<span class="text-slate-400 line-through mr-1">v${pVer}</span><strong class="text-amber-600 font-bold">v${pLatestVer}</strong>` : `v${pVer}`}</span>
             </div>
             <p class="text-xs text-slate-500 mt-2.5 leading-relaxed line-clamp-2">${pDesc}</p>
+            ${adapterHint}
         </div>
         ${actions}
     </div>`;
@@ -574,146 +617,94 @@ function openAgentIssueModal(root) {
     domInput?.focus();
 }
 
-function closeAgentIssueModal(root) {
-    root.querySelector('#agent-issue-modal')?.classList.add('hidden');
-}
-
-async function loadAgentHub(context) {
+async function loadLicenseStatus(context) {
     const { root, ui } = context;
     try {
-        const res = await fetch('/api/admin/agent/profile').then(r => r.json());
+        const res = await fetch('/api/admin/plugin/instance_status').then(r => r.json());
         if (res.code === 1 && res.data) {
             const d = res.data;
-            const tenantNameEl = root.querySelector('#agent-tenant-name');
-            if (tenantNameEl) tenantNameEl.textContent = d.tenant_name || '代理加盟商';
-            
-            const usedEl = root.querySelector('#agent-used-instances');
-            if (usedEl) usedEl.textContent = d.used_instances ?? 0;
+            const isActivated = !!d.activated;
 
-            const maxEl = root.querySelector('#agent-max-instances');
-            if (maxEl) maxEl.textContent = d.max_instances ?? 20;
+            const unactivatedCard = root.querySelector('#license-unactivated-card');
+            const activatedCard = root.querySelector('#license-activated-card');
 
-            const remainEl = root.querySelector('#agent-remaining-quota');
-            if (remainEl) remainEl.textContent = (d.remaining_quota ?? 0) + ' 站点';
-
-            const discountEl = root.querySelector('#agent-discount-text');
-            if (discountEl) discountEl.textContent = d.plugin_discount || '4.0 折 (专享底价)';
-
-            const pct = Math.min(100, Math.round(((d.used_instances || 0) / (d.max_instances || 20)) * 100));
-            const bar = root.querySelector('#agent-quota-bar');
-            if (bar) bar.style.width = pct + '%';
-        }
-    } catch (e) {
-        console.warn('获取代理商资质失败', e);
-    }
-
-    await loadAgentInstances(context);
-}
-
-async function loadAgentInstances(context) {
-    const { root, ui } = context;
-    const tbody = root.querySelector('#agent-instances-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">正在检索名下客户站点列表...</td></tr>`;
-
-    try {
-        const res = await fetch('/api/admin/agent/sub_instances').then(r => r.json());
-        if (res.code === 1 && res.data && res.data.list) {
-            const list = res.data.list;
-            if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">暂无已下发的客户子站点，点击上方按钮即可快速下发！</td></tr>`;
-                return;
+            if (unactivatedCard && activatedCard) {
+                unactivatedCard.classList.toggle('hidden', isActivated);
+                activatedCard.classList.toggle('hidden', !isActivated);
             }
 
-            tbody.innerHTML = list.map(item => `
-                <tr class="hover:bg-slate-50/80 transition-colors">
-                    <td class="px-4 py-3 font-mono font-bold text-slate-900">${item.domain}</td>
-                    <td class="px-4 py-3 font-mono text-emerald-700 font-semibold select-all">${item.masked_key || item.license_key}</td>
-                    <td class="px-4 py-3">
-                        <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-mono text-[10px]">v${item.product_version || '2.1.0'}</span>
-                        <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] ml-1">框架授权</span>
-                    </td>
-                    <td class="px-4 py-3">
-                        ${item.status === 'ACTIVE' 
-                            ? '<span class="inline-flex items-center gap-1 text-emerald-600 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 运行中 (已激活)</span>' 
-                            : '<span class="text-rose-500 font-bold">已冻结</span>'}
-                    </td>
-                    <td class="px-4 py-3 text-slate-400 font-mono text-[11px]">${item.activated_at ? item.activated_at.split('.')[0] : '-'}</td>
-                    <td class="px-4 py-3 text-right">
-                        ${item.status === 'ACTIVE' ? `
-                            <button type="button" data-action="revoke-sub-license" data-domain="${item.domain}" class="px-2.5 py-1 text-rose-600 hover:bg-rose-50 rounded font-bold text-[11px] transition-colors">
-                                冻结授权
-                            </button>
-                        ` : '<span class="text-slate-400 text-[11px]">已停用</span>'}
-                    </td>
-                </tr>
-            `).join('');
+            if (!isActivated) {
+                const domainInput = root.querySelector('#input-activation-domain');
+                if (domainInput && !domainInput.value) {
+                    domainInput.value = window.location.hostname;
+                }
+            } else {
+                const idEl = root.querySelector('#display-instance-id');
+                if (idEl) idEl.textContent = d.instance_id || '--';
+
+                const domainEl = root.querySelector('#display-current-domain');
+                if (domainEl) domainEl.textContent = d.domain || window.location.hostname;
+
+                const typeEl = root.querySelector('#display-license-type');
+                if (typeEl) typeEl.textContent = d.license_type || 'STANDARD';
+
+                const atEl = root.querySelector('#display-activated-at');
+                if (atEl) atEl.textContent = d.activated_at ? d.activated_at.replace('T', ' ').split('.')[0] : '已激活';
+
+                const urlEl = root.querySelector('#display-cloud-url');
+                if (urlEl && d.cloud_portal_url) urlEl.textContent = d.cloud_portal_url;
+            }
+            ui.safeCreateIcons();
         }
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-rose-400">加载客户站点列表异常：${e.message}</td></tr>`;
+        console.warn('获取实例授权状态失败:', e);
     }
 }
 
-async function doIssueLicense(context) {
+async function doActivateVoucher(context) {
     const { root, ui } = context;
-    const domainInput = root.querySelector('#issue-client-domain');
-    const nameInput = root.querySelector('#issue-client-name');
-    const domain = domainInput?.value?.trim() || '';
-    const name = nameInput?.value?.trim() || '';
+    const voucherInput = root.querySelector('#input-activation-voucher');
+    const domainInput = root.querySelector('#input-activation-domain');
+    const voucher = voucherInput?.value?.trim() || '';
+    const domain = domainInput?.value?.trim() || window.location.hostname;
 
-    if (!domain) {
-        ui.showToast('请输入下级客户待授权绑定的主站域名', 'error');
-        domainInput?.focus();
+    if (!voucher) {
+        ui.showToast('请输入官方或代理商发放的一次性激活码凭证 (Voucher)', 'error');
+        voucherInput?.focus();
         return;
     }
 
-    const btn = root.querySelector('#btn-do-issue-license');
-    if (btn) { btn.disabled = true; btn.innerText = '正在生成并开通云端授权...'; }
+    const btn = root.querySelector('#btn-do-activate-voucher');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 正在向云端验证并绑定数字签名...`;
+        ui.safeCreateIcons();
+    }
 
     try {
-        const res = await fetch('/api/admin/agent/license/issue', {
+        const res = await fetch('/api/admin/plugin/activate_instance', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ client_domain: domain, client_name: name })
+            body: new URLSearchParams({ voucher, domain })
         }).then(r => r.json());
 
         if (res.code !== 1) {
-            throw new Error(res.msg || '下发授权失败');
+            throw new Error(res.msg || '激活失败');
         }
 
-        const d = res.data;
-        root.querySelector('#issue-form-step')?.classList.add('hidden');
-        root.querySelector('#issue-result-step')?.classList.remove('hidden');
-
-        root.querySelector('#res-issued-key').textContent = d.license_key;
-        root.querySelector('#res-issued-domain').textContent = d.client_domain;
-        root.querySelector('#res-issued-wm').textContent = d.watermark_id;
-
-        ui.showToast('🎉 客户主站商业授权下发成功！');
-        void loadAgentHub(context);
+        ui.showToast(res.msg || '🎉 实例激活成功！');
+        if (voucherInput) voucherInput.value = '';
+        await loadLicenseStatus(context);
+        await loadCloudPlugins(context);
     } catch (e) {
         ui.showToast(e.message, 'error');
     } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = `<i data-lucide="check-circle-2" class="w-4 h-4"></i> 确认生成并下发`; ui.safeCreateIcons(); }
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i data-lucide="key-round" class="w-4 h-4"></i> 立即验证激活并绑定当前实例`;
+            ui.safeCreateIcons();
+        }
     }
 }
 
-async function doRevokeLicense(context, domain) {
-    const { ui } = context;
-    if (!confirm(`确定要冻结客户站点 [${domain}] 的商业授权吗？冻结后该站点将无法收单。`)) return;
-
-    try {
-        const res = await fetch('/api/admin/agent/license/revoke', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ domain: domain })
-        }).then(r => r.json());
-
-        if (res.code !== 1) throw new Error(res.msg || '冻结失败');
-        ui.showToast(res.msg || '已冻结该子站点授权');
-        void loadAgentHub(context);
-    } catch (e) {
-        ui.showToast(e.message, 'error');
-    }
-}
 

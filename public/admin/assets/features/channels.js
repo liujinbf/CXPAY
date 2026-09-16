@@ -1,6 +1,6 @@
-import { createChannelEditor } from '/merchant/assets/features/channel-editor.js?v=20260822_v55_fresh_all';
-import { createChannelAuthorization } from '/merchant/assets/features/channel-authorization.js?v=20260822_v55_fresh_all';
-import { createChannelAppAsst } from '/merchant/assets/features/channel-appasst.js?v=20260822_v55_fresh_all';
+import { createChannelEditor } from '/merchant/assets/features/channel-editor.js?v=20260910_cap_detect';
+import { createChannelAuthorization } from '/merchant/assets/features/channel-authorization.js?v=20260909_fix_oauth_category';
+import { createChannelAppAsst } from '/merchant/assets/features/channel-appasst.js?v=20260909_fix_oauth_category';
 
 let activeEditor = null;
 let activeAuthorization = null;
@@ -22,9 +22,9 @@ export const feature = {
                     adminUrl = '/api/admin/channel/drivers';
                 } else if (url.startsWith('/api/merchant/channel/save')) {
                     adminUrl = '/api/admin/channel/save';
-                } else if (url.startsWith('/api/merchant/channel/authorization/start') || url.startsWith('/api/merchant/driver/start_auth')) {
+                } else if (url.startsWith('/api/merchant/channel/authorization/start') || url.startsWith('/api/merchant/driver/start_auth') || url.startsWith('/api/merchant/channel/start_driver_auth')) {
                     adminUrl = '/api/admin/channel/start_driver_auth';
-                } else if (url.startsWith('/api/merchant/channel/authorization/poll') || url.startsWith('/api/merchant/driver/poll_auth')) {
+                } else if (url.startsWith('/api/merchant/channel/authorization/poll') || url.startsWith('/api/merchant/driver/poll_auth') || url.startsWith('/api/merchant/channel/poll_driver_auth')) {
                     adminUrl = '/api/admin/channel/poll_driver_auth';
                 }
                 return api.adminFetch(adminUrl, opts);
@@ -164,32 +164,29 @@ async function loadAdminDriverCount({ root, api, signal }) {
         if (payload.code !== 1 || !payload.data) {
             throw new Error(payload.msg || '驱动数量读取失败');
         }
-        const total = Array.isArray(payload.data?.list)
-            ? payload.data.list.length
-            : Object.values(payload.data || {}).flat().length;
-        if (!signal.aborted) count.textContent = `${total} 个底层驱动`;
+        const isAdapter = (id) => String(id).includes('monitor') || String(id).includes('adapter') || ['alipay_accountlog_monitor', 'alipay_scan_monitor', 'wxpay_clerk_adapter', 'wxpay_cloud_adapter'].includes(id);
+        const allList = Array.isArray(payload.data?.list)
+            ? payload.data.list
+            : Object.values(payload.data || {}).flat();
+        const primaryCount = allList.filter(d => !isAdapter(d.c_type || d.plugin_id || '')).length;
+        if (!signal.aborted) count.textContent = `${primaryCount || allList.length} 款核心网关`;
     } catch (error) {
         if (error?.name !== 'AbortError') count.textContent = '读取失败';
     }
 }
 
-async function loadAdminChannels({ root, api, ui, signal }) {
-    const status = root.querySelector('#channel-stat-active-count');
+async function loadAdminChannels(context) {
+    const { root, api, ui, signal } = context;
     const list = root.querySelector('#admin-channel-list');
+    const status = root.querySelector('#channel-stat-active-count');
     if (!list) return;
-    if (status) status.textContent = '读取中...';
-    list.innerHTML = '<div class="p-8 text-center text-xs text-slate-400 col-span-full">正在加载平台全局通道...</div>';
+
+    list.innerHTML = '<div class="p-8 text-center text-xs text-slate-400 col-span-full">正在加载收款通道...</div>';
 
     try {
         const response = await api.adminFetch('/api/admin/channel/list', { signal });
-        const text = await response.text();
-        let payload;
-        try {
-            payload = JSON.parse(text);
-        } catch {
-            throw new Error(`接口返回非法数据 (HTTP ${response.status})：${text.substring(0, 100)}`);
-        }
-        if (payload.code !== 1 || !Array.isArray(payload.data)) {
+        const payload = await response.json();
+        if (payload.code !== 1 || !payload.data) {
             throw new Error(payload.msg || '通道加载失败');
         }
         if (signal.aborted) return;
@@ -214,7 +211,7 @@ async function loadAdminChannels({ root, api, ui, signal }) {
                 </div>
                 <div class="pt-2">
                     <button type="button" data-action="create-channel" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm inline-flex items-center gap-1.5 cursor-pointer">
-                        <i data-lucide="plus-circle" class="w-4 h-4"></i> 立即新建平台收款通道
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> 立即新建收款通道
                     </button>
                 </div>
             </div>`;
@@ -233,11 +230,21 @@ function formatDuration(seconds) {
 }
 
 function renderChannel(channel, ui) {
-    const cType = ui.escapeHtml(channel.c_type || 'default');
+    const rawCtype = channel.c_type || 'default';
     const title = ui.escapeHtml(channel.name || channel.title || channel.c_type);
-    const remark = ui.escapeHtml(channel.remark || '无备注');
+    const remark = ui.escapeHtml(channel.remark || '正常运行');
     const enabled = channel.enabled === true;
     const online = enabled && Number(channel.online_status) === 1;
+
+    const typeNames = {
+        'alipay_face_pay': '官方直连 OpenAPI',
+        'alipay_cookie_cloud': '商家账单云轮询',
+        'alipay_app_asst': '手机助手免挂',
+        'wxpay_app_asst': '手机助手免挂',
+        'wechat_dy_bill': '店员小账本免挂',
+        'qqpay_app_asst': '手机助手免挂',
+    };
+    const cTypeName = typeNames[rawCtype] || rawCtype;
 
     const onlineSince = Number(channel.online_since || 0);
     const lastDuration = Number(channel.last_online_duration || 0);
@@ -259,10 +266,10 @@ function renderChannel(channel, ui) {
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${enabled ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-500'}">${enabled ? '已启用' : '已停用'}</span>
                     ${durationTag}
                 </div>
-                <div class="text-xs text-slate-400 font-mono flex items-center gap-2">
-                    <span>驱动: ${cType}</span>
+                <div class="text-xs text-slate-400 font-medium flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold text-[11px]">${cTypeName}</span>
                     <span>•</span>
-                    <span class="${online ? 'text-emerald-600 font-bold' : 'text-slate-400'}">${online ? '● 运行中' : '○ 离线/等待'}</span>
+                    <span class="${online ? 'text-emerald-600 font-bold' : 'text-slate-400'}">${online ? '● 正常在线' : '○ 离线/等待'}</span>
                 </div>
             </div>
             <div class="text-right text-xs">

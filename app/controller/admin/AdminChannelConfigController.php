@@ -62,14 +62,14 @@ final class AdminChannelConfigController
 
             $driverData = [
                 'c_type'                         => $cType,
-                'name'                           => (string)($meta['title'] ?? $meta['name'] ?? $cType),
+                'name'                           => self::formatDriverDisplayName($cType, (string)($meta['title'] ?? $meta['name'] ?? $cType)),
                 'pay_category'                   => $category,
                 'badge'                          => (string)($meta['badge'] ?? ''),
                 'supports_account_authorization' => ($meta['supports_account_authorization'] ?? false) === true,
                 'authorization_label'            => (string)($meta['authorization_label'] ?? '扫码授权'),
                 'description'                    => (string)($meta['description'] ?? ''),
                 'inputs'                         => $meta['inputs'] ?? [],
-                'has_oauth'                      => ($cType === 'alipay_face_pay' || ($meta['supports_account_authorization'] ?? false) === true),
+                'has_oauth'                      => ($cType === 'alipay_face_pay' || ($category === 'alipay' && ($meta['supports_account_authorization'] ?? false) === true)),
                 'platform_clerk_qrcode'          => (string)($meta['platform_clerk_qrcode'] ?? ''),
                 'platform_clerk_name'            => (string)($meta['platform_clerk_name'] ?? '平台官方收款店员'),
             ];
@@ -410,6 +410,17 @@ final class AdminChannelConfigController
             $zipPath = $tmpDir . "/CXPayMonitor-Channel-{$channel->id}.zip";
             $baseZip = public_path() . '/downloads/CXPayMonitor-v1.3.5-Release.zip';
 
+            // 若本地缺失 PC 监控端 Release 母包，自动通过 CloudInstanceClient 从官方云端分发源拉取
+            if (!file_exists($baseZip)) {
+                try {
+                    $cloudClient = new \app\service\CloudInstanceClient();
+                    $ensuredZip = $cloudClient->ensureClientSoftware('cxpay_monitor_pc');
+                    if ($ensuredZip && file_exists($ensuredZip)) {
+                        $baseZip = $ensuredZip;
+                    }
+                } catch (\Throwable) {}
+            }
+
             if (class_exists(\ZipArchive::class) && file_exists($baseZip)) {
                 copy($baseZip, $zipPath);
                 $zip = new \ZipArchive();
@@ -614,5 +625,24 @@ final class AdminChannelConfigController
     private function isSensitiveConfigName(string $name): bool
     {
         return preg_match('/(?:key|secret|token|password|private|cookie|cert)/i', $name) === 1;
+    }
+
+    public static function formatDriverDisplayName(string $cType, string $rawTitle): string
+    {
+        $normalizedMap = [
+            'wechat_cloud_book'         => '微信协议云端-[小账本/收款单]',
+            'wechat_dy_bill'            => '微信店员小账本免挂监控插件',
+            'wxpay_app_asst'            => '微信个人码 / 赞赏码（CXPay 手机挂机监控助手）',
+            'alipay_face_pay'           => '支付宝当面付 / 官方直连商户插件',
+            'alipay_cookie_cloud'       => '支付宝免挂云端 / Cookie 账单轮询插件',
+            'alipay_accountlog_monitor' => '支付宝商家账单监控',
+            'alipay_app_asst'           => '支付宝个人收款码（CXPay 手机挂机监控助手）',
+            'alipay_scan_monitor'       => '支付宝扫码授权监控插件',
+            'qqpay_app_asst'            => 'QQ钱包个人收款码（CXPay 手机挂机监控助手）',
+            'usdt_trc20'                => 'USDT TRC-20 链上波场监听与自动归集',
+            'epay_generic'              => '外部易支付全能上游转发插件',
+        ];
+
+        return $normalizedMap[$cType] ?? ($rawTitle !== '' ? $rawTitle : $cType);
     }
 }

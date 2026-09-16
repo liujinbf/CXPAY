@@ -235,6 +235,19 @@ done
 ok "管理员账号：$ADMIN_USER"
 echo ""
 
+# 云端授权激活码 (Voucher)
+sep
+echo -e "  ${BOLD}云端授权凭据 (Voucher，可选)${NC}"
+sep
+prompt "云端授权激活码（格式如 cvch_...，无激活码直接回车稍后在后台激活）："
+read -r INPUT_VOUCHER; VOUCHER="${INPUT_VOUCHER:-}"
+if [ -n "$VOUCHER" ]; then
+    ok "已输入激活凭据：${VOUCHER:0:8}..."
+else
+    info "暂未输入激活凭证，可在安装完成后登录后台【官方插件与商业授权】进行激活"
+fi
+echo ""
+
 # ── Step 5: 数据库初始化 (使用 PHP PDO 原生执行，杜绝依赖系统 mysql 命令) ─────────────────
 hd "Step 5  数据库初始化与表结构导入"
 
@@ -418,81 +431,57 @@ fi
 
 
 # ── Step 6.5: 从官方云端拉取并安装基础支付插件 (纯插件化架构) ────────────────────
-hd "Step 6.5  从官方云端拉取并初始化官方支付插件"
+hd "Step 6.5  云端实例激活与基础支付插件初始化"
 
 $PHP_BIN -r '
 require_once "'"$SCRIPT_DIR"'/vendor/autoload.php";
 require_once "'"$SCRIPT_DIR"'/support/bootstrap.php";
 
-use app\payment\Plugin\PluginPackageInstaller;
-use app\payment\Plugin\PluginManager;
+use app\service\CloudInstanceClient;
 
-$cloudBase = rtrim(getenv("CLOUD_CONTROL_URL") ?: "https://cloud.fcwan.cn", "/");
+$voucher = trim("'"$VOUCHER"'");
 $domain = "'"$DOMAIN"'";
 
-// 1. 官方默认免费基础插件（确保新站开箱即可进行官方通道联调出码）
-$freePlugins = [
-    "cxpay.driver.alipay_face_pay",
-];
+$client = new CloudInstanceClient();
+$identity = $client->getIdentity();
 
-// 2. 尝试从云端查询该域名已购高级插件列表（如为老站重装或已代开站点自动同步已购清单）
-$purchasedPlugins = [];
-try {
-    $apiUrl = $cloudBase . "/api/agent/v1/plugins/purchased?domain=" . urlencode($domain);
-    $ctxApi = stream_context_create(["http" => ["timeout" => 5, "ignore_errors" => true], "ssl" => ["verify_peer" => false, "verify_peer_name" => false]]);
-    $resp = @file_get_contents($apiUrl, false, $ctxApi);
-    if ($resp) {
-        $json = json_decode($resp, true);
-        if (($json["code"] ?? 0) === 1 && !empty($json["data"]["plugins"])) {
-            $purchasedPlugins = (array)$json["data"]["plugins"];
-        }
-    }
-} catch (Throwable) {}
-
-$pluginsToInstall = array_unique(array_merge($freePlugins, $purchasedPlugins));
-
-$installer = new PluginPackageInstaller(
-    (string)config("payment_plugin.path", base_path() . "/plugin/cxpay"),
-    (string)config("payment_plugin.trusted_keys", base_path() . "/config/plugin_keys"),
-    PluginManager::registry()
-);
-
-$reg = PluginManager::registry();
-$tmpDir = sys_get_temp_dir() . "/cxpay_setup_plugins_" . bin2hex(random_bytes(4));
-@mkdir($tmpDir, 0777, true);
-
-$successCount = 0;
-foreach ($pluginsToInstall as $pluginId) {
-    $url = $cloudBase . "/downloads/plugins/" . $pluginId . ".cxpay-plugin";
-    $target = $tmpDir . "/" . $pluginId . ".cxpay-plugin";
-
-    
-    $ctx = stream_context_create(["http" => ["timeout" => 10, "ignore_errors" => true], "ssl" => ["verify_peer" => false, "verify_peer_name" => false]]);
-    $content = @file_get_contents($url, false, $ctx);
-    if ($content !== false && strlen($content) > 100) {
-        file_put_contents($target, $content);
-        try {
-            $installer->install($target);
-            $reg->setEnabled($pluginId, true);
-            echo "  ✓ [云端拉取并验签成功] " . $pluginId . "\n";
-            $successCount++;
-        } catch (Throwable $e) {
-            echo "  ⚠️ [安装异常] " . $pluginId . ": " . $e->getMessage() . "\n";
-        }
+if ($voucher !== "") {
+    echo "  正在向官方云端验证 Voucher 并绑定实例身份...\n";
+    try {
+        $res = $client->activateWithVoucher($voucher, $domain, "2.1.0");
+        echo "  ✓ [云端激活成功] 实例 ID: " . ($res["instance_id"] ?? "ok") . "\n";
+        $identity = $client->getIdentity();
+    } catch (Throwable $e) {
+        echo "  ⚠️ [激活申请失败] " . $e->getMessage() . "\n";
     }
 }
 
-if (is_dir($tmpDir)) {
-    $files = array_diff(scandir($tmpDir) ?: [], ['.', '..']);
-    foreach ($files as $f) {
-        @unlink($tmpDir . '/' . $f);
+if (!empty($identity["activated"]) && !empty($identity["instance_id"])) {
+    echo "  当前实例已处于激活状态，正在向官方云端申请下载官方基础支付插件...\n";
+    $freePlugins = [
+        "cxpay.driver.alipay_face_pay" => "3.0.0",
+        "cxpay.driver.alipay_cookie_cloud" => "1.2.0",
+    ];
+    $success = 0;
+    foreach ($freePlugins as $pid => $ver) {
+        try {
+            $client->downloadAndInstallPlugin($pid, $ver);
+            echo "  ✓ [官方插件验签就绪] " . $pid . "\n";
+            $success++;
+        } catch (Throwable $e) {
+            echo "  ⚠️ [插件拉取暂缓] " . $pid . ": " . $e->getMessage() . "\n";
+        }
     }
-    @rmdir($tmpDir);
+    if ($success > 0) {
+        echo "  官方基础支付通道驱动已加载就绪！\n";
+    }
+} else {
+    echo "  ℹ️ 当前实例暂未完成云端激活，跳过基础支付插件预下载。\n";
+    echo "  提示：部署完成后可随时登录管理后台【官方插件与商业授权】输入激活码激活实例并一键安装驱动。\n";
 }
 '
 
-
-ok "官方基础支付插件已由云端拉取并完成公钥验签与热加载就绪！"
+ok "云端实例服务与插件初始化流程已完成！"
 
 
 # ── Step 7: 配置 Nginx 反向代理 ───────────────────────────────────────────────

@@ -62,11 +62,9 @@ class AlipayProtocolAdminController
 
             $isvConfig = $this->getIsvConfig();
             $isvAppId = trim((string)($isvConfig['app_id'] ?? ''));
+            // 若未配置自备私有 ISV，自动切换为云端总控母站 ISV 网关托管模式（全网代理商免资质直连）
             if ($isvAppId === '') {
-                return json([
-                    'code' => -1,
-                    'msg'  => '平台尚未配置支付宝主应用 (ISV AppID)，请联系主站管理员在系统后台完成配置。',
-                ]);
+                return $this->startCloudIsvAuth($merchantId);
             }
 
             // 生成唯一授权状态 State
@@ -121,6 +119,11 @@ class AlipayProtocolAdminController
             $stateData = $this->getAuthState($state);
             if (!$stateData) {
                 return json(['code' => -1, 'status' => 'EXPIRED', 'msg' => '授权二维码已过期，请刷新重新获取']);
+            }
+
+            // 若该会话属于云端总控母站托管模式，向云端母站轮询确权状态
+            if (!empty($stateData['is_cloud_isv']) && ($stateData['status'] ?? '') !== 'SUCCESS') {
+                return $this->pollCloudIsvAuth($state, $stateData);
             }
 
             $status = (string)($stateData['status'] ?? 'PENDING');
@@ -209,7 +212,7 @@ class AlipayProtocolAdminController
             // 敏感配置使用 AES-256 加密保存
             $encryptedConfig = [];
             foreach ($channelConfig as $k => $v) {
-                $encryptedConfig[$k] = is_string($v) ? $authcode->encryptStored($v) : $v;
+                $encryptedConfig[$k] = is_string($v) ? $authcode->encrypt($v) : $v;
             }
 
             // 查找该商户是否已有当面付通道
@@ -391,18 +394,29 @@ class AlipayProtocolAdminController
     private function setAuthState(string $state, array $data, int $ttl = 600): void
     {
         try {
-            RedisClient::connection()->setex('cx:alipay_auth:' . $state, $ttl, json_encode($data, JSON_UNESCAPED_UNICODE));
-        } catch (\Throwable) {
-            @file_put_contents(sys_get_temp_dir() . '/ali_auth_' . md5($state) . '.json', json_encode($data, JSON_UNESCAPED_UNICODE));
-        }
+            if (class_exists(RedisClient::class)) {
+                $conn = RedisClient::connection();
+                if ($conn !== null) {
+                    $conn->setex('cx:alipay_auth:' . $state, $ttl, json_encode($data, JSON_UNESCAPED_UNICODE));
+                    return;
+                }
+            }
+        } catch (\Throwable) {}
+
+        @file_put_contents(sys_get_temp_dir() . '/ali_auth_' . md5($state) . '.json', json_encode($data, JSON_UNESCAPED_UNICODE));
     }
 
     private function getAuthState(string $state): ?array
     {
         try {
-            $json = RedisClient::connection()->get('cx:alipay_auth:' . $state);
-            if ($json) {
-                return json_decode($json, true);
+            if (class_exists(RedisClient::class)) {
+                $conn = RedisClient::connection();
+                if ($conn !== null) {
+                    $json = $conn->get('cx:alipay_auth:' . $state);
+                    if ($json) {
+                        return json_decode($json, true);
+                    }
+                }
             }
         } catch (\Throwable) {}
 
@@ -469,5 +483,188 @@ class AlipayProtocolAdminController
 </body>
 </html>
 HTML;
+    }
+
+    /**
+     * 调用云端总控母站网关发起代授权 (全网代理商共享免资质托管模式)
+     */
+    private function startCloudIsvAuth(int $merchantId): Response
+    {
+        $cloudBase = $this->resolveCloudGatewayUrl();
+        $startUrl = rtrim($cloudBase, '/') . '/api/gateway/v1/alipay-isv/start-auth';
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $startUrl,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode(['instance_id' => 'cxpay_instance', 'merchant_id' => $merchantId], JSON_UNESCAPED_UNICODE),
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_TIMEOUT        => 5,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
+        ]);
+        $resp = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $json = json_decode((string)$resp, true);
+
+        if ($httpCode === 200 && !empty($json['code']) && !empty($json['data']['state'])) {
+            $data = $json['data'];
+            $state = (string)$data['state'];
+            $authUrl = (string)$data['auth_url'];
+            $expireSec = (int)($data['expire_seconds'] ?? 600);
+
+            $stateData = [
+                'merchant_id'  => $merchantId,
+                'created_at'   => time(),
+                'status'       => 'PENDING',
+                'is_cloud_isv' => true,
+            ];
+            $this->setAuthState($state, $stateData, $expireSec);
+
+            return json([
+                'code' => 1,
+                'msg'  => '获取授权二维码成功（云端总控免资质托管）',
+                'data' => [
+                    'state'    => $state,
+                    'auth_url' => $authUrl,
+                    'qr_url'   => $authUrl,
+                ],
+            ]);
+        }
+
+        $msg = $json['msg'] ?? '云端支付宝 ISV 网关连接异常';
+        return json([
+            'code' => -1,
+            'msg'  => '📢 支付宝代授权服务提示：' . $msg . '（若自备服务商应用也可在系统后台配置私有凭证使用）。',
+        ]);
+    }
+
+    /**
+     * 轮询云端总控母站支付宝 ISV 网关的确权状态
+     */
+    private function pollCloudIsvAuth(string $state, array $stateData): Response
+    {
+        $merchantId = (int)($stateData['merchant_id'] ?? 0);
+        $cloudBase = $this->resolveCloudGatewayUrl();
+        $pollUrl = rtrim($cloudBase, '/') . '/api/gateway/v1/alipay-isv/poll-auth?state=' . urlencode($state);
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $pollUrl,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 4,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
+        ]);
+        $resp = curl_exec($ch);
+        curl_close($ch);
+
+        $json = json_decode((string)$resp, true);
+        if (is_array($json) && !empty($json['data'])) {
+            $status = (string)($json['data']['status'] ?? '');
+            if ($status === 'success' && !empty($json['data']['app_auth_token'])) {
+                $appAuthToken = (string)$json['data']['app_auth_token'];
+                $userId = (string)($json['data']['user_id'] ?? '');
+                $authAppId = (string)($json['data']['auth_app_id'] ?? '');
+
+                // 绑定商户当面付通道
+                $channel = $this->bindMerchantChannel($merchantId, $appAuthToken, '', $authAppId, $userId);
+
+                $stateData['status'] = 'SUCCESS';
+                $stateData['channel_id'] = $channel->id;
+                $stateData['seller_id'] = $userId;
+                $this->setAuthState($state, $stateData, 600);
+
+                return json([
+                    'code'   => 1,
+                    'status' => 'SUCCESS',
+                    'msg'    => '🎉 支付宝当面付已通过官方云网关成功授权并激活！',
+                    'data'   => [
+                        'channel_id' => $channel->id,
+                        'seller_id'  => $userId,
+                    ],
+                ]);
+            } elseif ($status === 'expired') {
+                return json(['code' => -1, 'status' => 'EXPIRED', 'msg' => '授权二维码已过期，请刷新重新获取']);
+            }
+        }
+
+        return json([
+            'code'   => 0,
+            'status' => 'PENDING',
+            'msg'    => '等待手机支付宝扫码确认中（全网免资质托管）...',
+        ]);
+    }
+
+    /**
+     * 自动为商户创建/更新当面付直连通道
+     */
+    private function bindMerchantChannel(int $merchantId, string $appAuthToken, string $appRefreshToken, string $authAppId, string $userId): Channel
+    {
+        $authcode = new Authcode();
+        $channelConfig = [
+            'app_auth_token'    => $appAuthToken,
+            'app_refresh_token' => $appRefreshToken,
+            'auth_app_id'       => $authAppId,
+            'seller_id'         => $userId,
+            'isv_mode'          => true,
+            'authorized_at'     => date('Y-m-d H:i:s'),
+        ];
+
+        $encryptedConfig = [];
+        foreach ($channelConfig as $k => $v) {
+            $encryptedConfig[$k] = is_string($v) ? $authcode->encrypt($v) : $v;
+        }
+
+        $channel = Channel::where('merchant_id', $merchantId)
+            ->where('c_type', 'alipay_face_pay')
+            ->first();
+
+        $shortPid = substr($userId, -4);
+        $title = "支付宝当面付 (扫码直连-尾号{$shortPid})";
+
+        if ($channel) {
+            $channel->title = $title;
+            $channel->status = 1;
+            $channel->online_status = 1;
+            $channel->online_since = time();
+            $channel->last_heartbeat_time = time();
+            $channel->config = json_encode($encryptedConfig, JSON_UNESCAPED_UNICODE);
+            $channel->save();
+        } else {
+            $channel = Channel::create([
+                'merchant_id'         => $merchantId,
+                'title'               => $title,
+                'c_type'              => 'alipay_face_pay',
+                'pay_category'        => 'alipay',
+                'status'              => 1,
+                'online_status'       => 1,
+                'online_since'        => time(),
+                'last_heartbeat_time' => time(),
+                'weight'              => 100,
+                'single_min'          => '0.01',
+                'single_max'          => '0.00',
+                'day_max'             => '0.00',
+                'today_money'         => '0.00',
+                'config'              => json_encode($encryptedConfig, JSON_UNESCAPED_UNICODE),
+                'create_time'         => time(),
+            ]);
+        }
+
+        return $channel;
+    }
+
+    private function resolveCloudGatewayUrl(): string
+    {
+        if (function_exists('env')) {
+            $envUrl = env('CLOUD_CONTROL_PLANE_URL');
+            if (!empty($envUrl)) {
+                return (string)$envUrl;
+            }
+        }
+        return 'https://ops.cloud.fcwan.cn';
     }
 }

@@ -3,7 +3,7 @@
         'name' => 'cxpay/framework',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '9c988c6937845e41b73cfe8f1cd6ccaae926bdd9',
+        'reference' => 'c6fdbb498bea68f16efdda63567e0c77b6eea937',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -31,7 +31,7 @@
         'cxpay/framework' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '9c988c6937845e41b73cfe8f1cd6ccaae926bdd9',
+            'reference' => 'c6fdbb498bea68f16efdda63567e0c77b6eea937',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -234,6 +234,15 @@
             'install_path' => __DIR__ . '/../nikic/php-parser',
             'aliases' => array(),
             'dev_requirement' => true,
+        ),
+        'paragonie/sodium_compat' => array(
+            'pretty_version' => 'v2.5.2',
+            'version' => '2.5.2.0',
+            'reference' => '3246b36803c177847e677862fedeb7f937869adb',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../paragonie/sodium_compat',
+            'aliases' => array(),
+            'dev_requirement' => false,
         ),
         'phar-io/manifest' => array(
             'pretty_version' => '2.0.4',

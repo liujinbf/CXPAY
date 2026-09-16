@@ -62,8 +62,8 @@ public class MainActivity extends AppCompatActivity {
     public static final String EXTRA_LOG_PAY_TYPE = "log_pay_type";
     public static final String EXTRA_LOG_CHANNEL_ID = "log_channel_id";
 
-    public static final String CURRENT_VERSION = "1.3.1";
-    public static final int CURRENT_VERSION_CODE = 131;
+    public static final String CURRENT_VERSION = "1.3.2";
+    public static final int CURRENT_VERSION_CODE = 132;
 
     private TextView textStatusBadge, textDeviceBadge, textStatCount, textStatAmount;
     private TextView textStatWxTitle, textStatWxCount, textStatWxAmount;

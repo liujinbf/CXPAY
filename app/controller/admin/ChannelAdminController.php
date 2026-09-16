@@ -141,6 +141,17 @@ class ChannelAdminController
             $zipPath = $tmpDir . "/CXPayMonitor-Channel-{$channel->id}.zip";
             $baseZip = public_path() . '/downloads/CXPayMonitor-v1.3.5-Release.zip';
 
+            // 若本地缺失 PC 监控端 Release 母包，自动通过 CloudInstanceClient 从官方云端分发源拉取
+            if (!file_exists($baseZip)) {
+                try {
+                    $cloudClient = new \app\service\CloudInstanceClient();
+                    $ensuredZip = $cloudClient->ensureClientSoftware('cxpay_monitor_pc');
+                    if ($ensuredZip && file_exists($ensuredZip)) {
+                        $baseZip = $ensuredZip;
+                    }
+                } catch (\Throwable) {}
+            }
+
             if (class_exists(ZipArchive::class) && file_exists($baseZip)) {
                 copy($baseZip, $zipPath);
                 $zip = new ZipArchive();

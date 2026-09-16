@@ -41,10 +41,10 @@ class AppasstController
             'code' => 1,
             'msg' => 'ok',
             'data' => [
-                'latest_version' => '1.3.1',
-                'version_code' => 131,
+                'latest_version' => '1.3.2',
+                'version_code' => 132,
                 'download_url' => "{$baseUrl}/download/CXPayAssistant.apk",
-                'update_log' => "• 优化主界面顶部布局：消除文字折行与设备码截断\n• 强化系统级永久保活与分通道收款统计\n• 支持应用内一键自动检测更新与下载安装",
+                'update_log' => "• 彻底解决息屏掉线：引入系统级 PARTIAL_WAKE_LOCK 微功耗 CPU 唤醒锁\n• 升级 AlarmManager 精确定时闹钟心跳：绕过 Android Doze 深度休眠时钟冻结\n• 强化通知到账即时上报防休眠机制，保障 24 小时锁屏后台稳定在线",
                 'force_update' => false,
                 'release_time' => date('Y-m-d H:i:s'),
             ],
@@ -52,17 +52,28 @@ class AppasstController
     }
 
     /**
-     * 官方安装包直接下载入口
+     * 官方安装包直接下载入口（若本地缺失则自动从官方云端分发源拉取最新母包）
      */
     public function downloadApk(Request $request): Response
     {
-        $file = public_path() . '/download/CXPayAssistant.apk';
-        if (!file_exists($file)) {
-            $file = base_path() . '/public/download/CXPayAssistant.apk';
+        try {
+            $client = new \app\service\CloudInstanceClient();
+            $file = $client->ensureClientSoftware('cxpay_assistant_apk');
+        } catch (\Throwable) {
+            $file = null;
         }
-        if (!file_exists($file)) {
-            return response('CXPayAssistant.apk file not found', 404);
+
+        if (!$file || !file_exists($file)) {
+            $file = public_path() . '/download/CXPayAssistant.apk';
+            if (!file_exists($file)) {
+                $file = base_path() . '/public/download/CXPayAssistant.apk';
+            }
         }
+
+        if (!file_exists($file)) {
+            return response('CXPayAssistant.apk 官方母包正在同步中，请稍后刷新重试', 404);
+        }
+
         return response()->download($file, 'CXPayAssistant.apk');
     }
 

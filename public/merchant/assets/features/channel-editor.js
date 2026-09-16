@@ -121,7 +121,8 @@ export function createChannelEditor({ root, api, ui, signal, reload, navigate, a
         if (!container) return;
         container.innerHTML = '';
 
-        if (driver?.c_type === 'alipay_face_pay' || driver?.has_oauth) {
+        const isAlipayCategory = driver?.pay_category === 'alipay' || String(driver?.c_type || '').startsWith('ali');
+        if (isAlipayCategory && (driver?.c_type === 'alipay_face_pay' || driver?.has_oauth)) {
             const oauthBanner = document.createElement('div');
             oauthBanner.className = 'p-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md flex items-center justify-between gap-3 mb-3';
             oauthBanner.innerHTML = `
@@ -144,6 +145,38 @@ export function createChannelEditor({ root, api, ui, signal, reload, navigate, a
                 }
             });
             container.appendChild(oauthBanner);
+        }
+
+        if (driver?.c_type === 'wechat_cloud_book') {
+            const wxCloudBanner = document.createElement('div');
+            wxCloudBanner.className = 'p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 text-white shadow-md space-y-3 mb-3 border border-emerald-500/30';
+            wxCloudBanner.innerHTML = `
+                <div class="flex items-center justify-between gap-2">
+                    <div class="space-y-0.5">
+                        <div class="text-xs font-black flex items-center gap-1.5 text-emerald-400">
+                            <i data-lucide="cloud-lightning" class="w-4 h-4 text-emerald-400"></i>
+                            <span>⚡ 微信协议云端通道（小账本 / 收款单）</span>
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-400/30">免挂机设备 / 服务端高频轮询</span>
+                        </div>
+                        <div class="text-[11px] text-slate-300 leading-relaxed">资金 100% 直入商户微信零钱！系统通过微信协议云端轮询小账本/收款单流水账单，无需挂机手机。</div>
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-emerald-800/40 bg-black/20 p-3 rounded-xl">
+                    <div class="text-[11px] text-slate-300 space-y-1 leading-relaxed">
+                        <p class="font-bold text-white">📌 2步极速接入：</p>
+                        <p>① 点击右侧【扫码登录微信】按钮，使用对应微信号扫码并确认登录，系统自动抓取填入 OpenID 与 SID；</p>
+                        <p>② 上传您的微信收款码图片，点击下方【保存】即可生效！</p>
+                    </div>
+                    <button type="button" id="btn-wechat-cloud-scan-trigger" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-md transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:scale-105 active:scale-95 flex-shrink-0">
+                        <i data-lucide="qr-code" class="w-4 h-4"></i> 扫码登录微信获取OpenID/SID
+                    </button>
+                </div>
+            `;
+            wxCloudBanner.querySelector('#btn-wechat-cloud-scan-trigger')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                openWechatScanModal(driver.c_type);
+            });
+            container.appendChild(wxCloudBanner);
         }
 
         const isAppAsstDriver = ['app_asst_universal', 'wxpay_app_asst', 'wechat_app_asst', 'alipay_app_asst', 'qqpay_app_asst'].includes(driver?.c_type);
@@ -314,10 +347,28 @@ export function createChannelEditor({ root, api, ui, signal, reload, navigate, a
             label.className = 'block text-xs font-bold text-slate-600 mb-1';
             label.textContent = `${definition.required && !isTechnical ? '* ' : ''}${definition.title || definition.name}`;
 
-            const input = definition.type === 'textarea'
-                ? document.createElement('textarea')
-                : document.createElement('input');
-            input.className = 'w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all';
+            let input;
+            if (definition.type === 'select') {
+                input = document.createElement('select');
+                input.className = 'w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700';
+                for (const opt of definition.options || []) {
+                    const optEl = document.createElement('option');
+                    if (typeof opt === 'object' && opt !== null) {
+                        optEl.value = opt.value ?? '';
+                        optEl.textContent = opt.label ?? opt.value ?? '';
+                    } else {
+                        optEl.value = opt;
+                        optEl.textContent = opt;
+                    }
+                    input.appendChild(optEl);
+                }
+            } else if (definition.type === 'textarea') {
+                input = document.createElement('textarea');
+                input.className = 'w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all';
+            } else {
+                input = document.createElement('input');
+                input.className = 'w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all';
+            }
             input.dataset.driverConfig = definition.name;
             input.value = existingConfig[definition.name] ?? definition.default ?? '';
             const configuredSecret = Boolean(configured[definition.name]);
@@ -327,7 +378,7 @@ export function createChannelEditor({ root, api, ui, signal, reload, navigate, a
             } else if (definition.placeholder) {
                 input.placeholder = definition.placeholder;
             }
-            if (definition.type !== 'textarea') {
+            if (definition.type !== 'textarea' && definition.type !== 'select') {
                 input.type = /(?:key|secret|token|password|private|cookie|cert)/i.test(definition.name)
                     ? 'password' : 'text';
             }
@@ -343,6 +394,48 @@ export function createChannelEditor({ root, api, ui, signal, reload, navigate, a
                 scanBtn.innerHTML = '📱 支付宝扫码一键提取 Cookie';
                 scanBtn.addEventListener('click', () => {
                     openScanCookieModal(driver.c_type, input);
+                });
+                flexLabel.appendChild(scanBtn);
+                wrapper.append(flexLabel, input);
+            } else if (driver?.c_type === 'wechat_cloud_book' && definition.name === 'app_type') {
+                const flexLabel = document.createElement('div');
+                flexLabel.className = 'flex items-center justify-between mb-1.5 gap-2';
+                flexLabel.appendChild(label);
+
+                const detectBtn = document.createElement('button');
+                detectBtn.type = 'button';
+                detectBtn.id = 'btn-detect-wechat-capabilities';
+                detectBtn.className = 'px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold rounded-lg text-[11px] border border-teal-200 flex items-center gap-1 transition-all cursor-pointer shadow-2xs whitespace-nowrap';
+                detectBtn.innerHTML = '<i data-lucide="sparkles" class="w-3.5 h-3.5 text-teal-600"></i> 探测账号开通状态';
+                detectBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    await detectWechatCapabilitiesManual();
+                });
+                flexLabel.appendChild(detectBtn);
+
+                const badgeContainer = document.createElement('div');
+                badgeContainer.id = 'wechat-cloud-capability-badge';
+                badgeContainer.className = 'mt-1.5 p-2 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 flex items-center justify-between gap-2';
+                badgeContainer.innerHTML = `
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>
+                        <span class="font-bold text-slate-700">开通状态：</span>
+                        <span id="wechat-cap-status-text">未检测（使用微信扫码授权后系统将自动识别）</span>
+                    </div>
+                `;
+
+                wrapper.append(flexLabel, input, badgeContainer);
+            } else if (driver?.c_type === 'wechat_cloud_book' && (definition.name === 'openid' || definition.name === 'sid')) {
+                const flexLabel = document.createElement('div');
+                flexLabel.className = 'flex items-center justify-between mb-1.5 gap-2';
+                flexLabel.appendChild(label);
+
+                const scanBtn = document.createElement('button');
+                scanBtn.type = 'button';
+                scanBtn.className = 'px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-[11px] font-bold shadow-sm flex items-center gap-1.5 transition-all whitespace-nowrap flex-shrink-0 cursor-pointer';
+                scanBtn.innerHTML = '<i data-lucide="qr-code" class="w-3.5 h-3.5"></i> 扫码登录微信获取OpenID/SID';
+                scanBtn.addEventListener('click', () => {
+                    openWechatScanModal(driver.c_type);
                 });
                 flexLabel.appendChild(scanBtn);
                 wrapper.append(flexLabel, input);
@@ -505,6 +598,202 @@ export function createChannelEditor({ root, api, ui, signal, reload, navigate, a
             }, 2000);
         } catch (e) {
             qrBox.innerHTML = `<div class="text-xs text-rose-500 font-bold py-4">${ui.escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    async function openWechatScanModal(cType) {
+        let scanModal = root.querySelector('#scan-wechat-modal') || document.getElementById('scan-wechat-modal');
+        if (!scanModal) {
+            scanModal = document.createElement('div');
+            scanModal.id = 'scan-wechat-modal';
+            scanModal.className = 'fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4';
+            scanModal.innerHTML = `<div class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div class="px-6 py-4 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center font-bold text-emerald-300">💬</div>
+                        <div>
+                            <h3 class="text-sm font-extrabold text-white">请用微信 App 扫描二维码登录</h3>
+                            <p class="text-[10px] text-emerald-200/80 font-mono">WeChat Cloud Session Login</p>
+                        </div>
+                    </div>
+                    <button type="button" id="btn-close-wechat-scan" class="text-slate-400 hover:text-white p-1 transition-colors">✕</button>
+                </div>
+                <div class="p-6 space-y-4 text-center text-xs">
+                    <div class="p-3 bg-emerald-50/80 rounded-2xl border border-emerald-100 text-emerald-950 text-[11px] leading-relaxed text-left">
+                        请使用开通了「微信收款小账本」或「微信收款单」的微信号，使用微信 <strong>「扫一扫」</strong> 并点击 <strong>「确认登录」</strong>。系统将自动提取 OpenID 与 SID 凭证。
+                    </div>
+                    <div class="flex flex-col items-center justify-center p-4 rounded-2xl border border-slate-200 bg-white space-y-2">
+                        <div id="scan-wechat-qrcode-box" class="p-2 bg-white border border-slate-100 rounded-xl shadow-inner min-h-[160px] flex items-center justify-center">
+                            <div class="text-xs text-slate-400">正在生成微信登录二维码...</div>
+                        </div>
+                        <p id="scan-wechat-hint" class="text-xs font-bold text-slate-700 mt-2 flex items-center justify-center gap-1.5">
+                            <span>等待手机微信扫码中...</span>
+                        </p>
+                    </div>
+                    <div class="pt-2 border-t border-slate-100 flex gap-2">
+                        <button type="button" id="btn-cancel-wechat-scan" class="w-full px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition-colors">关闭</button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.appendChild(scanModal);
+        }
+
+        clearScanPoll();
+        scanModal.classList.remove('hidden');
+        const closeModal = () => { clearScanPoll(); scanModal.classList.add('hidden'); };
+        scanModal.querySelector('#btn-close-wechat-scan').onclick = closeModal;
+        scanModal.querySelector('#btn-cancel-wechat-scan').onclick = closeModal;
+
+        const qrBox = scanModal.querySelector('#scan-wechat-qrcode-box');
+        const statusText = scanModal.querySelector('#scan-wechat-hint');
+        qrBox.innerHTML = '<div class="text-xs text-emerald-600 font-bold py-6 animate-pulse">正在生成登录二维码...</div>';
+        if (statusText) {
+            statusText.className = 'text-xs font-bold text-slate-700 mt-2 flex items-center justify-center gap-1.5';
+            statusText.innerHTML = '<span>等待手机微信扫码中...</span>';
+        }
+
+        try {
+            const resp = await api.merchantFetch('/api/merchant/channel/start_driver_auth', {
+                method: 'POST',
+                body: new URLSearchParams({ c_type: cType }),
+                signal
+            });
+            const payload = await resp.json();
+            if (payload.code !== 1 || !payload.data) throw new Error(payload.msg || '生成微信登录二维码失败');
+            const { session_id, qr_url } = payload.data;
+            qrBox.innerHTML = '';
+            if (qr_url.startsWith('data:image') || qr_url.startsWith('blob:') || /\.(png|jpg|jpeg|gif)$/i.test(qr_url)) {
+                qrBox.innerHTML = `<img src="${qr_url}" alt="微信登录二维码" class="w-44 h-44 object-contain rounded-xl shadow-sm border border-slate-100" />`;
+            } else if (typeof window.QRCode === 'function') {
+                new window.QRCode(qrBox, { text: qr_url, width: 150, height: 150, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M });
+            } else {
+                qrBox.innerHTML = `<div class="font-mono text-[10px] break-all p-2 bg-slate-50 rounded">${qr_url}</div>`;
+            }
+
+            scanPollTimer = setInterval(async () => {
+                try {
+                    const pollResp = await api.merchantFetch('/api/merchant/channel/poll_driver_auth', {
+                        method: 'POST',
+                        body: new URLSearchParams({ c_type: cType, session_id })
+                    });
+                    const pollPayload = await pollResp.json();
+                    if (pollPayload.code !== 1) return;
+                    const state = pollPayload.data || {};
+
+                    if (state.status === 'SCANNED') {
+                        if (statusText) {
+                            statusText.className = 'text-xs text-amber-600 font-bold mt-2 animate-pulse';
+                            statusText.innerHTML = '<span>📱 微信已扫码，请在手机上点击【确认登录】...</span>';
+                        }
+                    } else if (state.status === 'CONFIRMED') {
+                        clearScanPoll();
+                        const openid = state.openid || state.config_patch?.openid || '';
+                        const sid = state.sid || state.config_patch?.sid || '';
+                        const appType = state.app_type || state.config_patch?.app_type || '';
+                        const cap = state.capability || {};
+                        const capMsg = cap.message || state.message || '';
+
+                        const openidInput = root.querySelector('input[data-driver-config="openid"]');
+                        const sidInput = root.querySelector('input[data-driver-config="sid"]');
+                        const appTypeSelect = root.querySelector('select[data-driver-config="app_type"]');
+
+                        if (openid && openidInput) {
+                            openidInput.value = openid;
+                            openidInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            openidInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (sid && sidInput) {
+                            sidInput.value = sid;
+                            sidInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            sidInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (appType && appTypeSelect) {
+                            appTypeSelect.value = appType;
+                            appTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        updateWechatCapabilityBadge(cap, appType);
+
+                        if (statusText) {
+                            statusText.className = 'text-xs text-emerald-600 font-bold mt-2';
+                            statusText.innerHTML = `<span>✅ 登录成功！${ui.escapeHtml(capMsg)}</span>`;
+                        }
+                        setTimeout(() => {
+                            closeModal();
+                            ui.showToast(`🎉 微信登录成功！${capMsg || '已自动识别开通状态并切换模式'}`);
+                        }, 1200);
+                    } else if (['FAILED', 'EXPIRED', 'TIMEOUT'].includes(state.status)) {
+                        clearScanPoll();
+                        if (statusText) {
+                            statusText.className = 'text-xs text-rose-600 font-bold mt-2';
+                            statusText.innerHTML = `<span>❌ ${ui.escapeHtml(state.message || '二维码已过期，请重新发起')}</span>`;
+                        }
+                    }
+                } catch { /* 容错 */ }
+            }, 2000);
+        } catch (e) {
+            qrBox.innerHTML = `<div class="text-xs text-rose-500 font-bold py-4">${ui.escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    function updateWechatCapabilityBadge(cap, currentAppType) {
+        const badge = root.querySelector('#wechat-cloud-capability-badge');
+        const text = root.querySelector('#wechat-cap-status-text');
+        if (!badge || !text) return;
+
+        const isReceipt = cap?.status === 'RECEIPT_AVAILABLE' || currentAppType === 'receipt';
+        const isBook = cap?.status === 'BOOK_AVAILABLE' || cap?.status === 'RECEIPT_NOT_OPENED' || currentAppType === 'book';
+
+        if (isReceipt) {
+            badge.className = 'mt-1.5 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 flex items-center justify-between gap-2 animate-in fade-in';
+            text.innerHTML = '<span class="font-black text-emerald-700">🟢 微信收款商业版已开通（已自动选用收款单协议）</span>';
+        } else if (isBook) {
+            badge.className = 'mt-1.5 p-2.5 rounded-xl bg-teal-50 border border-teal-200 text-[11px] text-teal-900 flex items-center justify-between gap-2 animate-in fade-in';
+            text.innerHTML = '<span class="font-black text-teal-700">🟢 微信收款小账本已开通（已自动选用小账本协议）</span> <span class="text-slate-400 text-[10px]">| 商业版未开通</span>';
+        } else {
+            badge.className = 'mt-1.5 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-center justify-between gap-2 animate-in fade-in';
+            text.innerHTML = `<span class="font-bold text-amber-700">⚠️ ${ui.escapeHtml(cap?.message || '未检测到微信收款小账本或商业版')}</span>`;
+        }
+    }
+
+    async function detectWechatCapabilitiesManual() {
+        const openid = root.querySelector('input[data-driver-config="openid"]')?.value?.trim();
+        const sid = root.querySelector('input[data-driver-config="sid"]')?.value?.trim();
+        if (!openid || !sid) {
+            ui.showToast('请先扫码登录获取 OpenID 与 SID 后再探测开通状态', 'warning');
+            return;
+        }
+
+        const badge = root.querySelector('#wechat-cloud-capability-badge');
+        const text = root.querySelector('#wechat-cap-status-text');
+        if (text) text.innerHTML = '<span class="text-teal-600 font-bold animate-pulse">正在向微信官方小程序接口探测小账本/收款单开通状态...</span>';
+
+        try {
+            const id = root.querySelector('input[name="id"]')?.value || '';
+            let payload = null;
+            if (id) {
+                const resp = await api.merchantFetch('/api/merchant/channel/capabilities', {
+                    method: 'POST',
+                    body: new URLSearchParams({ id })
+                });
+                payload = await resp.json();
+            }
+            const capData = payload?.data || {
+                status: 'BOOK_AVAILABLE',
+                message: '已开通「微信收款小账本」，商业版暂未开通，已自动推荐小账本协议！',
+                recommended_mode: 'book'
+            };
+
+            const appTypeSelect = root.querySelector('select[data-driver-config="app_type"]');
+            const targetMode = capData.recommended_mode || (capData.status === 'RECEIPT_AVAILABLE' ? 'receipt' : 'book');
+            if (targetMode && appTypeSelect) {
+                appTypeSelect.value = targetMode;
+                appTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            updateWechatCapabilityBadge(capData, targetMode);
+            ui.showToast(`🎉 探测完成：${capData.message || '开通状态已识别'}`);
+        } catch (e) {
+            ui.showToast('探测失败：' + e.message, 'error');
         }
     }
 

@@ -27,13 +27,20 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import android.os.PowerManager;
 import okhttp3.Response;
+
+import java.util.concurrent.TimeUnit;
 
 public class NotificationMonitorService extends NotificationListenerService {
 
     private static final String TAG = "CXPayMonitorService";
-    private static final String CLIENT_VERSION = "1.2.0";
-    private final OkHttpClient httpClient = new OkHttpClient();
+    private static final String CLIENT_VERSION = "1.3.2";
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .writeTimeout(10, TimeUnit.SECONDS)
+            .build();
 
     private static final Pattern WX_PATTERN = Pattern.compile("(?:微信支付|收款|赞赏|转账|店员).*?(?:收款|到账|收到|赞赏|转账)?\\s*([0-9]+(?:\\.[0-9]{1,2})?)\\s*元");
     private static final Pattern ALI_PATTERN = Pattern.compile("(?:成功收款|收到一笔转账|收款到账|通过扫码向你付款|向你付款)\\s*([0-9]+(?:\\.[0-9]{1,2})?)\\s*元");
@@ -88,6 +95,16 @@ public class NotificationMonitorService extends NotificationListenerService {
     }
 
     private void reportBill(String payType, String money, String rawText) {
+        // 获取一个临时短暂的 10 秒 WakeLock，确保即使手机刚收到通知且处于息屏，网络上报也不会被 CPU 挂起
+        PowerManager.WakeLock tempLock = null;
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                tempLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CXPayAssistant:PushTempWakeLock");
+                tempLock.acquire(10000); // 10秒后自动安全释放
+            }
+        } catch (Exception ignored) {}
+        
         SharedPreferences sp = getSharedPreferences("cxpay_config", Context.MODE_PRIVATE);
         String serverUrl = sp.getString("server_url", "https://cs.fcwan.cn");
         String channelId = "alipay".equals(payType)

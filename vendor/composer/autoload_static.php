@@ -22,6 +22,7 @@ class ComposerStaticInit8ee06c5e55ddb39443796e6e290d206b
         '988d02680beedec88d52f2787b2d2007' => __DIR__ . '/..' . '/yansongda/artful/src/Functions.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         'ef65a1626449d89d0811cf9befce46f0' => __DIR__ . '/..' . '/illuminate/events/functions.php',
+        '3109cb1a231dcd04bee1f9f620d46975' => __DIR__ . '/..' . '/paragonie/sodium_compat/autoload.php',
         'ec07570ca5a812141189b1fa81503674' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Assert/Functions.php',
         'e39a8b23c42d4e1452234d762b03835a' => __DIR__ . '/..' . '/ramsey/uuid/src/functions.php',
         '8c783b3a3de2f6d9177022b5ccdcc841' => __DIR__ . '/..' . '/yansongda/pay/src/Functions.php',
@@ -53,6 +54,7 @@ class ComposerStaticInit8ee06c5e55ddb39443796e6e290d206b
         ),
         'W' => 
         array (
+            'WxpayClerk\\' => 11,
             'WxMonitorCloud\\' => 15,
             'WxCollector\\' => 12,
             'Workerman\\Coroutine\\' => 20,
@@ -88,6 +90,7 @@ class ComposerStaticInit8ee06c5e55ddb39443796e6e290d206b
             'Psr\\Clock\\' => 10,
             'PhpParser\\' => 10,
             'PhpOption\\' => 10,
+            'ParagonIE\\Sodium\\' => 17,
             'PHPMailer\\PHPMailer\\' => 20,
         ),
         'M' => 
@@ -164,6 +167,10 @@ class ComposerStaticInit8ee06c5e55ddb39443796e6e290d206b
         'Yansongda\\Artful\\' => 
         array (
             0 => __DIR__ . '/..' . '/yansongda/artful/src',
+        ),
+        'WxpayClerk\\' => 
+        array (
+            0 => __DIR__ . '/../..' . '/services/wxpay-clerk-service/src',
         ),
         'WxMonitorCloud\\' => 
         array (
@@ -270,6 +277,10 @@ class ComposerStaticInit8ee06c5e55ddb39443796e6e290d206b
         'PhpOption\\' => 
         array (
             0 => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption',
+        ),
+        'ParagonIE\\Sodium\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/paragonie/sodium_compat/namespaced',
         ),
         'PHPMailer\\PHPMailer\\' => 
         array (

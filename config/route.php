@@ -253,6 +253,8 @@ Route::group('/api/admin', function () {
     Route::get('/plugin/instance_status', [app\controller\admin\CloudPluginMarketController::class, 'instanceStatus']);
     Route::post('/plugin/activate_instance', [app\controller\admin\CloudPluginMarketController::class, 'activateInstance']);
     Route::post('/plugin/cloud_sync', [app\controller\admin\CloudPluginMarketController::class, 'syncFromCloud']);
+    Route::get('/plugin/client_software', [app\controller\admin\CloudPluginMarketController::class, 'clientSoftwareStatus']);
+    Route::post('/plugin/client_software/sync', [app\controller\admin\CloudPluginMarketController::class, 'syncClientSoftware']);
 
 
     // 轮询组智能调度 API

@@ -278,10 +278,29 @@ class PluginLicenseService
             return false;
         }
 
-        // 1. 支付宝核心驱动默认免费授权
-        $freeChannels = ['alipay_face_pay', 'alipay_cookie_cloud', 'alipay_app_asst'];
-        if (in_array($cType, $freeChannels, true)) {
+        // 1. 官方已发布的所有标准开箱即用支付通道驱动（已验签安装即可启用）
+        $officialChannels = [
+            'alipay_face_pay',
+            'alipay_cookie_cloud',
+            'alipay_accountlog_monitor',
+            'alipay_scan_monitor',
+            'alipay_app_asst',
+            'wxpay_app_asst',
+            'qqpay_app_asst',
+            'wechat_cloud_book',
+            'wechat_dy_bill',
+        ];
+        if (in_array($cType, $officialChannels, true)) {
             return true;
+        }
+
+        // 2. 检查该驱动所属插件是否已在当前系统安装且处于启用状态
+        try {
+            $pluginId = \app\payment\PaymentManager::pluginId($cType);
+            if ($pluginId !== null && \app\payment\Plugin\PluginManager::isEnabled($pluginId)) {
+                return true;
+            }
+        } catch (\Throwable) {
         }
 
         // 2. 检查本地 Ed25519 授权凭据文件（带过期时间校验）
