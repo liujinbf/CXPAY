@@ -17,7 +17,7 @@ final class SystemUpdateGuard
 
     public function isEnabled(): bool
     {
-        return $this->enabled ?? (bool)config('app.system_update_enabled', false);
+        return $this->enabled ?? (bool)config('app.system_update_enabled', true);
     }
 
     public function disabledResponse(): ?Response

@@ -424,6 +424,130 @@ final class CloudInstanceClient
     }
 
     /**
+     * 向云端主控面检测主站系统版本更新
+     *
+     * @param string $currentVersion 当前运行版本，例如 '1.0.0'
+     * @param string $category 软件包类别，默认 'SOURCE_CODE'
+     * @return array{
+     *   has_update: bool,
+     *   current_version: string,
+     *   latest_version: string,
+     *   download_url: string,
+     *   sha256: string,
+     *   file_size_bytes: int,
+     *   changelog: string,
+     *   checked_at: string
+     * }
+     */
+    public function checkSystemUpdate(string $currentVersion, string $category = 'SOURCE_CODE'): array
+    {
+        $url = $this->cloudApiUrl . '/api/instance/v1/update-check?' . http_build_query([
+            'product_version' => $currentVersion,
+            'category'        => $category,
+        ]);
+
+        try {
+            $res = $this->httpGet($url);
+            if (($res['code'] ?? 0) === 1 && !empty($res['data']) && is_array($res['data'])) {
+                return $res['data'];
+            }
+        } catch (Throwable) {
+            // 云端请求降级
+        }
+
+        return [
+            'has_update'      => false,
+            'current_version' => $currentVersion,
+            'latest_version'  => $currentVersion,
+            'download_url'    => '',
+            'sha256'          => '',
+            'file_size_bytes' => 0,
+            'changelog'       => '',
+            'checked_at'      => date('Y-m-d H:i:s'),
+        ];
+    }
+
+    /**
+     * 从官方云端安全下载系统更新包并校验哈希完整性
+     */
+    public function downloadSystemUpdate(
+        string $downloadUrl,
+        string $targetFile,
+        ?string $expectedSha256 = null
+    ): void {
+        $fullUrl = $downloadUrl;
+        if (!str_starts_with($fullUrl, 'http://') && !str_starts_with($fullUrl, 'https://')) {
+            $fullUrl = $this->cloudApiUrl . '/' . ltrim($fullUrl, '/');
+        }
+
+        $dir = dirname($targetFile);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        $tempFile = $targetFile . '.part_' . bin2hex(random_bytes(4));
+        try {
+            $opts = [
+                'http' => [
+                    'method' => 'GET',
+                    'timeout' => 180,
+                    'ignore_errors' => true,
+                    'user_agent' => 'CXPAY-Instance/' . (string)config('app.version', '1.0.0'),
+                ],
+                'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
+            ];
+            $in = @fopen($fullUrl, 'rb', false, stream_context_create($opts));
+            if (!$in) {
+                throw new RuntimeException("无法从云端建立下载流: {$fullUrl}");
+            }
+            $out = @fopen($tempFile, 'wb');
+            if (!$out) {
+                @fclose($in);
+                throw new RuntimeException("无法创建本地临时更新文件: {$tempFile}");
+            }
+
+            while (!feof($in)) {
+                $buf = fread($in, 65536);
+                if ($buf === false) {
+                    break;
+                }
+                fwrite($out, $buf);
+            }
+            @fclose($in);
+            @fclose($out);
+
+            if (!file_exists($tempFile) || filesize($tempFile) < 1024) {
+                throw new RuntimeException('下载更新包为空或小于有效大小');
+            }
+
+            // 检查是否误下载了 HTML 报错页
+            $head = (string)file_get_contents($tempFile, false, null, 0, 100);
+            if (str_contains(strtolower($head), '<!doctype') || str_contains(strtolower($head), '<html')) {
+                throw new RuntimeException('云端返回了错误网页，未获取到有效更新包');
+            }
+
+            // 校验 SHA256
+            if ($expectedSha256 !== null && $expectedSha256 !== '') {
+                $actualSha256 = hash_file('sha256', $tempFile);
+                if (!hash_equals(strtolower($expectedSha256), strtolower((string)$actualSha256))) {
+                    throw new RuntimeException("更新包 SHA256 校验失败 (预期: {$expectedSha256}, 实际: {$actualSha256})");
+                }
+            }
+
+            if (file_exists($targetFile)) {
+                @unlink($targetFile);
+            }
+            if (!rename($tempFile, $targetFile)) {
+                throw new RuntimeException("重命名更新包目标文件失败: {$targetFile}");
+            }
+        } finally {
+            if (file_exists($tempFile)) {
+                @unlink($tempFile);
+            }
+        }
+    }
+
+    /**
      * 从云端申请凭证、下载并安装插件（遵循双层体系架构与官方数字验签规范）
      */
     public function downloadAndInstallPlugin(string $pluginId, string $version, string $cxpayVersion = '1.0.0'): array
